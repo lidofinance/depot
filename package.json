@@ -1,0 +1,18 @@
+{
+  "name": "hardhat-project",
+  "devDependencies": {
+    "@foundry-rs/hardhat-anvil": "^0.1.7",
+    "@lidofinance/evm-script-decoder": "0.2.2",
+    "@nomicfoundation/hardhat-ethers": "^3.0.4",
+    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "@types/prompts": "^2.4.4",
+    "hardhat": "^2.16.1",
+    "prettier": "^3.0.0"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^2.6.12",
+    "prompts": "^2.4.2"
+  }
+}
