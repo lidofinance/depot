@@ -1,51 +1,51 @@
 import type { JsonFragment, ContractRunner, BaseContract } from "ethers";
+import { ChainName } from "../networks";
 
-interface ContractLabel {
-  label: string;
-}
-export type LabeledContract<T extends BaseContract = BaseContract> = T &
-  Addressable &
-  ContractLabel;
+export type ChainId = string | number | bigint;
+
+export type NamedContract<
+  T extends BaseContract = BaseContract,
+  A extends Address = Address,
+> = T & {
+  address: A;
+  name: string;
+};
 
 export interface ContractFactory<T extends BaseContract = BaseContract> {
-  connect(address: string, runner?: ContractRunner | null): T;
+  connect(address: string, runner?: ContractRunner | null | undefined): T;
 }
 
-export type FactoryAddressTuple<Factory extends ContractFactory = ContractFactory> = readonly [
-  Factory,
-  Address,
-];
+export interface ContractConfig<Factory extends ContractFactory = ContractFactory> {
+  title?: string;
+  factory: Factory;
+  address: Address;
+}
 
-export interface ContractConfig<
+export interface ProxiableContractConfig<
   ImplFactory extends ContractFactory = ContractFactory,
   ProxyFactory extends ContractFactory = ContractFactory,
 > {
-  impl: FactoryAddressTuple<ImplFactory>;
-  proxy: FactoryAddressTuple<ProxyFactory> | null;
+  chain?: ChainName;
+  impl: ContractConfig<ImplFactory>;
+  proxy: ContractConfig<ProxyFactory> | null;
 }
 
-export type ContractsConfig = Record<string, ContractConfig>;
+export interface ContractsConfig {
+  [key: string]: ContractsConfig | ProxiableContractConfig;
+}
 
-export interface ContractAbi {
+export interface NamedContractData {
   name: string;
   abi: JsonFragment[];
   isProxy: boolean;
   implementation?: Address;
 }
 
-export interface ContractAbiCache {
-  get(network: NetworkName, address: Address): Promise<ContractAbi | null>;
-  set(network: NetworkName, address: Address, abi: ContractAbi): Promise<void>;
+export interface NamedContractDataCache {
+  get(chainId: ChainId, address: Address): Promise<NamedContractData | null>;
+  set(chainId: ChainId, address: Address, abi: NamedContractData): Promise<void>;
 }
 
-export interface ContractAbiResolver {
-  resolve(network: NetworkName, address: Address): Promise<ContractAbi | null>;
-}
-
-export interface ContractsResolver {
-  resolve(
-    network: NetworkName,
-    address: Address,
-    runner?: ContractRunner | null,
-  ): Promise<LabeledContract | null>;
+export interface NamedContractDataResolver {
+  resolve(chainId: ChainId, address: Address): Promise<NamedContractData | null>;
 }

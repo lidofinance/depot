@@ -4,13 +4,15 @@ coverage
 coverage.json
 typechain
 typechain-types
+.vscode
 
 # Hardhat files
 cache
 artifacts
 
-accounts
-abi-cache
+keystores
+rpc-node-logs
+etherscan-cache
 
 # OS specific
 .DS_store

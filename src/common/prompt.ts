@@ -1,5 +1,18 @@
 import prompts from "prompts";
 
+export interface SelectChoice {
+  value: string;
+  title: string;
+}
+
+export interface SecretOptions {
+  invisible?: boolean; // false by default
+}
+
+export interface PasswordOptions {
+  confirmation?: boolean; // true by default
+}
+
 class OperationAbortedError extends Error {
   constructor() {
     super("Operation was aborted by the user");
@@ -12,18 +25,24 @@ class PasswordConfirmationMismatchError extends Error {
   }
 }
 
-interface SelectChoice<T = unknown> {
-  value: T;
-  title: string;
-}
-
 const DEFAULT_PROMPTS_OPTIONS = {
   onCancel() {
     throw new OperationAbortedError();
   },
 };
 
-export async function select<T = unknown>(message: string, choices: SelectChoice<T>[]) {
+async function confirm(message?: string) {
+  const { isConfirmed } = await prompts({
+    type: "toggle",
+    name: "isConfirmed",
+    message: message ?? "Confirm?",
+    active: "yes",
+    inactive: "no",
+  });
+  return isConfirmed;
+}
+
+async function select(message: string, choices: SelectChoice[]) {
   const { value } = await prompts(
     {
       name: "value",
@@ -36,11 +55,19 @@ export async function select<T = unknown>(message: string, choices: SelectChoice
   return value;
 }
 
-interface PasswordOptions {
-  confirmation?: boolean; // true by default
+async function secret(message: string, options?: SecretOptions): Promise<string> {
+  const { value } = await prompts(
+    {
+      name: "value",
+      message,
+      type: options?.invisible === true ? "invisible" : "password",
+    },
+    DEFAULT_PROMPTS_OPTIONS,
+  );
+  return value;
 }
 
-export async function password(message: string, options: PasswordOptions) {
+async function password(message: string, options: PasswordOptions): Promise<string> {
   const password = await secret(message ?? "Enter the password:", {
     invisible: true,
   });
@@ -57,32 +84,17 @@ export async function password(message: string, options: PasswordOptions) {
   return password;
 }
 
-interface SecretOptions {
-  invisible?: boolean; // false by default
-}
+async function sigint() {
+  console.log("Press CTRL + C to exit");
+  const sigintPromise = new Promise<void>((resolve) => {
+    const timeout = setTimeout(resolve, 2147483646);
+    process.on("SIGINT", () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+  });
 
-export async function secret(message: string, options?: SecretOptions) {
-  const { value } = await prompts(
-    {
-      name: "value",
-      message,
-      type: options?.invisible === true ? "invisible" : "password",
-    },
-    DEFAULT_PROMPTS_OPTIONS,
-  );
-  return value;
-}
-
-async function confirm(message?: string) {
-  const { isConfirmed } = await prompts(
-    {
-      type: "confirm",
-      name: "isConfirmed",
-      message: message ?? "Confirm?",
-    },
-    DEFAULT_PROMPTS_OPTIONS,
-  );
-  return isConfirmed;
+  await sigintPromise;
 }
 
 export default {
@@ -90,4 +102,5 @@ export default {
   select,
   confirm,
   password,
+  sigint,
 };

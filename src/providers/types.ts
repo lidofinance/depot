@@ -1,9 +1,11 @@
-import { Provider } from "ethers";
+import { HardhatEthersProvider } from "@nomicfoundation/hardhat-ethers/internal/hardhat-ethers-provider";
+import { JsonRpcProvider, Signer } from "ethers";
 
-export interface SendProvider extends Provider {
-  send(method: string, params: any[]): Promise<any>;
-}
+export type RpcProvider = JsonRpcProvider | HardhatEthersProvider;
+export type SignerWithAddress = Signer & { address: Address };
 
-export interface ProviderExtender<P extends Provider = Provider, E = unknown> {
-  extend(provider: P): P & E;
+export interface SnapshotRestorer {
+  revert(): Promise<void>;
+  restore(): Promise<void>;
+  snapshotId: string;
 }
