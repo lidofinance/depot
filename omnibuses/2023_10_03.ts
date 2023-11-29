@@ -1,7 +1,7 @@
 import { Omnibus } from "../src/omnibuses/omnibus";
-import { AccessControlGrantRole as AccessControlGrantRoleAction } from "../src/omnibuses/actions/access-control-grant-role";
-import { AddNodeOperators as AddNodeOperatorsAction } from "../src/omnibuses/actions/add-node-operators";
-import { UpdateTargetValidatorsLimit as UpdateTargetValidatorsLimitAction } from "../src/omnibuses/actions/update-target-validators-limit";
+import { AccessControlGrantRole } from "../src/omnibuses/actions/access-control-grant-role";
+import { AddNodeOperators } from "../src/omnibuses/actions/add-node-operators";
+import { UpdateTargetValidatorsLimit } from "../src/omnibuses/actions/update-target-validators-limit";
 
 export default new Omnibus({
   network: "mainnet",
@@ -9,7 +9,7 @@ export default new Omnibus({
   launching: { date: "Oct-03-2023 05:46:59 PM UTC", blockNumber: 18271583 },
   execution: { date: "Oct-06-2023 06:51:23 PM UTC", blockNumber: 18293362 },
   actions: ({ agent, stakingRouter }) => [
-    new AddNodeOperatorsAction({
+    new AddNodeOperators({
       operators: [
         {
           name: "A41",
@@ -42,13 +42,13 @@ export default new Omnibus({
       ],
     }),
 
-    new AccessControlGrantRoleAction({
+    new AccessControlGrantRole({
       role: "STAKING_MODULE_MANAGE_ROLE",
       on: stakingRouter,
       to: agent,
     }),
 
-    new UpdateTargetValidatorsLimitAction({
+    new UpdateTargetValidatorsLimit({
       stakingModuleId: 1,
       nodeOperator: { name: "Jump Crypto", id: 1 },
       targetValidatorsCount: 0,
