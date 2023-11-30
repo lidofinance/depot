@@ -1,6 +1,7 @@
 import fetch from "node-fetch";
 import clarinet from "clarinet";
 import { HexStr } from "../common/bytes";
+import { JsonBuilder } from "./json-builder";
 
 const CALL_TRACE_OPCODES = [
   "CREATE",
@@ -26,97 +27,7 @@ interface StructLogTracerHandlers {
   gas?(gas: number): void;
   error?(error: JsonRpcError): void;
   structLog?(structLog: RawStructLog): void;
-  returnValue?(handler: (returnValue: string) => void): void;
-}
-
-const TOKENS = {
-  OBJECT_OPEN: "{",
-  OBJECT_CLOSE: "}",
-  ARRAY_OPEN: "[",
-  ARRAY_CLOSE: "]",
-  COLON: ":",
-  COMMA: ",",
-  DOUBLE_QUOTES: '"',
-};
-
-class JsonBuilder {
-  private readonly tokens: string[] = [];
-
-  private parse(tokens: string[]): object {
-    return JSON.parse(tokens.join("").replace(/\n/g, "\\n"));
-  }
-
-  build(): object {
-    return this.parse(this.tokens.splice(0, this.tokens.length));
-  }
-
-  pop(): object | null {
-    if (this.tokens[this.tokens.length - 1] !== TOKENS.OBJECT_CLOSE) {
-      // there is no built object on the top of the tokens stack
-      return null;
-    }
-    let objectOpenIndex = this.tokens.length - 1;
-    while (objectOpenIndex > 0 && this.tokens[objectOpenIndex] !== TOKENS.OBJECT_OPEN) {
-      --objectOpenIndex;
-    }
-    if (objectOpenIndex < 0) {
-      throw new Error(`Invalid JSON. Corresponding "${TOKENS.OBJECT_OPEN}" token not found`);
-    }
-
-    if (objectOpenIndex > 0 && this.tokens[objectOpenIndex - 1] === TOKENS.COLON) {
-      // return null because it's part of the larger object
-      return null;
-    }
-
-    return this.parse(this.tokens.splice(objectOpenIndex, this.tokens.length - objectOpenIndex));
-  }
-
-  key(key: string) {
-    this.tokens.push(TOKENS.DOUBLE_QUOTES);
-    this.tokens.push(key);
-    this.tokens.push(TOKENS.DOUBLE_QUOTES);
-    this.tokens.push(TOKENS.COLON);
-  }
-
-  value(value: string | number | boolean | null) {
-    if (typeof value === "string") {
-      this.tokens.push(TOKENS.DOUBLE_QUOTES);
-      this.tokens.push(value);
-      this.tokens.push(TOKENS.DOUBLE_QUOTES);
-    } else {
-      this.tokens.push("" + value); // cast to string
-    }
-    this.comma();
-  }
-
-  openArray() {
-    this.tokens.push(TOKENS.ARRAY_OPEN);
-  }
-
-  closeArray() {
-    this.stripTrailingComma();
-    this.tokens.push(TOKENS.ARRAY_CLOSE);
-    this.comma();
-  }
-
-  openObject() {
-    this.tokens.push(TOKENS.OBJECT_OPEN);
-  }
-
-  closeObject() {
-    this.stripTrailingComma();
-    this.tokens.push(TOKENS.OBJECT_CLOSE);
-  }
-
-  private comma() {
-    this.tokens.push(TOKENS.COMMA);
-  }
-
-  private stripTrailingComma() {
-    if (this.tokens[this.tokens.length - 1] === TOKENS.COMMA) {
-      this.tokens.pop();
-    }
-  }
+  returnValue?(returnValue: string): void;
 }
 
 export class StructLogTracer {
@@ -127,6 +38,7 @@ export class StructLogTracer {
 
     const cparser = clarinet.parser();
     const jsonBuilder = new JsonBuilder();
+    let obj: any = null;
 
     cparser.onopenobject = (key?: string) => {
       jsonBuilder.openObject();
@@ -138,11 +50,10 @@ export class StructLogTracer {
     cparser.oncloseobject = () => {
       jsonBuilder.closeObject();
 
-      const object = jsonBuilder.pop();
-      if (!object) return;
+      obj = jsonBuilder.pop();
 
-      if (this.handlers?.structLog && this.isStructLog(object)) {
-        this.handlers.structLog(object);
+      if (this.handlers?.structLog && this.isStructLog(obj)) {
+        this.handlers.structLog(obj);
       }
     };
 
@@ -158,7 +69,7 @@ export class StructLogTracer {
     for await (const chunk of response.body) {
       cparser.write(chunk.toString());
     }
-    const { result, error } = jsonBuilder.build() as any;
+    const { result, error } = obj;
 
     if (result) {
       this.handlers.gas?.(result.gas);
@@ -174,6 +85,7 @@ export class StructLogTracer {
   private isStructLog(log: unknown): log is RawStructLog {
     const asRawLog = log as RawStructLog;
     return (
+      asRawLog &&
       asRawLog.op !== undefined &&
       asRawLog.depth !== undefined &&
       asRawLog.pc !== undefined &&
