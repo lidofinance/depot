@@ -15,12 +15,6 @@ class UnsupportedChainError extends Error {
   }
 }
 
-class UnsupportedNetworkError extends Error {
-  constructor(networkName: string) {
-    super(`Unsupported network ${networkName}`);
-  }
-}
-
 const NETWORKS: Record<ChainName, Record<NetworkName, Network>> = {
   eth: {
     mainnet: new Network("mainnet", 1),

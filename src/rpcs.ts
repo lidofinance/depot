@@ -142,10 +142,16 @@ export type GanacheNodeOptions = Partial<{
   }>;
 }>;
 
-export interface SpawnedRpcNode {
+type RpcNodeOptions = AnvilNodeOptions | HardhatNodeOptions | GanacheNodeOptions;
+export interface SpawnedRpcNode<
+  N extends RpcNodeName = RpcNodeName,
+  O extends RpcNodeOptions = RpcNodeOptions,
+> {
   url: string;
   host: string;
   port: number;
+  name: N;
+  options: O;
   process: ChildProcessWithoutNullStreams;
   provider: JsonRpcProvider;
   stop(): Promise<void>;
@@ -216,13 +222,19 @@ function spawnGanacheProcess(options: GanacheNodeOptions) {
   return spawnProcess({ command: "npx", args: ["ganache-cli"], flags });
 }
 
-async function spawnNode(name: "anvil", options?: AnvilNodeOptions): Promise<SpawnedRpcNode>;
-async function spawnNode(name: "hardhat", options?: HardhatNodeOptions): Promise<SpawnedRpcNode>;
-async function spawnNode(name: "ganache", options?: GanacheNodeOptions): Promise<SpawnedRpcNode>;
 async function spawnNode(
-  name: RpcNodeName,
-  options: AnvilNodeOptions | HardhatNodeOptions | GanacheNodeOptions = {},
-): Promise<SpawnedRpcNode> {
+  name: "anvil",
+  options?: AnvilNodeOptions,
+): Promise<SpawnedRpcNode<"anvil", AnvilNodeOptions>>;
+async function spawnNode(
+  name: "hardhat",
+  options?: HardhatNodeOptions,
+): Promise<SpawnedRpcNode<"hardhat", HardhatNodeOptions>>;
+async function spawnNode(
+  name: "ganache",
+  options?: GanacheNodeOptions,
+): Promise<SpawnedRpcNode<"ganache", GanacheNodeOptions>>;
+async function spawnNode(name: RpcNodeName, options: RpcNodeOptions = {}): Promise<SpawnedRpcNode> {
   let port: number;
   let host: string;
   let node: ChildProcessWithoutNullStreams;
@@ -278,7 +290,7 @@ async function spawnNode(
       if (chunkString.includes(hardhatRunMessage) || chunkString.includes(nodeRunMessage)) {
         node.stdin.off("data", nodeRunDataListener);
         const url = "http://" + host + ":" + port;
-        resolve({ host, port, process: node, url, provider, stop });
+        resolve({ host, port, process: node, url, provider, name, options, stop });
       }
     };
 

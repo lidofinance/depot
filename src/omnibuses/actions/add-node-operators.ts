@@ -63,7 +63,7 @@ export class AddNodeOperators extends OmnibusAction<AddNodeOperatorsInput> {
       const expectedNodeOperatorId = nodeOperatorsCountBefore + i;
 
       res.push([
-        `Added node operator "${name}": id=${expectedNodeOperatorId}, rewardAddress=${rewardAddress}`,
+        `Added node operator "${name}"`,
         event(callsScript, "LogScriptCall", { emitter: voting }),
         event(callsScript, "LogScriptCall", { emitter: agent }),
         event(curatedStakingModule, "NodeOperatorAdded", {

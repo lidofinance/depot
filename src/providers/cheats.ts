@@ -29,7 +29,7 @@ class InvalidEvmRevertResult extends Error {
   }
 }
 
-interface Cheats {
+export interface ProviderCheats {
   node(): Promise<LocalNodeInfo>;
   signers(): Promise<SignerWithAddress[]>;
   increaseTime(seconds: number | bigint): Promise<void>;
@@ -56,7 +56,7 @@ async function fetchNodeInfo<T extends RpcProvider>(provider: T): Promise<LocalN
 async function sendMine(
   node: LocalNodeInfo,
   provider: RpcProvider,
-  blocks: number
+  blocks: number,
 ): Promise<unknown> {
   switch (node.name) {
     case "anvil":
@@ -81,7 +81,7 @@ function signer(provider: RpcProvider, address: Address): Promise<SignerWithAddr
 async function sendImpersonate(
   node: LocalNodeInfo,
   provider: RpcProvider,
-  address: Address
+  address: Address,
 ): Promise<unknown> {
   switch (node.name) {
     case "anvil":
@@ -100,7 +100,7 @@ async function sendSetCode(
   node: LocalNodeInfo,
   provider: RpcProvider,
   address: Address,
-  code: string
+  code: string,
 ): Promise<unknown> {
   const params = [address, code];
 
@@ -118,7 +118,7 @@ async function sendSetBalance(
   node: LocalNodeInfo,
   provider: RpcProvider,
   address: Address,
-  balance: bigint
+  balance: bigint,
 ): Promise<unknown> {
   const params = [address, bytes.encode(balance)];
 
@@ -136,7 +136,7 @@ async function sendReset(
   node: LocalNodeInfo,
   provider: RpcProvider,
   jsonRpcUrl?: string,
-  blockNumber?: number
+  blockNumber?: number,
 ): Promise<unknown> {
   const params: { forking?: { jsonRpcUrl?: string; blockNumber?: number } } = {};
   if (jsonRpcUrl !== undefined) {
@@ -164,7 +164,7 @@ async function sendReset(
 async function sendLock(
   node: LocalNodeInfo,
   provider: RpcProvider,
-  address: Address
+  address: Address,
 ): Promise<unknown> {
   switch (node.name) {
     case "anvil":
@@ -176,7 +176,7 @@ async function sendLock(
   }
 }
 
-export function cheats(provider: RpcProvider): Cheats {
+export function cheats(provider: RpcProvider): ProviderCheats {
   let cachedNode: LocalNodeInfo | undefined;
 
   async function revert(snapshotId: string): Promise<void> {

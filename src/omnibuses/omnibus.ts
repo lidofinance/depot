@@ -8,7 +8,7 @@ import { NetworkName } from "../networks";
 import lido, { LidoEthContracts } from "../lido";
 import { EvmScriptParser, FormattedEvmCall } from "../votes";
 import votes, { EventCheck } from "../votes";
-import { TxCallTrace } from "../traces/tx-call-trace";
+import { TxTrace } from "../traces/tx-traces";
 import providers, { RpcProvider, SignerWithAddress, SnapshotRestorer } from "../providers";
 import bytes from "../common/bytes";
 
@@ -77,7 +77,7 @@ interface OmnibusPlan<N extends NetworkName> {
 
 export interface SimulationGroup {
   call: FormattedEvmCall;
-  trace: TxCallTrace;
+  trace: TxTrace;
   title: string;
 }
 
@@ -177,7 +177,7 @@ export class Omnibus<N extends NetworkName> {
       const startIndex = voteTrace.calls.findIndex(
         (opCode) =>
           (opCode.type === "CALL" || opCode.type === "DELEGATECALL") &&
-          bytes.isEqual(opCode.to, contract) &&
+          bytes.isEqual(opCode.address, contract) &&
           bytes.isEqual(opCode.input, calldata),
       );
       voteCallIndices.push(startIndex);
@@ -270,8 +270,9 @@ export class Omnibus<N extends NetworkName> {
         const actionEventsSuite = Mocha.Suite.create(eventsSuite, action.constructor.name);
 
         for (const [name, ...eventChecks] of action.events()) {
+          const eventNames = eventChecks.map((e) => e.fragment.name).join(", ");
           actionEventsSuite.addTest(
-            new Test(name, () => {
+            new Test(`${name} [${eventNames}]`, () => {
               const foundSubsequence = votes.subsequence(
                 enactReceipt.logs as Log[],
                 eventChecks,

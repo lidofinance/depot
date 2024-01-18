@@ -43,7 +43,7 @@ function toInt(bytes: HexStr) {
   const asBigInt = toBigInt(bytes);
   if (asBigInt > Number.MAX_SAFE_INTEGER) {
     throw new Error(
-      `Int overflow: ${asBigInt} > ${Number.MAX_SAFE_INTEGER}. Use cast to BigInt instead`,
+      `Int overflow: ${asBigInt} > Number.MAX_SAFE_INTEGER. Use cast to BigInt instead`,
     );
   }
   return Number(asBigInt);

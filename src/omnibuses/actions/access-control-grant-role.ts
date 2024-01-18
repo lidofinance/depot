@@ -42,11 +42,14 @@ export class AccessControlGrantRole extends OmnibusAction<AccessControlGrantRole
   }
 
   events(): TitledEventChecks[] {
+    const { role, to } = this.input;
     return [
       [
-        `AccessControl(${this.onAddress}).grantRole()`,
+        `Role "${role}" was granted on ${contracts.address(
+          this.accessControl,
+        )} to ${contracts.address(to)}`,
         event(this.accessControl, "RoleGranted", {
-          args: [id(this.input.role), this.input.to, undefined],
+          args: [id(role), to, undefined],
         }),
       ],
     ];

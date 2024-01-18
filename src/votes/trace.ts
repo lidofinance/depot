@@ -1,5 +1,5 @@
 import { ContractTransactionReceipt, FunctionFragment } from "ethers";
-import { TxCallTraceItem } from "../traces/tx-call-trace";
+import { TxTraceItem } from "../traces/tx-traces";
 import providers from "../providers";
 import traces from "../traces";
 import bytes from "../common/bytes";
@@ -108,28 +108,28 @@ export async function trace(
 }
 
 function omitStaticCalls() {
-  return (opCode: TxCallTraceItem) => {
+  return (opCode: TxTraceItem) => {
     return opCode.type !== "STATICCALL";
   };
 }
 
 function omitProxyDelegateCalls() {
-  return (opCode: TxCallTraceItem, i: number, opCodes: TxCallTraceItem[]) => {
-    if (opCode.type !== "DELEGATECALL") return true;
-    const prevOpcode = opCodes[i - 1]!;
+  return (txTraceItem: TxTraceItem, i: number, txTraceItems: TxTraceItem[]) => {
+    if (txTraceItem.type !== "DELEGATECALL") return true;
+    const prevOpcode = txTraceItems[i - 1]!;
     if (prevOpcode.type !== "CALL" && prevOpcode.type !== "STATICCALL") return true;
-    return opCode.input !== prevOpcode.input;
+    return txTraceItem.input !== prevOpcode.input;
   };
 }
 
 function omitMethodCalls(calls: MethodCallConfig[]) {
-  return (opCode: TxCallTraceItem) =>
+  return (txTraceItem: TxTraceItem) =>
     !calls.some(
       (call) =>
-        call.type === opCode.type &&
-        bytes.isEqual(call.address, opCode.to) &&
+        call.type === txTraceItem.type &&
+        bytes.isEqual(call.address, txTraceItem.address) &&
         (call.fragment
-          ? bytes.isEqual(call.fragment.selector, bytes.slice(opCode.input, 0, 4))
+          ? bytes.isEqual(call.fragment.selector, bytes.slice(txTraceItem.input, 0, 4))
           : true),
     );
 }

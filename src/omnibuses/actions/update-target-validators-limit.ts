@@ -57,8 +57,8 @@ export class UpdateTargetValidatorsLimit extends OmnibusAction<UpdateTargetValid
         }),
         event(curatedStakingModule, "KeysOpIndexSet"),
         event(curatedStakingModule, "NonceChanged"),
+        event(agent, "ScriptResult"),
       ],
-      ["Aragon forward result", event(agent, "ScriptResult")],
     ];
   }
 

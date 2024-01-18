@@ -2,35 +2,35 @@ import path from "path";
 import fs from "fs/promises";
 
 import { ChainId } from "../common/types";
-import { NamedContractData, NamedContractDataCache } from "./types";
+import { ContractInfo, ContractInfoCache } from "./types";
 
-export class NamedContractDataMemoryCache implements NamedContractDataCache {
-  private data: Partial<Record<string, Record<Address, NamedContractData>>> = {};
+export class ContractInfoInMemoryCache implements ContractInfoCache {
+  private data: Partial<Record<string, Record<Address, ContractInfo>>> = {};
 
   async get(chainId: ChainId, address: Address) {
     return this.data[chainId.toString()]?.[address] ?? null;
   }
 
-  async set(chainId: ChainId, address: Address, abi: NamedContractData) {
+  async set(chainId: ChainId, address: Address, contractInfo: ContractInfo) {
     if (!this.data[chainId.toString()]) {
       this.data[chainId.toString()] = {};
     }
-    this.data[chainId.toString()]![address] = abi;
+    this.data[chainId.toString()]![address] = contractInfo;
   }
 }
 
-export class NamedContractDataJsonCache implements NamedContractDataCache {
-  private static instances: Record<string, NamedContractDataJsonCache> = {};
+export class ContractInfoPersistentJsonCache implements ContractInfoCache {
+  private static instances: Record<string, ContractInfoPersistentJsonCache> = {};
 
   public static create(dirPath: string) {
     if (!this.instances[dirPath]) {
-      this.instances[dirPath] = new NamedContractDataJsonCache(dirPath);
+      this.instances[dirPath] = new ContractInfoPersistentJsonCache(dirPath);
     }
     return this.instances[dirPath];
   }
 
   private dirPath: string;
-  private data: Partial<Record<string, Record<Address, NamedContractData>>> = {};
+  private data: Partial<Record<string, Record<Address, ContractInfo>>> = {};
 
   private constructor(dirPath: string) {
     this.dirPath = dirPath;
@@ -44,7 +44,7 @@ export class NamedContractDataJsonCache implements NamedContractDataCache {
     return networkData[address] || null;
   }
 
-  async set(chainId: ChainId, address: Address, abi: NamedContractData) {
+  async set(chainId: ChainId, address: Address, abi: ContractInfo) {
     if (!this.data[chainId.toString()]) {
       await this.load(chainId);
     }
@@ -63,7 +63,7 @@ export class NamedContractDataJsonCache implements NamedContractDataCache {
   private async save(chainId: ChainId) {
     await fs.writeFile(
       this.getFilePath(chainId),
-      JSON.stringify(this.data[chainId.toString()], null, "  ")
+      JSON.stringify(this.data[chainId.toString()], null, "  "),
     );
   }
 

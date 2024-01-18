@@ -1,14 +1,17 @@
-import { BaseContract, ContractTransactionReceipt } from "ethers";
-import { NamedContractsResolver } from "../contracts";
-import { TraceStrategy } from "./debug-trace-tx-strategy";
-import { TxCallTrace } from "./tx-call-trace";
-import providers from "../providers";
+import { ContractTransactionReceipt } from "ethers";
+
 import bytes from "../common/bytes";
+import providers from "../providers";
+import { TraceStrategy } from "./debug-trace-tx-strategy";
+import { isCallOpcode, isCreateOpcode } from "./evm-opcodes";
+import { ContractInfo } from "../contract-info-resolver/types";
+import { TxTrace, TxTraceCallItem, TxTraceCreateItem } from "./tx-traces";
+import { ContractInfoResolver } from "../contract-info-resolver/contract-info-resolver";
 
 export class TxTracer {
   constructor(
     private readonly traceStrategy: TraceStrategy,
-    private readonly contractsResolver: NamedContractsResolver,
+    private readonly contractInfoResolver?: ContractInfoResolver | null,
   ) {}
 
   async trace(receipt: ContractTransactionReceipt) {
@@ -16,18 +19,10 @@ export class TxTracer {
 
     const addresses = new Set<Address>();
     for (let callTraceItem of callTraceItems) {
-      if (
-        callTraceItem.type === "CALL" ||
-        callTraceItem.type === "DELEGATECALL" ||
-        callTraceItem.type === "STATICCALL"
-      ) {
-        addresses.add(callTraceItem.to);
-      }
-      if (
-        (callTraceItem.type === "CREATE" || callTraceItem.type === "CREATE2") &&
-        callTraceItem.deployedAddress
-      ) {
-        addresses.add(callTraceItem.deployedAddress);
+      if (isCallOpcode(callTraceItem.type)) {
+        addresses.add((callTraceItem as TxTraceCallItem).address);
+      } else if (isCreateOpcode(callTraceItem.type)) {
+        addresses.add((callTraceItem as TxTraceCreateItem).address);
       }
     }
     const contracts = await this.resolveContracts(
@@ -35,21 +30,30 @@ export class TxTracer {
       Array.from(addresses),
     );
     const network = await providers.provider(receipt).getNetwork();
-    return new TxCallTrace(network, bytes.normalize(receipt.from), callTraceItems, contracts);
+    return new TxTrace(network, bytes.normalize(receipt.from), callTraceItems, contracts);
   }
 
   private async resolveContracts(
     chainId: bigint,
     addresses: Address[],
-  ): Promise<Record<Address, BaseContract>> {
-    const res: Record<Address, BaseContract> = {};
+  ): Promise<Record<Address, ContractInfo>> {
+    const res: Record<Address, ContractInfo> = {};
+    if (!this.contractInfoResolver) return res;
     const resolvedContracts = new Set<Address>();
     for (const address of addresses) {
       if (resolvedContracts.has(address)) continue;
       resolvedContracts.add(address);
-      const contract = await this.contractsResolver.resolve(chainId, address);
+      let { res: contract } = await this.contractInfoResolver.resolve(chainId, address);
       if (contract) {
-        res[address] = contract;
+        if (contract.implementation) {
+          const { res: implementation } = await this.contractInfoResolver.resolve(
+            chainId,
+            contract.implementation,
+          );
+          res[address] = implementation;
+        } else {
+          res[address] = contract;
+        }
       }
     }
     return res;

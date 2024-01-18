@@ -2,9 +2,6 @@ import { BaseContract, ContractRunner } from "ethers";
 import bytes from "../common/bytes";
 import { NamedContractsBuilder } from "./named-contract";
 import { ContractsConfig, ProxiableContractConfig, ContractConfig, NamedContract } from "./types";
-import { NamedContractsResolver } from "./named-contracts-resolver";
-import { EtherscanChainConfig } from "./etherscan-chains-config";
-import { ChainId } from "../common/types";
 import format from "../common/format";
 
 /**
@@ -163,38 +160,11 @@ function label(contract: BaseContract | NamedContract): string {
   return format.contract(name, address(contract));
 }
 
-function setEtherscanToken(token: string) {
-  NamedContractsResolver.setEtherscanToken(token);
-}
-
-function setJsonCachePath(path: string) {
-  NamedContractsResolver.setJsonCachePath(path);
-}
-
-function setCustomEtherscanChains(customChains: EtherscanChainConfig[]) {
-  NamedContractsResolver.setCustomEtherscanChains(customChains);
-}
-
-function resolver(): NamedContractsResolver {
-  return NamedContractsResolver.singleton();
-}
-
-function resolve(chainId: ChainId, address: Address): Promise<NamedContract | null> {
-  return NamedContractsResolver.singleton().resolve(chainId, address);
-}
-
 export default {
   address,
   create,
   label,
-  resolve,
-  resolver,
   proxies,
   instances,
   implementations,
-  setup: {
-    jsonCachePath: setJsonCachePath,
-    etherscanToken: setEtherscanToken,
-    customEtherscanChains: setCustomEtherscanChains,
-  },
 };

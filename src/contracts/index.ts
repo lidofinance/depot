@@ -1,4 +1,3 @@
-export { NamedContract } from "./types"
-export { NamedContractsResolver } from "./named-contracts-resolver";
+export { NamedContract } from "./types";
 
 export { default } from "./contracts";

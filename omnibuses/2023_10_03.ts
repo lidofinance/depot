@@ -7,7 +7,7 @@ export default new Omnibus({
   network: "mainnet",
   voteId: 165,
   launching: { date: "Oct-03-2023 05:46:59 PM UTC", blockNumber: 18271583 },
-  execution: { date: "Oct-06-2023 06:51:23 PM UTC", blockNumber: 18293362 },
+  // execution: { date: "Oct-06-2023 06:51:23 PM UTC", blockNumber: 18293362 },
   actions: ({ agent, stakingRouter }) => [
     new AddNodeOperators({
       operators: [
