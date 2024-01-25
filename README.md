@@ -1,13 +1,5 @@
-# Sample Hardhat Project
+# 👷🏼 Harhdat Scripts Repo (WIP)
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+The repo contains the code draft to be used as a successor of the current scripts repo, which uses a deprecated brownie package.
 
-Try running some of the following tasks:
-
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy.ts
-```
+The proper README will be added soon.
