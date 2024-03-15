@@ -4,7 +4,10 @@ import { HardhatUserConfig } from "hardhat/config";
 import "@typechain/hardhat";
 import "@nomicfoundation/hardhat-ethers";
 
-import "./tasks/omnibuses";
+if (!process.env.SKIP_TYPECHAIN) {
+  // this is required to allow build the typechain types at the first launch
+  require("./tasks/omnibuses");
+}
 import "./src/hardhat-keystore";
 
 import rpcs from "./src/rpcs";
