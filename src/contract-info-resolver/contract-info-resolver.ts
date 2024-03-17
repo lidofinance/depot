@@ -2,15 +2,16 @@ import { ContractInfoInMemoryCache } from "./contract-info-cache";
 import type { ChainId, ContractInfo, ContractInfoProvider, ContractInfoCache } from "./types";
 
 interface AbiResolverOptions {
-  provider: ContractInfoProvider;
+  contractInfoProvider: ContractInfoProvider;
   cache?: ContractInfoCache | null;
 }
 
 export class ContractInfoResolver {
   public readonly cache: ContractInfoCache | null;
   public readonly provider: ContractInfoProvider;
-  constructor({ provider, cache }: AbiResolverOptions) {
-    this.provider = provider;
+
+  constructor({ contractInfoProvider, cache }: AbiResolverOptions) {
+    this.provider = contractInfoProvider;
     if (cache === undefined) {
       this.cache = new ContractInfoInMemoryCache();
     } else {

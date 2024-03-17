@@ -48,7 +48,7 @@ export async function trace(receipt: ContractTransactionReceipt): Promise<TxTrac
 
   const contractInfoResolver = etherscanToken
     ? new ContractInfoResolver({
-        provider: new EtherscanContractInfoProvider(etherscanToken),
+        contractInfoProvider: new EtherscanContractInfoProvider(etherscanToken),
       })
     : null;
   if (provider instanceof HardhatEthersProvider || hhTraceStrategy.isSameRootProvider(provider)) {

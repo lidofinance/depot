@@ -64,7 +64,7 @@ export async function pass(
   if (await voting.canVote(voteId, whaleAddress)) {
     await ldo.transfer(CREATOR, CREATOR_LDO_BALANCE);
 
-    await voting.vote(voteId, true, false);
+    await voting.vote(voteId, true, false, overrides);
   }
 
   await increaseTime(VOTE_DURATION);
@@ -93,7 +93,7 @@ export async function adopt(
   overrides: NonPayableOverrides = { gasLimit: DEFAULT_GAS_LIMIT },
 ): Promise<AdoptResult> {
   const { voteId, receipt: createReceipt } = await wait(
-    await start(await creator(provider), voteScript, description),
+    await start(await creator(provider), voteScript, description, false, overrides),
   );
   const enactReceipt = await pass(provider, voteId, overrides);
   return { voteId, createReceipt, enactReceipt: enactReceipt as ContractTransactionReceipt };
