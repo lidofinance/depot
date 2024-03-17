@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { task } from "hardhat/config";
+
 import prompt from "../common/prompt";
 
 const TASKS = {
@@ -11,7 +12,7 @@ const TASKS = {
 };
 
 task(TASKS.LIST, "List available accounts").setAction(async (_, hre) => {
-  const keystores = await hre.keystore.all();
+  const keystores = await hre.keystores.all();
 
   if (keystores.length === 0) {
     console.log("Accounts not found.");
@@ -31,44 +32,46 @@ task(TASKS.LIST, "List available accounts").setAction(async (_, hre) => {
 task(TASKS.ADD, "Add a new account by entering a private key")
   .addPositionalParam("name", "Name of the new account")
   .setAction(async ({ name }, hre) => {
-    if (await hre.keystore.has(name)) {
-      console.log(`Account "${name}" already exists`);
+    const existedKeystore = await hre.keystores.get(name);
+    if (existedKeystore) {
+      console.log(`Account ${existedKeystore.format()} already exists`);
       return;
     }
-    const newAccount = await hre.keystore.add(name);
+    const newAccount = await hre.keystores.add(name);
     console.log(`A new account ${newAccount.format()} has been added`);
   });
 
 task(TASKS.GENERATE, "Add a new account with a random private key")
   .addPositionalParam("name", "Name of the new account")
   .setAction(async ({ name }, hre) => {
-    if (await hre.keystore.has(name)) {
-      console.log(`Account "${name}" already exists`);
+    const existedKeystore = await hre.keystores.get(name);
+    if (existedKeystore) {
+      console.log(`Account ${existedKeystore.format()} already exists`);
       return;
     }
-    const account = await hre.keystore.generate(name);
+    const account = await hre.keystores.generate(name);
     console.log(`A new account ${account.format()} has been generated`);
   });
 
 task(TASKS.DELETE, "Delete an existing account")
   .addPositionalParam("name", "Name of the account to delete")
   .setAction(async ({ name }, hre) => {
-    if (!(await hre.keystore.has(name))) {
+    const keystore = await hre.keystores.get(name);
+
+    if (!keystore) {
       console.log(`Account with name ${name} not found`);
       return;
     }
 
-    const keystore = await hre.keystore.get(name);
-
     const confirmed = await prompt.confirm(
-      `Are you sure you want to delete ${keystore.format()} account?`,
+      `Are you sure you want to delete ${keystore.format()} account?`
     );
 
     if (!confirmed) {
       console.log("Operation was canceled by the user");
       return;
     }
-    const isRemoved = await hre.keystore.remove(name);
+    const isRemoved = await hre.keystores.remove(name);
     if (isRemoved) {
       console.log(`Account ${keystore.format()} was successfully removed`);
     } else {
@@ -79,6 +82,6 @@ task(TASKS.DELETE, "Delete an existing account")
 task(TASKS.PASSWORD, "Change the password of an existing account")
   .addPositionalParam("name", "Name of the account to change password for")
   .setAction(async ({ name }, hre) => {
-    const account = await hre.keystore.password(name);
+    const account = await hre.keystores.password(name);
     console.log(`Password for account ${account.format()} successfully changed`);
   });

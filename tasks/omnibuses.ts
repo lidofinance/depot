@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { task } from "hardhat/config";
-import { JsonRpcProvider } from "ethers";
+import { JsonRpcProvider, Wallet } from "ethers";
 import * as types from "hardhat/internal/core/params/argumentTypes";
 
 import votes from "../src/votes";
@@ -141,7 +141,7 @@ task("omnibus:run", "Runs the omnibus with given name")
 
       const pilot = testAccount
         ? await votes.creator(provider)
-        : await hre.keystore.unlock(provider);
+        : await hre.keystores.unlock().then((privateKey) => new Wallet(privateKey));
 
       console.log(`Deployer ${format.address(bytes.normalize(await pilot.getAddress()))}`);
       console.log(`  - nonce: ${await pilot.getNonce()}`);

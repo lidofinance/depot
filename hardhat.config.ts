@@ -8,7 +8,7 @@ if (!process.env.SKIP_TYPECHAIN) {
   // this is required to allow build the typechain types at the first launch
   require("./tasks/omnibuses");
 }
-import "./src/hardhat-keystore";
+import "./src/hardhat-keystores";
 
 import rpcs from "./src/rpcs";
 import traces from "./src/traces";
@@ -34,7 +34,7 @@ const config: HardhatUserConfig = {
   mocha: {
     timeout: 5 * 60 * 1000,
   },
-  keystore: {
+  keystores: {
     path: "keystores",
   },
 };
