@@ -1,20 +1,11 @@
 import { AbiCoder } from "ethers";
-import { call, event } from "../../votes";
-import {
-  OmnibusAction,
-  OmnibusBeforeContext,
-  OmnibusTestContext,
-  TitledEventChecks,
-  TitledEvmCall,
-} from "../omnibus";
-import {
-  AddAllowedRecipient__factory,
-  AllowedRecipientsRegistry__factory,
-  ERC20__factory,
-} from "../../../typechain-types";
-import bytes from "../../common/bytes";
+import { EventCheck, FormattedEvmCall, call, event } from "../../votes";
+import { AllowedRecipientsRegistry__factory, ERC20__factory } from "../../../typechain-types";
+import bytes, { HexStrPrefixed } from "../../common/bytes";
 import providers from "../../providers";
 
+import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { OmnibusItemsGroup } from "../omnibus-items-group";
 interface AddPaymentEvmScriptFactoriesInput {
   name: string;
   registry: Address;
@@ -31,122 +22,52 @@ const TEST_RECIPIENT = "0x0102030405060708091011121314151617181920";
 
 const iAllowedRecipientsRegistry = AllowedRecipientsRegistry__factory.createInterface();
 
-export class AddPaymentEvmScriptFactories extends OmnibusAction<AddPaymentEvmScriptFactoriesInput> {
-  private get permissions() {
-    const { registry } = this.input;
-    const { finance } = this.contracts;
-    return {
-      topUp: bytes.join(
-        // allow to call finance.newImmediatePayment()
-        ...[finance.address, finance.newImmediatePayment.fragment.selector],
-        // allow to call allowedRecipientsRegistry.updateSpentAmount()
-        ...[registry, iAllowedRecipientsRegistry.getFunction("updateSpentAmount").selector],
-      ),
-      addRecipient: bytes.join(
-        // allow to call allowedRecipientsRegistry.addRecipient()
-        ...[registry, iAllowedRecipientsRegistry.getFunction("addRecipient").selector],
-      ),
-      removeRecipient: bytes.join(
-        // allow to call allowedRecipientsRegistry.addRecipient()
-        ...[registry, iAllowedRecipientsRegistry.getFunction("removeRecipient").selector],
-      ),
-    };
-  }
+interface AddEvmScriptFactoryInput {
+  factory: Address;
+}
 
-  calls(): TitledEvmCall[] {
+abstract class AddEvmScriptFactory<T extends AddEvmScriptFactoryInput> extends OmnibusItem<T> {
+  get call() {
     const { easyTrack } = this.contracts;
-    const {
-      name,
-      factories: { topUp, addRecipient, removeRecipient },
-    } = this.input;
-    const permissions = this.permissions;
-    const res: TitledEvmCall[] = [
-      [
-        `Add "${name}" top up EVM script factory`,
-        call(easyTrack.addEVMScriptFactory, [topUp, permissions.topUp]),
-      ],
-    ];
-    if (addRecipient) {
-      res.push([
-        `Add "${name}" add recipient EVM script factory`,
-        call(easyTrack.addEVMScriptFactory, [addRecipient, permissions.addRecipient]),
-      ]);
-    }
-    if (removeRecipient) {
-      res.push([
-        `Add "${name}" remove recipient EVM script factory`,
-        call(easyTrack.addEVMScriptFactory, [removeRecipient, permissions.removeRecipient]),
-      ]);
-    }
-    return res;
+    return call(easyTrack.addEVMScriptFactory, [this.input.factory, this.permission]);
   }
-  events(): TitledEventChecks[] {
+
+  get events(): EventCheck[] {
     const { easyTrack } = this.contracts;
-    const permissions = this.permissions;
-    const {
-      factories: { topUp, addRecipient, removeRecipient },
-    } = this.input;
-
-    const res: TitledEventChecks[] = [
-      [
-        `Add "top up" EVM script factory ${topUp}`,
-        event(easyTrack, "EVMScriptFactoryAdded", { args: [topUp, permissions.topUp] }),
-      ],
-    ];
-
-    if (addRecipient) {
-      res.push([
-        `Add "add recipient" EVM script factory ${addRecipient}`,
-        event(easyTrack, "EVMScriptFactoryAdded", {
-          args: [addRecipient, permissions.addRecipient],
-        }),
-      ]);
-    }
-
-    if (removeRecipient) {
-      res.push([
-        `Add "add recipient" EVM script factory ${removeRecipient}`,
-        event(easyTrack, "EVMScriptFactoryAdded", {
-          args: [removeRecipient, permissions.removeRecipient],
-        }),
-      ]);
-    }
-
-    return res;
+    const { factory } = this.input;
+    return [event(easyTrack, "EVMScriptFactoryAdded", { args: [factory, this.permission] })];
   }
 
-  async test({ it, assert, provider }: OmnibusTestContext): Promise<void> {
-    const {
-      registry,
-      trustedCaller,
-      factories: { topUp, addRecipient, removeRecipient },
-    } = this.input;
-    const { easyTrack, agent, stETH } = this.contracts;
-
-    const evmScriptFactories = await easyTrack.getEVMScriptFactories();
-
+  async after({ it, assert }: OmnibusHookCtx) {
     it("Validate top up evm script factory was added", async () => {
-      assert.includeMembers(evmScriptFactories, [topUp]);
+      assert.includeMembers(await this.contracts.easyTrack.getEVMScriptFactories(), [
+        this.input.factory,
+      ]);
     });
+  }
 
-    if (addRecipient) {
-      it("Validate add recipient evm script factory was added", async () => {
-        assert.includeMembers(evmScriptFactories, [addRecipient]);
-      });
-    }
+  protected abstract get permission(): HexStrPrefixed;
+}
 
-    if (removeRecipient) {
-      it("Validate remove recipient evm script factory was added", async () => {
-        assert.includeMembers(evmScriptFactories, [removeRecipient]);
-      });
-    }
+interface AddTopUpEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
+  name: string;
+  token: Address;
+  registry: Address;
+  trustedCaller: Address;
+}
 
-    it("Validate new top up factory works properly", async () => {
-      const {
-        token,
-        factories: { topUp },
-      } = this.input;
+class AddTopUpEvmScriptFactory extends AddEvmScriptFactory<AddTopUpEvmScriptFactoryInput> {
+  get title() {
+    return `Add "${this.input.name} Top Up EVM Script Factory" ${this.input.factory} to EasyTrack`;
+  }
 
+  async after({ it, assert, provider }: OmnibusHookCtx) {
+    super.after({ it, assert, provider });
+
+    const { agent, easyTrack, stETH } = this.contracts;
+    const { token, factory, registry, trustedCaller } = this.input;
+
+    it("Validate factory may make payments", async () => {
       const motionsBefore = await easyTrack.getMotions();
 
       const erc20Token = ERC20__factory.connect(token, provider);
@@ -176,7 +97,7 @@ export class AddPaymentEvmScriptFactories extends OmnibusAction<AddPaymentEvmScr
       const trustedCallerSigner = await unlock(trustedCaller, 10n ** 18n);
       const createTx = await easyTrack
         .connect(trustedCallerSigner)
-        .createMotion(topUp, calldata, { gasLimit: 3_000_000 });
+        .createMotion(factory, calldata, { gasLimit: 3_000_000 });
       await createTx.wait();
 
       const motionsAfter = await easyTrack.getMotions();
@@ -215,96 +136,217 @@ export class AddPaymentEvmScriptFactories extends OmnibusAction<AddPaymentEvmScr
         );
       }
     });
+  }
 
-    if (addRecipient) {
-      it(`Validate new add recipient factory works properly`, async () => {
-        const registryContract = AllowedRecipientsRegistry__factory.connect(registry, provider);
-        assert.isFalse(await registryContract.isRecipientAllowed(TEST_RECIPIENT));
+  protected get permission() {
+    const { finance } = this.contracts;
+    return bytes.join(
+      // allow to call finance.newImmediatePayment()
+      ...[finance.address, finance.newImmediatePayment.fragment.selector],
+      // allow to call allowedRecipientsRegistry.updateSpentAmount()
+      ...[
+        this.input.registry,
+        iAllowedRecipientsRegistry.getFunction("updateSpentAmount").selector,
+      ],
+    );
+  }
+}
 
-        const recipientsBefore = await registryContract.getAllowedRecipients();
-        const motionsBefore = await easyTrack.getMotions();
+interface AddTopUpEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
+  name: string;
+  token: Address;
+  registry: Address;
+  trustedCaller: Address;
+}
 
-        const calldata = AbiCoder.defaultAbiCoder().encode(
-          ["address", "string"],
-          [TEST_RECIPIENT, "Test Recipient"],
-        );
+class AddAddRecipientEvmScriptFactory extends OmnibusItem<{
+  name: string;
+  factory: Address;
+  registry: Address;
+  trustedCaller: Address;
+}> {
+  get title() {
+    return `Add "${this.input.name} Add Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
+  }
 
-        const { mine, unlock, increaseTime } = providers.cheats(provider);
+  get call(): FormattedEvmCall {
+    const { easyTrack } = this.contracts;
+    const { factory } = this.input;
+    return call(easyTrack.addEVMScriptFactory, [factory, this.permission]);
+  }
 
-        const trustedSigner = await unlock(trustedCaller);
+  get events(): EventCheck[] {
+    return [
+      event(this.contracts.easyTrack, "EVMScriptFactoryAdded", {
+        args: [this.input.factory, this.permission],
+      }),
+    ];
+  }
 
-        const createTx = await easyTrack
-          .connect(trustedSigner)
-          .createMotion(addRecipient, calldata, { gasLimit: 5_000_000 });
+  async after({ it, assert, provider }: OmnibusHookCtx): Promise<void> {
+    const { easyTrack } = this.contracts;
+    const { registry, trustedCaller, factory } = this.input;
 
-        await createTx.wait();
+    it(`Validate new add recipient factory works properly`, async () => {
+      const registryContract = AllowedRecipientsRegistry__factory.connect(registry, provider);
+      assert.isFalse(await registryContract.isRecipientAllowed(TEST_RECIPIENT));
 
-        const motionsAfter = await easyTrack.getMotions();
-        assert.equal(motionsAfter.length, motionsBefore.length + 1);
+      const recipientsBefore = await registryContract.getAllowedRecipients();
+      const motionsBefore = await easyTrack.getMotions();
 
-        const newMotion = motionsAfter[motionsAfter.length - 1];
+      const calldata = AbiCoder.defaultAbiCoder().encode(
+        ["address", "string"],
+        [TEST_RECIPIENT, "Test Recipient"],
+      );
 
-        await increaseTime(newMotion.duration + 1n);
-        await mine();
+      const { mine, unlock, increaseTime } = providers.cheats(provider);
 
-        const enactorSigner = await unlock(DEFAULT_ENACTOR, 10n ** 18n);
+      const trustedSigner = await unlock(trustedCaller);
 
-        await easyTrack
-          .connect(enactorSigner)
-          .enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
+      const createTx = await easyTrack
+        .connect(trustedSigner)
+        .createMotion(factory, calldata, { gasLimit: 5_000_000 });
 
-        const recipientsAfter = await registryContract.getAllowedRecipients();
+      await createTx.wait();
 
-        assert.equal(recipientsAfter.length, recipientsBefore.length + 1);
-        assert.isTrue(await registryContract.isRecipientAllowed(TEST_RECIPIENT));
-      });
+      const motionsAfter = await easyTrack.getMotions();
+      assert.equal(motionsAfter.length, motionsBefore.length + 1);
+
+      const newMotion = motionsAfter[motionsAfter.length - 1];
+
+      await increaseTime(newMotion.duration + 1n);
+      await mine();
+
+      const enactorSigner = await unlock(DEFAULT_ENACTOR, 10n ** 18n);
+
+      await easyTrack
+        .connect(enactorSigner)
+        .enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
+
+      const recipientsAfter = await registryContract.getAllowedRecipients();
+
+      assert.equal(recipientsAfter.length, recipientsBefore.length + 1);
+      assert.isTrue(await registryContract.isRecipientAllowed(TEST_RECIPIENT));
+    });
+  }
+
+  private get permission() {
+    return bytes.join(
+      // allow to call allowedRecipientsRegistry.addRecipient()
+      ...[this.input.registry, iAllowedRecipientsRegistry.getFunction("addRecipient").selector],
+    );
+  }
+}
+
+interface AddRemoveRecipientEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
+  name: string;
+  registry: Address;
+  trustedCaller: Address;
+}
+
+class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<AddRemoveRecipientEvmScriptFactoryInput> {
+  get title(): string {
+    return `Add "${this.input.name} Remove Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
+  }
+
+  get events(): EventCheck[] {
+    const { easyTrack } = this.contracts;
+    return [
+      event(easyTrack, "EVMScriptFactoryAdded", {
+        args: [this.input.factory, this.permission],
+      }),
+    ];
+  }
+
+  protected get permission() {
+    return bytes.join(
+      // allow to call allowedRecipientsRegistry.removeRecipient()
+      ...[this.input.registry, iAllowedRecipientsRegistry.getFunction("removeRecipient").selector],
+    );
+  }
+
+  async after({ it, assert, provider }: OmnibusHookCtx): Promise<void> {
+    const { easyTrack } = this.contracts;
+    const { registry, trustedCaller, factory } = this.input;
+
+    it(`Validate new remove recipient factory works properly`, async () => {
+      const registryContract = AllowedRecipientsRegistry__factory.connect(registry, provider);
+
+      assert.isTrue(await registryContract.isRecipientAllowed(TEST_RECIPIENT));
+      const recipientsBefore = await registryContract.getAllowedRecipients();
+      const motionsBefore = await easyTrack.getMotions();
+      const calldata = AbiCoder.defaultAbiCoder().encode(["address"], [TEST_RECIPIENT]);
+
+      const { mine, unlock, increaseTime, setBalance } = providers.cheats(provider);
+
+      await setBalance(TEST_RECIPIENT, 10n ** 18n);
+      const trustedSigner = await unlock(trustedCaller);
+      const createTx = await easyTrack
+        .connect(trustedSigner)
+        .createMotion(factory, calldata, { gasLimit: 3_000_000 });
+      await createTx.wait();
+      const motionsAfter = await easyTrack.getMotions();
+      assert.equal(motionsAfter.length, motionsBefore.length + 1);
+      const newMotion = motionsAfter[motionsAfter.length - 1];
+      await increaseTime(newMotion.duration + 1n);
+      await mine();
+      const enactorSigner = await unlock(TEST_RECIPIENT);
+      await setBalance(TEST_RECIPIENT, 10n ** 18n);
+      await easyTrack
+        .connect(enactorSigner)
+        .enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
+      const recipientsAfter = await registryContract.getAllowedRecipients();
+      assert.equal(recipientsAfter.length, recipientsBefore.length - 1);
+      assert.isFalse(await registryContract.isRecipientAllowed(TEST_RECIPIENT));
+    });
+  }
+}
+
+export class AddPaymentEvmScriptFactories extends OmnibusItemsGroup<AddPaymentEvmScriptFactoriesInput> {
+  private _items: (
+    | AddTopUpEvmScriptFactory
+    | AddAddRecipientEvmScriptFactory
+    | AddRemoveRecipientEvmScriptFactory
+  )[];
+
+  constructor(input: AddPaymentEvmScriptFactoriesInput) {
+    super(input);
+    this._items = [
+      new AddTopUpEvmScriptFactory({
+        name: input.name,
+        token: input.token,
+        registry: input.registry,
+        factory: input.factories.topUp,
+        trustedCaller: input.trustedCaller,
+      }),
+    ];
+    if (input.factories.addRecipient) {
+      this._items.push(
+        new AddAddRecipientEvmScriptFactory({
+          name: input.name,
+          registry: input.registry,
+          factory: input.factories.addRecipient,
+          trustedCaller: input.trustedCaller,
+        }),
+      );
     }
+    if (input.factories.removeRecipient) {
+      this._items.push(
+        new AddRemoveRecipientEvmScriptFactory({
+          name: input.name,
+          registry: input.registry,
+          factory: input.factories.removeRecipient,
+          trustedCaller: input.trustedCaller,
+        }),
+      );
+    }
+  }
 
-    // TODO: uncomment & fix test
-    // if (removeRecipient) {
-    //   it(`Validate new remove recipient factory works properly`, async () => {
-    //     const { easyTrack } = await lido.connect(provider);
-    //     const factory = AddAllowedRecipient__factory.connect(motionParams.factory, provider);
-    //     const registry = AllowedRecipientsRegistry__factory.connect(
-    //       await factory.allowedRecipientsRegistry(),
-    //       provider,
-    //     );
-    //     assert.isTrue(await registry.isRecipientAllowed(motionParams.recipient));
+  get items(): OmnibusItem<any>[] {
+    return this._items;
+  }
 
-    //     const recipientsBefore = await registry.getAllowedRecipients();
-    //     const motionsBefore = await easyTrack.getMotions();
-
-    //     const calldata = AbiCoder.defaultAbiCoder().encode(["address"], [motionParams.recipient]);
-
-    //     await provider.setBalance(motionParams.recipient, 10n ** 18n);
-    //     const trustedSigner = await provider.unlock(motionParams.trustedCaller);
-
-    //     const createTx = await easyTrack
-    //       .connect(trustedSigner)
-    //       .createMotion(motionParams.factory, calldata, { gasLimit: 3_000_000 });
-
-    //     await createTx.wait();
-
-    //     const motionsAfter = await easyTrack.getMotions();
-    //     assert.equal(motionsAfter.length, motionsBefore.length + 1);
-
-    //     const newMotion = motionsAfter[motionsAfter.length - 1];
-
-    //     await provider.increaseTime(newMotion.duration + 1n);
-    //     await provider.mine();
-
-    //     const enactorSigner = await provider.unlock(enactor);
-    //     await provider.setBalance(enactor, 10n ** 18n);
-
-    //     await easyTrack
-    //       .connect(enactorSigner)
-    //       .enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
-
-    //     const recipientsAfter = await registry.getAllowedRecipients();
-
-    //     assert.equal(recipientsAfter.length, recipientsBefore.length - 1);
-    //     assert.isFalse(await registry.isRecipientAllowed(motionParams.recipient));
-    //   });
-    // }
+  get title(): string {
+    return `Add "${this.input.name}" payment EVM Script Factories`;
   }
 }

@@ -9,8 +9,8 @@ import { RemovePaymentEvmScriptFactories } from "../src/omnibuses/actions/remove
 export default new Omnibus({
   network: "mainnet",
   voteId: 160,
-  execution: { date: "Jun-30-2023 06:46:23 PM UTC", blockNumber: 17593962 },
-  launching: { date: "Jun-27-2023 05:45:11 PM UTC", blockNumber: 17572253 },
+  // execution: { date: "Jun-30-2023 06:46:23 PM UTC", blockNumber: 17593962 },
+  launching: { date: "Jun-27-2023" /* blockNumber: 17572253 */ },
   actions: ({ burner, agent, stETH }) => [
     new AccessControlGrantRole({
       on: burner,
@@ -18,7 +18,20 @@ export default new Omnibus({
       role: "REQUEST_BURN_MY_STETH_ROLE",
       revoked: true,
     }),
-    new ApplyInsuranceAction({ amount: parseEther("13.45978634") }),
+    new ApplyInsuranceAction({
+      amount: parseEther("13.45978634"),
+      before: {
+        insuranceFundStEthShares: 5466460000000000000000n,
+        insuranceFundStEthBalance: 6168933603752703174674n,
+        agentStEthAllowanceForBurner: 0n,
+        sharesRequestedToBurn: {
+          coverShares: 0n,
+          nonCoverShares: 0n,
+        },
+        totalBurntForCover: 0n,
+        totalBurntForNonCover: 506385577569080968748810n,
+      },
+    }),
     new AccessControlRevokeRole({
       on: burner,
       from: agent,

@@ -1,14 +1,8 @@
 import { id } from "ethers";
 import { AccessControl, AccessControl__factory } from "../../../typechain-types";
-import {
-  OmnibusAction,
-  OmnibusBeforeContext,
-  OmnibusTestContext,
-  TitledEventChecks,
-  TitledEvmCall,
-} from "../omnibus";
-import { call, event, forward } from "../../votes";
+import { FormattedEvmCall, call, event, forward } from "../../votes";
 import contracts, { NamedContract } from "../../contracts";
+import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
 
 interface AccessControlGrantRoleInput {
   role: string;
@@ -17,45 +11,35 @@ interface AccessControlGrantRoleInput {
   revoked?: boolean;
 }
 
-export class AccessControlGrantRole extends OmnibusAction<AccessControlGrantRoleInput> {
+export class AccessControlGrantRole extends OmnibusItem<AccessControlGrantRoleInput> {
+  get title(): string {
+    const { role } = this.input;
+
+    return `Grant "${role}" on ${this.onAddress} to ${this.toAddress}`;
+  }
+  get call(): FormattedEvmCall {
+    const { role, to } = this.input;
+    return forward(this.contracts.agent, [call(this.accessControl.grantRole, [id(role), to])]);
+  }
+
   private get accessControl(): AccessControl {
     return AccessControl__factory.connect(contracts.address(this.input.on));
   }
 
-  private get toAddress(): string {
+  private get toAddress() {
     return contracts.address(this.input.to);
   }
 
-  private get onAddress(): string {
+  private get onAddress() {
     return contracts.address(this.input.on);
   }
 
-  calls(): TitledEvmCall[] {
+  get events() {
     const { role, to } = this.input;
-
-    return [
-      [
-        `Grant "${role}" on ${this.onAddress} to ${this.toAddress}`,
-        forward(this.contracts.agent, [call(this.accessControl.grantRole, [id(role), to])]),
-      ],
-    ];
+    return [event(this.accessControl, "RoleGranted", { args: [id(role), to, undefined] })];
   }
 
-  events(): TitledEventChecks[] {
-    const { role, to } = this.input;
-    return [
-      [
-        `Role "${role}" was granted on ${contracts.address(
-          this.accessControl,
-        )} to ${contracts.address(to)}`,
-        event(this.accessControl, "RoleGranted", {
-          args: [id(role), to, undefined],
-        }),
-      ],
-    ];
-  }
-
-  async before({ assert, provider }: OmnibusBeforeContext): Promise<void> {
+  async before({ assert, provider }: OmnibusHookCtx): Promise<void> {
     const { role, to } = this.input;
     const hasRole = await this.accessControl.connect(provider).hasRole(id(role), to);
     assert.isFalse(
@@ -64,7 +48,7 @@ export class AccessControlGrantRole extends OmnibusAction<AccessControlGrantRole
     );
   }
 
-  async test({ it, assert, provider }: OmnibusTestContext): Promise<void> {
+  async after({ it, assert, provider }: OmnibusHookCtx): Promise<void> {
     const { role, to, revoked = false } = this.input;
     if (revoked) return;
 

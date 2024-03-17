@@ -1,5 +1,8 @@
-import { OmnibusAction, OmnibusTestContext, TitledEventChecks, TitledEvmCall } from "../omnibus";
-import { call, event } from "../../votes";
+import { OmnibusTestContext } from "../omnibus";
+import { EventCheck, FormattedEvmCall, call, event } from "../../votes";
+
+import { OmnibusItemsGroup } from "../omnibus-items-group";
+import { OmnibusItem } from "../omnibus-item";
 
 interface RemovePaymentEvmScriptFactoriesInput {
   name: string;
@@ -10,97 +13,89 @@ interface RemovePaymentEvmScriptFactoriesInput {
   };
 }
 
-export class RemovePaymentEvmScriptFactories extends OmnibusAction<RemovePaymentEvmScriptFactoriesInput> {
-  private get name() {
-    return this.input.name;
-  }
-  private get topUp() {
-    return this.input.factories.topUp;
-  }
+interface RemoveEvmScriptFactoryInput {
+  factory: Address;
+}
 
-  private get addRecipient() {
-    return this.input.factories.addRecipient;
-  }
-
-  private get removeRecipient() {
-    return this.input.factories.removeRecipient;
+abstract class RemoveEvmScriptFactory<
+  T extends RemoveEvmScriptFactoryInput,
+> extends OmnibusItem<T> {
+  get call(): FormattedEvmCall {
+    return call(this.contracts.easyTrack.removeEVMScriptFactory, [this.input.factory]);
   }
 
-  private get topUpTitle() {
-    return `Remove "${this.name}" top up EVM script factory ${this.topUp} from EasyTrack`;
-  }
-
-  private get addRecipientTitle() {
-    return `Remove "${this.name}" add recipient EVM script factory ${this.addRecipient} from EasyTrack`;
-  }
-
-  private get removeRecipientTitle() {
-    return `Remove "${this.name}" remove recipient EVM script factory ${this.removeRecipient} from EasyTrack`;
-  }
-
-  calls(): TitledEvmCall[] {
-    const { easyTrack } = this.contracts;
-    const { topUp, addRecipient, removeRecipient } = this;
-    const { topUpTitle, addRecipientTitle, removeRecipientTitle } = this;
-
-    const res: TitledEvmCall[] = [[topUpTitle, call(easyTrack.removeEVMScriptFactory, [topUp])]];
-
-    if (addRecipient) {
-      res.push([addRecipientTitle, call(easyTrack.removeEVMScriptFactory, [addRecipient])]);
-    }
-
-    if (removeRecipient) {
-      res.push([removeRecipientTitle, call(easyTrack.removeEVMScriptFactory, [removeRecipient])]);
-    }
-
-    return res;
-  }
-
-  events(): TitledEventChecks[] {
-    const { easyTrack } = this.contracts;
-    const { topUp, addRecipient, removeRecipient } = this;
-    const { topUpTitle, addRecipientTitle, removeRecipientTitle } = this;
-
-    const res: TitledEventChecks[] = [
-      [topUpTitle, event(easyTrack, "EVMScriptFactoryRemoved", { args: [topUp] })],
+  get events(): EventCheck[] {
+    return [
+      event(this.contracts.easyTrack, "EVMScriptFactoryRemoved", { args: [this.input.factory] }),
     ];
-
-    if (addRecipient) {
-      res.push([
-        addRecipientTitle,
-        event(easyTrack, "EVMScriptFactoryRemoved", { args: [addRecipient] }),
-      ]);
-    }
-
-    if (removeRecipient) {
-      res.push([
-        removeRecipientTitle,
-        event(easyTrack, "EVMScriptFactoryRemoved", { args: [removeRecipient] }),
-      ]);
-    }
-    return res;
   }
 
-  async test({ it, assert }: OmnibusTestContext): Promise<void> {
-    const { easyTrack } = this.contracts;
-    const { topUp, addRecipient, removeRecipient } = this;
-
-    const evmScriptFactories = await easyTrack.getEVMScriptFactories();
-
-    it(`Validate top up evm script factory ${topUp} was removed`, async () => {
-      assert.notIncludeMembers(evmScriptFactories, [topUp]);
+  async after({ it, assert }: OmnibusTestContext): Promise<void> {
+    const { factory } = this.input;
+    it(`Validate EVM script factory ${factory} was removed`, async () => {
+      const evmScriptFactories = await this.contracts.easyTrack.getEVMScriptFactories();
+      assert.notIncludeMembers(evmScriptFactories, [factory]);
     });
+  }
+}
 
-    if (addRecipient) {
-      it(`Validate add recipient evm script factory ${addRecipient} was removed`, async () => {
-        assert.notIncludeMembers(evmScriptFactories, [addRecipient]);
-      });
-    }
+interface RemovePaymentEvmScriptFactoryInput extends RemoveEvmScriptFactoryInput {
+  name: string;
+}
 
-    if (removeRecipient) {
-      it(`Validate remove recipient evm script factory ${removeRecipient} was removed`, async () => {
-        assert.notIncludeMembers(evmScriptFactories, [removeRecipient]);
-      });
+class RemoveTopUpEvmScriptFactory extends RemoveEvmScriptFactory<RemovePaymentEvmScriptFactoryInput> {
+  get title(): string {
+    const { name, factory } = this.input;
+    return `Remove "${name} Top Up EVM Script Factory" ${factory} from EasyTrack`;
+  }
+}
+
+class RemoveAddEvmScriptFactory extends RemoveEvmScriptFactory<RemovePaymentEvmScriptFactoryInput> {
+  get title(): string {
+    const { name, factory } = this.input;
+    return `Remove "${name} Add Recipient EVM Script Factory" ${factory} from EasyTrack`;
+  }
+}
+
+class RemoveRemoveEvmScriptFactory extends RemoveEvmScriptFactory<RemovePaymentEvmScriptFactoryInput> {
+  get title(): string {
+    const { name, factory } = this.input;
+    return `Remove "${name} Remove Recipient EVM Script Factory" ${factory} from EasyTrack`;
+  }
+}
+
+export class RemovePaymentEvmScriptFactories extends OmnibusItemsGroup<RemovePaymentEvmScriptFactoriesInput> {
+  private _items: (
+    | RemoveTopUpEvmScriptFactory
+    | RemoveAddEvmScriptFactory
+    | RemoveRemoveEvmScriptFactory
+  )[];
+
+  constructor(input: RemovePaymentEvmScriptFactoriesInput) {
+    super(input);
+    this._items = [
+      new RemoveTopUpEvmScriptFactory({ name: input.name, factory: input.factories.topUp }),
+    ];
+    if (input.factories.addRecipient) {
+      this._items.push(
+        new RemoveAddEvmScriptFactory({ name: input.name, factory: input.factories.addRecipient }),
+      );
     }
+    if (input.factories.removeRecipient) {
+      this._items.push(
+        new RemoveRemoveEvmScriptFactory({
+          name: input.name,
+          factory: input.factories.removeRecipient,
+        }),
+      );
+    }
+  }
+
+  get title() {
+    return `Remove "${this.input.name}" payment EVM Script Factories`;
+  }
+
+  get items(): OmnibusItem<any>[] {
+    return this._items;
   }
 }

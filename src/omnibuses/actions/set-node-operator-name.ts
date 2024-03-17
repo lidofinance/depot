@@ -1,5 +1,7 @@
-import { OmnibusAction, OmnibusTestContext, TitledEventChecks, TitledEvmCall } from "../omnibus";
-import { call, event, forward } from "../../votes";
+import { OmnibusTestContext, TitledEventChecks, TitledEvmCall } from "../omnibus";
+import { FormattedEvmCall, call, event, forward } from "../../votes";
+
+import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
 
 interface SetNodeOperatorNameInput {
   id: number;
@@ -7,32 +9,29 @@ interface SetNodeOperatorNameInput {
   to: string;
 }
 
-export class SetNodeOperatorName extends OmnibusAction<SetNodeOperatorNameInput> {
-  calls(): TitledEvmCall[] {
+export class SetNodeOperatorName extends OmnibusItem<SetNodeOperatorNameInput> {
+  get title() {
     const { id, from, to } = this.input;
-    const { agent, curatedStakingModule } = this.contracts;
-    return [
-      [
-        `Change the on-chain name of node operator with id ${id} from "${from}" to "${to}"`,
-        forward(agent, [
-          call(curatedStakingModule.setNodeOperatorName, [this.input.id, this.input.to]),
-        ]),
-      ],
-    ];
+    return `Change the on-chain name of node operator with id ${id} from "${from}" to "${to}"`;
   }
-  events(): TitledEventChecks[] {
+
+  get call() {
+    const { agent, curatedStakingModule } = this.contracts;
+    return forward(agent, [
+      call(curatedStakingModule.setNodeOperatorName, [this.input.id, this.input.to]),
+    ]);
+  }
+
+  get events() {
     const { curatedStakingModule } = this.contracts;
     return [
-      [
-        "Change node operator name",
-        event(curatedStakingModule, "NodeOperatorNameSet", {
-          args: [this.input.id, this.input.to],
-        }),
-      ],
+      event(curatedStakingModule, "NodeOperatorNameSet", {
+        args: [this.input.id, this.input.to],
+      }),
     ];
   }
 
-  async test({ it, assert }: OmnibusTestContext): Promise<void> {
+  async after({ it, assert }: OmnibusTestContext): Promise<void> {
     it("Name was set correctly", async () => {
       const nodeOperator = await this.contracts.curatedStakingModule.getNodeOperator(
         this.input.id,

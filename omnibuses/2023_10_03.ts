@@ -10,6 +10,7 @@ export default new Omnibus({
   // execution: { date: "Oct-06-2023 06:51:23 PM UTC", blockNumber: 18293362 },
   actions: ({ agent, stakingRouter }) => [
     new AddNodeOperators({
+      nodeOperatorsCountBefore: 32,
       operators: [
         {
           name: "A41",
