@@ -32,5 +32,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Generate typechain
+        env:
+          SKIP_TYPECHAIN: true
+        run: pnpm exec hardhat typechain
+
       - name: Run unit tests
         run: pnpm run test
