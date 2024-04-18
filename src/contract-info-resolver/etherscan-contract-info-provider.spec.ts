@@ -33,10 +33,6 @@ describe('EtherscanAbiResolver', () => {
     }
   })
 
-  const etherscanToken = env.ETHERSCAN_TOKEN()
-  if (!etherscanToken) {
-    throw new Error(`ETHERSCAN_TOKEN env variable is not set`)
-  }
   const abiProvider = new EtherscanContractInfoProvider('fake_api_key')
 
   it('The verified non proxy contract (flattened)', async () => {

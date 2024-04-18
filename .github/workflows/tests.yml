@@ -1,14 +1,14 @@
 ---
 name: Tests runner
-
 on:
   pull_request:
 
 jobs:
   tests:
     name: JS tests
-
     runs-on: ubuntu-latest
+    env:
+      ALCHEMY_TOKEN: not-so-secret-token
 
     steps:
       - name: Checkout repository
