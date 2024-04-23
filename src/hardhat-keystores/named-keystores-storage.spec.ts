@@ -91,18 +91,26 @@ describe('NamedKeystoresStorage', () => {
   })
 
   it('returns null if a keystore does not exist', async () => {
+    const readdirStub: sinon.SinonStub = sinon.stub(fs, 'readdir')
+    readdirStub.resolves([])
+
     const retrievedKeystore = await storage.get('nonexistent')
 
     expect(retrievedKeystore).to.be.null
+    sinon.assert.calledWith(readdirStub, keystoresDir)
+    readdirStub.restore()
   })
 
   it('deletes a keystore by name', async () => {
+    const readdirStub: sinon.SinonStub = sinon.stub(fs, 'readdir')
+    readdirStub.resolves([])
     const keystore = new NamedKeystore('test', ks)
     await storage.add(keystore)
 
     await storage.del('test')
 
     sinon.assert.calledWith(unlinkStub, path.join(keystoresDir, 'test.json'))
+    readdirStub.restore()
   })
 
   it('returns all keystores', async () => {
