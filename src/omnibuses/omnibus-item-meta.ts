@@ -1,50 +1,50 @@
-import type Mocha from "mocha";
+import type Mocha from 'mocha'
 
-import { assert } from "../common/assert";
-import { NetworkName } from "../networks";
-import { RpcProvider } from "../providers";
-import { LidoEthContracts } from "../lido";
+import { assert } from '../common/assert'
+import { NetworkName } from '../networks'
+import { RpcProvider } from '../providers'
+import { LidoEthContracts } from '../lido'
 
 interface MochaTest {
-  (title: string, fn?: Mocha.Func | Mocha.AsyncFunc | undefined): void;
+  (title: string, fn?: Mocha.Func | Mocha.AsyncFunc | undefined): void
 }
 
 export interface OmnibusHookCtx {
-  it: MochaTest;
-  assert: typeof assert;
-  provider: RpcProvider;
+  it: MochaTest
+  assert: typeof assert
+  provider: RpcProvider
 }
 
 export abstract class OmnibusItemMeta<Input = never> {
-  private _network: NetworkName | null = null;
-  private _contracts: LidoEthContracts | null = null;
+  private _network: NetworkName | null = null
+  private _contracts: LidoEthContracts | null = null
 
-  protected readonly input: Input;
+  protected readonly input: Input
 
   constructor(input: Input) {
-    this.input = input;
+    this.input = input
   }
 
   get network() {
     if (!this._network) {
-      throw new Error(`The context wasn't set`);
+      throw new Error(`The context wasn't set`)
     }
-    return this._network;
+    return this._network
   }
 
   get contracts() {
     if (!this._contracts) {
-      throw new Error(`The context wasn't set`);
+      throw new Error(`The context wasn't set`)
     }
-    return this._contracts;
+    return this._contracts
   }
 
   init(network: NetworkName, contracts: LidoEthContracts) {
-    this._network = network;
-    this._contracts = contracts;
+    this._network = network
+    this._contracts = contracts
   }
 
-  abstract get title(): string;
+  abstract get title(): string
 
   /**
    * The hook launched before the vote with omnibus is submitted and executed.

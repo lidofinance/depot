@@ -1,19 +1,19 @@
-import path from "path";
-import { ConfigExtender } from "hardhat/types";
+import path from 'path'
+import { ConfigExtender } from 'hardhat/types'
 
-import "./config-type-extensions";
+import './config-type-extensions'
 
 export const configExtender: ConfigExtender = (config, userConfig) => {
-  const keystorePath = userConfig.keystores?.path;
+  const keystorePath = userConfig.keystores?.path
 
   if (keystorePath === undefined) {
-    config.keystores.path = path.join(config.paths.root, "keystores");
+    config.keystores.path = path.join(config.paths.root, 'keystores')
   } else {
     if (path.isAbsolute(keystorePath)) {
-      config.keystores.path = keystorePath;
+      config.keystores.path = keystorePath
     } else {
       // We resolve relative paths starting from the project's root.
-      config.keystores.path = path.normalize(path.join(config.paths.root, keystorePath));
+      config.keystores.path = path.normalize(path.join(config.paths.root, keystorePath))
     }
   }
-};
+}

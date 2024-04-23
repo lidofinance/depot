@@ -1,5 +1,5 @@
-import type { BigNumberish, ContractTransactionReceipt, Signer } from "ethers";
-import providers, { RpcProvider } from "../providers";
+import type { BigNumberish, ContractTransactionReceipt, Signer } from 'ethers'
+import providers, { RpcProvider } from '../providers'
 import {
   CREATOR,
   CREATOR_ETH_BALANCE,
@@ -7,30 +7,27 @@ import {
   DEFAULT_GAS_LIMIT,
   LDO_WHALES,
   VOTE_DURATION,
-} from "./constants";
-import { start, wait } from "./lifecycle";
-import { NonPayableOverrides } from "../../typechain-types/common";
-import lido from "../lido";
-import { ChainId } from "../common/types";
+} from './constants'
+import { start, wait } from './lifecycle'
+import { NonPayableOverrides } from '../../typechain-types/common'
+import lido from '../lido'
+import { ChainId } from '../common/types'
 
 export async function creator(provider: RpcProvider): Promise<Signer> {
-  const { unlock, lock } = providers.cheats(provider);
+  const { unlock, lock } = providers.cheats(provider)
 
-  const { ldo } = lido.chainId(await providers.chainId(provider), provider);
+  const { ldo } = lido.chainId(await providers.chainId(provider), provider)
 
-  const [creator, creatorLdoBalance] = await Promise.all([
-    unlock(CREATOR, CREATOR_ETH_BALANCE),
-    ldo.balanceOf(CREATOR),
-  ]);
+  const [creator, creatorLdoBalance] = await Promise.all([unlock(CREATOR, CREATOR_ETH_BALANCE), ldo.balanceOf(CREATOR)])
 
   if (creatorLdoBalance === 0n) {
-    const whaleAddress = getLdoWhale(await providers.chainId(provider));
-    const whaleBalanceBefore = await provider.getBalance(whaleAddress);
-    const whale = await unlock(whaleAddress, 10n * 10n ** 18n);
-    await ldo.connect(whale).transfer(CREATOR, CREATOR_LDO_BALANCE);
-    await lock(whaleAddress, whaleBalanceBefore);
+    const whaleAddress = getLdoWhale(await providers.chainId(provider))
+    const whaleBalanceBefore = await provider.getBalance(whaleAddress)
+    const whale = await unlock(whaleAddress, 10n * 10n ** 18n)
+    await ldo.connect(whale).transfer(CREATOR, CREATOR_LDO_BALANCE)
+    await lock(whaleAddress, whaleBalanceBefore)
   }
-  return creator;
+  return creator
 }
 
 export async function pass(
@@ -38,52 +35,52 @@ export async function pass(
   voteId: BigNumberish,
   overrides: NonPayableOverrides = { gasLimit: DEFAULT_GAS_LIMIT },
 ) {
-  const chainId = await providers.chainId(provider);
-  const { unlock, lock, increaseTime } = providers.cheats(provider);
+  const chainId = await providers.chainId(provider)
+  const { unlock, lock, increaseTime } = providers.cheats(provider)
 
-  const whaleAddress = getLdoWhale(chainId);
+  const whaleAddress = getLdoWhale(chainId)
 
-  const whaleBalanceBefore = await provider.getBalance(whaleAddress);
-  const whale = await unlock(whaleAddress, 10n * 10n ** 18n);
+  const whaleBalanceBefore = await provider.getBalance(whaleAddress)
+  const whale = await unlock(whaleAddress, 10n * 10n ** 18n)
 
-  const { ldo, voting } = lido.chainId(await providers.chainId(provider), whale);
+  const { ldo, voting } = lido.chainId(await providers.chainId(provider), whale)
 
-  const vote = await voting.getVote(voteId);
+  const vote = await voting.getVote(voteId)
   if (vote.executed) {
-    const [log] = await voting.queryFilter(voting.filters["ExecuteVote(uint256)"](voteId));
+    const [log] = await voting.queryFilter(voting.filters['ExecuteVote(uint256)'](voteId))
     if (log === undefined) {
-      throw new Error(`ExecuteVote event for voteId "${voteId}" not found`);
+      throw new Error(`ExecuteVote event for voteId "${voteId}" not found`)
     }
-    const receipt = await log.getTransactionReceipt();
+    const receipt = await log.getTransactionReceipt()
     if (!receipt) {
-      throw new Error(`Receipt for tx ${log.transactionHash} not found`);
+      throw new Error(`Receipt for tx ${log.transactionHash} not found`)
     }
-    return receipt;
+    return receipt
   }
 
   if (await voting.canVote(voteId, whaleAddress)) {
-    await ldo.transfer(CREATOR, CREATOR_LDO_BALANCE);
+    await ldo.transfer(CREATOR, CREATOR_LDO_BALANCE)
 
-    await voting.vote(voteId, true, false, overrides);
+    await voting.vote(voteId, true, false, overrides)
   }
 
-  await increaseTime(VOTE_DURATION);
+  await increaseTime(VOTE_DURATION)
 
-  const tx = await voting.executeVote(voteId, overrides);
+  const tx = await voting.executeVote(voteId, overrides)
 
-  await lock(whaleAddress, whaleBalanceBefore);
+  await lock(whaleAddress, whaleBalanceBefore)
 
-  const receipt = await tx.wait();
+  const receipt = await tx.wait()
   if (!receipt) {
-    throw new Error("transaction wait failed");
+    throw new Error('transaction wait failed')
   }
-  return receipt;
+  return receipt
 }
 
 interface AdoptResult {
-  voteId: bigint;
-  createReceipt: ContractTransactionReceipt;
-  enactReceipt: ContractTransactionReceipt;
+  voteId: bigint
+  createReceipt: ContractTransactionReceipt
+  enactReceipt: ContractTransactionReceipt
 }
 
 export async function adopt(
@@ -94,15 +91,15 @@ export async function adopt(
 ): Promise<AdoptResult> {
   const { voteId, receipt: createReceipt } = await wait(
     await start(await creator(provider), voteScript, description, false, overrides),
-  );
-  const enactReceipt = await pass(provider, voteId, overrides);
-  return { voteId, createReceipt, enactReceipt: enactReceipt as ContractTransactionReceipt };
+  )
+  const enactReceipt = await pass(provider, voteId, overrides)
+  return { voteId, createReceipt, enactReceipt: enactReceipt as ContractTransactionReceipt }
 }
 
 function getLdoWhale(chainId: ChainId) {
-  const chainIdString = chainId.toString();
-  if (chainIdString !== "1" && chainIdString !== "5") {
-    throw new Error("Unsupported");
+  const chainIdString = chainId.toString()
+  if (chainIdString !== '1' && chainIdString !== '5') {
+    throw new Error('Unsupported')
   }
-  return LDO_WHALES[chainIdString];
+  return LDO_WHALES[chainIdString]
 }

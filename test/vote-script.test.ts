@@ -1,20 +1,18 @@
-import lido from "../src/lido";
-import { ContractTransactionReceipt, JsonRpcProvider, id, parseEther } from "ethers";
+import lido from '../src/lido'
+import { ContractTransactionReceipt, JsonRpcProvider, id, parseEther } from 'ethers'
 
-import votes, { evm, call, forward, event } from "../src/votes";
-import providers from "../src/providers";
-import networks from "../src/networks";
+import votes, { evm, call, forward, event } from '../src/votes'
+import providers from '../src/providers'
+import networks from '../src/networks'
 
-const { agent, burner, insuranceFund, stETH, callsScript } = lido.eth.mainnet();
+const { agent, burner, insuranceFund, stETH, callsScript } = lido.eth.mainnet()
 
-const INSURANCE_STETH_AMOUNT = parseEther("13.45978634");
-const REQUEST_BURN_MY_STETH_ROLE = id("REQUEST_BURN_MY_STETH_ROLE");
+const INSURANCE_STETH_AMOUNT = parseEther('13.45978634')
+const REQUEST_BURN_MY_STETH_ROLE = id('REQUEST_BURN_MY_STETH_ROLE')
 
-describe("VoteScript tests", async () => {
-  const { voting } = lido.eth.goerli();
-  const script = evm(
-    call(voting["newVote(bytes,string,bool,bool)"], ["0x00000001", "Empty voting", false, false]),
-  );
+describe('VoteScript tests', async () => {
+  const { voting } = lido.eth.goerli()
+  const script = evm(call(voting['newVote(bytes,string,bool,bool)'], ['0x00000001', 'Empty voting', false, false]))
 
   console.log(script)
 
@@ -80,8 +78,8 @@ describe("VoteScript tests", async () => {
   //   ]);
   // });
 
-  it("Trace via debug_traceTransaction()", async () => {
-    const trace = await votes.trace(enactReceipt);
-    console.log(trace.format());
-  });
-});
+  it('Trace via debug_traceTransaction()', async () => {
+    const trace = await votes.trace(enactReceipt)
+    console.log(trace.format())
+  })
+})

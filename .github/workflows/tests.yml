@@ -10,7 +10,6 @@ jobs:
     env:
       ALCHEMY_TOKEN: not-so-secret-token
 
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3

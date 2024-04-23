@@ -1,3 +1,3 @@
-export * from "./traces";
-import { trace, hardhat } from "./traces";
-export default { trace, hardhat };
+export * from './traces'
+import { trace, hardhat } from './traces'
+export default { trace, hardhat }
