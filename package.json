@@ -4,7 +4,7 @@
     "omnibus": "ts-node --files ./scripts/omnibs.ts",
     "keystore:generate": "hardhat keystore:generate",
     "keystore:list": "hardhat keystore:list",
-    "test": "mocha"
+    "test": "nyc --reporter text-summary mocha"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.4",
