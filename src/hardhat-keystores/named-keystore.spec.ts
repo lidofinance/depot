@@ -2,13 +2,7 @@ import { expect } from 'chai'
 import { NamedKeystore } from './named-keystore'
 import { encrypt } from 'web3-eth-accounts'
 import { PrivateKey } from '../common/types'
-import * as crypto from 'node:crypto'
-
-const getRandomPrivateKey = (): PrivateKey => {
-  const bytes = new Uint8Array(32)
-  crypto.getRandomValues(bytes)
-  return `0x${bytes.reduce((o, v) => o + ('00' + v.toString(16)).slice(-2), '')}`
-}
+import { getRandomPrivateKey } from './test_helpers'
 
 describe('NamedKeystore', () => {
   it('creates a NamedKeystore from a private key', async () => {

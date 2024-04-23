@@ -63,6 +63,9 @@ importers:
       '@types/chai':
         specifier: ^4.3.14
         version: 4.3.14
+      '@types/chai-as-promised':
+        specifier: ^7.1.8
+        version: 7.1.8
       '@types/clarinet':
         specifier: ^0.12.1
         version: 0.12.3
@@ -81,6 +84,9 @@ importers:
       '@types/sinon':
         specifier: ^17.0.3
         version: 17.0.3
+      chai-as-promised:
+        specifier: ^7.1.1
+        version: 7.1.1(chai@4.4.1)
       ethers:
         specifier: ^6.7.1
         version: 6.12.0(bufferutil@4.0.7)(utf-8-validate@6.0.3)
@@ -561,6 +567,9 @@ packages:
   '@types/bn.js@5.1.5':
     resolution: {integrity: sha512-V46N0zwKRF5Q00AZ6hWtN0T8gGmDUaUzLWQvHFo5yThtVwK/VCenFY3wXVbOvNfajEpsTfQM4IN9k/d6gUVX3A==}
 
+  '@types/chai-as-promised@7.1.8':
+    resolution: {integrity: sha512-ThlRVIJhr69FLlh6IctTXFkmhtP3NpMZ2QGq69StYLyKZFp/HOp1VdKZj7RvfNWYYcJ1xlbLGLLWj1UvP5u/Gw==}
+
   '@types/chai@4.3.14':
     resolution: {integrity: sha512-Wj71sXE4Q4AkGdG9Tvq1u/fquNz9EdG4LIJMwVVII7ashjD/8cf8fyIfJAjRr6YcsXnSE8cOGQPq1gqeR8z+3w==}
 
@@ -812,6 +821,11 @@ packages:
   catering@2.1.1:
     resolution: {integrity: sha512-K7Qy8O9p76sL3/3m7/zLKbRkyOlSZAgzEaLhyj2mXS8PsCud2Eo4hAb8aLtZqHh0QGqLcb9dlJSu6lHRVENm1w==}
     engines: {node: '>=6'}
+
+  chai-as-promised@7.1.1:
+    resolution: {integrity: sha512-azL6xMoi+uxu6z4rhWQ1jbdUhOMhis2PvscD/xjLqNMkv3BPPp2JyyuTHOrf9BOosGpNQ11v6BKv/g57RXbiaA==}
+    peerDependencies:
+      chai: '>= 2.1.2 < 5'
 
   chai@4.4.1:
     resolution: {integrity: sha512-13sOfMv2+DWduEU+/xbun3LScLoqN17nBeTLUsmDfKdoiC1fr0n9PU4guu4AhRcOVFk/sW8LyZWHuhWtQZiF+g==}
@@ -2761,6 +2775,10 @@ snapshots:
     dependencies:
       '@types/node': 20.12.7
 
+  '@types/chai-as-promised@7.1.8':
+    dependencies:
+      '@types/chai': 4.3.14
+
   '@types/chai@4.3.14': {}
 
   '@types/clarinet@0.12.3':
@@ -3021,6 +3039,11 @@ snapshots:
   caniuse-lite@1.0.30001611: {}
 
   catering@2.1.1: {}
+
+  chai-as-promised@7.1.1(chai@4.4.1):
+    dependencies:
+      chai: 4.4.1
+      check-error: 1.0.3
 
   chai@4.4.1:
     dependencies:

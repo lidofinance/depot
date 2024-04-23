@@ -5,25 +5,13 @@ import { PrivateKey } from '../common/types'
 import { NamedKeystore } from './named-keystore'
 import { NamedKeystoresStorage } from './named-keystores-storage'
 
-class NoKeystoreError extends Error {
+export class NoKeystoreError extends Error {
   constructor() {
     super(`Accounts not found. Aborting...`)
   }
 }
 
-class AccountRemovalFailed extends Error {
-  constructor(name: string) {
-    super(`The removal of account ${name} wasn't successfully finished`)
-  }
-}
-
-export class KeystoreNotFoundError extends Error {
-  constructor(name: string) {
-    super(`Account "${name}" not found`)
-  }
-}
-
-class AccountAlreadyExistsError extends Error {
+export class AccountAlreadyExistsError extends Error {
   constructor(account: NamedKeystore) {
     super(`Account with name "${account.name}" (${account.address}) already exists. Aborting...`)
   }
@@ -43,7 +31,7 @@ export interface NamedKeystores {
   add(name: string, privateKey: string, password: string): Promise<NamedKeystore>
   add(name: string, privateKey?: string, password?: string): Promise<NamedKeystore>
   select(): Promise<NamedKeystore>
-  remove(name: string): void
+  remove(name: string): Promise<void>
   unlock(name?: string, password?: string): Promise<PrivateKey>
   generate(name: string, password?: string): Promise<NamedKeystore>
   password(name: string, newPassword?: string, oldPassword?: string): Promise<NamedKeystore>
@@ -86,7 +74,7 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
 
   async function has(name: string): Promise<boolean> {
     const keystore = await storage.get(name)
-    return keystore !== undefined
+    return keystore !== null
   }
 
   async function add(name: string, privateKey?: string, password?: string): Promise<NamedKeystore> {
