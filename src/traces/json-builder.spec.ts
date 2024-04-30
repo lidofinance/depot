@@ -1,37 +1,37 @@
-import { assert } from 'chai'
-import { JsonBuilder } from './json-builder'
+import { assert } from "chai";
+import { JsonBuilder } from "./json-builder";
 
-describe('JsonBuilder', () => {
-  let builder = new JsonBuilder()
+describe("JsonBuilder", () => {
+  let builder = new JsonBuilder();
 
   afterEach(() => {
-    builder = new JsonBuilder()
-  })
+    builder = new JsonBuilder();
+  });
 
-  describe('build()', () => {
-    it('empty object', () => {
-      builder.openObject().closeObject()
-      assert.deepEqual({}, builder.build())
-    })
+  describe("build()", () => {
+    it("empty object", () => {
+      builder.openObject().closeObject();
+      assert.deepEqual({}, builder.build());
+    });
 
-    it('Empty array', () => {
-      assert.deepEqual([], builder.openArray().closeArray().build())
-    })
+    it("Empty array", () => {
+      assert.deepEqual([], builder.openArray().closeArray().build());
+    });
 
-    it('simple object', () => {
-      assert.deepEqual({ foo: 'baz' }, builder.openObject().key('foo').value('baz').closeObject().build())
-    })
+    it("simple object", () => {
+      assert.deepEqual({ foo: "baz" }, builder.openObject().key("foo").value("baz").closeObject().build());
+    });
 
-    it('list of values', () => {
+    it("list of values", () => {
       assert.deepEqual(
-        ['foo', 1, false, null],
-        builder.openArray().value('foo').value(1).value(false).value(null).closeArray().build(),
-      )
-    })
+        ["foo", 1, false, null],
+        builder.openArray().value("foo").value(1).value(false).value(null).closeArray().build(),
+      );
+    });
 
-    it('list of simple objects', () => {
+    it("list of simple objects", () => {
       assert.deepEqual(
-        [{ foo: 'baz' }, { key1: 1, key2: null, key3: false }],
+        [{ foo: "baz" }, { key1: 1, key2: null, key3: false }],
         // prettier-ignore
         builder
           .openArray()
@@ -45,10 +45,10 @@ describe('JsonBuilder', () => {
             .closeObject()
           .closeArray()
         .build(),
-      )
-    })
+      );
+    });
 
-    it('list of lists', () => {
+    it("list of lists", () => {
       assert.deepEqual(
         [[], [], [[], [true], [1]]],
         // prettier-ignore
@@ -63,34 +63,34 @@ describe('JsonBuilder', () => {
             .closeArray()
           .closeArray()
         .build(),
-      )
-    })
-  })
+      );
+    });
+  });
 
-  describe('pop()', () => {
-    it('empty object', () => {
-      builder.openObject().closeObject()
-      assert.deepEqual({}, builder.pop())
-    })
+  describe("pop()", () => {
+    it("empty object", () => {
+      builder.openObject().closeObject();
+      assert.deepEqual({}, builder.pop());
+    });
 
-    it('Empty array', () => {
-      assert.deepEqual([], builder.openArray().closeArray().pop())
-    })
+    it("Empty array", () => {
+      assert.deepEqual([], builder.openArray().closeArray().pop());
+    });
 
-    it('simple object', () => {
-      assert.deepEqual({ foo: 'baz' }, builder.openObject().key('foo').value('baz').closeObject().pop())
-    })
+    it("simple object", () => {
+      assert.deepEqual({ foo: "baz" }, builder.openObject().key("foo").value("baz").closeObject().pop());
+    });
 
-    it('list of values', () => {
+    it("list of values", () => {
       assert.deepEqual(
-        ['foo', 1, false, null],
-        builder.openArray().value('foo').value(1).value(false).value(null).closeArray().pop(),
-      )
-    })
+        ["foo", 1, false, null],
+        builder.openArray().value("foo").value(1).value(false).value(null).closeArray().pop(),
+      );
+    });
 
-    it('list of simple objects', () => {
+    it("list of simple objects", () => {
       assert.deepEqual(
-        [{ foo: 'baz' }, { key1: 1, key2: null, key3: false }],
+        [{ foo: "baz" }, { key1: 1, key2: null, key3: false }],
         // prettier-ignore
         builder
           .openArray()
@@ -104,7 +104,7 @@ describe('JsonBuilder', () => {
             .closeObject()
           .closeArray()
         .pop(),
-      )
+      );
 
       // prettier-ignore
       let partialObjectBuilder = builder
@@ -119,12 +119,12 @@ describe('JsonBuilder', () => {
         .closeObject()
 
       // pop object from the middle of the array
-      assert.deepEqual({ key1: 1, key2: null, key3: false }, partialObjectBuilder.pop())
-      assert.deepEqual({ foo: 'baz' }, partialObjectBuilder.pop())
-      assert.deepEqual([], partialObjectBuilder.closeArray().pop())
-    })
+      assert.deepEqual({ key1: 1, key2: null, key3: false }, partialObjectBuilder.pop());
+      assert.deepEqual({ foo: "baz" }, partialObjectBuilder.pop());
+      assert.deepEqual([], partialObjectBuilder.closeArray().pop());
+    });
 
-    it('list of lists', () => {
+    it("list of lists", () => {
       assert.deepEqual(
         [[], [], [[], [true], [1]]],
         // prettier-ignore
@@ -139,7 +139,7 @@ describe('JsonBuilder', () => {
             .closeArray()
           .closeArray()
         .pop(),
-      )
+      );
 
       // prettier-ignore
       let partialArrayBuilder = builder
@@ -152,13 +152,13 @@ describe('JsonBuilder', () => {
           .openArray().value(1).closeArray()
         .closeArray()
 
-      assert.deepEqual([[], [true], [1]], partialArrayBuilder.pop())
-      assert.deepEqual([], partialArrayBuilder.pop())
-      assert.deepEqual([[]], partialArrayBuilder.closeArray().pop())
-    })
+      assert.deepEqual([[], [true], [1]], partialArrayBuilder.pop());
+      assert.deepEqual([], partialArrayBuilder.pop());
+      assert.deepEqual([[]], partialArrayBuilder.closeArray().pop());
+    });
 
-    it('nested objects', () => {
-      const sample = { root: { child: { key1: 'value1', key2: true } } }
+    it("nested objects", () => {
+      const sample = { root: { child: { key1: "value1", key2: true } } };
       // prettier-ignore
       let partialSampleBuilder = builder
         .openObject()
@@ -173,9 +173,9 @@ describe('JsonBuilder', () => {
       // .closeObject()
 
       // null - because top object is part of the larger object
-      assert.equal(null, partialSampleBuilder.pop())
-      partialSampleBuilder.closeObject()
-      assert.deepEqual(sample, partialSampleBuilder.pop())
-    })
-  })
-})
+      assert.equal(null, partialSampleBuilder.pop());
+      partialSampleBuilder.closeObject();
+      assert.deepEqual(sample, partialSampleBuilder.pop());
+    });
+  });
+});

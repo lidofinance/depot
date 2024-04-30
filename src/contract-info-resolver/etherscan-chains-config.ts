@@ -1,259 +1,259 @@
 export interface EtherscanChainConfig {
-  network: string
-  chainId: number
+  network: string;
+  chainId: number;
   urls: {
-    apiURL: string
-    browserURL: string
-  }
+    apiURL: string;
+    browserURL: string;
+  };
 }
 
 export const BUILTIN_ETHERSCAN_CHAINS = [
   {
-    network: 'mainnet',
+    network: "mainnet",
     chainId: 1,
     urls: {
-      apiURL: 'https://api.etherscan.io/api',
-      browserURL: 'https://etherscan.io',
+      apiURL: "https://api.etherscan.io/api",
+      browserURL: "https://etherscan.io",
     },
   },
   {
-    network: 'goerli',
+    network: "goerli",
     chainId: 5,
     urls: {
-      apiURL: 'https://api-goerli.etherscan.io/api',
-      browserURL: 'https://goerli.etherscan.io',
+      apiURL: "https://api-goerli.etherscan.io/api",
+      browserURL: "https://goerli.etherscan.io",
     },
   },
   {
-    network: 'optimisticEthereum',
+    network: "optimisticEthereum",
     chainId: 10,
     urls: {
-      apiURL: 'https://api-optimistic.etherscan.io/api',
-      browserURL: 'https://optimistic.etherscan.io/',
+      apiURL: "https://api-optimistic.etherscan.io/api",
+      browserURL: "https://optimistic.etherscan.io/",
     },
   },
   {
-    network: 'bsc',
+    network: "bsc",
     chainId: 56,
     urls: {
-      apiURL: 'https://api.bscscan.com/api',
-      browserURL: 'https://bscscan.com',
+      apiURL: "https://api.bscscan.com/api",
+      browserURL: "https://bscscan.com",
     },
   },
   {
-    network: 'sokol',
+    network: "sokol",
     chainId: 77,
     urls: {
-      apiURL: 'https://blockscout.com/poa/sokol/api',
-      browserURL: 'https://blockscout.com/poa/sokol',
+      apiURL: "https://blockscout.com/poa/sokol/api",
+      browserURL: "https://blockscout.com/poa/sokol",
     },
   },
   {
-    network: 'bscTestnet',
+    network: "bscTestnet",
     chainId: 97,
     urls: {
-      apiURL: 'https://api-testnet.bscscan.com/api',
-      browserURL: 'https://testnet.bscscan.com',
+      apiURL: "https://api-testnet.bscscan.com/api",
+      browserURL: "https://testnet.bscscan.com",
     },
   },
   {
-    network: 'xdai',
+    network: "xdai",
     chainId: 100,
     urls: {
-      apiURL: 'https://api.gnosisscan.io/api',
-      browserURL: 'https://gnosisscan.io',
+      apiURL: "https://api.gnosisscan.io/api",
+      browserURL: "https://gnosisscan.io",
     },
   },
   {
-    network: 'gnosis',
+    network: "gnosis",
     chainId: 100,
     urls: {
-      apiURL: 'https://api.gnosisscan.io/api',
-      browserURL: 'https://gnosisscan.io',
+      apiURL: "https://api.gnosisscan.io/api",
+      browserURL: "https://gnosisscan.io",
     },
   },
   {
-    network: 'heco',
+    network: "heco",
     chainId: 128,
     urls: {
-      apiURL: 'https://api.hecoinfo.com/api',
-      browserURL: 'https://hecoinfo.com',
+      apiURL: "https://api.hecoinfo.com/api",
+      browserURL: "https://hecoinfo.com",
     },
   },
   {
-    network: 'polygon',
+    network: "polygon",
     chainId: 137,
     urls: {
-      apiURL: 'https://api.polygonscan.com/api',
-      browserURL: 'https://polygonscan.com',
+      apiURL: "https://api.polygonscan.com/api",
+      browserURL: "https://polygonscan.com",
     },
   },
   {
-    network: 'opera',
+    network: "opera",
     chainId: 250,
     urls: {
-      apiURL: 'https://api.ftmscan.com/api',
-      browserURL: 'https://ftmscan.com',
+      apiURL: "https://api.ftmscan.com/api",
+      browserURL: "https://ftmscan.com",
     },
   },
   {
-    network: 'hecoTestnet',
+    network: "hecoTestnet",
     chainId: 256,
     urls: {
-      apiURL: 'https://api-testnet.hecoinfo.com/api',
-      browserURL: 'https://testnet.hecoinfo.com',
+      apiURL: "https://api-testnet.hecoinfo.com/api",
+      browserURL: "https://testnet.hecoinfo.com",
     },
   },
   {
-    network: 'optimisticGoerli',
+    network: "optimisticGoerli",
     chainId: 420,
     urls: {
-      apiURL: 'https://api-goerli-optimism.etherscan.io/api',
-      browserURL: 'https://goerli-optimism.etherscan.io/',
+      apiURL: "https://api-goerli-optimism.etherscan.io/api",
+      browserURL: "https://goerli-optimism.etherscan.io/",
     },
   },
   {
-    network: 'moonbeam',
+    network: "moonbeam",
     chainId: 1284,
     urls: {
-      apiURL: 'https://api-moonbeam.moonscan.io/api',
-      browserURL: 'https://moonbeam.moonscan.io',
+      apiURL: "https://api-moonbeam.moonscan.io/api",
+      browserURL: "https://moonbeam.moonscan.io",
     },
   },
   {
-    network: 'moonriver',
+    network: "moonriver",
     chainId: 1285,
     urls: {
-      apiURL: 'https://api-moonriver.moonscan.io/api',
-      browserURL: 'https://moonriver.moonscan.io',
+      apiURL: "https://api-moonriver.moonscan.io/api",
+      browserURL: "https://moonriver.moonscan.io",
     },
   },
   {
-    network: 'moonbaseAlpha',
+    network: "moonbaseAlpha",
     chainId: 1287,
     urls: {
-      apiURL: 'https://api-moonbase.moonscan.io/api',
-      browserURL: 'https://moonbase.moonscan.io/',
+      apiURL: "https://api-moonbase.moonscan.io/api",
+      browserURL: "https://moonbase.moonscan.io/",
     },
   },
   {
-    network: 'ftmTestnet',
+    network: "ftmTestnet",
     chainId: 4002,
     urls: {
-      apiURL: 'https://api-testnet.ftmscan.com/api',
-      browserURL: 'https://testnet.ftmscan.com',
+      apiURL: "https://api-testnet.ftmscan.com/api",
+      browserURL: "https://testnet.ftmscan.com",
     },
   },
   {
-    network: 'base',
+    network: "base",
     chainId: 8453,
     urls: {
-      apiURL: 'https://api.basescan.org/api',
-      browserURL: 'https://basescan.org/',
+      apiURL: "https://api.basescan.org/api",
+      browserURL: "https://basescan.org/",
     },
   },
   {
-    network: 'chiado',
+    network: "chiado",
     chainId: 10200,
     urls: {
-      apiURL: 'https://blockscout.chiadochain.net/api',
-      browserURL: 'https://blockscout.chiadochain.net',
+      apiURL: "https://blockscout.chiadochain.net/api",
+      browserURL: "https://blockscout.chiadochain.net",
     },
   },
   {
-    network: 'arbitrumOne',
+    network: "arbitrumOne",
     chainId: 42161,
     urls: {
-      apiURL: 'https://api.arbiscan.io/api',
-      browserURL: 'https://arbiscan.io/',
+      apiURL: "https://api.arbiscan.io/api",
+      browserURL: "https://arbiscan.io/",
     },
   },
   {
-    network: 'avalancheFujiTestnet',
+    network: "avalancheFujiTestnet",
     chainId: 43113,
     urls: {
-      apiURL: 'https://api-testnet.snowtrace.io/api',
-      browserURL: 'https://testnet.snowtrace.io/',
+      apiURL: "https://api-testnet.snowtrace.io/api",
+      browserURL: "https://testnet.snowtrace.io/",
     },
   },
   {
-    network: 'avalanche',
+    network: "avalanche",
     chainId: 43114,
     urls: {
-      apiURL: 'https://api.snowtrace.io/api',
-      browserURL: 'https://snowtrace.io/',
+      apiURL: "https://api.snowtrace.io/api",
+      browserURL: "https://snowtrace.io/",
     },
   },
   {
-    network: 'polygonMumbai',
+    network: "polygonMumbai",
     chainId: 80001,
     urls: {
-      apiURL: 'https://api-testnet.polygonscan.com/api',
-      browserURL: 'https://mumbai.polygonscan.com/',
+      apiURL: "https://api-testnet.polygonscan.com/api",
+      browserURL: "https://mumbai.polygonscan.com/",
     },
   },
   {
-    network: 'baseGoerli',
+    network: "baseGoerli",
     chainId: 84531,
     urls: {
-      apiURL: 'https://api-goerli.basescan.org/api',
-      browserURL: 'https://goerli.basescan.org/',
+      apiURL: "https://api-goerli.basescan.org/api",
+      browserURL: "https://goerli.basescan.org/",
     },
   },
   {
-    network: 'arbitrumTestnet',
+    network: "arbitrumTestnet",
     chainId: 421611,
     urls: {
-      apiURL: 'https://api-testnet.arbiscan.io/api',
-      browserURL: 'https://testnet.arbiscan.io/',
+      apiURL: "https://api-testnet.arbiscan.io/api",
+      browserURL: "https://testnet.arbiscan.io/",
     },
   },
   {
-    network: 'arbitrumGoerli',
+    network: "arbitrumGoerli",
     chainId: 421613,
     urls: {
-      apiURL: 'https://api-goerli.arbiscan.io/api',
-      browserURL: 'https://goerli.arbiscan.io/',
+      apiURL: "https://api-goerli.arbiscan.io/api",
+      browserURL: "https://goerli.arbiscan.io/",
     },
   },
   {
-    network: 'sepolia',
+    network: "sepolia",
     chainId: 11155111,
     urls: {
-      apiURL: 'https://api-sepolia.etherscan.io/api',
-      browserURL: 'https://sepolia.etherscan.io',
+      apiURL: "https://api-sepolia.etherscan.io/api",
+      browserURL: "https://sepolia.etherscan.io",
     },
   },
   {
-    network: 'aurora',
+    network: "aurora",
     chainId: 1313161554,
     urls: {
-      apiURL: 'https://explorer.mainnet.aurora.dev/api',
-      browserURL: 'https://explorer.mainnet.aurora.dev',
+      apiURL: "https://explorer.mainnet.aurora.dev/api",
+      browserURL: "https://explorer.mainnet.aurora.dev",
     },
   },
   {
-    network: 'auroraTestnet',
+    network: "auroraTestnet",
     chainId: 1313161555,
     urls: {
-      apiURL: 'https://explorer.testnet.aurora.dev/api',
-      browserURL: 'https://explorer.testnet.aurora.dev',
+      apiURL: "https://explorer.testnet.aurora.dev/api",
+      browserURL: "https://explorer.testnet.aurora.dev",
     },
   },
   {
-    network: 'harmony',
+    network: "harmony",
     chainId: 1666600000,
     urls: {
-      apiURL: 'https://ctrver.t.hmny.io/verify',
-      browserURL: 'https://explorer.harmony.one',
+      apiURL: "https://ctrver.t.hmny.io/verify",
+      browserURL: "https://explorer.harmony.one",
     },
   },
   {
-    network: 'harmonyTest',
+    network: "harmonyTest",
     chainId: 1666700000,
     urls: {
-      apiURL: 'https://ctrver.t.hmny.io/verify?network=testnet',
-      browserURL: 'https://explorer.pops.one',
+      apiURL: "https://ctrver.t.hmny.io/verify?network=testnet",
+      browserURL: "https://explorer.pops.one",
     },
   },
-] as const
+] as const;

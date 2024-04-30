@@ -1,3 +1,3 @@
-export { NamedContract } from './types'
+export { NamedContract } from "./types";
 
-export { default } from './contracts'
+export { default } from "./contracts";

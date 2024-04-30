@@ -1,15 +1,15 @@
-import 'hardhat/types/config'
+import "hardhat/types/config";
 
 interface KeystoresConfig {
-  path?: string
+  path?: string;
 }
 
-declare module 'hardhat/types/config' {
+declare module "hardhat/types/config" {
   export interface HardhatUserConfig {
-    keystores?: KeystoresConfig
+    keystores?: KeystoresConfig;
   }
 
   export interface HardhatConfig {
-    keystores: Required<KeystoresConfig>
+    keystores: Required<KeystoresConfig>;
   }
 }

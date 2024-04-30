@@ -1,6 +1,6 @@
-import fetch from 'node-fetch'
-import { ContractInfoProvider, Address, ChainId, ContractInfo } from './types'
-import bytes from '../common/bytes'
+import fetch from "node-fetch";
+import { ContractInfoProvider, Address, ChainId, ContractInfo } from "./types";
+import bytes from "../common/bytes";
 
 // TODO: Add support of Blockscout provider
 
