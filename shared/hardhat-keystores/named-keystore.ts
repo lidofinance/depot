@@ -2,8 +2,8 @@ import chalk from "chalk";
 import { KeyStore } from "web3-types";
 import { encrypt, decrypt, create } from "web3-eth-accounts";
 
-import bytes from "../common/bytes";
-import { Address, PrivateKey } from "../common/types";
+import bytes from "helpers/bytes";
+import { Address, PrivateKey } from "helpers/types";
 
 export class NamedKeystore {
   public readonly version = 3;

@@ -11,7 +11,7 @@ import {
 import { start, wait } from "./lifecycle";
 import { NonPayableOverrides } from "../../typechain-types/common";
 import lido from "../lido";
-import { ChainId } from "../common/types";
+import { ChainId } from "helpers/types";
 
 export async function creator(provider: RpcProvider): Promise<Signer> {
   const { unlock, lock } = providers.cheats(provider);

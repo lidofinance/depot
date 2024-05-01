@@ -1,5 +1,5 @@
 import { Network } from "ethers";
-import env from "./common/env";
+import env from "helpers/env";
 
 const DEFAULT_LOCAL_ETH_RPC_URL = "http://127.0.0.1:8545";
 const DEFAULT_LOCAL_ARB_RPC_URL = "http://127.0.0.1:8546";

@@ -1,6 +1,6 @@
 import { BaseContract, ContractRunner, JsonFragment } from "ethers";
 import { ProxiableContractConfig, ContractFactory, NamedContract } from "./types";
-import { Address } from "../common/types";
+import { Address } from "helpers/types";
 
 export class Contract__factory<T extends BaseContract = BaseContract> implements ContractFactory {
   public readonly abi: JsonFragment[];

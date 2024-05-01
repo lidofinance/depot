@@ -1,6 +1,6 @@
 {
   "extension": ["ts"],
-  "spec": "src/**/*.spec.ts",
+  "spec": ["src/**/*.spec.ts", "shared/**/*.spec.ts"],
   "require": ["ts-node/register"],
   "recursive": true,
   "timeout": 2000

@@ -1,13 +1,13 @@
 import { ContractTransactionReceipt } from "ethers";
 
-import bytes from "../common/bytes";
+import bytes from "helpers/bytes";
 import providers from "../providers";
 import { TraceStrategy } from "./debug-trace-tx-strategy";
 import { isCallOpcode, isCreateOpcode } from "./evm-opcodes";
 import { ContractInfo } from "../contract-info-resolver/types";
 import { TxTrace, TxTraceCallItem, TxTraceCreateItem } from "./tx-traces";
 import { ContractInfoResolver } from "../contract-info-resolver/contract-info-resolver";
-import { Address } from "../common/types";
+import { Address } from "helpers/types";
 
 export class TxTracer {
   constructor(

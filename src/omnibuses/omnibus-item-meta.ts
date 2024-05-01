@@ -1,6 +1,6 @@
 import type Mocha from "mocha";
 
-import { assert } from "../common/assert";
+import { assert } from "helpers/assert";
 import { NetworkName } from "../networks";
 import { RpcProvider } from "../providers";
 import { LidoEthContracts } from "../lido";

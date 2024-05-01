@@ -1,4 +1,4 @@
-import { PrivateKey } from "../common/types";
+import { PrivateKey } from "helpers/types";
 import crypto from "node:crypto";
 
 export const getRandomPrivateKey = (): PrivateKey => {

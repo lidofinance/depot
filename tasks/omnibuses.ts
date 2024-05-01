@@ -1,4 +1,7 @@
 import chalk from "chalk";
+import "@nomicfoundation/hardhat-ethers";
+import "hardhat-keystores";
+
 import { task } from "hardhat/config";
 import { JsonRpcProvider, Wallet } from "ethers";
 import * as types from "hardhat/internal/core/params/argumentTypes";
@@ -9,9 +12,9 @@ import providers from "../src/providers";
 import traces from "../src/traces";
 import { Omnibus, SimulationGroup } from "../src/omnibuses/omnibus";
 import networks, { NetworkName } from "../src/networks";
-import bytes from "../src/common/bytes";
-import format from "../src/common/format";
-import prompt from "../src/common/prompt";
+import bytes from "helpers/bytes";
+import format from "helpers/format";
+import prompt from "helpers/prompt";
 
 traces.hardhat.enableTracing();
 

@@ -1,8 +1,8 @@
 import nock from "nock";
 import { assert } from "chai";
 
-import env from "../common/env";
-import bytes from "../common/bytes";
+import env from "helpers/env";
+import bytes from "helpers/bytes";
 import { EtherscanContractInfoProvider } from "./etherscan-contract-info-provider";
 import { BUILTIN_ETHERSCAN_CHAINS } from "./etherscan-chains-config";
 

@@ -1,7 +1,7 @@
-import bytes from "../common/bytes";
-import prompt from "../common/prompt";
+import bytes from "helpers/bytes";
+import prompt from "helpers/prompt";
 
-import { PrivateKey } from "../common/types";
+import { PrivateKey } from "helpers/types";
 import { NamedKeystore } from "./named-keystore";
 import { NamedKeystoresStorage } from "./named-keystores-storage";
 

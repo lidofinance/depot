@@ -2,9 +2,9 @@ import { ContractTransactionReceipt, FunctionFragment } from "ethers";
 import { TxTraceItem } from "../traces/tx-traces";
 import providers from "../providers";
 import traces from "../traces";
-import bytes from "../common/bytes";
+import bytes from "helpers/bytes";
 import lido from "../lido";
-import { Address } from "../common/types";
+import { Address } from "helpers/types";
 
 interface MethodCallConfig {
   type?: "CALL" | "DELEGATECALL" | "STATICCALL" | "CALLCODE";

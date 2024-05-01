@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs/promises";
 
-import { Address, ChainId } from "../common/types";
+import { Address, ChainId } from "helpers/types";
 import { ContractInfo, ContractInfoCache } from "./types";
 
 export class ContractInfoInMemoryCache implements ContractInfoCache {

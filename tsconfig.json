@@ -1,11 +1,10 @@
+// bit-generated-typescript-config
 {
+  "extends": "./node_modules/.cache/tsconfig.bit.012b67c1b554a36476197ef49b2cd9a6c91480bc.json",
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true
+    "typeRoots": [
+      "./node_modules/.cache/global-types",
+      "./node_modules/@types"
+    ]
   }
 }
