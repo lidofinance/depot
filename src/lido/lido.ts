@@ -1,7 +1,7 @@
 import { ContractRunner } from "ethers";
 
 import contracts from "../contracts";
-import { ChainId } from "../common/types";
+import { ChainId } from "helpers/types";
 import LIDO_ON_MAINNET from "../../configs/lido-on-mainnet";
 import LIDO_ON_GOERLI from "../../configs/lido-on-goerli";
 

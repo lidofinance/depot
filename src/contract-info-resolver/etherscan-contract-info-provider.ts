@@ -2,8 +2,8 @@ import fetch from "node-fetch";
 
 import { ContractInfoProvider, ContractInfo } from "./types";
 
-import bytes from "../common/bytes";
-import { Address, ChainId } from "../common/types";
+import bytes from "helpers/bytes";
+import { Address, ChainId } from "helpers/types";
 import { BUILTIN_ETHERSCAN_CHAINS, EtherscanChainConfig } from "./etherscan-chains-config";
 
 interface EtherscanResponse<T = unknown> {

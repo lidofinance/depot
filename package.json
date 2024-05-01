@@ -2,6 +2,7 @@
   "name": "hardhat-project",
   "scripts": {
     "omnibus": "ts-node --files ./scripts/omnibs.ts",
+    "fork": "hardhat node",
     "keystore:generate": "hardhat keystore:generate",
     "keystore:list": "hardhat keystore:list",
     "test": "nyc --reporter text-summary mocha"
@@ -20,7 +21,7 @@
     "@types/sinon": "^17.0.3",
     "chai-as-promised": "^7.1.1",
     "ethers": "^6.7.1",
-    "hardhat": "^2.16.1",
+    "hardhat": "^2.22.3",
     "nock": "^13.5.0",
     "nyc": "^15.1.0",
     "prettier": "^3.2.5",
@@ -42,6 +43,8 @@
     "prompts": "^2.4.2",
     "tree-kill": "^1.2.2",
     "web3-eth-accounts": "^4.1.1",
-    "web3-types": "^1.3.1"
+    "web3-types": "^1.3.1",
+    "hardhat-keystores": "workspace:*",
+    "helpers": "workspace:*"
   }
 }

@@ -1,6 +1,6 @@
 import { ContractInfoInMemoryCache } from "./contract-info-cache";
 import type { ChainId, ContractInfo, ContractInfoProvider, ContractInfoCache } from "./types";
-import { Address } from "../common/types";
+import { Address } from "helpers/types";
 
 interface AbiResolverOptions {
   contractInfoProvider: ContractInfoProvider;

@@ -1,9 +1,9 @@
 import { BaseContract, EventFragment, EventLog, Interface, Log } from "ethers";
-import bytes from "../common/bytes";
+import bytes from "helpers/bytes";
 import contracts from "../contracts";
 import { TypedContractEvent } from "../../typechain-types/common";
 import { OverloadedInputResultMap } from "./overloaded-types-helper";
-import { Address } from "../common/types";
+import { Address } from "helpers/types";
 
 export interface EventCheck {
   args?: unknown[];

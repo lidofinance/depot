@@ -1,5 +1,5 @@
-import format from "../common/format";
-import { HexStrPrefixed } from "../common/bytes";
+import format from "helpers/format";
+import { HexStrPrefixed } from "helpers/bytes";
 import { BaseContract, Network } from "ethers";
 import { ContractInfo } from "../contract-info-resolver/types";
 import {
@@ -12,7 +12,7 @@ import {
   isLogOpcode,
   isSelfDestructOpcode,
 } from "./evm-opcodes";
-import { Address } from "../common/types";
+import { Address } from "helpers/types";
 
 type TxTraceOpcodes = LogEvmOpcodes | CallEvmOpcodes | CreateEvmOpcodes | SelfDestructEvmOpcodes;
 

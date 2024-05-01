@@ -1,7 +1,7 @@
 import { extendProvider } from "hardhat/config";
 import { ContractTransactionReceipt } from "ethers";
 
-import env from "../common/env";
+import env from "helpers/env";
 import providers from "../providers";
 import { TxTrace } from "./tx-traces";
 import { TxTracer } from "./tx-tracer";

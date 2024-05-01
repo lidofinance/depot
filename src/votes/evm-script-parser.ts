@@ -1,5 +1,5 @@
-import bytes, { HexStrPrefixed } from "../common/bytes";
-import { Address } from "../common/types";
+import bytes, { HexStrPrefixed } from "helpers/bytes";
+import { Address } from "helpers/types";
 
 /**
  * Data of the EVM script call

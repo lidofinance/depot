@@ -1,6 +1,6 @@
 import { ContractTransactionReceipt, JsonRpcProvider } from "ethers";
 
-import bytes from "../common/bytes";
+import bytes from "helpers/bytes";
 import { TxTraceItem } from "./tx-traces";
 import { DebugTraceTxStreamed } from "./debug-trace-tx-streamed";
 import { StructLogsTracingVisitor } from "./struct-log-tracing-visitor";

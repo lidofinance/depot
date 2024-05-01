@@ -3,8 +3,8 @@ import { JsonRpcProvider } from "ethers";
 import { spawn, ChildProcessWithoutNullStreams } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { flatten, kebabCase } from "lodash";
-import { Stringable } from "./common/types";
-import files from "./common/files";
+import { Stringable } from "helpers/types";
+import files from "helpers/files";
 import treeKill from "tree-kill";
 
 export type Hardfork =
@@ -210,7 +210,7 @@ function spawnGanacheProcess(options: GanacheNodeOptions) {
   const prefixFlag = (prefix: string, flag: string) => `--${prefix}.${flag}`;
   const flags: string[] = [];
   for (const [namespace, namespaceFlags] of Object.entries(options)) {
-    for (const [flag, value] of Object.entries(namespaceFlags) || {}) {
+    for (const [flag, value] of Object.entries(namespaceFlags)) {
       if (value === undefined) continue;
       flags.push(prefixFlag(namespace, flag), value.toString());
     }

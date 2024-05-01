@@ -1,10 +1,10 @@
 import { BaseContract, BytesLike, FunctionFragment, isHexString } from "ethers";
 
 import contracts from "../contracts";
-import bytes, { HexStrPrefixed } from "../common/bytes";
+import bytes, { HexStrPrefixed } from "helpers/bytes";
 import { EvmCall, EvmScriptParser } from "./evm-script-parser";
 import { TypedContractMethod } from "../../typechain-types/common";
-import { Address } from "../common/types";
+import { Address } from "helpers/types";
 
 type _TypedContractMethod = Omit<TypedContractMethod, "staticCallResult">;
 type _TypedContractArgs<T extends _TypedContractMethod> = Parameters<T["staticCall"]>;

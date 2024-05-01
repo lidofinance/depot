@@ -9,7 +9,7 @@ import { NamedKeystoresStorage } from "./named-keystores-storage";
 import { getRandomPrivateKey } from "./test_helpers";
 import { afterEach } from "mocha";
 import sinon from "sinon";
-import prompt from "../common/prompt";
+import prompt from "helpers/prompt";
 
 chai.use(chaiAsPromised);
 const { expect } = chai;

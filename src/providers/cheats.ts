@@ -1,9 +1,9 @@
-import bytes from "../common/bytes";
+import bytes from "helpers/bytes";
 import { JsonRpcSigner } from "ethers";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { UnsupportedProviderError, isHardhatEthersProvider, isJsonRpcProvider } from "./utils";
 import { RpcProvider, SignerWithAddress, SnapshotRestorer } from "./types";
-import { Address } from "../common/types";
+import { Address } from "helpers/types";
 
 type NodeName = "hardhat" | "anvil" | "ganache";
 

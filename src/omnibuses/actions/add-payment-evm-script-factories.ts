@@ -1,7 +1,7 @@
 import { AbiCoder } from "ethers";
 import { EventCheck, FormattedEvmCall, call, event } from "../../votes";
 import { AllowedRecipientsRegistry__factory, ERC20__factory } from "../../../typechain-types";
-import bytes, { HexStrPrefixed } from "../../common/bytes";
+import bytes, { HexStrPrefixed } from "../helpers/bytes";
 import providers from "../../providers";
 
 import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";

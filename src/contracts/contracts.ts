@@ -1,9 +1,9 @@
 import { BaseContract, ContractRunner } from "ethers";
-import bytes from "../common/bytes";
+import bytes from "helpers/bytes";
 import { NamedContractsBuilder } from "./named-contract";
 import { ContractsConfig, ProxiableContractConfig, ContractConfig, NamedContract } from "./types";
-import format from "../common/format";
-import { Address } from "../common/types";
+import format from "helpers/format";
+import { Address } from "helpers/types";
 
 /**
  * @description Combines members of an intersection into a readable type.

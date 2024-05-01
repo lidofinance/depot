@@ -1,4 +1,4 @@
-import { Address } from "../../common/types";
+import { Address } from "../helpers/types";
 import { FormattedEvmCall, call, event, forward } from "../../votes";
 
 import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";

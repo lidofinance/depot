@@ -1,5 +1,5 @@
 import { TxTraceInput, TxTraceItem } from "./tx-traces";
-import bytes, { HexStr, HexStrPrefixed } from "../common/bytes";
+import bytes, { HexStr, HexStrPrefixed } from "helpers/bytes";
 import { EIP1193Provider } from "hardhat/types";
 import { ContractTransactionReceipt, Provider } from "ethers";
 import { get } from "lodash";

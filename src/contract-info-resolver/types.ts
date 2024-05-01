@@ -1,5 +1,5 @@
-import { HexStrPrefixed } from "../common/bytes";
-import { Address } from "../common/types";
+import { HexStrPrefixed } from "helpers/bytes";
+import { Address } from "helpers/types";
 
 export type ChainId = number | bigint | string;
 

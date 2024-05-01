@@ -1,4 +1,4 @@
-import bytes, { HexStrPrefixed } from "../common/bytes";
+import bytes, { HexStrPrefixed } from "helpers/bytes";
 import {
   CallEvmOpcodes,
   CreateEvmOpcodes,

@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { NamedKeystore } from "./named-keystore";
 import { encrypt } from "web3-eth-accounts";
-import { PrivateKey } from "../common/types";
+import { PrivateKey } from "helpers/types";
 import { getRandomPrivateKey } from "./test_helpers";
 
 describe("NamedKeystore", () => {

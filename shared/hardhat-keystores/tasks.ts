@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { task } from "hardhat/config";
 
-import prompt from "../common/prompt";
+import prompt from "helpers/prompt";
 
 const TASKS = {
   ADD: "keystore:add",
@@ -70,7 +70,7 @@ task(TASKS.DELETE, "Delete an existing account")
       return;
     }
     try {
-      hre.keystores.remove(name);
+      await hre.keystores.remove(name);
       console.log(`Account ${keystore.format()} was successfully removed`);
     } catch (e) {
       console.log(`Removal of the account ${keystore.format()} failed. Cause: ${e}`);

@@ -3,14 +3,14 @@ import Mocha, { Test } from "mocha";
 import { flatten } from "lodash";
 import { ContractTransactionReceipt, Log, TransactionReceipt } from "ethers";
 
-import { assert } from "../common/assert";
+import { assert } from "helpers/assert";
 import { NetworkName } from "../networks";
 import lido, { LidoEthContracts } from "../lido";
 import { EvmScriptParser, FormattedEvmCall } from "../votes";
 import votes, { EventCheck } from "../votes";
 import { TxTrace } from "../traces/tx-traces";
 import providers, { RpcProvider, SignerWithAddress, SnapshotRestorer } from "../providers";
-import bytes from "../common/bytes";
+import bytes from "helpers/bytes";
 
 import { OmnibusItem } from "./omnibus-item";
 import { OmnibusItemsGroup } from "./omnibus-items-group";
