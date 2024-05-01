@@ -11,7 +11,7 @@ typechain-types
 cache
 artifacts
 
-#keystores
+keystores
 rpc-node-logs
 etherscan-cache
 
