@@ -16,8 +16,8 @@ jobs:
         shell: bash
         run: |
           docker compose up -d --build
-          docker compose logs
-          timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 127.0.0.1 8545
+          docker compose ps -a
+          timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 0.0.0.0 8545
 
       - uses: actions/checkout@v3
         with:
