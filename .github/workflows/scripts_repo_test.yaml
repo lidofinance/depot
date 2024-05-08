@@ -3,19 +3,17 @@ jobs:
   run-tests:
     name: Old scripts repo tests
     runs-on: "ubuntu-latest"
+    services:
+      fork:
+        image: feofanov/hardhat-node
+        ports:
+          - 8485:8485
+        env:
+          NODE_ENV: production
+          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
+
     timeout-minutes: 100
     steps:
-      - uses: actions/checkout@v3
-        with:
-          path: ./fork
-
-      - name: Start mainnet fork
-        working-directory: ./fork
-        env:
-          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
-        shell: bash
-        run: docker compose up --build --abort-on-container-exit --exit-code-from fork
-
       - uses: actions/checkout@v3
         with:
           repository: lidofinance/scripts
@@ -60,4 +58,6 @@ jobs:
 
       - name: Run tests
         shell: bash
-        run: poetry run brownie test -s
+        run: |
+          poetry run brownie networks modify mainnet-fork host=http://fork 
+          poetry run brownie test -s
