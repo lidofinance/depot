@@ -16,7 +16,8 @@ jobs:
         shell: bash
         run: |
           docker compose up -d --build
-          timeout 30 docker compose logs -f
+          docker compose logs
+          timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 127.0.0.1 8545
 
       - uses: actions/checkout@v3
         with:
@@ -57,4 +58,5 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
+          timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 127.0.0.1 8545
           poetry run brownie test -s
