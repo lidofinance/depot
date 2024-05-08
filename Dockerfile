@@ -36,7 +36,7 @@ COPY . .
 RUN pnpm generate-types
 
 # Expose the port that the application listens on.
-EXPOSE 8485
+EXPOSE 8545
 
 # Run the application.
 CMD pnpm fork

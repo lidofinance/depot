@@ -6,6 +6,6 @@ services:
       NODE_ENV: production
       INFURA_TOKEN: ${INFURA_TOKEN}
     ports:
-      - 8485:8485
+      - 8545:8545
 
 
