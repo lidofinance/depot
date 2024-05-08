@@ -12,7 +12,7 @@ jobs:
       - name: Start mainnet fork
         working-directory: ./fork
         env:
-          INFURA_TOKEN: ${{ secrets.WEB3_INFURA_PROJECT_ID }}
+          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
         shell: bash
         run: docker compose up --build --abort-on-container-exit --exit-code-from fork
 
