@@ -1,37 +1,39 @@
 {
   "name": "hardhat-project",
   "scripts": {
-    "omnibus": "ts-node --files ./scripts/omnibs.ts"
+    "omnibus": "ts-node --files ./scripts/omnibs.ts",
+    "fork": "hardhat node"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-ethers": "^3.0.4",
-    "@typechain/ethers-v6": "^0.5.0",
-    "@typechain/hardhat": "^9.0.0",
     "@types/chai": "^4.3.11",
     "@types/clarinet": "^0.12.1",
     "@types/lodash": "^4.14.199",
     "@types/mocha": "^10.0.1",
+    "@types/node": "^20.12.10",
     "@types/node-fetch": "^2.6.9",
     "@types/prompts": "^2.4.4",
-    "ethers": "^6.7.1",
-    "hardhat": "^2.16.1",
     "nock": "^13.5.0",
-    "prettier": "^3.0.0",
-    "typechain": "^8.3.1"
+    "prettier": "^3.0.0"
   },
   "dependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.4",
+    "@typechain/ethers-v6": "^0.5.0",
+    "@typechain/hardhat": "^9.0.0",
     "@openzeppelin/contracts": "^5.0.0",
     "chai": "^4.3.8",
     "chalk": "^4.1.2",
     "clarinet": "^0.12.6",
     "commander": "^11.1.0",
     "dotenv": "^16.3.1",
+    "ethers": "^6.7.1",
     "ganache": "^7.9.1",
+    "hardhat": "^2.16.1",
     "lodash": "^4.17.21",
     "mocha": "^10.2.0",
     "node-fetch": "^2.7.0",
     "prompts": "^2.4.2",
     "tree-kill": "^1.2.2",
+    "typechain": "^8.3.1",
     "web3-eth-accounts": "^4.1.1",
     "web3-types": "^1.3.1"
   }

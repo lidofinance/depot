@@ -1,0 +1,11 @@
+services:
+  server:
+    build:
+      context: .
+    environment:
+      NODE_ENV: production
+      INFURA_TOKEN: ${INFURA_TOKEN}
+    ports:
+      - 8485:8485
+
+

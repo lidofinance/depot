@@ -1,0 +1,59 @@
+on: [push]
+jobs:
+  run-tests:
+    name: Old scripts repo tests
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v3
+        working-directory: ./node
+      - name: Start mainnet fork
+        working-directory: ./node
+        env:
+          INFURA_TOKEN: ${{ secrets.WEB3_INFURA_PROJECT_ID }}
+        run: docker compose up --build --abort-on-container-exit --exit-code-from client
+
+      - uses: actions/checkout@v3
+        with:
+          name: lidofinance/scripts
+          ref: refs/heads/feat/hardhat-fork
+      - name: Install poetry
+        shell: bash
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        env:
+          POETRY_VERSION: "1.8.2"
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: poetry
+
+      - name: Setup node.js version
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20.x
+          cache: "yarn"
+
+      - name: Install poetry requirements
+        shell: bash
+        run: poetry install
+
+      - name: Show system info
+        shell: bash
+        run: |
+          echo "Memory and swap:"
+          free -h
+          echo
+          swapon --show
+          echo
+          df -h
+          echo
+          echo "CPU units"
+          nproc --all
+
+      - name: Run tests
+        shell: bash
+        run: poetry run brownie test -s
