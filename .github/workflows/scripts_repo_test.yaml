@@ -7,11 +7,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          working-directory: ./fork
+          path: ./fork
 
       - name: Start mainnet fork
-        with:
-          working-directory: ./fork
+        working-directory: ./fork
         env:
           INFURA_TOKEN: ${{ secrets.WEB3_INFURA_PROJECT_ID }}
         shell: bash
@@ -19,8 +18,8 @@ jobs:
 
       - uses: actions/checkout@v3
         with:
-          name: lidofinance/scripts
-          ref: refs/heads/feat/hardhat-fork
+          repository: lidofinance/scripts
+          ref: feat/hardhat-fork
 
       - name: Install poetry
         shell: bash
