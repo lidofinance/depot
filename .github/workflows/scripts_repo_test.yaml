@@ -12,28 +12,11 @@ jobs:
           - 8545:8545
     timeout-minutes: 120
     steps:
-#      - uses: actions/checkout@v3
-#        with:
-#          path: ./fork
-#
-#      # run hardhat node in the background
-#      - name: Start mainnet fork
-#        env:
-#          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
-#        working-directory: ./fork
-#        shell: bash
-#        run: |
-#          docker compose up -d --build
-#
-      - name: Wait for the fork to be ready
-        shell: bash
-        run: timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 127.0.0.1 8545
       - uses: actions/checkout@v3
         with:
           repository: lidofinance/scripts
           ref: feat/hardhat-fork
 
-      # setup and run old repo tests
       - name: Install poetry
         shell: bash
         run: |
@@ -65,9 +48,10 @@ jobs:
           echo "CPU units"
           nproc --all
 
+      - name: Check that the fork is ready
+        shell: bash
+        run: timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 127.0.0.1 8545
+
       - name: Run tests
         shell: bash
-        run: |
-          poetry run brownie networks import network-config.yaml True
-          poetry run brownie networks modify mainnet-fork host=http://fork:8545
-          poetry run brownie test --network mainnet-fork
+        run: poetry run brownie test
