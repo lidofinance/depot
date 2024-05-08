@@ -1,6 +1,7 @@
 {
   "name": "hardhat-project",
   "scripts": {
+    "generate-types": "typechain --target ethers-v6 --out-dir ./typechain-types ./interfaces/*",
     "omnibus": "ts-node --files ./scripts/omnibs.ts",
     "fork": "hardhat node"
   },

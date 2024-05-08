@@ -29,14 +29,17 @@ RUN --mount=type=bind,source=package.json,target=package.json \
     --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --prod --frozen-lockfile
 
-# Run the application as a non-root user.
-USER node
-
 # Copy the rest of the source files into the image.
 COPY . .
 
+# Generate types
+RUN pnpm generate-types
+
 # Expose the port that the application listens on.
 EXPOSE 8485
+
+# Run the application as a non-root user.
+USER node
 
 # Run the application.
 CMD pnpm fork
