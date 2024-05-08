@@ -61,5 +61,5 @@ jobs:
         run: |
           poetry run brownie networks import network-config.yaml True
           poetry run brownie networks modify mainnet-fork host=http://fork:8545
-          timeout 60s sh -c 'until nc -z http://fork:8545; do echo "Waiting for hardhat node to be healthy..."; sleep 2; done'
+          timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' fork 8545
           poetry run brownie test -s
