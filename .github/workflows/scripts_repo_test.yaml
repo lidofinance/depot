@@ -6,9 +6,11 @@ jobs:
     timeout-minutes: 100
     steps:
       - uses: actions/checkout@v3
-        working-directory: ./node
+        with:
+          working-directory: ./fork
       - name: Start mainnet fork
-        working-directory: ./node
+        with:
+          working-directory: ./fork
         env:
           INFURA_TOKEN: ${{ secrets.WEB3_INFURA_PROJECT_ID }}
         run: docker compose up --build --abort-on-container-exit --exit-code-from client
