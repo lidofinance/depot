@@ -33,12 +33,6 @@ jobs:
           python-version: "3.10"
           cache: poetry
 
-      - name: Setup node.js version
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20.x
-          cache: "yarn"
-
       - name: Install poetry requirements
         shell: bash
         run: poetry install
@@ -59,8 +53,6 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          docker logs "${{ job.services.fork.id }}"
           poetry run brownie networks import network-config.yaml True
           poetry run brownie networks modify mainnet-fork host=http://fork:8545
-          timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' fork 8545
           poetry run brownie test -s
