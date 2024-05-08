@@ -7,7 +7,7 @@ jobs:
       fork:
         env:
           INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
-        image: feofanov/hardhat-fork:latest
+        image: feofanov/hardhat-node
         ports:
           - 8545:8545
     timeout-minutes: 120
