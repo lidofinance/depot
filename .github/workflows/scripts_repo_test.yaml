@@ -25,6 +25,9 @@ jobs:
 #        run: |
 #          docker compose up -d --build
 #
+      - name: Wait for the fork to be ready
+        shell: bash
+        run: timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 127.0.0.1 8545
       - uses: actions/checkout@v3
         with:
           repository: lidofinance/scripts
@@ -61,10 +64,6 @@ jobs:
           echo
           echo "CPU units"
           nproc --all
-
-      - name: Wait for the fork to be ready
-        shell: bash
-        run: timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' fork 8545
 
       - name: Run tests
         shell: bash
