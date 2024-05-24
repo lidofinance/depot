@@ -3,15 +3,12 @@ jobs:
   run-tests:
     name: Old scripts repo tests
     runs-on: "ubuntu-latest"
-    services:
-      fork:
-        env:
-          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
-        image: feofanov/hardhat-node
-        ports:
-          - 8545:8545
     timeout-minutes: 120
     steps:
+      - name: start fork
+        run: docker compose up --build -d
+        env:
+          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
       - uses: actions/checkout@v3
         with:
           repository: lidofinance/scripts
