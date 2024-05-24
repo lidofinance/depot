@@ -5,7 +5,12 @@ jobs:
     runs-on: "ubuntu-latest"
     timeout-minutes: 120
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          path: ./fork
       - name: start fork
+        working-directory: ./fork
         run: docker compose up --build -d
         env:
           INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
