@@ -1,7 +1,7 @@
 on: [push]
 jobs:
   acceptance-testing:
-    name: Acceptance tests from the old scripts repo
+    name: Acceptance tests [old scripts repo]
     runs-on: "ubuntu-latest"
     timeout-minutes: 120
     services:
@@ -57,7 +57,7 @@ jobs:
         run: poetry run brownie test tests/acceptance/*
 
   regression-testing:
-    name: Acceptance tests from the old scripts repo
+    name: Regression tests [old scripts repo]
     runs-on: "ubuntu-latest"
     timeout-minutes: 120
     services:
