@@ -1,6 +1,6 @@
 on: [push]
 jobs:
-  run-tests:
+  acceptance-testing:
     services:
       hardhat-node:
         image: feofanov/hardhat-node
@@ -55,6 +55,58 @@ jobs:
       - name: Run acceptance tests
         shell: bash
         run: poetry run brownie test tests/acceptance/*
+
+  regression-testing:
+    services:
+      hardhat-node:
+        image: feofanov/hardhat-node
+        ports:
+          - 8545:8545
+        env:
+          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
+    name: Old scripts repo tests
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: lidofinance/scripts
+          ref: feat/hardhat-fork
+
+      - name: Install poetry
+        shell: bash
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        env:
+          POETRY_VERSION: "1.8.2"
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: poetry
+
+      - name: Install poetry requirements
+        shell: bash
+        run: poetry install
+
+      - name: Show system info
+        shell: bash
+        run: |
+          echo "Memory and swap:"
+          free -h
+          echo
+          swapon --show
+          echo
+          df -h
+          echo
+          echo "CPU units"
+          nproc --all
+
+      - name: Check that the fork is ready
+        shell: bash
+        run: timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 127.0.0.1 8545
 
       - name: Run regression tests
         shell: bash
