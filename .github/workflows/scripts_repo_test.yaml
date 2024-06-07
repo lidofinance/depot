@@ -52,6 +52,10 @@ jobs:
         shell: bash
         run: timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 127.0.0.1 8545
 
-      - name: Run tests
+      - name: Run acceptance tests
         shell: bash
         run: poetry run brownie test tests/acceptance/*
+
+      - name: Run regression tests
+        shell: bash
+        run: poetry run brownie test tests/regression/*
