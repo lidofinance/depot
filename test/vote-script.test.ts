@@ -78,8 +78,8 @@ describe("VoteScript tests", async () => {
   //   ]);
   // });
 
-  it("Trace via debug_traceTransaction()", async () => {
-    const trace = await votes.trace(enactReceipt);
-    console.log(trace.format());
-  });
+  // it("Trace via debug_traceTransaction()", async () => {
+  //   const trace = await votes.trace(enactReceipt);
+  //   console.log(trace.format());
+  // });
 });

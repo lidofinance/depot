@@ -2,6 +2,7 @@ import { call, event, forward } from "../../votes";
 
 import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
 import { OmnibusItemsGroup } from "../omnibus-items-group";
+import { Address } from "../../common/types";
 
 interface NewNodeOperatorInput {
   name: string;

@@ -2,9 +2,11 @@
   "name": "hardhat-project",
   "scripts": {
     "omnibus": "ts-node --files ./scripts/omnibs.ts",
+    "omnibus:test": "hardhat omnibus:test 2023_10_03 --rpc local",
     "keystore:generate": "hardhat keystore:generate",
     "keystore:list": "hardhat keystore:list",
-    "test": "nyc --reporter text-summary mocha"
+    "test": "nyc --reporter text-summary mocha",
+    "style": "prettier --write ."
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.4",
