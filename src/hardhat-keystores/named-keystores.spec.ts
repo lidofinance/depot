@@ -76,8 +76,8 @@ describe("NamedKeystores", () => {
     const name = "test";
     const privateKey = getRandomPrivateKey();
     const password = "password";
-
     await namedKeystores.add(name, privateKey, password);
+
     await namedKeystores.remove(name);
 
     expect(await namedKeystores.has(name)).to.be.false;

@@ -27,14 +27,12 @@ export class NamedKeystoresStorage {
   }
 
   async add(acc: NamedKeystore): Promise<void> {
-    this.accounts.push(acc);
     await this.write(acc);
+    this.accounts.push(acc);
   }
 
   async all(): Promise<NamedKeystore[]> {
-    if (this.accounts.length === 0) {
-      this.accounts = await this.loadAccounts();
-    }
+    this.accounts = await this.loadAccounts();
     return this.accounts;
   }
 
@@ -43,7 +41,7 @@ export class NamedKeystoresStorage {
     this.accounts = await this.loadAccounts();
   }
 
-  async loadAccounts() {
+  private async loadAccounts() {
     await this.checkKeystoresDir();
     const fileNames = await fs.readdir(this.keystoresDir);
     return Promise.all(

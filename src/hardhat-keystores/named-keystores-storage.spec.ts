@@ -21,7 +21,7 @@ describe("NamedKeystoresStorage", () => {
     ks = await encrypt(create().privateKey, "password");
   });
 
-  beforeEach(async () => {
+  beforeEach(() => {
     storage = NamedKeystoresStorage.create(keystoresDir);
     storage["accounts"] = [];
     writeFileStub = sinon.stub(fs, "writeFile");
@@ -113,17 +113,6 @@ describe("NamedKeystoresStorage", () => {
     readdirStub.restore();
   });
 
-  it("returns all keystores", async () => {
-    const keystore1 = new NamedKeystore("test1", ks);
-    const keystore2 = new NamedKeystore("test2", ks);
-    await storage.add(keystore1);
-    await storage.add(keystore2);
-
-    const allKeystores = await storage.all();
-
-    expect(allKeystores).to.deep.equal([keystore1, keystore2]);
-  });
-
   it("reads a file from the filesystem", async () => {
     const fileName = "test.json";
     const fileContent = JSON.stringify(new NamedKeystore("test", ks));
@@ -177,7 +166,7 @@ describe("NamedKeystoresStorage", () => {
     readStub.onFirstCall().resolves(JSON.stringify(keystores[0]));
     readStub.onSecondCall().resolves(JSON.stringify(keystores[1]));
 
-    const result = await storage.loadAccounts();
+    const result = await storage["loadAccounts"]();
 
     expect(result).to.deep.equal(keystores);
     sinon.assert.calledWith(readdirStub, keystoresDir);

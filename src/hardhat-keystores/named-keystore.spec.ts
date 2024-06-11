@@ -3,16 +3,20 @@ import { NamedKeystore } from "./named-keystore";
 import { encrypt } from "web3-eth-accounts";
 import { PrivateKey } from "../common/types";
 import { getRandomPrivateKey } from "./test_helpers";
+import bytes from "../common/bytes";
 
 describe("NamedKeystore", () => {
   it("creates a NamedKeystore from a private key", async () => {
     const name = "test";
     const privateKey = getRandomPrivateKey();
     const password = "password";
+    const ks = await encrypt(privateKey, password);
 
     const namedKeystore = await NamedKeystore.fromPrivateKey(name, privateKey, password);
 
     expect(namedKeystore).to.be.instanceOf(NamedKeystore);
+    expect(namedKeystore.name).to.equal(name);
+    expect(namedKeystore.address).to.equal(bytes.normalize(ks.address));
   });
 
   it("generates a NamedKeystore", async () => {
@@ -56,12 +60,7 @@ describe("NamedKeystore", () => {
     const privateKey = getRandomPrivateKey();
     const password = "password";
 
-    try {
-      await NamedKeystore.fromPrivateKey(name, privateKey, password);
-    } catch (err: any) {
-      expect(err).to.be.instanceOf(Error);
-      expect(err.message).to.equal("Name is empty");
-    }
+    await expect(NamedKeystore.fromPrivateKey(name, privateKey, password)).to.be.rejectedWith("Name is empty");
   });
 
   it("throws an error for an invalid private key", async () => {
@@ -69,12 +68,9 @@ describe("NamedKeystore", () => {
     const privateKey = "0xinvalid";
     const password = "password";
 
-    try {
-      await NamedKeystore.fromPrivateKey(name, privateKey, password);
-    } catch (err: any) {
-      expect(err).to.be.instanceOf(Error);
-      expect(err.message).to.equal("Private key is not a valid hex string");
-    }
+    await expect(NamedKeystore.fromPrivateKey(name, privateKey, password)).to.be.rejectedWith(
+      "Private key is not a valid hex string",
+    );
   });
 
   it("throws an error for private key with a wrong length", async () => {
@@ -82,12 +78,9 @@ describe("NamedKeystore", () => {
     const privateKey = getRandomPrivateKey().slice(2, -2) as PrivateKey;
     const password = "password";
 
-    try {
-      await NamedKeystore.fromPrivateKey(name, privateKey, password);
-    } catch (err: any) {
-      expect(err).to.be.instanceOf(Error);
-      expect(err.message).to.equal("Invalid private key length");
-    }
+    await expect(NamedKeystore.fromPrivateKey(name, privateKey, password)).to.be.rejectedWith(
+      "Invalid private key length",
+    );
   });
 
   it("throws an error for an empty password", async () => {
@@ -95,11 +88,6 @@ describe("NamedKeystore", () => {
     const privateKey = getRandomPrivateKey();
     const password = "";
 
-    try {
-      await NamedKeystore.fromPrivateKey(name, privateKey, password);
-    } catch (err: any) {
-      expect(err).to.be.instanceOf(Error);
-      expect(err.message).to.equal("Password is empty");
-    }
+    await expect(NamedKeystore.fromPrivateKey(name, privateKey, password)).to.be.rejectedWith("Password is empty");
   });
 });

@@ -61,15 +61,13 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
   // getOrSelect is a helper function that will either return the keystore with the given name or prompt the user to select one
   async function getOrSelect(name?: string): Promise<NamedKeystore> {
     if (name === undefined) {
-      console.log("Keystore name not provided");
       return select();
     }
-    let keystore = await get(name);
-    if (keystore === null) {
-      console.log(`Keystore ${name} not found`);
-      return select();
+    const keystore = await get(name);
+    if (keystore !== null) {
+      return keystore;
     }
-    return keystore;
+    return select();
   }
 
   async function has(name: string): Promise<boolean> {
@@ -114,7 +112,7 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
   }
 
   async function remove(name: string) {
-    return storage.del(name);
+    await storage.del(name);
   }
 
   async function password(name: string, newPassword?: string, oldPassword?: string): Promise<NamedKeystore> {
