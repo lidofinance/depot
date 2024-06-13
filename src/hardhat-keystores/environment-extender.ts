@@ -6,5 +6,6 @@ import { create } from "./named-keystores";
 import { NamedKeystoresStorage } from "./named-keystores-storage";
 
 export const environmentExtender: EnvironmentExtender = async (hre) => {
-  hre.keystores = await lazyObject(async () => create(await NamedKeystoresStorage.create(hre.config.keystores.path)));
+  const namedKeystoresStorage = await NamedKeystoresStorage.create(hre.config.keystores.path);
+  hre.keystores = lazyObject(() => create(namedKeystoresStorage));
 };
