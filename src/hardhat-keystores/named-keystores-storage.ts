@@ -4,10 +4,11 @@ import { NamedKeystore } from "./named-keystore";
 
 export class NamedKeystoresStorage {
   private static instances: Record<string, NamedKeystoresStorage> = {};
-  public static create(keystoresDir: string): NamedKeystoresStorage {
+  public static async create(keystoresDir: string): Promise<NamedKeystoresStorage> {
     if (!this.instances[keystoresDir]) {
       this.instances[keystoresDir] = new NamedKeystoresStorage(keystoresDir);
     }
+    this.instances[keystoresDir].accounts = await this.instances[keystoresDir].loadAccountsFromFS();
     return this.instances[keystoresDir]!;
   }
 
@@ -20,9 +21,6 @@ export class NamedKeystoresStorage {
   }
 
   async get(name: string): Promise<NamedKeystore | null> {
-    if (this.accounts.length === 0) {
-      this.accounts = await this.loadAccounts();
-    }
     return this.accounts.find((acc) => acc.name === name) || null;
   }
 
@@ -32,16 +30,15 @@ export class NamedKeystoresStorage {
   }
 
   async all(): Promise<NamedKeystore[]> {
-    this.accounts = await this.loadAccounts();
     return this.accounts;
   }
 
   async del(name: string) {
     await fs.unlink(this.getKeystorePath(name));
-    this.accounts = await this.loadAccounts();
+    this.accounts = this.accounts.filter((acc) => acc.name !== name);
   }
 
-  private async loadAccounts() {
+  private async loadAccountsFromFS() {
     await this.checkKeystoresDir();
     const fileNames = await fs.readdir(this.keystoresDir);
     return Promise.all(

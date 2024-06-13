@@ -21,8 +21,8 @@ describe("NamedKeystoresStorage", () => {
     ks = await encrypt(create().privateKey, "password");
   });
 
-  beforeEach(() => {
-    storage = NamedKeystoresStorage.create(keystoresDir);
+  beforeEach(async () => {
+    storage = await NamedKeystoresStorage.create(keystoresDir);
     storage["accounts"] = [];
     writeFileStub = sinon.stub(fs, "writeFile");
     unlinkStub = sinon.stub(fs, "unlink");
@@ -41,10 +41,12 @@ describe("NamedKeystoresStorage", () => {
 
   it("creates a new instance if one does not exist", () => {
     expect(storage).to.be.instanceOf(NamedKeystoresStorage);
+    expect(storage["keystoresDir"]).to.equal(keystoresDir);
+    expect(storage["accounts"]).to.deep.equal([]);
   });
 
-  it("returns an existing instance if one exists", () => {
-    const secondStorage = NamedKeystoresStorage.create(keystoresDir);
+  it("returns an existing instance if one exists", async () => {
+    const secondStorage = await NamedKeystoresStorage.create(keystoresDir);
 
     expect(secondStorage).to.equal(storage);
   });
@@ -66,39 +68,20 @@ describe("NamedKeystoresStorage", () => {
     expect(retrievedKeystore).to.deep.equal(keystore);
   });
 
-  it("load accounts from filesystem if storage is empty on get call", async () => {
-    storage["accounts"] = [];
-    const loadAccountsStub: sinon.SinonStub = sinon.stub(storage, "loadAccounts" as any);
+  it("load accounts from filesystem on init", async () => {
+    const loadAccountsStub: sinon.SinonStub = sinon.stub(storage, "loadAccountsFromFS" as any);
     loadAccountsStub.resolves([]);
 
-    const retrievedKeystore = await storage.get("test");
+    storage = await NamedKeystoresStorage.create(keystoresDir);
 
-    expect(retrievedKeystore).to.deep.equal(null);
-    sinon.assert.calledOnce(loadAccountsStub);
-    loadAccountsStub.restore();
-  });
-
-  it("load accounts from filesystem if storage is empty on all call", async () => {
-    storage["accounts"] = [];
-    const loadAccountsStub: sinon.SinonStub = sinon.stub(storage, "loadAccounts" as any);
-    loadAccountsStub.resolves([]);
-
-    const retrievedKeystore = await storage.all();
-
-    expect(retrievedKeystore).to.deep.equal([]);
     sinon.assert.calledOnce(loadAccountsStub);
     loadAccountsStub.restore();
   });
 
   it("returns null if a keystore does not exist", async () => {
-    const readdirStub: sinon.SinonStub = sinon.stub(fs, "readdir");
-    readdirStub.resolves([]);
-
     const retrievedKeystore = await storage.get("nonexistent");
 
     expect(retrievedKeystore).to.be.null;
-    sinon.assert.calledWith(readdirStub, keystoresDir);
-    readdirStub.restore();
   });
 
   it("deletes a keystore by name", async () => {
@@ -166,7 +149,7 @@ describe("NamedKeystoresStorage", () => {
     readStub.onFirstCall().resolves(JSON.stringify(keystores[0]));
     readStub.onSecondCall().resolves(JSON.stringify(keystores[1]));
 
-    const result = await storage["loadAccounts"]();
+    const result = await storage["loadAccountsFromFS"]();
 
     expect(result).to.deep.equal(keystores);
     sinon.assert.calledWith(readdirStub, keystoresDir);
@@ -181,7 +164,7 @@ describe("NamedKeystoresStorage", () => {
     const readStub: sinon.SinonStub = sinon.stub(storage, "read" as any);
     readdirStub.resolves([]);
 
-    const result = await storage["loadAccounts"]();
+    const result = await storage["loadAccountsFromFS"]();
 
     expect(result).to.deep.equal([]);
     sinon.assert.calledWith(readdirStub, keystoresDir);

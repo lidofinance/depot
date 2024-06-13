@@ -70,7 +70,7 @@ task(TASKS.DELETE, "Delete an existing account")
       return;
     }
     try {
-      hre.keystores.remove(name);
+      await hre.keystores.remove(name);
       console.log(`Account ${keystore.format()} was successfully removed`);
     } catch (e) {
       console.log(`Removal of the account ${keystore.format()} failed. Cause: ${e}`);
