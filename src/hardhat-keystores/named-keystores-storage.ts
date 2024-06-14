@@ -4,16 +4,16 @@ import { NamedKeystore } from "./named-keystore";
 
 export class NamedKeystoresStorage {
   private static instances: Record<string, NamedKeystoresStorage> = {};
-  public static async create(keystoresDir: string): Promise<NamedKeystoresStorage> {
+  public static create(keystoresDir: string): NamedKeystoresStorage {
     if (!this.instances[keystoresDir]) {
       this.instances[keystoresDir] = new NamedKeystoresStorage(keystoresDir);
     }
-    this.instances[keystoresDir].accounts = await this.instances[keystoresDir].loadAccountsFromFS();
     return this.instances[keystoresDir]!;
   }
 
   private readonly keystoresDir: string;
   private accounts: NamedKeystore[];
+  private isLoaded: boolean = false;
 
   private constructor(keystoresDir: string) {
     this.keystoresDir = keystoresDir;
@@ -21,6 +21,7 @@ export class NamedKeystoresStorage {
   }
 
   async get(name: string): Promise<NamedKeystore | null> {
+    await this.loadAccountsFromFS();
     return this.accounts.find((acc) => acc.name === name) || null;
   }
 
@@ -30,6 +31,7 @@ export class NamedKeystoresStorage {
   }
 
   async all(): Promise<NamedKeystore[]> {
+    await this.loadAccountsFromFS();
     return this.accounts;
   }
 
@@ -39,14 +41,18 @@ export class NamedKeystoresStorage {
   }
 
   private async loadAccountsFromFS() {
+    if (this.isLoaded) {
+      return;
+    }
     await this.checkKeystoresDir();
     const fileNames = await fs.readdir(this.keystoresDir);
-    return Promise.all(
+    this.accounts = await Promise.all(
       fileNames.map(
         async (fileName) =>
           new NamedKeystore(fileName.split(".")[0] ?? fileName, JSON.parse(await this.read(fileName))),
       ),
     );
+    this.isLoaded = true;
   }
 
   private async read(fileName: string) {
