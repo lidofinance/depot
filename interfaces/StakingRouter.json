@@ -101,9 +101,7 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "internalType": "uint256", "name": "version", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": false, "internalType": "uint256", "name": "version", "type": "uint256" }],
     "name": "ContractVersionSet",
     "type": "event"
   },
@@ -746,9 +744,7 @@
   {
     "inputs": [{ "internalType": "uint256", "name": "_stakingModuleId", "type": "uint256" }],
     "name": "getStakingModuleStatus",
-    "outputs": [
-      { "internalType": "enum StakingRouter.StakingModuleStatus", "name": "", "type": "uint8" }
-    ],
+    "outputs": [{ "internalType": "enum StakingRouter.StakingModuleStatus", "name": "", "type": "uint8" }],
     "stateMutability": "view",
     "type": "function"
   },

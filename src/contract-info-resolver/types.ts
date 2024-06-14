@@ -1,7 +1,7 @@
 import { HexStrPrefixed } from "../common/bytes";
+import { Address } from "../common/types";
 
 export type ChainId = number | bigint | string;
-export type Address = `0x${string}`;
 
 type AbiElementType = "function" | "constructor" | "receive" | "fallback";
 type AbiElementStateMutability = "pure" | "view" | "nonpayable" | "payable";
@@ -21,10 +21,7 @@ interface AbiFragment {
 }
 
 export interface ContractInfoProvider {
-  request(
-    chainId: ChainId,
-    address: Address,
-  ): Promise<[res: ContractInfo | null, err: null | string]>;
+  request(chainId: ChainId, address: Address): Promise<[res: ContractInfo | null, err: null | string]>;
 }
 
 export interface ContractInfo {

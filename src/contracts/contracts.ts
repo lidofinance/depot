@@ -3,6 +3,7 @@ import bytes from "../common/bytes";
 import { NamedContractsBuilder } from "./named-contract";
 import { ContractsConfig, ProxiableContractConfig, ContractConfig, NamedContract } from "./types";
 import format from "../common/format";
+import { Address } from "../common/types";
 
 /**
  * @description Combines members of an intersection into a readable type.
@@ -35,11 +36,7 @@ type OmitEmptyProxies<T extends ContractsConfig> = {
     ? T[K]["proxy"] extends ContractConfig
       ? K
       : never
-    : K]: T[K] extends ProxiableContractConfig
-    ? T[K]
-    : T[K] extends ContractsConfig
-      ? OmitEmptyProxies<T[K]>
-      : never;
+    : K]: T[K] extends ProxiableContractConfig ? T[K] : T[K] extends ContractsConfig ? OmitEmptyProxies<T[K]> : never;
 };
 
 type GetProxyAddress<T extends ProxiableContractConfig> = T["proxy"] extends ContractConfig
@@ -78,10 +75,7 @@ function isContractConfig(record: unknown): record is ProxiableContractConfig {
   return !!impl && !!(impl as ContractConfig).factory;
 }
 
-function instances<T extends ContractsConfig>(
-  contractsConfig: T,
-  runner?: ContractRunner,
-): Instances<T> {
+function instances<T extends ContractsConfig>(contractsConfig: T, runner?: ContractRunner): Instances<T> {
   const res: Record<string, unknown> = {};
   for (const key of Object.keys(contractsConfig)) {
     const nestedConfig = contractsConfig[key];
@@ -92,10 +86,7 @@ function instances<T extends ContractsConfig>(
   return res as Instances<T>;
 }
 
-function proxies<T extends ContractsConfig>(
-  contractsConfig: T,
-  runner?: ContractRunner,
-): Proxies<OmitEmptyProxies<T>> {
+function proxies<T extends ContractsConfig>(contractsConfig: T, runner?: ContractRunner): Proxies<OmitEmptyProxies<T>> {
   const res: Record<string, unknown> = {};
   for (const key of Object.keys(contractsConfig)) {
     const nestedConfig = contractsConfig[key];
@@ -124,10 +115,7 @@ function implementations<T extends ContractsConfig>(
   return res as Implementations<OmitEmptyProxies<T>>;
 }
 
-function create<T extends ContractsConfig>(
-  contractsConfig: T,
-  runner?: ContractRunner,
-): Contracts<T> {
+function create<T extends ContractsConfig>(contractsConfig: T, runner?: ContractRunner): Contracts<T> {
   return {
     ...instances(contractsConfig, runner),
     proxies: proxies(contractsConfig, runner),

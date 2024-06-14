@@ -4,6 +4,7 @@ import providers from "../providers";
 import traces from "../traces";
 import bytes from "../common/bytes";
 import lido from "../lido";
+import { Address } from "../common/types";
 
 interface MethodCallConfig {
   type?: "CALL" | "DELEGATECALL" | "STATICCALL" | "CALLCODE";
@@ -15,10 +16,7 @@ interface TraceOptions {
   extended: boolean;
 }
 
-export async function trace(
-  enactReceipt: ContractTransactionReceipt,
-  options: TraceOptions = { extended: false },
-) {
+export async function trace(enactReceipt: ContractTransactionReceipt, options: TraceOptions = { extended: false }) {
   const provider = providers.provider(enactReceipt);
   const {
     acl,
@@ -93,8 +91,7 @@ export async function trace(
         {
           type: "DELEGATECALL",
           address: aclImpl.address,
-          fragment: aclImpl.getFunction("hasPermission(address,address,bytes32,uint256[])")
-            .fragment,
+          fragment: aclImpl.getFunction("hasPermission(address,address,bytes32,uint256[])").fragment,
         },
         {
           type: "DELEGATECALL",
@@ -128,8 +125,6 @@ function omitMethodCalls(calls: MethodCallConfig[]) {
       (call) =>
         call.type === txTraceItem.type &&
         bytes.isEqual(call.address, txTraceItem.address) &&
-        (call.fragment
-          ? bytes.isEqual(call.fragment.selector, bytes.slice(txTraceItem.input, 0, 4))
-          : true),
+        (call.fragment ? bytes.isEqual(call.fragment.selector, bytes.slice(txTraceItem.input, 0, 4)) : true),
     );
 }

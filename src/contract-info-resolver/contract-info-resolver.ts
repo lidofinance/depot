@@ -1,5 +1,6 @@
 import { ContractInfoInMemoryCache } from "./contract-info-cache";
 import type { ChainId, ContractInfo, ContractInfoProvider, ContractInfoCache } from "./types";
+import { Address } from "../common/types";
 
 interface AbiResolverOptions {
   contractInfoProvider: ContractInfoProvider;
@@ -21,10 +22,7 @@ export class ContractInfoResolver {
 
   async resolve(chainId: ChainId, address: Address): Promise<{ res: ContractInfo; err: null }>;
   async resolve(chainId: ChainId, address: Address): Promise<{ res: null; err: string }>;
-  async resolve(
-    chainId: ChainId,
-    address: Address,
-  ): Promise<{ res: ContractInfo | null; err: string | null }> {
+  async resolve(chainId: ChainId, address: Address): Promise<{ res: ContractInfo | null; err: string | null }> {
     const cacheRes = await this.cache?.get(chainId, address);
     if (cacheRes) return { res: cacheRes, err: null };
     const [res, err] = await this.provider.request(chainId, address);

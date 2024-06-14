@@ -42,10 +42,7 @@ export class AccessControlGrantRole extends OmnibusItem<AccessControlGrantRoleIn
   async before({ assert, provider }: OmnibusHookCtx): Promise<void> {
     const { role, to } = this.input;
     const hasRole = await this.accessControl.connect(provider).hasRole(id(role), to);
-    assert.isFalse(
-      hasRole,
-      `Role "${role}" already granted to ${this.toAddress} on contract ${this.onAddress}`,
-    );
+    assert.isFalse(hasRole, `Role "${role}" already granted to ${this.toAddress} on contract ${this.onAddress}`);
   }
 
   async after({ it, assert, provider }: OmnibusHookCtx): Promise<void> {

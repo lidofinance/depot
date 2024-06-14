@@ -120,13 +120,11 @@ export class ApplyInsuranceAction extends OmnibusItem<ApplyInsuranceInstanceInpu
     it("After the insurance applying onchain state changed correctly", async () => {
       // const { amount, before } = this.input;
       // const after = await this.makeOnchainStateSnapshot();
-
       // assert.approximately(
       //   before.insuranceFundStEthBalance - after.insuranceFundStEthBalance,
       //   amount,
       //   STETH_ERROR_MARGIN_WEI,
       // );
-
       // assert.equal(
       //   after.insuranceFundStEthShares,
       //   before.insuranceFundStEthShares,

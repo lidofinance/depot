@@ -17,17 +17,13 @@ interface RemoveEvmScriptFactoryInput {
   factory: Address;
 }
 
-abstract class RemoveEvmScriptFactory<
-  T extends RemoveEvmScriptFactoryInput,
-> extends OmnibusItem<T> {
+abstract class RemoveEvmScriptFactory<T extends RemoveEvmScriptFactoryInput> extends OmnibusItem<T> {
   get call(): FormattedEvmCall {
     return call(this.contracts.easyTrack.removeEVMScriptFactory, [this.input.factory]);
   }
 
   get events(): EventCheck[] {
-    return [
-      event(this.contracts.easyTrack, "EVMScriptFactoryRemoved", { args: [this.input.factory] }),
-    ];
+    return [event(this.contracts.easyTrack, "EVMScriptFactoryRemoved", { args: [this.input.factory] })];
   }
 
   async after({ it, assert }: OmnibusTestContext): Promise<void> {
@@ -65,21 +61,13 @@ class RemoveRemoveEvmScriptFactory extends RemoveEvmScriptFactory<RemovePaymentE
 }
 
 export class RemovePaymentEvmScriptFactories extends OmnibusItemsGroup<RemovePaymentEvmScriptFactoriesInput> {
-  private _items: (
-    | RemoveTopUpEvmScriptFactory
-    | RemoveAddEvmScriptFactory
-    | RemoveRemoveEvmScriptFactory
-  )[];
+  private _items: (RemoveTopUpEvmScriptFactory | RemoveAddEvmScriptFactory | RemoveRemoveEvmScriptFactory)[];
 
   constructor(input: RemovePaymentEvmScriptFactoriesInput) {
     super(input);
-    this._items = [
-      new RemoveTopUpEvmScriptFactory({ name: input.name, factory: input.factories.topUp }),
-    ];
+    this._items = [new RemoveTopUpEvmScriptFactory({ name: input.name, factory: input.factories.topUp })];
     if (input.factories.addRecipient) {
-      this._items.push(
-        new RemoveAddEvmScriptFactory({ name: input.name, factory: input.factories.addRecipient }),
-      );
+      this._items.push(new RemoveAddEvmScriptFactory({ name: input.name, factory: input.factories.addRecipient }));
     }
     if (input.factories.removeRecipient) {
       this._items.push(

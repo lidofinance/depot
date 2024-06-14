@@ -12,6 +12,7 @@ import {
   isLogOpcode,
   isSelfDestructOpcode,
 } from "./evm-opcodes";
+import { Address } from "../common/types";
 
 type TxTraceOpcodes = LogEvmOpcodes | CallEvmOpcodes | CreateEvmOpcodes | SelfDestructEvmOpcodes;
 
@@ -20,9 +21,8 @@ interface TxTraceItemMeta<T extends TxTraceOpcodes> {
   depth: number;
 }
 
-export interface TxTraceCtxSpawningItem<
-  T extends CallEvmOpcodes | CreateEvmOpcodes = CallEvmOpcodes | CreateEvmOpcodes,
-> extends TxTraceItemMeta<T> {
+export interface TxTraceCtxSpawningItem<T extends CallEvmOpcodes | CreateEvmOpcodes = CallEvmOpcodes | CreateEvmOpcodes>
+  extends TxTraceItemMeta<T> {
   value: bigint;
   gasSpent: number;
   gasProvided: number;
@@ -53,11 +53,7 @@ export interface TxTraceSelfDestructItem extends TxTraceItemMeta<SelfDestructEvm
   beneficiary: Address;
 }
 
-export type TxTraceItem =
-  | TxTraceCreateItem
-  | TxTraceCallItem
-  | TxTraceLogItem
-  | TxTraceSelfDestructItem;
+export type TxTraceItem = TxTraceCreateItem | TxTraceCallItem | TxTraceLogItem | TxTraceSelfDestructItem;
 
 export interface TxTraceInput {
   address: Address | null; // null when a contract creation transaction
@@ -74,9 +70,7 @@ export class TxTrace {
     private readonly contracts: Record<Address, ContractInfo>,
   ) {}
 
-  public filter(
-    predicate: (callTrace: TxTraceItem, i: number, collection: TxTraceItem[]) => boolean,
-  ): TxTrace {
+  public filter(predicate: (callTrace: TxTraceItem, i: number, collection: TxTraceItem[]) => boolean): TxTrace {
     const calls = this.calls.filter(predicate);
     this.updateDepths(calls);
     return new TxTrace(this.network, this.from, calls, this.contracts);
@@ -93,14 +87,12 @@ export class TxTrace {
   }
 
   public formatOpCode(txTraceItem: TxTraceItem, padding?: number) {
-    if (isCallOpcode(txTraceItem.type))
-      return this.formatCallTraceItem(txTraceItem as TxTraceCallItem, padding);
+    if (isCallOpcode(txTraceItem.type)) return this.formatCallTraceItem(txTraceItem as TxTraceCallItem, padding);
     else if (isCreateOpcode(txTraceItem.type))
       return this.formatCreateTraceItem(txTraceItem as TxTraceCreateItem, padding);
     else if (isSelfDestructOpcode(txTraceItem.type))
       return this.formatSelfDestructTraceItem(txTraceItem as TxTraceSelfDestructItem, padding);
-    else if (isLogOpcode(txTraceItem.type))
-      return this.formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
+    else if (isLogOpcode(txTraceItem.type)) return this.formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
     else return " ".repeat(txTraceItem.depth + (padding ?? 0)) + txTraceItem.type;
   }
 
@@ -109,22 +101,15 @@ export class TxTrace {
     const opcode = format.opcode(traceCallItem.type);
     const contract = this.contracts[traceCallItem.address];
     const methodCallInfo = contract
-      ? this.parseMethodCall(
-          traceCallItem.address,
-          contract,
-          traceCallItem.input,
-          traceCallItem.output,
-        )
+      ? this.parseMethodCall(traceCallItem.address, contract, traceCallItem.input, traceCallItem.output)
       : null;
 
-    const contractLabel =
-      methodCallInfo?.contractLabel || format.contract("UNKNOWN", traceCallItem.address);
+    const contractLabel = methodCallInfo?.contractLabel || format.contract("UNKNOWN", traceCallItem.address);
     const methodName = methodCallInfo?.fragment.name || traceCallItem.input.slice(0, 10);
     const methodArgs =
       methodCallInfo?.fragment.inputs
         .map((input, i) => "  " + paddingLeft + format.argument(input.name, methodCallInfo.args[i]))
-        .join(",\n") ||
-      "  " + paddingLeft + format.argument("data", "0x" + traceCallItem.input.slice(10));
+        .join(",\n") || "  " + paddingLeft + format.argument("data", "0x" + traceCallItem.input.slice(10));
     const methodResult = methodCallInfo?.result || traceCallItem.output;
 
     return (
@@ -144,14 +129,9 @@ export class TxTrace {
     return " ".repeat(txCreateTraceItem.depth + (padding ?? 0)) + txCreateTraceItem.type;
   }
 
-  private formatSelfDestructTraceItem(
-    txSelfDestructTraceItem: TxTraceSelfDestructItem,
-    padding: number = 0,
-  ) {
+  private formatSelfDestructTraceItem(txSelfDestructTraceItem: TxTraceSelfDestructItem, padding: number = 0) {
     // TODO: implement pretty formatting
-    return (
-      " ".repeat(txSelfDestructTraceItem.depth + (padding ?? 0)) + txSelfDestructTraceItem.type
-    );
+    return " ".repeat(txSelfDestructTraceItem.depth + (padding ?? 0)) + txSelfDestructTraceItem.type;
   }
 
   private formatLogTraceItem(txTraceLogItem: TxTraceLogItem, padding: number = 0) {
@@ -159,12 +139,7 @@ export class TxTrace {
     return " ".repeat(txTraceLogItem.depth + (padding ?? 0)) + txTraceLogItem.type;
   }
 
-  private parseMethodCall(
-    address: Address,
-    { abi, name }: ContractInfo,
-    calldata: string,
-    ret: string,
-  ) {
+  private parseMethodCall(address: Address, { abi, name }: ContractInfo, calldata: string, ret: string) {
     const contract = new BaseContract(address, abi as any);
     const { fragment } = contract.getFunction(calldata.slice(0, 10));
     return {

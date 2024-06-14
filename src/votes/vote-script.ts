@@ -4,6 +4,7 @@ import contracts from "../contracts";
 import bytes, { HexStrPrefixed } from "../common/bytes";
 import { EvmCall, EvmScriptParser } from "./evm-script-parser";
 import { TypedContractMethod } from "../../typechain-types/common";
+import { Address } from "../common/types";
 
 type _TypedContractMethod = Omit<TypedContractMethod, "staticCallResult">;
 type _TypedContractArgs<T extends _TypedContractMethod> = Parameters<T["staticCall"]>;
@@ -28,26 +29,18 @@ export class AragonEvmForward implements FormattedEvmCall {
   }
 
   get calldata(): HexStrPrefixed {
-    return bytes.normalize(
-      this.forwarder.interface.encodeFunctionData("forward", [evm(...this.calls)]),
-    );
+    return bytes.normalize(this.forwarder.interface.encodeFunctionData("forward", [evm(...this.calls)]));
   }
 
   format(padding: number = 0): string {
     const label = contracts.label(this.forwarder);
 
     const methodName = this.forwarder.forward.name;
-    const argNames = this.forwarder.forward.fragment.inputs
-      .map((input) => input.type + " " + input.name)
-      .join(", ");
+    const argNames = this.forwarder.forward.fragment.inputs.map((input) => input.type + " " + input.name).join(", ");
     const signature = `${label}.${methodName}(${argNames})`;
 
     const subcalls = this.calls.map((call) => call.format(padding + 4));
-    return [
-      padLeft(signature, padding),
-      padLeft("Parsed EVM Script calls:", padding + 2),
-      ...subcalls,
-    ].join("\n");
+    return [padLeft(signature, padding), padLeft("Parsed EVM Script calls:", padding + 2), ...subcalls].join("\n");
   }
 }
 
@@ -109,10 +102,7 @@ export function evm(...calls: EvmCall[]): HexStrPrefixed {
  * @param args - args to use with the contract call
  * @returns an instance of the EVM call
  */
-export function call<T extends _TypedContractMethod>(
-  method: T,
-  args: _TypedContractArgs<T>,
-): ContractEvmCall {
+export function call<T extends _TypedContractMethod>(method: T, args: _TypedContractArgs<T>): ContractEvmCall {
   const contract: unknown = (method as any)._contract;
 
   if (!contract) {

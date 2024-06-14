@@ -19,10 +19,7 @@ describe("JsonBuilder", () => {
     });
 
     it("simple object", () => {
-      assert.deepEqual(
-        { foo: "baz" },
-        builder.openObject().key("foo").value("baz").closeObject().build(),
-      );
+      assert.deepEqual({ foo: "baz" }, builder.openObject().key("foo").value("baz").closeObject().build());
     });
 
     it("list of values", () => {
@@ -81,10 +78,7 @@ describe("JsonBuilder", () => {
     });
 
     it("simple object", () => {
-      assert.deepEqual(
-        { foo: "baz" },
-        builder.openObject().key("foo").value("baz").closeObject().pop(),
-      );
+      assert.deepEqual({ foo: "baz" }, builder.openObject().key("foo").value("baz").closeObject().pop());
     });
 
     it("list of values", () => {

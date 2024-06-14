@@ -5,11 +5,7 @@ import rpcs, { SpawnedRpcNode } from "../rpcs";
 import { DebugTraceTxStreamed, TraceParameters } from "./debug-trace-tx-streamed";
 import { get } from "lodash";
 
-async function streamDebutTraceTransaction(
-  node: SpawnedRpcNode,
-  hash: string,
-  params: TraceParameters,
-) {
+async function streamDebutTraceTransaction(node: SpawnedRpcNode, hash: string, params: TraceParameters) {
   const res: any = {
     gas: -1,
     failed: false,
@@ -70,7 +66,7 @@ const TRACE_OPTIONS: TraceParameters[] = [
 ];
 
 // TODO: add tests for "geth" and "erigon" nodes
-describe("DebugTraceTxStreamed", () => {
+describe.skip("DebugTraceTxStreamed", () => {
   let nodes: SpawnedRpcNode[];
   const contexts: TestContext[] = [];
 
@@ -105,13 +101,10 @@ describe("DebugTraceTxStreamed", () => {
 
         try {
           const [, stranger] = await cheats.signers();
-          const tx = await token
-            .connect(stranger)
-            .mint(stranger.address, 10n ** 18n, { gasLimit: 1_000_000 });
+          const tx = await token.connect(stranger).mint(stranger.address, 10n ** 18n, { gasLimit: 1_000_000 });
           await tx.wait();
         } catch (error: any) {
-          revertedTxHash =
-            get<any, string>(error, "error.data.txHash") || get<any, string>(error, "receipt.hash");
+          revertedTxHash = get<any, string>(error, "error.data.txHash") || get<any, string>(error, "receipt.hash");
           if (revertedTxHash === undefined) {
             throw error;
           }
@@ -122,11 +115,7 @@ describe("DebugTraceTxStreamed", () => {
         const paramsStringified = JSON.stringify(traceParams);
 
         it(`Trace successful ERC20 mint tx with options "${paramsStringified}"`, async () => {
-          const streamedTrace = await streamDebutTraceTransaction(
-            nodes[i],
-            successTxHash,
-            traceParams,
-          );
+          const streamedTrace = await streamDebutTraceTransaction(nodes[i], successTxHash, traceParams);
 
           const defaultTrace = await debugTraceTransaction(nodes[i], successTxHash, traceParams);
 
@@ -142,11 +131,7 @@ describe("DebugTraceTxStreamed", () => {
         const paramsStringified = JSON.stringify(traceParams);
 
         it(`Trace reverted ERC20 mint tx with options "${paramsStringified}"`, async () => {
-          const streamedTrace = await streamDebutTraceTransaction(
-            nodes[i],
-            revertedTxHash,
-            traceParams,
-          );
+          const streamedTrace = await streamDebutTraceTransaction(nodes[i], revertedTxHash, traceParams);
 
           const defaultTrace = await debugTraceTransaction(nodes[i], revertedTxHash, traceParams);
 

@@ -252,8 +252,7 @@ export class StructLogsTracingVisitor {
       const ctx = this.prevStackTop;
       // call operations returns the success as the stack output
       if (isCallOpcode(ctx.type)) {
-        (ctx as TxTraceCallItem).success =
-          bytes.toInt(this.formatRawStructLog(log).stack.peek(0)) === 1;
+        (ctx as TxTraceCallItem).success = bytes.toInt(this.formatRawStructLog(log).stack.peek(0)) === 1;
       } else if (isCreateOpcode(ctx.type)) {
         ctx.address = bytes.slice(this.formatRawStructLog(log).stack.peek(0), -20);
       }
@@ -310,10 +309,7 @@ export class StructLogsTracingVisitor {
       output: "0x",
       gasSpent: 0,
       gasProvided: 0,
-      input: structLog.memory.read(
-        bytes.toInt(structLog.stack.peek(1)),
-        bytes.toInt(structLog.stack.peek(2)),
-      ),
+      input: structLog.memory.read(bytes.toInt(structLog.stack.peek(1)), bytes.toInt(structLog.stack.peek(2))),
       value: bytes.toBigInt(structLog.stack.peek(0)),
       address: "0x",
       salt: structLog.op === OPCODES.CREATE2 ? structLog.stack.peek(3) : undefined,
@@ -329,9 +325,7 @@ export class StructLogsTracingVisitor {
     };
   }
 
-  private formatRawStructLog<T extends EvmOpcode>(
-    structLog: RawStructLog<T>,
-  ): FormattedStructLog<T> {
+  private formatRawStructLog<T extends EvmOpcode>(structLog: RawStructLog<T>): FormattedStructLog<T> {
     const res: FormattedStructLog<T> = {
       depth: structLog.depth,
       gas: Number(structLog.gas),

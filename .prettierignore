@@ -1,2 +1,7 @@
 # ignore auto-generated files
 src/votes/overloaded-types-helper.ts
+coverage
+public
+dist
+pnpm-lock.yaml
+pnpm-workspace.yaml

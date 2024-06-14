@@ -3,10 +3,7 @@ import { ChainName } from "../networks";
 
 export type ChainId = string | number | bigint;
 
-export type NamedContract<
-  T extends BaseContract = BaseContract,
-  A extends Address = Address,
-> = T & {
+export type NamedContract<T extends BaseContract = BaseContract, A extends Address = Address> = T & {
   address: A;
   name: string;
 };

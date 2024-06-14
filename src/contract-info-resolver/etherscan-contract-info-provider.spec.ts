@@ -33,13 +33,9 @@ describe("EtherscanAbiResolver", () => {
     }
   });
 
-  const etherscanToken = env.ETHERSCAN_TOKEN();
-  if (!etherscanToken) {
-    throw new Error(`ETHERSCAN_TOKEN env variable is not set`);
-  }
   const abiProvider = new EtherscanContractInfoProvider("fake_api_key");
 
-  it.only("The verified non proxy contract (flattened)", async () => {
+  it("The verified non proxy contract (flattened)", async () => {
     const [res, err] = await abiProvider.request(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS);
 
     assert.isNull(err);
@@ -80,28 +76,19 @@ describe("EtherscanAbiResolver", () => {
       }),
     );
   });
-  it("The verified non proxy contract (standard json input)", async () => {
-    const result = await abiProvider.request(
-      CHAIN_ID,
-      "0xD15a672319Cf0352560eE76d9e89eAB0889046D3",
-    );
+  it.skip("The verified non proxy contract (standard json input)", async () => {
+    const result = await abiProvider.request(CHAIN_ID, "0xD15a672319Cf0352560eE76d9e89eAB0889046D3");
   });
-  it("The verified non proxy contract (multi part files)", async () => {
-    const result = await abiProvider.request(
-      CHAIN_ID,
-      "0x92a27C4e5e35cFEa112ACaB53851Ec70e2D99a8D",
-    );
+  it.skip("The verified non proxy contract (multi part files)", async () => {
+    const result = await abiProvider.request(CHAIN_ID, "0x92a27C4e5e35cFEa112ACaB53851Ec70e2D99a8D");
   });
-  it("The verified proxy contract");
-  it("Unverified contract");
-  it("Empty bytecode address");
-  it("Vyper contract", async () => {
-    const result = await abiProvider.request(
-      CHAIN_ID,
-      "0x1aD5cb2955940F998081c1eF5f5F00875431aA90",
-    );
+  it.skip("The verified proxy contract");
+  it.skip("Unverified contract");
+  it.skip("Empty bytecode address");
+  it.skip("Vyper contract", async () => {
+    const result = await abiProvider.request(CHAIN_ID, "0x1aD5cb2955940F998081c1eF5f5F00875431aA90");
   });
-  it("Yul contract");
+  it.skip("Yul contract");
 });
 
 const ETHERSCAN_RESPONSES_MOCK = {

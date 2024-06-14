@@ -17,9 +17,7 @@ export class SetNodeOperatorName extends OmnibusItem<SetNodeOperatorNameInput> {
 
   get call() {
     const { agent, curatedStakingModule } = this.contracts;
-    return forward(agent, [
-      call(curatedStakingModule.setNodeOperatorName, [this.input.id, this.input.to]),
-    ]);
+    return forward(agent, [call(curatedStakingModule.setNodeOperatorName, [this.input.id, this.input.to])]);
   }
 
   get events() {
@@ -33,10 +31,7 @@ export class SetNodeOperatorName extends OmnibusItem<SetNodeOperatorNameInput> {
 
   async after({ it, assert }: OmnibusTestContext): Promise<void> {
     it("Name was set correctly", async () => {
-      const nodeOperator = await this.contracts.curatedStakingModule.getNodeOperator(
-        this.input.id,
-        true,
-      );
+      const nodeOperator = await this.contracts.curatedStakingModule.getNodeOperator(this.input.id, true);
       assert.equal(nodeOperator.name, this.input.to);
     });
   }

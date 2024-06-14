@@ -63,19 +63,17 @@ task(TASKS.DELETE, "Delete an existing account")
       return;
     }
 
-    const confirmed = await prompt.confirm(
-      `Are you sure you want to delete ${keystore.format()} account?`
-    );
+    const confirmed = await prompt.confirm(`Are you sure you want to delete ${keystore.format()} account?`);
 
     if (!confirmed) {
       console.log("Operation was canceled by the user");
       return;
     }
-    const isRemoved = await hre.keystores.remove(name);
-    if (isRemoved) {
+    try {
+      await hre.keystores.remove(name);
       console.log(`Account ${keystore.format()} was successfully removed`);
-    } else {
-      console.log(`Removal of the account ${keystore.format()} failed`);
+    } catch (e) {
+      console.log(`Removal of the account ${keystore.format()} failed. Cause: ${e}`);
     }
   });
 

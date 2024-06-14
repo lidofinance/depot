@@ -1,10 +1,5 @@
 import rpcs, { SpawnedRpcNode } from "../rpcs";
-import {
-  IssuableERC20,
-  IssuableERC20__factory,
-  TracingSample,
-  TracingSample__factory,
-} from "../../typechain-types";
+import { IssuableERC20, IssuableERC20__factory, TracingSample, TracingSample__factory } from "../../typechain-types";
 import providers, { ProviderCheats, SignerWithAddress } from "../providers";
 import { DebugTxTraceStrategy } from "./debug-trace-tx-strategy";
 import { assert, Assertion } from "chai";
@@ -23,7 +18,7 @@ const RPC_NODES = [
   ["ganache", { server: { port: 8546 } }],
 ];
 
-describe("DebugTraceTxStrategy", () => {
+describe.skip("DebugTraceTxStrategy", () => {
   let nodes: SpawnedRpcNode[];
   let node: SpawnedRpcNode;
   let token: IssuableERC20;

@@ -17,9 +17,7 @@ export class SetNodeOperatorRewardAddress extends OmnibusItem<SetNodeOperatorRew
 
   get call(): FormattedEvmCall {
     const { agent, curatedStakingModule } = this.contracts;
-    return forward(agent, [
-      call(curatedStakingModule.setNodeOperatorRewardAddress, [this.input.id, this.input.to]),
-    ]);
+    return forward(agent, [call(curatedStakingModule.setNodeOperatorRewardAddress, [this.input.id, this.input.to])]);
   }
 
   get events() {
@@ -33,10 +31,7 @@ export class SetNodeOperatorRewardAddress extends OmnibusItem<SetNodeOperatorRew
 
   async after({ it, assert }: OmnibusHookCtx): Promise<void> {
     it("Reward address was set correctly", async () => {
-      const nodeOperator = await this.contracts.curatedStakingModule.getNodeOperator(
-        this.input.id,
-        true,
-      );
+      const nodeOperator = await this.contracts.curatedStakingModule.getNodeOperator(this.input.id, true);
       assert.equal(nodeOperator.rewardAddress, this.input.to);
     });
   }

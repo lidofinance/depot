@@ -47,9 +47,7 @@ export class NamedKeystore {
       return bytes.normalize(privateKey);
     } catch (error: unknown) {
       if (error instanceof Error && error.message.startsWith("Scrypt:")) {
-        throw new Error(
-          "Error on account loading. Please, make sure that correct password was used"
-        );
+        throw new Error("Error on account loading. Please, make sure that correct password was used");
       }
       throw error;
     }

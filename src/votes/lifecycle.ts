@@ -13,9 +13,7 @@ export async function start(
 ) {
   const { voting, tokenManager } = lido.chainId(await providers.chainId(creator), creator);
 
-  const startVoteScript = evm(
-    call(voting["newVote(bytes,string,bool,bool)"], [evmScript, meta, castVote, false]),
-  );
+  const startVoteScript = evm(call(voting["newVote(bytes,string,bool,bool)"], [evmScript, meta, castVote, false]));
   return tokenManager.connect(creator).forward(startVoteScript, overrides ?? {});
 }
 
@@ -27,9 +25,7 @@ export async function wait(tx: ContractTransactionResponse) {
 
   const { voting } = lido.chainId(await providers.chainId(tx));
 
-  const startVoteLog = receipt.logs.find(
-    (log) => log.topics[0] === voting.interface.getEvent("StartVote")!.topicHash,
-  );
+  const startVoteLog = receipt.logs.find((log) => log.topics[0] === voting.interface.getEvent("StartVote")!.topicHash);
   if (!startVoteLog) {
     throw new Error("StartVote log not found");
   }

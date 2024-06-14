@@ -27,12 +27,7 @@ function join(...bytes: HexStr[]): HexStrPrefixed {
 }
 
 function slice(bytes: HexStr, startIndex?: number, endIndex?: number): HexStrPrefixed {
-  return prefix0x(
-    strip0x(bytes).slice(
-      startIndex ? 2 * startIndex : startIndex,
-      endIndex ? 2 * endIndex : endIndex,
-    ),
-  );
+  return prefix0x(strip0x(bytes).slice(startIndex ? 2 * startIndex : startIndex, endIndex ? 2 * endIndex : endIndex));
 }
 
 function toBigInt(bytes: HexStr) {
@@ -42,9 +37,7 @@ function toBigInt(bytes: HexStr) {
 function toInt(bytes: HexStr) {
   const asBigInt = toBigInt(bytes);
   if (asBigInt > Number.MAX_SAFE_INTEGER) {
-    throw new Error(
-      `Int overflow: ${asBigInt} > Number.MAX_SAFE_INTEGER. Use cast to BigInt instead`,
-    );
+    throw new Error(`Int overflow: ${asBigInt} > Number.MAX_SAFE_INTEGER. Use cast to BigInt instead`);
   }
   return Number(asBigInt);
 }

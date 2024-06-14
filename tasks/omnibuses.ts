@@ -43,24 +43,9 @@ omnibus:run
 
 task("omnibus:test", "Runs tests for the given omnibus")
   .addPositionalParam<string>("name", "Name of the omnibus to test", undefined, types.string, false)
-  .addOptionalParam<RpcNodeName | "local">(
-    "rpc",
-    "The dev RPC node type to run tests on",
-    "hardhat",
-    types.string,
-  )
-  .addOptionalParam<number>(
-    "blockNumber",
-    "Block number to spawn rpc node on",
-    undefined,
-    types.int,
-  )
-  .addOptionalParam<boolean>(
-    "simulate",
-    "Shall the simulation be run before the tests",
-    false,
-    types.boolean,
-  )
+  .addOptionalParam<RpcNodeName | "local">("rpc", "The dev RPC node type to run tests on", "hardhat", types.string)
+  .addOptionalParam<number>("blockNumber", "Block number to spawn rpc node on", undefined, types.int)
+  .addOptionalParam<boolean>("simulate", "Shall the simulation be run before the tests", false, types.boolean)
   .setAction(async ({ name, rpc = "hardhat", blockNumber, simulate }) => {
     const omnibus: Omnibus<NetworkName> = require(`../omnibuses/${name}.ts`).default;
 
@@ -80,9 +65,7 @@ task("omnibus:test", "Runs tests for the given omnibus")
         }
         const currentTimestamp = block.timestamp;
         if (omnibus.launchingTimestamp > currentTimestamp) {
-          await providers
-            .cheats(provider)
-            .increaseTime(omnibus.launchingTimestamp - currentTimestamp);
+          await providers.cheats(provider).increaseTime(omnibus.launchingTimestamp - currentTimestamp);
         }
       }
 
@@ -103,12 +86,7 @@ task("omnibus:test", "Runs tests for the given omnibus")
 
 task("omnibus:run", "Runs the omnibus with given name")
   .addPositionalParam<string>("name", "Name of the omnibus to run")
-  .addOptionalParam<boolean>(
-    "testAccount",
-    "Is the omnibus run using the test account",
-    true,
-    types.boolean,
-  )
+  .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", true, types.boolean)
   .addOptionalParam<RpcNodeName | "local" | "remote">(
     "rpc",
     'The RPC node used to launch omnibus. Possible values: hardhat, ganache, anvil, local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
@@ -184,11 +162,7 @@ function printOmnibusSimulation([gasUsed, groups]: [bigint, SimulationGroup[]]) 
   }
 }
 
-async function prepareExecEnv(
-  network: NetworkName,
-  rpc: RpcNodeName | "local" | "remote",
-  blockNumber?: number,
-) {
+async function prepareExecEnv(network: NetworkName, rpc: RpcNodeName | "local" | "remote", blockNumber?: number) {
   if (rpc === "remote") {
     console.log(`Running on the remote RPC node on network "${network}"`);
     return [new JsonRpcProvider(networks.rpcUrl("eth", network))] as const;
@@ -208,11 +182,7 @@ async function prepareExecEnv(
     }
     return [provider] as const;
   } else {
-    console.log(
-      `Spawning "${rpc}" RPC node for "${network}" network, on block number ${
-        blockNumber ?? '"latest"'
-      }...`,
-    );
+    console.log(`Spawning "${rpc}" RPC node for "${network}" network, on block number ${blockNumber ?? '"latest"'}...`);
     const node = await spawnRpcNode(network, rpc, blockNumber);
     console.log(`RPC node was successfully spawned on ${node.url}`);
     return [node.provider, node] as const;

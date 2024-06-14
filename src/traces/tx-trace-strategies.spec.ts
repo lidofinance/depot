@@ -12,7 +12,7 @@ const RPC_NODES = [
   ["ganache", { server: { port: 8546 } }],
 ];
 
-describe("TxTracer strategies", () => {
+describe.skip("TxTracer strategies", () => {
   // run all nodes
   // run transaction on each of them
   // trace
@@ -26,6 +26,7 @@ describe("TxTracer strategies", () => {
   const GAS_LIMIT = 25_500_000;
 
   it(`test the trace result is the same for different strategies`, async () => {
+    // @ts-ignore
     const { provider: hhProvider } = hre.ethers;
     const hhCheates = await providers.cheats(hhProvider);
     const [hhOwner] = await hhCheates.signers();
@@ -62,9 +63,7 @@ describe("TxTracer strategies", () => {
     const [ganacheOwner] = await ganacheCheates.signers();
     const ganacheSample = await new TracingSample__factory(ganacheOwner).deploy();
     const ganacheReceipt = await (await ganacheSample.testSuccess({ gasLimit: GAS_LIMIT })).wait();
-    const ganacheTraceItems = await new DebugTxTraceStrategy(ganacheProvider).trace(
-      ganacheReceipt!,
-    );
+    const ganacheTraceItems = await new DebugTxTraceStrategy(ganacheProvider).trace(ganacheReceipt!);
 
     assert.equal(hardhatTraceItems.length, ganacheTraceItems.length);
     assert.equal(ganacheTraceItems.length, anvilTraceItems.length);

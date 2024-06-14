@@ -41,8 +41,7 @@ function local(chainName: ChainName): string {
  * Returns the RPC url for the given network name
  */
 function url(chainName: ChainName, networkName: NetworkName): string {
-  const url =
-    rpcUrl(chainName) || infuraUrl(chainName, networkName) || alchemyUrl(chainName, networkName);
+  const url = rpcUrl(chainName) || infuraUrl(chainName, networkName) || alchemyUrl(chainName, networkName);
   if (!url) {
     throw new Error(
       "RPC node credential was not provided. Please, set one of " +
@@ -67,9 +66,7 @@ function infuraUrl(chainName: ChainName, networkName: NetworkName) {
 
 function alchemyUrl(chainName: ChainName, networkName: NetworkName) {
   const alchemyToken = env.ALCHEMY_TOKEN();
-  return alchemyToken
-    ? `https://${chainName}-${networkName}.g.alchemy.com/v2/${alchemyToken}`
-    : undefined;
+  return alchemyToken ? `https://${chainName}-${networkName}.g.alchemy.com/v2/${alchemyToken}` : undefined;
 }
 
 function get(chainName: ChainName, networkName: NetworkName): Network {

@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs/promises";
 
-import { ChainId } from "../common/types";
+import { Address, ChainId } from "../common/types";
 import { ContractInfo, ContractInfoCache } from "./types";
 
 export class ContractInfoInMemoryCache implements ContractInfoCache {
@@ -61,10 +61,7 @@ export class ContractInfoPersistentJsonCache implements ContractInfoCache {
   }
 
   private async save(chainId: ChainId) {
-    await fs.writeFile(
-      this.getFilePath(chainId),
-      JSON.stringify(this.data[chainId.toString()], null, "  "),
-    );
+    await fs.writeFile(this.getFilePath(chainId), JSON.stringify(this.data[chainId.toString()], null, "  "));
   }
 
   private async load(chainId: ChainId) {

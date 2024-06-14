@@ -173,33 +173,25 @@
   { "anonymous": false, "inputs": [], "name": "BunkerModeDisabled", "type": "event" },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "internalType": "uint256", "name": "_sinceTimestamp", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": false, "internalType": "uint256", "name": "_sinceTimestamp", "type": "uint256" }],
     "name": "BunkerModeEnabled",
     "type": "event"
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "internalType": "uint256", "name": "version", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": false, "internalType": "uint256", "name": "version", "type": "uint256" }],
     "name": "ContractVersionSet",
     "type": "event"
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "internalType": "address", "name": "_admin", "type": "address" }
-    ],
+    "inputs": [{ "indexed": false, "internalType": "address", "name": "_admin", "type": "address" }],
     "name": "InitializedV1",
     "type": "event"
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "internalType": "uint256", "name": "_tokenId", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": false, "internalType": "uint256", "name": "_tokenId", "type": "uint256" }],
     "name": "MetadataUpdate",
     "type": "event"
   },
@@ -218,9 +210,7 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "internalType": "uint256", "name": "duration", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": false, "internalType": "uint256", "name": "duration", "type": "uint256" }],
     "name": "Paused",
     "type": "event"
   },

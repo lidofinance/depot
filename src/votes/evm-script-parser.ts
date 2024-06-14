@@ -1,4 +1,5 @@
 import bytes, { HexStrPrefixed } from "../common/bytes";
+import { Address } from "../common/types";
 
 /**
  * Data of the EVM script call
@@ -25,18 +26,12 @@ export class EvmScriptParser {
   public static readonly CALLDATA_LENGTH_LENGTH = 4;
   public static readonly DEFAULT_SPEC_ID = "0x00000001";
 
-  public static isValidEvmScript(
-    script: unknown,
-    specId: string = this.DEFAULT_SPEC_ID,
-  ): script is EncodedEvmScript {
+  public static isValidEvmScript(script: unknown, specId: string = this.DEFAULT_SPEC_ID): script is EncodedEvmScript {
     return bytes.isValid(script) && script.startsWith(specId);
   }
 
   public static encode(calls: EvmCall[], specId: string = this.DEFAULT_SPEC_ID): HexStrPrefixed {
-    const res = calls.reduce(
-      (evmScript, call) => bytes.join(evmScript, this.encodeEvmScriptCall(call)),
-      specId,
-    );
+    const res = calls.reduce((evmScript, call) => bytes.join(evmScript, this.encodeEvmScriptCall(call)), specId);
     return bytes.normalize(res);
   }
 
@@ -52,9 +47,7 @@ export class EvmScriptParser {
     let startIndex = this.SPEC_ID_LENGTH;
     while (startIndex < evmScriptLength) {
       const contract = bytes.slice(evmScript, startIndex, (startIndex += ADDRESS_LENGTH));
-      const calldataLength = bytes.toInt(
-        bytes.slice(evmScript, startIndex, (startIndex += this.CALLDATA_LENGTH)),
-      );
+      const calldataLength = bytes.toInt(bytes.slice(evmScript, startIndex, (startIndex += this.CALLDATA_LENGTH)));
       const calldata = bytes.slice(evmScript, startIndex, (startIndex += calldataLength));
       res.calls.push({ address: contract, calldata });
     }

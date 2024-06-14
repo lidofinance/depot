@@ -3,6 +3,7 @@ import bytes from "../common/bytes";
 import contracts from "../contracts";
 import { TypedContractEvent } from "../../typechain-types/common";
 import { OverloadedInputResultMap } from "./overloaded-types-helper";
+import { Address } from "../common/types";
 
 export interface EventCheck {
   args?: unknown[];
@@ -19,30 +20,24 @@ type TypedContract = BaseContract & {
   getEvent(key: string): TypedContractEvent;
 };
 
-interface MakeEventCheckParams<
-  T extends TypedContract,
-  K extends keyof OverloadedInputResultMap<T["getEvent"]>,
-> {
+interface MakeEventCheckParams<T extends TypedContract, K extends keyof OverloadedInputResultMap<T["getEvent"]>> {
   args?: Parameters<OverloadedInputResultMap<T["getEvent"]>[K]["getFragment"]>;
   emitter?: Address | BaseContract;
 }
 
 class EventFragmentNotFoundError extends Error {
   constructor(name: string, contract: BaseContract) {
-    super(
-      `EventFragment ${name} not found in the ${contracts.label(contract)} (${contracts.address(
-        contract,
-      )})`,
-    );
+    super(`EventFragment ${name} not found in the ${contracts.label(contract)} (${contracts.address(contract)})`);
   }
 }
 
 const EMPTY_INTERFACE = new Interface([]);
 
-export function event<
-  T extends TypedContract,
-  K extends keyof OverloadedInputResultMap<T["getEvent"]>,
->(contract: T, event: K, { args, emitter: address }: MakeEventCheckParams<T, K> = {}): EventCheck {
+export function event<T extends TypedContract, K extends keyof OverloadedInputResultMap<T["getEvent"]>>(
+  contract: T,
+  event: K,
+  { args, emitter: address }: MakeEventCheckParams<T, K> = {},
+): EventCheck {
   const fragment = contract.getEvent(event as string).fragment;
   if (!fragment) {
     throw new EventFragmentNotFoundError(event as string, contract);

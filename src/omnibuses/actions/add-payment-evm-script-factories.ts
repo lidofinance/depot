@@ -40,9 +40,7 @@ abstract class AddEvmScriptFactory<T extends AddEvmScriptFactoryInput> extends O
 
   async after({ it, assert }: OmnibusHookCtx) {
     it("Validate top up evm script factory was added", async () => {
-      assert.includeMembers(await this.contracts.easyTrack.getEVMScriptFactories(), [
-        this.input.factory,
-      ]);
+      assert.includeMembers(await this.contracts.easyTrack.getEVMScriptFactories(), [this.input.factory]);
     });
   }
 
@@ -74,10 +72,7 @@ class AddTopUpEvmScriptFactory extends AddEvmScriptFactory<AddTopUpEvmScriptFact
 
       const agentTokenBalanceBefore = await erc20Token.balanceOf(agent);
 
-      const recipientsRegistry = await AllowedRecipientsRegistry__factory.connect(
-        registry,
-        provider,
-      );
+      const recipientsRegistry = await AllowedRecipientsRegistry__factory.connect(registry, provider);
       const recipients = await recipientsRegistry.getAllowedRecipients();
 
       const recipientsTokenBalancesBefore = await Promise.all(
@@ -87,10 +82,7 @@ class AddTopUpEvmScriptFactory extends AddEvmScriptFactory<AddTopUpEvmScriptFact
       // TODO: request token decimals
       const transferAmounts = new Array(recipients.length).fill(1n ** 18n);
 
-      const calldata = AbiCoder.defaultAbiCoder().encode(
-        ["address[]", "uint256[]"],
-        [recipients, transferAmounts],
-      );
+      const calldata = AbiCoder.defaultAbiCoder().encode(["address[]", "uint256[]"], [recipients, transferAmounts]);
 
       const { unlock, mine, increaseTime } = providers.cheats(provider);
 
@@ -110,15 +102,11 @@ class AddTopUpEvmScriptFactory extends AddEvmScriptFactory<AddTopUpEvmScriptFact
       await mine();
 
       const enactor = await unlock(DEFAULT_ENACTOR, 10n ** 18n);
-      const enactTx = await easyTrack
-        .connect(enactor)
-        .enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
+      const enactTx = await easyTrack.connect(enactor).enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
       await enactTx.wait();
 
       const agentTokenBalanceAfter = await erc20Token.balanceOf(agent);
-      const recipientBalancesAfter = await Promise.all(
-        recipients.map((recipient) => erc20Token.balanceOf(recipient)),
-      );
+      const recipientBalancesAfter = await Promise.all(recipients.map((recipient) => erc20Token.balanceOf(recipient)));
 
       const epsilon = token === stETH.address ? 2 : 0;
 
@@ -129,11 +117,7 @@ class AddTopUpEvmScriptFactory extends AddEvmScriptFactory<AddTopUpEvmScriptFact
       );
 
       for (let i = 0; i < recipients.length; ++i) {
-        assert.approximately(
-          recipientBalancesAfter[i],
-          recipientsTokenBalancesBefore[i] + transferAmounts[i],
-          epsilon,
-        );
+        assert.approximately(recipientBalancesAfter[i], recipientsTokenBalancesBefore[i] + transferAmounts[i], epsilon);
       }
     });
   }
@@ -144,10 +128,7 @@ class AddTopUpEvmScriptFactory extends AddEvmScriptFactory<AddTopUpEvmScriptFact
       // allow to call finance.newImmediatePayment()
       ...[finance.address, finance.newImmediatePayment.fragment.selector],
       // allow to call allowedRecipientsRegistry.updateSpentAmount()
-      ...[
-        this.input.registry,
-        iAllowedRecipientsRegistry.getFunction("updateSpentAmount").selector,
-      ],
+      ...[this.input.registry, iAllowedRecipientsRegistry.getFunction("updateSpentAmount").selector],
     );
   }
 }
@@ -194,18 +175,13 @@ class AddAddRecipientEvmScriptFactory extends OmnibusItem<{
       const recipientsBefore = await registryContract.getAllowedRecipients();
       const motionsBefore = await easyTrack.getMotions();
 
-      const calldata = AbiCoder.defaultAbiCoder().encode(
-        ["address", "string"],
-        [TEST_RECIPIENT, "Test Recipient"],
-      );
+      const calldata = AbiCoder.defaultAbiCoder().encode(["address", "string"], [TEST_RECIPIENT, "Test Recipient"]);
 
       const { mine, unlock, increaseTime } = providers.cheats(provider);
 
       const trustedSigner = await unlock(trustedCaller);
 
-      const createTx = await easyTrack
-        .connect(trustedSigner)
-        .createMotion(factory, calldata, { gasLimit: 5_000_000 });
+      const createTx = await easyTrack.connect(trustedSigner).createMotion(factory, calldata, { gasLimit: 5_000_000 });
 
       await createTx.wait();
 
@@ -219,9 +195,7 @@ class AddAddRecipientEvmScriptFactory extends OmnibusItem<{
 
       const enactorSigner = await unlock(DEFAULT_ENACTOR, 10n ** 18n);
 
-      await easyTrack
-        .connect(enactorSigner)
-        .enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
+      await easyTrack.connect(enactorSigner).enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
 
       const recipientsAfter = await registryContract.getAllowedRecipients();
 
@@ -281,9 +255,7 @@ class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<AddRemoveRe
 
       await setBalance(TEST_RECIPIENT, 10n ** 18n);
       const trustedSigner = await unlock(trustedCaller);
-      const createTx = await easyTrack
-        .connect(trustedSigner)
-        .createMotion(factory, calldata, { gasLimit: 3_000_000 });
+      const createTx = await easyTrack.connect(trustedSigner).createMotion(factory, calldata, { gasLimit: 3_000_000 });
       await createTx.wait();
       const motionsAfter = await easyTrack.getMotions();
       assert.equal(motionsAfter.length, motionsBefore.length + 1);
@@ -292,9 +264,7 @@ class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<AddRemoveRe
       await mine();
       const enactorSigner = await unlock(TEST_RECIPIENT);
       await setBalance(TEST_RECIPIENT, 10n ** 18n);
-      await easyTrack
-        .connect(enactorSigner)
-        .enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
+      await easyTrack.connect(enactorSigner).enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
       const recipientsAfter = await registryContract.getAllowedRecipients();
       assert.equal(recipientsAfter.length, recipientsBefore.length - 1);
       assert.isFalse(await registryContract.isRecipientAllowed(TEST_RECIPIENT));
@@ -303,11 +273,7 @@ class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<AddRemoveRe
 }
 
 export class AddPaymentEvmScriptFactories extends OmnibusItemsGroup<AddPaymentEvmScriptFactoriesInput> {
-  private _items: (
-    | AddTopUpEvmScriptFactory
-    | AddAddRecipientEvmScriptFactory
-    | AddRemoveRecipientEvmScriptFactory
-  )[];
+  private _items: (AddTopUpEvmScriptFactory | AddAddRecipientEvmScriptFactory | AddRemoveRecipientEvmScriptFactory)[];
 
   constructor(input: AddPaymentEvmScriptFactoriesInput) {
     super(input);

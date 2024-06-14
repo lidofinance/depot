@@ -3,6 +3,7 @@ import { JsonRpcSigner } from "ethers";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { UnsupportedProviderError, isHardhatEthersProvider, isJsonRpcProvider } from "./utils";
 import { RpcProvider, SignerWithAddress, SnapshotRestorer } from "./types";
+import { Address } from "../common/types";
 
 type NodeName = "hardhat" | "anvil" | "ganache";
 
@@ -53,11 +54,7 @@ async function fetchNodeInfo<T extends RpcProvider>(provider: T): Promise<LocalN
   throw new UnsupportedRpcNode(clientInfo);
 }
 
-async function sendMine(
-  node: LocalNodeInfo,
-  provider: RpcProvider,
-  blocks: number,
-): Promise<unknown> {
+async function sendMine(node: LocalNodeInfo, provider: RpcProvider, blocks: number): Promise<unknown> {
   switch (node.name) {
     case "anvil":
       return provider.send("anvil_mine", [blocks]);
@@ -78,11 +75,7 @@ function signer(provider: RpcProvider, address: Address): Promise<SignerWithAddr
   }
 }
 
-async function sendImpersonate(
-  node: LocalNodeInfo,
-  provider: RpcProvider,
-  address: Address,
-): Promise<unknown> {
+async function sendImpersonate(node: LocalNodeInfo, provider: RpcProvider, address: Address): Promise<unknown> {
   switch (node.name) {
     case "anvil":
       // hardhat returns null by default
@@ -161,11 +154,7 @@ async function sendReset(
   }
 }
 
-async function sendLock(
-  node: LocalNodeInfo,
-  provider: RpcProvider,
-  address: Address,
-): Promise<unknown> {
+async function sendLock(node: LocalNodeInfo, provider: RpcProvider, address: Address): Promise<unknown> {
   switch (node.name) {
     case "anvil":
       return provider.send("anvil_stopImpersonatingAccount", [address]);

@@ -143,10 +143,7 @@ export type GanacheNodeOptions = Partial<{
 }>;
 
 type RpcNodeOptions = AnvilNodeOptions | HardhatNodeOptions | GanacheNodeOptions;
-export interface SpawnedRpcNode<
-  N extends RpcNodeName = RpcNodeName,
-  O extends RpcNodeOptions = RpcNodeOptions,
-> {
+export interface SpawnedRpcNode<N extends RpcNodeName = RpcNodeName, O extends RpcNodeOptions = RpcNodeOptions> {
   url: string;
   host: string;
   port: number;
@@ -222,10 +219,7 @@ function spawnGanacheProcess(options: GanacheNodeOptions) {
   return spawnProcess({ command: "npx", args: ["ganache-cli"], flags });
 }
 
-async function spawnNode(
-  name: "anvil",
-  options?: AnvilNodeOptions,
-): Promise<SpawnedRpcNode<"anvil", AnvilNodeOptions>>;
+async function spawnNode(name: "anvil", options?: AnvilNodeOptions): Promise<SpawnedRpcNode<"anvil", AnvilNodeOptions>>;
 async function spawnNode(
   name: "hardhat",
   options?: HardhatNodeOptions,

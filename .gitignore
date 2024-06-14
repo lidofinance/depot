@@ -2,6 +2,7 @@ node_modules
 .env
 coverage
 coverage.json
+.nyc_output
 typechain
 typechain-types
 .vscode
@@ -16,3 +17,7 @@ etherscan-cache
 
 # OS specific
 .DS_store
+# IDE
+.idea
+# config files
+.envrc

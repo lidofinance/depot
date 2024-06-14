@@ -1,5 +1,6 @@
 import { BaseContract, ContractRunner, JsonFragment } from "ethers";
 import { ProxiableContractConfig, ContractFactory, NamedContract } from "./types";
+import { Address } from "../common/types";
 
 export class Contract__factory<T extends BaseContract = BaseContract> implements ContractFactory {
   public readonly abi: JsonFragment[];
@@ -13,10 +14,7 @@ export class Contract__factory<T extends BaseContract = BaseContract> implements
   }
 }
 
-function extend<T extends BaseContract>(
-  contract: T,
-  props: { address: Address; name: string }
-): NamedContract<T> {
+function extend<T extends BaseContract>(contract: T, props: { address: Address; name: string }): NamedContract<T> {
   const _connect = contract.connect.bind(contract);
 
   const connect = (runner?: null | ContractRunner): NamedContract<T> =>
@@ -33,7 +31,7 @@ export class NamedContractsBuilder {
   static buildContract<C extends ProxiableContractConfig>(
     contractName: string,
     config: C,
-    runner?: ContractRunner
+    runner?: ContractRunner,
   ): NamedContract {
     const { impl, proxy } = config;
     const address = proxy ? proxy.address : impl.address;
@@ -46,7 +44,7 @@ export class NamedContractsBuilder {
   static buildProxy<C extends ProxiableContractConfig>(
     contractName: string,
     config: C,
-    runner?: ContractRunner
+    runner?: ContractRunner,
   ): NamedContract | null {
     if (!config.proxy) return null;
     const { address, factory } = config.proxy;
@@ -59,7 +57,7 @@ export class NamedContractsBuilder {
   static buildImpl<C extends ProxiableContractConfig>(
     contractName: string,
     config: C,
-    runner?: ContractRunner
+    runner?: ContractRunner,
   ): NamedContract | null {
     if (!config.proxy) return null;
     const { address, factory } = config.impl;

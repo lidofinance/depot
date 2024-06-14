@@ -4,8 +4,7 @@ import { AllowedRecipientsRegistry__factory } from "../typechain-types";
 import { TypedContractMethod } from "../typechain-types/common";
 
 const INSURANCE_STETH_AMOUNT = parseEther("13.45978634");
-const REQUEST_BURN_MY_STETH_ROLE =
-  "0x28186f938b759084eea36948ef1cd8b40ec8790a98d5f1a09b70879fe054e5cc";
+const REQUEST_BURN_MY_STETH_ROLE = "0x28186f938b759084eea36948ef1cd8b40ec8790a98d5f1a09b70879fe054e5cc";
 
 const gasSupply_stEth_registry = AllowedRecipientsRegistry__factory.connect(
   "0x49d1363016aA899bba09ae972a1BF200dDf8C55F",
@@ -14,9 +13,7 @@ const gasSupply_stETH_topup_factory = "0x200dA0b6a9905A377CF8D469664C65dB267009d
 const gasSupply_stETH_add_recipient_factory = "0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252";
 const gasSupply_stETH_remove_recipient_factory = "0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7";
 
-const reWARDS_stETH_registry = AllowedRecipientsRegistry__factory.connect(
-  "0x48c4929630099b217136b64089E8543dB0E5163a",
-);
+const reWARDS_stETH_registry = AllowedRecipientsRegistry__factory.connect("0x48c4929630099b217136b64089E8543dB0E5163a");
 const reWARDS_stETH_topupFactory = "0x1F2b79FE297B7098875930bBA6dd17068103897E";
 const reWARDS_stETH_addRecipientFactory = "0x935cb3366Faf2cFC415B2099d1F974Fd27202b77";
 const reWARDS_stETH_removeRecipientFactory = "0x22010d1747CaFc370b1f1FBBa61022A313c5693b";

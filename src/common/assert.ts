@@ -4,12 +4,7 @@ import { BigNumberish } from "ethers";
 chai.util.addMethod(
   chai.assert,
   "approximately",
-  function approximately(
-    act: BigNumberish,
-    exp: BigNumberish,
-    delta: BigNumberish,
-    message?: string | undefined,
-  ) {
+  function approximately(act: BigNumberish, exp: BigNumberish, delta: BigNumberish, message?: string | undefined) {
     act = BigInt(act);
     exp = BigInt(exp);
     delta = BigInt(delta);

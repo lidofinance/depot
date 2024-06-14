@@ -2,6 +2,7 @@ import { call, event, forward } from "../../votes";
 
 import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
 import { OmnibusItemsGroup } from "../omnibus-items-group";
+import { Address } from "../../common/types";
 
 interface NewNodeOperatorInput {
   name: string;
@@ -43,10 +44,7 @@ export class AddNodeOperators extends OmnibusItemsGroup<AddNodeOperatorsInput> {
 
     it("Expected node operator ids are not registered", async () => {
       for (let i = 0; i < operators.length; ++i) {
-        await assert.reverts(
-          curatedStakingModule.getNodeOperator(nodeOperatorsCountBefore + i, true),
-          "OUT_OF_RANGE",
-        );
+        await assert.reverts(curatedStakingModule.getNodeOperator(nodeOperatorsCountBefore + i, true), "OUT_OF_RANGE");
       }
     });
   }
@@ -72,9 +70,7 @@ class AddNodeOperatorItem extends OmnibusItem<AddNodeOperatorItemInput> {
   get call() {
     const { name, rewardAddress } = this.input;
     const { curatedStakingModule } = this.contracts;
-    return forward(this.contracts.agent, [
-      call(curatedStakingModule.addNodeOperator, [name, rewardAddress]),
-    ]);
+    return forward(this.contracts.agent, [call(curatedStakingModule.addNodeOperator, [name, rewardAddress])]);
   }
 
   get events() {

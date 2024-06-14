@@ -16,12 +16,7 @@ export class UpdateTargetValidatorsLimit extends OmnibusItem<UpdateTargetValidat
   }
 
   get call(): FormattedEvmCall {
-    const {
-      stakingModuleId,
-      nodeOperator,
-      isTargetLimitActive,
-      targetValidatorsCount: targetLimit,
-    } = this.input;
+    const { stakingModuleId, nodeOperator, isTargetLimitActive, targetValidatorsCount: targetLimit } = this.input;
     return forward(this.contracts.agent, [
       call(this.stakingRouter.updateTargetValidatorsLimits, [
         stakingModuleId,

@@ -118,15 +118,11 @@ export class Omnibus<N extends NetworkName> {
   }
 
   public get calls(): FormattedEvmCall[] {
-    return flatten(
-      this.actions().map((a) => (a instanceof OmnibusItem ? a.call : a.items.map((i) => i.call))),
-    );
+    return flatten(this.actions().map((a) => (a instanceof OmnibusItem ? a.call : a.items.map((i) => i.call))));
   }
 
   public get titles(): string[] {
-    return flatten(
-      this.actions().map((a) => (a instanceof OmnibusItem ? a.title : a.items.map((i) => i.title))),
-    );
+    return flatten(this.actions().map((a) => (a instanceof OmnibusItem ? a.title : a.items.map((i) => i.title))));
   }
 
   public get description(): string {
@@ -200,10 +196,7 @@ export class Omnibus<N extends NetworkName> {
       chalk.bold(`Testing the Omnibus "${this.name}" on ${this.network} network`),
     );
 
-    const preparationSuite = Mocha.Suite.create(
-      rootSuite,
-      `Running before hooks & checks for the omnibus`,
-    );
+    const preparationSuite = Mocha.Suite.create(rootSuite, `Running before hooks & checks for the omnibus`);
 
     for (let action of actions) {
       const actionItemSuite = Mocha.Suite.create(preparationSuite, action.title);
@@ -216,23 +209,17 @@ export class Omnibus<N extends NetworkName> {
     const { snapshot } = providers.cheats(provider);
     let restorer: SnapshotRestorer | null = null;
 
-    const launchSuite = Mocha.Suite.create(
-      rootSuite,
-      `Launching & executing the omnibus (voteId = ${this.voteId})`,
-    );
+    const launchSuite = Mocha.Suite.create(rootSuite, `Launching & executing the omnibus (voteId = ${this.voteId})`);
 
     let enactReceipt: ContractTransactionReceipt | TransactionReceipt;
 
     if (this.isLaunched) {
       launchSuite.addTest(
-        new Test(
-          `The omnibus already launched in voting ${this.voteId}. Executing the vote...`,
-          async () => {
-            if (!this.voteId) throw new Error(`voteId is not set`);
-            enactReceipt = await votes.pass(provider, this.voteId);
-            restorer = await snapshot();
-          },
-        ),
+        new Test(`The omnibus already launched in voting ${this.voteId}. Executing the vote...`, async () => {
+          if (!this.voteId) throw new Error(`voteId is not set`);
+          enactReceipt = await votes.pass(provider, this.voteId);
+          restorer = await snapshot();
+        }),
       );
     } else {
       launchSuite.addTest(
@@ -307,11 +294,7 @@ export class Omnibus<N extends NetworkName> {
     const eventNames = eventChecks.map((e) => e.fragment.name).join(", ");
     actionTestsSuite.addTest(
       new Test(`Validate Events Sequence: [${eventNames}]`, () => {
-        const foundSubsequence = votes.subsequence(
-          enactReceipt.logs as Log[],
-          eventChecks,
-          eventsValidateFromIndex,
-        );
+        const foundSubsequence = votes.subsequence(enactReceipt.logs as Log[], eventChecks, eventsValidateFromIndex);
 
         if (foundSubsequence.length === 0) {
           throw new Error(`Empty events group "${name}"`);

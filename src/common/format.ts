@@ -23,15 +23,11 @@ function label(label: string) {
 }
 
 function method(name: string, args = "", padding = "") {
-  return (
-    chalk.blue.italic(name) + chalk.blue.italic("(\n") + args + chalk.blue.italic(`\n${padding})`)
-  );
+  return chalk.blue.italic(name) + chalk.blue.italic("(\n") + args + chalk.blue.italic(`\n${padding})`);
 }
 
 function contract(name: string, addr: Address) {
-  return (
-    chalk.magenta.bold(name) + chalk.magenta.bold("[") + address(addr) + chalk.magenta.bold("]")
-  );
+  return chalk.magenta.bold(name) + chalk.magenta.bold("[") + address(addr) + chalk.magenta.bold("]");
 }
 
 export default {

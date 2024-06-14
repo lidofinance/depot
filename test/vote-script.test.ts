@@ -12,11 +12,9 @@ const REQUEST_BURN_MY_STETH_ROLE = id("REQUEST_BURN_MY_STETH_ROLE");
 
 describe("VoteScript tests", async () => {
   const { voting } = lido.eth.goerli();
-  const script = evm(
-    call(voting["newVote(bytes,string,bool,bool)"], ["0x00000001", "Empty voting", false, false]),
-  );
+  const script = evm(call(voting["newVote(bytes,string,bool,bool)"], ["0x00000001", "Empty voting", false, false]));
 
-  console.log(script)
+  console.log(script);
 
   // const provider = new JsonRpcProvider(networks.rpcUrl("eth", "mainnet"));
   // const { snapshot, revert } = providers.cheats(provider);
@@ -80,8 +78,8 @@ describe("VoteScript tests", async () => {
   //   ]);
   // });
 
-  it("Trace via debug_traceTransaction()", async () => {
-    const trace = await votes.trace(enactReceipt);
-    console.log(trace.format());
-  });
+  // it("Trace via debug_traceTransaction()", async () => {
+  //   const trace = await votes.trace(enactReceipt);
+  //   console.log(trace.format());
+  // });
 });

@@ -3,7 +3,7 @@ import fetch from "node-fetch";
 import { ContractInfoProvider, ContractInfo } from "./types";
 
 import bytes from "../common/bytes";
-import { ChainId } from "../common/types";
+import { Address, ChainId } from "../common/types";
 import { BUILTIN_ETHERSCAN_CHAINS, EtherscanChainConfig } from "./etherscan-chains-config";
 
 interface EtherscanResponse<T = unknown> {
@@ -46,10 +46,7 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
     this.chains = [...customChains, ...BUILTIN_ETHERSCAN_CHAINS];
   }
 
-  async request(
-    chainId: ChainId,
-    address: Address,
-  ): Promise<[res: ContractInfo | null, err: null | string]> {
+  async request(chainId: ChainId, address: Address): Promise<[res: ContractInfo | null, err: null | string]> {
     const [res, err] = await this.getContractInfo(chainId, address);
     if (err !== null) {
       return [null, err];
@@ -73,10 +70,7 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
     chainId: ChainId,
     address: Address,
   ): Promise<[res: EtherscanGetSourceCodeResult, error: null]>;
-  private async getContractInfo(
-    chainId: ChainId,
-    address: Address,
-  ): Promise<[res: null, error: string]>;
+  private async getContractInfo(chainId: ChainId, address: Address): Promise<[res: null, error: string]>;
   private async getContractInfo(
     chainId: ChainId,
     address: Address,
@@ -86,17 +80,10 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
     const getSourceCodeUrl =
       apiUrl +
       "?" +
-      [
-        "module=contract",
-        "action=getsourcecode",
-        `address=${address}`,
-        `apikey=${this.etherscanToken}`,
-      ].join("&");
+      ["module=contract", "action=getsourcecode", `address=${address}`, `apikey=${this.etherscanToken}`].join("&");
 
     const request = await fetch(getSourceCodeUrl);
-    const response = (await request.json()) as EtherscanResponse<
-      EtherscanGetSourceCodeResult[] | string
-    >;
+    const response = (await request.json()) as EtherscanResponse<EtherscanGetSourceCodeResult[] | string>;
 
     if (response.status === "0" && response.result === "Contract source code not verified") {
       return [null, "Contract is not verified"];
