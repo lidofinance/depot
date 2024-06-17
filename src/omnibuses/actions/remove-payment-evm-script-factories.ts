@@ -3,6 +3,7 @@ import { EventCheck, FormattedEvmCall, call, event } from "../../votes";
 
 import { OmnibusItemsGroup } from "../omnibus-items-group";
 import { OmnibusItem } from "../omnibus-item";
+import { Address } from "../../common/types";
 
 interface RemovePaymentEvmScriptFactoriesInput {
   name: string;

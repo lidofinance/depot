@@ -3,6 +3,7 @@ import { AccessControl, AccessControl__factory } from "../../../typechain-types"
 import { FormattedEvmCall, call, event, forward } from "../../votes";
 import contracts, { NamedContract } from "../../contracts";
 import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { Address } from "../../common/types";
 
 interface AccessControlGrantRoleInput {
   role: string;

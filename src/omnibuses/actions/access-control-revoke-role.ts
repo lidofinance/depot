@@ -3,6 +3,7 @@ import contracts from "../../contracts";
 import { AccessControl, AccessControl__factory } from "../../../typechain-types";
 import { forward, call, event } from "../../votes";
 import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { Address } from "../../common/types";
 
 interface AccessControlRevokeRoleInput {
   on: Address | BaseContract;

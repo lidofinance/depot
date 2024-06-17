@@ -6,6 +6,7 @@ import providers from "../../providers";
 
 import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
 import { OmnibusItemsGroup } from "../omnibus-items-group";
+import { Address } from "../../common/types";
 interface AddPaymentEvmScriptFactoriesInput {
   name: string;
   registry: Address;

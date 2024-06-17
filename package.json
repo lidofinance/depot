@@ -5,8 +5,9 @@
     "omnibus:test": "hardhat omnibus:test --rpc local",
     "keystore:generate": "hardhat keystore:generate",
     "keystore:list": "hardhat keystore:list",
+    "style": "prettier --write .",
     "test": "nyc --reporter text-summary mocha",
-    "style": "prettier --write ."
+    "typechain": "hardhat typechain"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.4",
