@@ -69,6 +69,7 @@ export interface SimulationGroup {
 
 export class Omnibus<N extends NetworkName> {
   private readonly roadmap: OmnibusPlan<N>;
+  private readonly _actions: (OmnibusItem<any> | OmnibusItemsGroup<any>)[] = [];
 
   constructor(roadmap: OmnibusPlan<N>) {
     this.roadmap = roadmap;
@@ -186,7 +187,7 @@ export class Omnibus<N extends NetworkName> {
   }
 
   public async test(provider: RpcProvider) {
-    const actions = this.actions(provider);
+    const actions = this.actions();
 
     // preparing the mocha tests for omnibus
     const mocha = new Mocha({ timeout: 10 * 60 * 1000, bail: true });
@@ -250,7 +251,7 @@ export class Omnibus<N extends NetworkName> {
             enactReceipt,
             eventsValidateFromIndex,
           );
-        } else if (action instanceof OmnibusItemsGroup) {
+        } else {
           const items = action.items;
           const itemGroupTestSuite = Mocha.Suite.create(voteItemsTestSuite, action.title);
           for (const item of items) {
@@ -267,8 +268,6 @@ export class Omnibus<N extends NetworkName> {
             itemGroupTestSuite.addTest(new Test(title, fn));
           };
           await action.after({ it, assert, provider });
-        } else {
-          throw new Error(`Unsupported omnibus item type ${action}`);
         }
       }
     });
@@ -324,15 +323,21 @@ export class Omnibus<N extends NetworkName> {
     return lido.eth[this.network](provider) as LidoEthContracts<N>;
   }
 
-  private actions(provider?: RpcProvider): (OmnibusItem<any> | OmnibusItemsGroup<any>)[] {
+  async init(provider: RpcProvider) {
     const contracts = this.contracts(provider);
     const actions = this.roadmap.actions(contracts);
-    actions.forEach((a) => {
-      a.init(this.roadmap.network, contracts);
-      if (a instanceof OmnibusItemsGroup) {
-        a.items.forEach((a) => a.init(this.roadmap.network, contracts));
+    for (const action of actions) {
+      await action.init(this.roadmap.network, contracts, provider);
+      if (action instanceof OmnibusItemsGroup) {
+        for (const item of action.items) {
+          await item.init(this.roadmap.network, contracts, provider);
+        }
       }
-    });
-    return actions;
+    }
+    this._actions.push(...actions);
+  }
+
+  private actions(): (OmnibusItem<any> | OmnibusItemsGroup<any>)[] {
+    return this._actions;
   }
 }

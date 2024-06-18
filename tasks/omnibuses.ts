@@ -69,6 +69,7 @@ task("omnibus:test", "Runs tests for the given omnibus")
         }
       }
 
+      await omnibus.init(provider);
       await omnibus.test(provider);
 
       if (simulate) {
@@ -111,6 +112,10 @@ task("omnibus:run", "Runs the omnibus with given name")
     const [provider, node] = await prepareExecEnv(omnibus.network, rpc);
 
     try {
+      // Init omnibus
+      await omnibus.init(provider);
+
+      // Prepare execution environment
       const network = await provider.getNetwork();
       console.log(`Network:`);
       console.log(`  - rpc: ${rpc}`);
@@ -125,6 +130,7 @@ task("omnibus:run", "Runs the omnibus with given name")
       console.log(`  - nonce: ${await pilot.getNonce()}`);
       console.log(`  - balance: ${hre.ethers.formatEther(await provider.getBalance(pilot))} ETH\n`);
 
+      // Simulate omnibus and ask for confirmation
       console.log(`Simulating the omnibus using "hardhat" node...`);
       printOmnibusSimulation(await omnibus.simulate(hre.ethers.provider));
       const isConfirmed = await prompt.confirm("Does it look good?");
@@ -134,6 +140,7 @@ task("omnibus:run", "Runs the omnibus with given name")
         return;
       }
 
+      // Launch the omnibus
       console.log(`Sending the tx to start the vote...`);
       const tx = await votes.start(pilot, omnibus.script, omnibus.description);
 
