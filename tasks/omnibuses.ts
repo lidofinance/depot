@@ -7,11 +7,13 @@ import votes from "../src/votes";
 import rpcs, { RpcNodeName } from "../src/rpcs";
 import providers from "../src/providers";
 import traces from "../src/traces";
-import { Omnibus, SimulationGroup } from "../src/omnibuses/omnibus";
+import { Omnibus } from "../src/omnibuses/omnibus";
 import networks, { NetworkName } from "../src/networks";
 import bytes from "../src/common/bytes";
 import format from "../src/common/format";
 import prompt from "../src/common/prompt";
+import { simulateOmnibus, SimulationGroup } from "../src/omnibuses/tools/simulate";
+import { testOmnibus } from "../src/omnibuses/tools/test";
 
 traces.hardhat.enableTracing();
 
@@ -70,11 +72,11 @@ task("omnibus:test", "Runs tests for the given omnibus")
       }
 
       await omnibus.init(provider);
-      await omnibus.test(provider);
+      await testOmnibus(omnibus, provider);
 
       if (simulate) {
         console.log(`Simulating the omnibus using "${rpc}" node...`);
-        printOmnibusSimulation(await omnibus.simulate(provider));
+        printOmnibusSimulation(await simulateOmnibus(omnibus, provider));
       } else {
         console.log(`The simulation step was skipped.`);
       }
@@ -132,7 +134,7 @@ task("omnibus:run", "Runs the omnibus with given name")
 
       // Simulate omnibus and ask for confirmation
       console.log(`Simulating the omnibus using "hardhat" node...`);
-      printOmnibusSimulation(await omnibus.simulate(hre.ethers.provider));
+      printOmnibusSimulation(await simulateOmnibus(omnibus, provider));
       const isConfirmed = await prompt.confirm("Does it look good?");
 
       if (!isConfirmed) {
@@ -197,31 +199,35 @@ async function prepareExecEnv(network: NetworkName, rpc: RpcNodeName | "local" |
 }
 
 async function spawnRpcNode(network: NetworkName, nodeType: RpcNodeName, blockNumber?: number) {
-  if (nodeType === "hardhat")
-    return rpcs.spawn("hardhat", {
-      fork: networks.rpcUrl("eth", network),
-      forkBlockNumber: blockNumber,
-    });
-  else if (nodeType === "anvil")
-    return rpcs.spawn("anvil", {
-      forkUrl: networks.rpcUrl("eth", network),
-      forkBlockNumber: blockNumber,
-    });
-  else if (nodeType === "ganache")
-    return rpcs.spawn("ganache", {
-      chain: {
-        hardfork: "istanbul",
-        chainId: +networks.get("eth", network).chainId.toString(),
-        vmErrorsOnRPCResponse: true,
-      },
-      wallet: {
-        totalAccounts: 10,
-        mnemonic: "test test test test test test test test test test test junk",
-      },
-      fork: {
-        url: networks.rpcUrl("eth", network),
-        blockNumber,
-      },
-    });
+  try {
+    if (nodeType === "hardhat")
+      return rpcs.spawn("hardhat", {
+        fork: networks.rpcUrl("eth", network),
+        forkBlockNumber: blockNumber,
+      });
+    else if (nodeType === "anvil")
+      return rpcs.spawn("anvil", {
+        forkUrl: networks.rpcUrl("eth", network),
+        forkBlockNumber: blockNumber,
+      });
+    else if (nodeType === "ganache")
+      return rpcs.spawn("ganache", {
+        chain: {
+          hardfork: "istanbul",
+          chainId: +networks.get("eth", network).chainId.toString(),
+          vmErrorsOnRPCResponse: true,
+        },
+        wallet: {
+          totalAccounts: 10,
+          mnemonic: "test test test test test test test test test test test junk",
+        },
+        fork: {
+          url: networks.rpcUrl("eth", network),
+          blockNumber,
+        },
+      });
+  } catch (e) {
+    throw new Error(`Failed to spawn "${nodeType}" node: ${e}`);
+  }
   throw new Error(`Unsupported node type "${nodeType}"`);
 }

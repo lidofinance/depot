@@ -2,7 +2,8 @@
   "name": "hardhat-project",
   "scripts": {
     "omnibus": "ts-node --files ./scripts/omnibs.ts",
-    "omnibus:test": "hardhat omnibus:test --rpc local",
+    "omnibus:run": "hardhat omnibus:run",
+    "omnibus:test": "hardhat omnibus:test",
     "keystore:generate": "hardhat keystore:generate",
     "keystore:list": "hardhat keystore:list",
     "style": "prettier --write .",
@@ -23,7 +24,7 @@
     "@types/sinon": "^17.0.3",
     "chai-as-promised": "^7.1.1",
     "ethers": "^6.7.1",
-    "hardhat": "^2.16.1",
+    "hardhat": "2.16.1",
     "nock": "^13.5.0",
     "nyc": "^15.1.0",
     "prettier": "^3.2.5",

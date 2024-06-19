@@ -262,13 +262,15 @@ async function spawnNode(name: RpcNodeName, options: RpcNodeOptions = {}): Promi
 
   await files.touchDir(config.logsDir);
 
-  return new Promise<SpawnedRpcNode>((resolve, reject) => {
+  return new Promise<SpawnedRpcNode>((resolve) => {
     const url = `http://${host}:${port}`;
     const provider = new JsonRpcProvider(url);
 
     const absoluteLogPath = path.resolve(config.logsDir, `${name}_${port}.log`);
     const logStream = createWriteStream(absoluteLogPath, { encoding: "utf-8" });
-    const errorListener = (chunk: any) => reject(new Error(`RPC Node Error:: ${chunk.toString()}`));
+    const errorListener = (chunk: any) => {
+      console.error(chunk.toString());
+    };
 
     const stop = () => {
       return new Promise<void>((resolve) => {
