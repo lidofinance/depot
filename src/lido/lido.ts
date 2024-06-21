@@ -20,3 +20,8 @@ export default {
     },
   },
 };
+
+export enum StakingModule {
+  CuratedStakingModule = 1,
+  SimpleDVT = 2,
+}

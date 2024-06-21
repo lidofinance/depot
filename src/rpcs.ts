@@ -269,7 +269,7 @@ async function spawnNode(name: RpcNodeName, options: RpcNodeOptions = {}): Promi
     const absoluteLogPath = path.resolve(config.logsDir, `${name}_${port}.log`);
     const logStream = createWriteStream(absoluteLogPath, { encoding: "utf-8" });
     const errorListener = (chunk: any) => {
-      console.error(chunk.toString());
+      logStream.write(chunk.toString());
     };
 
     const stop = () => {

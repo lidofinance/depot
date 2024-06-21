@@ -1,36 +1,17 @@
 import { FormattedEvmCall, call, event, forward } from "../../votes";
 import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
 import { BigNumberish } from "ethers";
+import { StakingModule } from "../../lido/lido";
+import { OmnibusActionInput } from "../omnibus-item-meta";
 
-interface UpdateStakingModuleInput {
+interface UpdateStakingModuleInput extends OmnibusActionInput {
   stakingModuleId: StakingModule;
   targetShare: BigNumberish;
   treasuryFee: BigNumberish;
   stakingModuleFee: BigNumberish;
 }
 
-enum StakingModule {
-  NodeOperatorsRegistry = 1,
-  SimpleDVT = 2,
-}
-
 export class UpdateStakingModule extends OmnibusItem<UpdateStakingModuleInput> {
-  get title(): string {
-    const { stakingModuleId, targetShare } = this.input;
-    let moduleName = "";
-    switch (stakingModuleId) {
-      case StakingModule.NodeOperatorsRegistry:
-        moduleName = "Node Operators Registry";
-        break;
-      case StakingModule.SimpleDVT:
-        moduleName = "Simple DVT";
-        break;
-      default:
-        throw new Error(`Unknown staking module ID: ${stakingModuleId}`);
-    }
-    return `Update target share for ${moduleName} to ${targetShare}`;
-  }
-
   get call(): FormattedEvmCall {
     const { stakingModuleId, targetShare, treasuryFee, stakingModuleFee } = this.input;
     return forward(this.contracts.agent, [
