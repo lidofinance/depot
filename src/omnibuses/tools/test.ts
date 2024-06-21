@@ -117,7 +117,7 @@ export const testOmnibus = async (omnibus: Omnibus<any>, provider: RpcProvider) 
 
 async function createOmnibusItemTestSuite(
   parentSuite: Mocha.Suite,
-  action: OmnibusItem<unknown>,
+  action: OmnibusItem<any>,
   provider: RpcProvider,
   voteItemIndex: number,
   enactReceipt: TransactionReceipt | ContractTransactionReceipt,
