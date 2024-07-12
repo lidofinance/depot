@@ -1,7 +1,7 @@
 on: [push]
 jobs:
   acceptance-testing:
-    name: Acceptance tests [old scripts repo]
+    name: Acceptance and integration tests [core repo, old scripts repo]
     runs-on: "ubuntu-latest"
     timeout-minutes: 120
     services:
@@ -12,6 +12,40 @@ jobs:
         env:
           INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
     steps:
+      - name: Check that the fork is ready
+        shell: bash
+        run: timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 127.0.0.1 8545
+
+      # Run core integration tests
+      - uses: actions/checkout@v3
+        with:
+          repository: lidofinance/core
+          ref: feat/integration
+
+      - name: Enable corepack
+        shell: bash
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - name: Install dependencies
+        shell: bash
+        run: yarn install
+
+      - name: Set env
+        shell: bash
+        run: cp .env.example .env
+
+      - name: Run integration tests
+        shell: bash
+        run: yarn test:integration:fork
+        env:
+          DEBUG: true
+
+      # Run scripts repo acceptance tests
       - uses: actions/checkout@v3
         with:
           repository: lidofinance/scripts
@@ -34,23 +68,6 @@ jobs:
       - name: Install poetry requirements
         shell: bash
         run: poetry install
-
-      - name: Show system info
-        shell: bash
-        run: |
-          echo "Memory and swap:"
-          free -h
-          echo
-          swapon --show
-          echo
-          df -h
-          echo
-          echo "CPU units"
-          nproc --all
-
-      - name: Check that the fork is ready
-        shell: bash
-        run: timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 127.0.0.1 8545
 
       - name: Run acceptance tests
         shell: bash
