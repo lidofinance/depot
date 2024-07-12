@@ -8,7 +8,8 @@
     "keystore:list": "hardhat keystore:list",
     "style": "prettier --write .",
     "test": "nyc --reporter text-summary mocha",
-    "typechain": "SKIP_TYPECHAIN=true hardhat typechain"
+    "typechain": "SKIP_TYPECHAIN=true hardhat typechain",
+    "postinstall": "pnpm typechain"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.4",
