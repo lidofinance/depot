@@ -70,7 +70,7 @@ so usually you don't need to write additional tests for the omnibus itself.
 To test omnibus you need to run the following command:
 
 ```bash
-pnpm run omnibus:test ${OMNIBUS_NAME}
+pnpm omnibus:test ${OMNIBUS_NAME}
 ```
 
 Where OMNIBUS_NAME is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension.
@@ -82,9 +82,17 @@ On test run script should output all supposed calls that should be made to the n
 To run omnibus you need to run the following command:
 
 ```bash
-pnpm run omnibus:run ${OMNIBUS_NAME}
+pnpm omnibus:run ${OMNIBUS_NAME}
 ```
 
 Where OMNIBUS_NAME is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension.
-On the run script should output all calls that are made to the network and ask your confirmation to proceed.
-After deployment, you will see the omnibus `voteID` and you should set it in the omnibus file along with the `launching` date and block number.
+On the run script should output all calls that will be made to the network and ask for your confirmation to continue.
+After deployment, you should see next message:
+```
+Omnibus successfully launched 🎉!
+Details:
+    Vote ID: 000
+    Block number: 12345678
+    Launch date: 01 Jan 1970
+``` 
+You have to set vote ID in the omnibus file along with the launching date and block number.

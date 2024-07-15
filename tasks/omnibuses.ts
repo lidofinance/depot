@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { task } from "hardhat/config";
-import { JsonRpcProvider, Wallet } from "ethers";
+import { BigNumberish, ContractTransactionReceipt, JsonRpcProvider, Wallet } from "ethers";
 import * as types from "hardhat/internal/core/params/argumentTypes";
 
 import votes from "../src/votes";
@@ -14,6 +14,7 @@ import format from "../src/common/format";
 import prompt from "../src/common/prompt";
 import { simulateOmnibus, SimulationGroup } from "../src/omnibuses/tools/simulate";
 import { testOmnibus } from "../src/omnibuses/tools/test";
+import { isKnownError } from "../src/common/errors";
 
 traces.hardhat.enableTracing();
 
@@ -89,7 +90,7 @@ task("omnibus:test", "Runs tests for the given omnibus")
 
 task("omnibus:run", "Runs the omnibus with given name")
   .addPositionalParam<string>("name", "Name of the omnibus to run")
-  .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", true, types.boolean)
+  .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", false, types.boolean)
   .addOptionalParam<RpcNodeName | "local" | "remote">(
     "rpc",
     'The RPC node used to launch omnibus. Possible values: hardhat, ganache, anvil, local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
@@ -149,10 +150,17 @@ task("omnibus:run", "Runs the omnibus with given name")
       console.log("Transaction successfully sent:", tx.hash);
 
       console.log("Waiting transaction will be confirmed...");
-      const { voteId } = await votes.wait(tx);
+      const { voteId, receipt } = await votes.wait(tx);
 
-      console.log(`Omnibus ${voteId} was launched successfully 🎉`);
+      await printVoteInfo(voteId, receipt);
+
       await prompt.sigint();
+    } catch (e) {
+      if (isKnownError(e)) {
+        console.error(e.message);
+        return;
+      }
+      throw e;
     } finally {
       await node?.stop();
     }
@@ -169,6 +177,20 @@ function printOmnibusSimulation([gasUsed, groups]: [bigint, SimulationGroup[]]) 
     console.log(group.trace.format(2));
     console.log();
   }
+}
+
+async function printVoteInfo(voteId: BigNumberish, receipt: ContractTransactionReceipt) {
+  const launchBlock = await receipt.getBlock();
+  const launchDate = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(
+    new Date(launchBlock.timestamp * 1000),
+  );
+  console.log(`
+Omnibus successfully launched 🎉!
+Details:
+    Vote ID: ${voteId}
+    Block number: ${receipt.blockNumber}
+    Launch date: ${launchDate}
+`);
 }
 
 async function prepareExecEnv(network: NetworkName, rpc: RpcNodeName | "local" | "remote", blockNumber?: number) {
