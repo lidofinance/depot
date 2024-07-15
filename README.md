@@ -88,11 +88,13 @@ pnpm omnibus:run ${OMNIBUS_NAME}
 Where OMNIBUS_NAME is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension.
 On the run script should output all calls that will be made to the network and ask for your confirmation to continue.
 After deployment, you should see next message:
+
 ```
 Omnibus successfully launched 🎉!
 Details:
     Vote ID: 000
     Block number: 12345678
     Launch date: 01 Jan 1970
-``` 
+```
+
 You have to set vote ID in the omnibus file along with the launching date and block number.
