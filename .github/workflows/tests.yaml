@@ -12,7 +12,7 @@ jobs:
         env:
           INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: lidofinance/core
           ref: feat/integration
@@ -56,7 +56,7 @@ jobs:
         env:
           INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: lidofinance/scripts
           ref: feat/hardhat-fork
