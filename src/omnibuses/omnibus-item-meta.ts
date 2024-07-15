@@ -47,7 +47,7 @@ export abstract class OmnibusItemMeta<Input extends OmnibusActionInput> {
     return this._contracts;
   }
 
-  async init(network: NetworkName, contracts: LidoEthContracts, provider: RpcProvider) {
+  init(network: NetworkName, contracts: LidoEthContracts) {
     this._network = network;
     this._contracts = contracts;
   }

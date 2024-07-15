@@ -5,9 +5,10 @@ import { StakingModule } from "../src/lido/lido";
 
 export default new Omnibus({
   network: "mainnet",
-  // voteId: 175, // Vote ID should be set only if omnibus is already started
-  // execution: { date: "Jun-30-2023 06:46:23 PM UTC", blockNumber: 17593962 }, // Execution date should be set only if vote is passed and omnibus is already executed
-  launching: { date: "Jun-27-2024" /* blockNumber: 17572253 */ }, // Launching block number should be set only if omnibus is already launched.
+  // launchedOn: 12345678, // Launch block number should be set only if omnibus was successfully launched.
+  // voteId: 000, // Vote ID should be set only if omnibus is already started.
+  // executedOn: 12345678,  // Execution block number should be set only if vote is passed and omnibus was successfully executed.
+  quorumReached: false, // Should be set to true if quorum was reached during the vote.
   actions: ({ ldo }) => [
     new UpdateStakingModule({
       title: "Raise Simple DVT target share from 0.5% to 4%", // Title is always required

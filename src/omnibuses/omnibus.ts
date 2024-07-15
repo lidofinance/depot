@@ -8,34 +8,30 @@ import { RpcProvider, SignerWithAddress } from "../providers";
 import { OmnibusItem } from "./omnibus-item";
 import { OmnibusItemsGroup } from "./omnibus-items-group";
 
-type DateString = string;
-
 export type TitledEvmCall = [string, FormattedEvmCall];
 export type TitledEventChecks = [string, ...EventCheck[]];
 
 interface OmnibusPlan<N extends NetworkName> {
   /**
-   Network where the omnibus must be launched. Supported networks: "mainnet", "holesky"
+   Network where the omnibus must be launched. Supported networks: "mainnet", "holesky".
    */
   network: N;
   /**
-   * When the omnibus was launched, contains the id of the vote
+   * When the omnibus was launched, contains the id of the vote.
    */
   voteId?: number;
   /**
-   * Contains the info about the omnibus execution:
-   *  - date - the ISO DateTime string of the block.timestamp when the omnibus was launched
-   *  - blockNumber - the number of the block with execution transaction
+   * Contains the info about the omnibus launching - the number of the block where the omnibus was launched.
    */
-  execution?: { date?: DateString | undefined; blockNumber?: number | undefined };
+  launchedOn?: number | undefined;
   /**
-   * Contains the info about the omnibus launching
-   * - date - required field, before the actual launch contains the ISO date of the expected
-   *   launch date. After the launch contains the ISO DateTime string of the block.timestamp
-   *   when the omnibus was launched.
-   * - blockNumber - the number of the block where the omnibus was launched
+   * Contains the info about the omnibus quorum - was it reached during the vote or not.
    */
-  launching: { date: DateString; blockNumber?: number | undefined };
+  quorumReached: boolean;
+  /**
+   * Contains the info about the omnibus execution - the number of the block with execution transaction.
+   */
+  executedOn?: number | undefined;
   actions(contracts: LidoEthContracts<N>): (OmnibusItem<any> | OmnibusItemsGroup<any>)[];
 }
 
@@ -45,14 +41,6 @@ export class Omnibus<N extends NetworkName> {
 
   constructor(roadmap: OmnibusPlan<N>) {
     this.roadmap = roadmap;
-
-    if (isNaN(this.launchingDate.valueOf())) {
-      throw new Error(`Invalid launching date: "${this.roadmap.launching.date}"`);
-    }
-
-    if (this.executionDate && isNaN(this.executionDate.valueOf())) {
-      throw new Error(`Invalid execution date: "${this.roadmap.execution?.date}"`);
-    }
   }
 
   /**
@@ -67,27 +55,7 @@ export class Omnibus<N extends NetworkName> {
   }
 
   public get name(): string {
-    return `${this.roadmap.launching.date}`;
-  }
-
-  public get launchingDate() {
-    return new Date(this.roadmap.launching.date);
-  }
-
-  public get launchingTimestamp(): number {
-    return Math.round(+this.launchingDate / 1000);
-  }
-
-  public get launchingBlockNumber() {
-    return this.roadmap.launching.blockNumber;
-  }
-
-  public get executionDate() {
-    return this.roadmap.execution?.date && new Date(this.roadmap.execution.date);
-  }
-
-  public get executionBlockNumber() {
-    return this.roadmap.execution?.blockNumber;
+    return `${this.roadmap.voteId}`;
   }
 
   public get calls(): FormattedEvmCall[] {
@@ -107,11 +75,11 @@ export class Omnibus<N extends NetworkName> {
   }
 
   public get isLaunched(): boolean {
-    return this.roadmap.launching.blockNumber !== undefined && this.roadmap.voteId !== undefined;
+    return this.roadmap.launchedOn !== undefined && this.roadmap.voteId !== undefined;
   }
 
   public get isExecuted(): boolean {
-    return this.isLaunched && this.roadmap.execution?.blockNumber !== undefined;
+    return this.isLaunched && this.roadmap.executedOn !== undefined;
   }
 
   public async launch(launcher: SignerWithAddress) {
@@ -122,14 +90,14 @@ export class Omnibus<N extends NetworkName> {
     return lido.eth[this.network](provider) as LidoEthContracts<N>;
   }
 
-  async init(provider: RpcProvider) {
+  init(provider: RpcProvider) {
     const contracts = this.contracts(provider);
     const actions = this.roadmap.actions(contracts);
     for (const action of actions) {
-      await action.init(this.roadmap.network, contracts, provider);
+      action.init(this.roadmap.network, contracts);
       if (action instanceof OmnibusItemsGroup) {
         for (const item of action.items) {
-          await item.init(this.roadmap.network, contracts, provider);
+          item.init(this.roadmap.network, contracts);
         }
       }
     }

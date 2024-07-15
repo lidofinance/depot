@@ -5,7 +5,6 @@ import * as types from "hardhat/internal/core/params/argumentTypes";
 
 import votes from "../src/votes";
 import rpcs, { RpcNodeName } from "../src/rpcs";
-import providers from "../src/providers";
 import traces from "../src/traces";
 import { Omnibus } from "../src/omnibuses/omnibus";
 import networks, { NetworkName } from "../src/networks";
@@ -60,19 +59,8 @@ task("omnibus:test", "Runs tests for the given omnibus")
     let [provider, node] = await prepareExecEnv(omnibus.network, rpc, blockNumber);
 
     try {
-      if (!omnibus.isLaunched) {
-        const currentBlockNumber = await provider.getBlockNumber();
-        const block = await provider.getBlock(currentBlockNumber);
-        if (!block) {
-          throw new Error(`Block ${currentBlockNumber} not found`);
-        }
-        const currentTimestamp = block.timestamp;
-        if (omnibus.launchingTimestamp > currentTimestamp) {
-          await providers.cheats(provider).increaseTime(omnibus.launchingTimestamp - currentTimestamp);
-        }
-      }
+      omnibus.init(provider);
 
-      await omnibus.init(provider);
       await testOmnibus(omnibus, provider);
 
       if (simulate) {
