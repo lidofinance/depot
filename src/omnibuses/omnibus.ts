@@ -59,7 +59,9 @@ export class Omnibus<N extends NetworkName> {
   }
 
   public get calls(): FormattedEvmCall[] {
-    return flatten(this.actions.map((a) => (a instanceof OmnibusAction ? a.call : a.items.map((i) => i.call))));
+    return flatten(
+      this.actions.map((a) => (a instanceof OmnibusAction ? a.getCall() : a.items.map((i) => i.getCall()))),
+    );
   }
 
   public get titles(): string[] {
