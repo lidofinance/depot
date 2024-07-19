@@ -78,6 +78,41 @@ Where OMNIBUS_NAME is the name of the file in the [omnibuses](./src/omnibuses) f
 
 On test run script should output all supposed calls that should be made to the network.
 
+## Keystores
+
+To run omnibus you need to have a keystore with the private key. To set it up you have
+to run the following command:
+
+```bash
+pnpm ks:add ${KEYSTORE_NAME}
+```
+
+Where keystore name can be anything you're comfortable with.
+
+To list all available keystores you can run the following command:
+
+```bash
+pnpm ks:ls
+```
+
+To remove keystore you can run the following command:
+
+```bash
+pnpm ks:del ${KEYSTORE_NAME}
+```
+
+To generate a new keystore you can run the following command:
+
+```bash
+pnpm ks:gen ${KEYSTORE_NAME}
+```
+
+To change the keystore password you can run the following command:
+
+```bash
+pnpm ks:pwd ${KEYSTORE_NAME}
+```
+
 ## Run omnibus
 
 To run omnibus you need to run the following command:
