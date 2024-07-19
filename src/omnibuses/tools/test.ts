@@ -124,7 +124,7 @@ async function createOmnibusItemTestSuite(
   eventsValidateFromIndex: number,
 ): Promise<number> {
   const actionTestsSuite = Mocha.Suite.create(parentSuite, `${++voteItemIndex}) ${action.title}`);
-  const eventChecks = action.events;
+  const eventChecks = action.getEvents();
   const eventNames = eventChecks.map((e) => e.fragment.name).join(", ");
   actionTestsSuite.addTest(
     new Test(`Validate Events Sequence: [${eventNames}]`, () => {

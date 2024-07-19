@@ -2,9 +2,9 @@ import { call, event, forward } from "../../votes";
 
 import { OmnibusAction } from "../omnibus-action";
 import { OmnibusTestContext } from "../tools/test";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
-interface SetNodeOperatorNameInput {
-  title: string;
+interface SetNodeOperatorNameInput extends OmnibusActionInput {
   id: number;
   from: string;
   to: string;
@@ -12,16 +12,15 @@ interface SetNodeOperatorNameInput {
 
 export class SetNodeOperatorName extends OmnibusAction<SetNodeOperatorNameInput> {
   get title() {
-    const { id, from, to } = this.input;
-    return `Change the on-chain name of node operator with id ${id} from "${from}" to "${to}"`;
+    return this.input.title;
   }
 
-  get call() {
+  getCall() {
     const { agent, curatedStakingModule } = this.contracts;
     return forward(agent, [call(curatedStakingModule.setNodeOperatorName, [this.input.id, this.input.to])]);
   }
 
-  get events() {
+  getEvents() {
     const { curatedStakingModule } = this.contracts;
     return [
       event(curatedStakingModule, "NodeOperatorNameSet", {

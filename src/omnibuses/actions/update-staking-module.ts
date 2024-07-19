@@ -12,17 +12,17 @@ interface UpdateStakingModuleInput extends OmnibusActionInput {
 }
 
 export class UpdateStakingModule extends OmnibusAction<UpdateStakingModuleInput> {
-  get call(): FormattedEvmCall {
+  private get stakingRouter() {
+    return this.contracts.stakingRouter;
+  }
+  getCall(): FormattedEvmCall {
     const { stakingModuleId, targetShare, treasuryFee, stakingModuleFee } = this.input;
     return forward(this.contracts.agent, [
       call(this.stakingRouter.updateStakingModule, [stakingModuleId, targetShare, stakingModuleFee, treasuryFee]),
     ]);
   }
-  private get stakingRouter() {
-    return this.contracts.stakingRouter;
-  }
 
-  get events() {
+  getEvents() {
     const { agent, callsScript, voting, stakingRouter } = this.contracts;
     const { stakingModuleId, targetShare, stakingModuleFee, treasuryFee } = this.input;
 

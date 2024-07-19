@@ -70,7 +70,7 @@ describe("UpdateStakingModule", () => {
   });
 
   it("should correctly set targetShare, treasuryFee, and stakingModuleFee", async () => {
-    const actionCall: AragonEvmForward = updateStakingModule.call as AragonEvmForward;
+    const actionCall: AragonEvmForward = updateStakingModule.getCall() as AragonEvmForward;
     const call = actionCall["calls"][0];
 
     expect(actionCall["calls"]).to.be.an("array");
@@ -86,7 +86,7 @@ describe("UpdateStakingModule", () => {
   });
 
   it("should emit correct events after update", async () => {
-    const events = updateStakingModule.events;
+    const events = updateStakingModule.getEvents();
 
     expect(events).to.be.an("array");
     expect(events).to.have.length(5);

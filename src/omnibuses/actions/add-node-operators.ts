@@ -3,13 +3,14 @@ import { call, event, forward } from "../../votes";
 import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { OmnibusActionGroup } from "../omnibus-action-group";
 import { Address } from "../../common/types";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
-interface NewNodeOperatorInput {
+interface NewNodeOperatorInput extends OmnibusActionInput {
   name: string;
   rewardAddress: Address;
 }
 
-interface AddNodeOperatorsInput {
+interface AddNodeOperatorsInput extends OmnibusActionInput {
   nodeOperatorsCountBefore: number;
   operators: NewNodeOperatorInput[];
 }
@@ -20,7 +21,6 @@ interface AddNodeOperatorItemInput extends NewNodeOperatorInput {
 
 export class AddNodeOperators extends OmnibusActionGroup<AddNodeOperatorsInput> {
   public readonly items: AddNodeOperatorItem[];
-  public readonly title = "Add the list of node operators to curated staking module";
 
   constructor(input: AddNodeOperatorsInput) {
     super(input);
@@ -63,17 +63,16 @@ export class AddNodeOperators extends OmnibusActionGroup<AddNodeOperatorsInput> 
 
 class AddNodeOperatorItem extends OmnibusAction<AddNodeOperatorItemInput> {
   get title() {
-    const { name, rewardAddress } = this.input;
-    return `Add node operator "${name}" with reward address ${rewardAddress}`;
+    return this.input.title;
   }
 
-  get call() {
+  getCall() {
     const { name, rewardAddress } = this.input;
     const { curatedStakingModule } = this.contracts;
     return forward(this.contracts.agent, [call(curatedStakingModule.addNodeOperator, [name, rewardAddress])]);
   }
 
-  get events() {
+  getEvents() {
     const { name, rewardAddress, expectedNodeOperatorId } = this.input;
     const { agent, voting, callsScript, curatedStakingModule } = this.contracts;
     return [

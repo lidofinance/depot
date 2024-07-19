@@ -9,12 +9,12 @@ export abstract class OmnibusAction<Input extends OmnibusActionInput> extends Om
   /**
    * Returns the EVMScript call item
    */
-  abstract get call(): FormattedEvmCall;
+  abstract getCall(): FormattedEvmCall;
 
   /**
    * Returns the list of event checks expected to be emitted during the action execution
    */
-  abstract get events(): EventCheck[];
+  abstract getEvents(): EventCheck[];
 }
 
 export type { OmnibusHookCtx } from "./omnibus-action-meta";

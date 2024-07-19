@@ -4,23 +4,21 @@ import { AccessControl, AccessControl__factory } from "../../../typechain-types"
 import { forward, call, event } from "../../votes";
 import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { Address } from "../../common/types";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
-interface AccessControlRevokeRoleInput {
+interface AccessControlRevokeRoleInput extends OmnibusActionInput {
   on: Address | BaseContract;
   from: Address | BaseContract;
   role: string;
 }
 
 export class AccessControlRevokeRole extends OmnibusAction<AccessControlRevokeRoleInput> {
-  get call() {
+  getCall() {
     const { role, from } = this.input;
     return forward(this.contracts.agent, [call(this.accessControl.revokeRole, [id(role), from])]);
   }
-  public get title(): string {
-    return `Revoke "${this.input.role}" on ${this.onAddress} from ${this.fromAddress}`;
-  }
 
-  get events() {
+  getEvents() {
     return [
       event(this.accessControl, "RoleRevoked", {
         args: [id(this.input.role), this.input.from, undefined],
@@ -33,7 +31,7 @@ export class AccessControlRevokeRole extends OmnibusAction<AccessControlRevokeRo
 
     it(`Role "${role}" was successfully revoked from account ${this.fromAddress} on contract ${this.onAddress}`, async () => {
       const hasPermission = await this.accessControl.connect(provider).hasRole(id(role), from);
-      assert.isFalse(hasPermission, "Invalid state after role revoking");
+      assert.equal(hasPermission, false, "Invalid state after role revoking");
     });
   }
 

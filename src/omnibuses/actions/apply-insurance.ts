@@ -1,6 +1,7 @@
 import { OmnibusHookCtx, OmnibusAction } from "../omnibus-action";
 import { forward, call, event, FormattedEvmCall } from "../../votes";
 import providers from "../../providers";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
 const COVER_INDEX = 0;
 const NONCOVER_INDEX = 1;
@@ -21,8 +22,7 @@ interface OnchainStateSnapshot {
   };
 }
 
-interface ApplyInsuranceInstanceInput {
-  title: string;
+interface ApplyInsuranceInstanceInput extends OmnibusActionInput {
   amount: bigint;
   before: OnchainStateSnapshot;
 }
@@ -41,7 +41,7 @@ export class ApplyInsuranceAction extends OmnibusAction<ApplyInsuranceInstanceIn
     return `Request to burn ${this.input.amount} stETH for cover`;
   }
 
-  get call(): FormattedEvmCall {
+  getCall(): FormattedEvmCall {
     const { amount } = this.input;
     const { agent, insuranceFund, burner, stETH } = this.contracts;
     return forward(this.contracts.agent, [
@@ -51,7 +51,7 @@ export class ApplyInsuranceAction extends OmnibusAction<ApplyInsuranceInstanceIn
     ]);
   }
 
-  get events() {
+  getEvents() {
     const { amount } = this.input;
     const { agent, callsScript, insuranceFund, stETH, burner } = this.contracts;
     return [

@@ -1,7 +1,8 @@
 import { FormattedEvmCall, call, event, forward } from "../../votes";
 import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
-interface UpdateTargetValidatorsLimitInput {
+interface UpdateTargetValidatorsLimitInput extends OmnibusActionInput {
   stakingModuleId: number;
   nodeOperator: { name: string; id: number };
   targetValidatorsCount: number;
@@ -10,12 +11,18 @@ interface UpdateTargetValidatorsLimitInput {
 
 export class UpdateTargetValidatorsLimit extends OmnibusAction<UpdateTargetValidatorsLimitInput> {
   get title(): string {
-    const { isTargetLimitActive, nodeOperator, targetValidatorsCount: targetLimit } = this.input;
-    const action = isTargetLimitActive ? "Activate" : "Deactivate";
-    return `${action} targetValidatorsLimit for operator "${nodeOperator.name}" (id: ${nodeOperator.id}) and set it to ${targetLimit}`;
+    return this.input.title;
   }
 
-  get call(): FormattedEvmCall {
+  private get stakingRouter() {
+    return this.contracts.stakingRouter;
+  }
+
+  private get curatedStakingModule() {
+    return this.contracts.curatedStakingModule;
+  }
+
+  getCall(): FormattedEvmCall {
     const { stakingModuleId, nodeOperator, isTargetLimitActive, targetValidatorsCount: targetLimit } = this.input;
     return forward(this.contracts.agent, [
       call(this.stakingRouter.updateTargetValidatorsLimits, [
@@ -26,15 +33,8 @@ export class UpdateTargetValidatorsLimit extends OmnibusAction<UpdateTargetValid
       ]),
     ]);
   }
-  private get stakingRouter() {
-    return this.contracts.stakingRouter;
-  }
 
-  private get curatedStakingModule() {
-    return this.contracts.curatedStakingModule;
-  }
-
-  get events() {
+  getEvents() {
     const { agent, callsScript, curatedStakingModule, voting } = this.contracts;
     return [
       event(callsScript, "LogScriptCall", { emitter: voting }),
@@ -63,9 +63,10 @@ export class UpdateTargetValidatorsLimit extends OmnibusAction<UpdateTargetValid
 
     it("Validate isTargetLimitActive and targetLimit values are not the same as new one", async () => {
       const summary = await this.stakingRouter.getNodeOperatorSummary(stakingModuleId, id);
-      assert.isTrue(
+      assert.equal(
         summary.isTargetLimitActive !== isTargetLimitActive ||
           summary.targetValidatorsCount.toString() !== targetLimit.toString(),
+        true,
         "isTargetLimitActive and targetLimit values are the same",
       );
     });

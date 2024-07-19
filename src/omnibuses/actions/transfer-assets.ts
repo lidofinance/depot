@@ -3,8 +3,6 @@ import { OmnibusHookCtx, OmnibusAction } from "../omnibus-action";
 import { BigNumberish } from "ethers";
 import { Address } from "../../common/types";
 import { ERC20 } from "../../../typechain-types";
-import { NetworkName } from "../../networks";
-import { LidoEthContracts } from "../../lido";
 import { NamedContract } from "../../contracts";
 import { OmnibusActionInput } from "../omnibus-action-meta";
 
@@ -17,16 +15,12 @@ interface TransferAssetsInput extends OmnibusActionInput {
 export class TransferAssets extends OmnibusAction<TransferAssetsInput> {
   private amountBefore: BigNumberish = 0;
 
-  init(network: NetworkName, contracts: LidoEthContracts) {
-    super.init(network, contracts);
-  }
-
-  get call(): FormattedEvmCall {
+  getCall(): FormattedEvmCall {
     const { to, amount, token } = this.input;
     return call(this.contracts.finance.newImmediatePayment, [token, to, amount, this.title]);
   }
 
-  get events() {
+  getEvents() {
     const { finance, agent } = this.contracts;
     const { to, amount, token } = this.input;
 

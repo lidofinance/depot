@@ -7,7 +7,9 @@ import providers from "../../providers";
 import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { OmnibusActionGroup } from "../omnibus-action-group";
 import { Address } from "../../common/types";
-interface AddPaymentEvmScriptFactoriesInput {
+import { OmnibusActionInput } from "../omnibus-action-meta";
+
+interface AddPaymentEvmScriptFactoriesInput extends OmnibusActionInput {
   name: string;
   registry: Address;
   factories: {
@@ -23,17 +25,17 @@ const TEST_RECIPIENT = "0x0102030405060708091011121314151617181920";
 
 const iAllowedRecipientsRegistry = AllowedRecipientsRegistry__factory.createInterface();
 
-interface AddEvmScriptFactoryInput {
+interface AddEvmScriptFactoryInput extends OmnibusActionInput {
   factory: Address;
 }
 
 abstract class AddEvmScriptFactory<T extends AddEvmScriptFactoryInput> extends OmnibusAction<T> {
-  get call() {
+  getCall() {
     const { easyTrack } = this.contracts;
     return call(easyTrack.addEVMScriptFactory, [this.input.factory, this.permission]);
   }
 
-  get events(): EventCheck[] {
+  getEvents(): EventCheck[] {
     const { easyTrack } = this.contracts;
     const { factory } = this.input;
     return [event(easyTrack, "EVMScriptFactoryAdded", { args: [factory, this.permission] })];
@@ -61,7 +63,7 @@ class AddTopUpEvmScriptFactory extends AddEvmScriptFactory<AddTopUpEvmScriptFact
   }
 
   async after({ it, assert, provider }: OmnibusHookCtx) {
-    super.after({ it, assert, provider });
+    await super.after({ it, assert, provider });
 
     const { agent, easyTrack, stETH } = this.contracts;
     const { token, factory, registry, trustedCaller } = this.input;
@@ -142,6 +144,7 @@ interface AddTopUpEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
 }
 
 class AddAddRecipientEvmScriptFactory extends OmnibusAction<{
+  title: string;
   name: string;
   factory: Address;
   registry: Address;
@@ -151,13 +154,13 @@ class AddAddRecipientEvmScriptFactory extends OmnibusAction<{
     return `Add "${this.input.name} Add Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
   }
 
-  get call(): FormattedEvmCall {
+  getCall(): FormattedEvmCall {
     const { easyTrack } = this.contracts;
     const { factory } = this.input;
     return call(easyTrack.addEVMScriptFactory, [factory, this.permission]);
   }
 
-  get events(): EventCheck[] {
+  getEvents(): EventCheck[] {
     return [
       event(this.contracts.easyTrack, "EVMScriptFactoryAdded", {
         args: [this.input.factory, this.permission],
@@ -171,7 +174,7 @@ class AddAddRecipientEvmScriptFactory extends OmnibusAction<{
 
     it(`Validate new add recipient factory works properly`, async () => {
       const registryContract = AllowedRecipientsRegistry__factory.connect(registry, provider);
-      assert.isFalse(await registryContract.isRecipientAllowed(TEST_RECIPIENT));
+      assert.equal(await registryContract.isRecipientAllowed(TEST_RECIPIENT), false);
 
       const recipientsBefore = await registryContract.getAllowedRecipients();
       const motionsBefore = await easyTrack.getMotions();
@@ -201,7 +204,7 @@ class AddAddRecipientEvmScriptFactory extends OmnibusAction<{
       const recipientsAfter = await registryContract.getAllowedRecipients();
 
       assert.equal(recipientsAfter.length, recipientsBefore.length + 1);
-      assert.isTrue(await registryContract.isRecipientAllowed(TEST_RECIPIENT));
+      assert.equal(await registryContract.isRecipientAllowed(TEST_RECIPIENT), true);
     });
   }
 
@@ -224,7 +227,7 @@ class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<AddRemoveRe
     return `Add "${this.input.name} Remove Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
   }
 
-  get events(): EventCheck[] {
+  getEvents(): EventCheck[] {
     const { easyTrack } = this.contracts;
     return [
       event(easyTrack, "EVMScriptFactoryAdded", {
@@ -247,7 +250,7 @@ class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<AddRemoveRe
     it(`Validate new remove recipient factory works properly`, async () => {
       const registryContract = AllowedRecipientsRegistry__factory.connect(registry, provider);
 
-      assert.isTrue(await registryContract.isRecipientAllowed(TEST_RECIPIENT));
+      assert.equal(await registryContract.isRecipientAllowed(TEST_RECIPIENT), true);
       const recipientsBefore = await registryContract.getAllowedRecipients();
       const motionsBefore = await easyTrack.getMotions();
       const calldata = AbiCoder.defaultAbiCoder().encode(["address"], [TEST_RECIPIENT]);
@@ -268,18 +271,23 @@ class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<AddRemoveRe
       await easyTrack.connect(enactorSigner).enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
       const recipientsAfter = await registryContract.getAllowedRecipients();
       assert.equal(recipientsAfter.length, recipientsBefore.length - 1);
-      assert.isFalse(await registryContract.isRecipientAllowed(TEST_RECIPIENT));
+      assert.equal(await registryContract.isRecipientAllowed(TEST_RECIPIENT), false);
     });
   }
 }
 
 export class AddPaymentEvmScriptFactories extends OmnibusActionGroup<AddPaymentEvmScriptFactoriesInput> {
-  private _items: (AddTopUpEvmScriptFactory | AddAddRecipientEvmScriptFactory | AddRemoveRecipientEvmScriptFactory)[];
+  private readonly _items: (
+    | AddTopUpEvmScriptFactory
+    | AddAddRecipientEvmScriptFactory
+    | AddRemoveRecipientEvmScriptFactory
+  )[];
 
   constructor(input: AddPaymentEvmScriptFactoriesInput) {
     super(input);
     this._items = [
       new AddTopUpEvmScriptFactory({
+        title: input.title,
         name: input.name,
         token: input.token,
         registry: input.registry,
@@ -290,6 +298,7 @@ export class AddPaymentEvmScriptFactories extends OmnibusActionGroup<AddPaymentE
     if (input.factories.addRecipient) {
       this._items.push(
         new AddAddRecipientEvmScriptFactory({
+          title: input.title,
           name: input.name,
           registry: input.registry,
           factory: input.factories.addRecipient,
@@ -300,6 +309,7 @@ export class AddPaymentEvmScriptFactories extends OmnibusActionGroup<AddPaymentE
     if (input.factories.removeRecipient) {
       this._items.push(
         new AddRemoveRecipientEvmScriptFactory({
+          title: input.title,
           name: input.name,
           registry: input.registry,
           factory: input.factories.removeRecipient,
