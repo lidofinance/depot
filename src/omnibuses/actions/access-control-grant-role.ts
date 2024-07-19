@@ -2,7 +2,7 @@ import { id } from "ethers";
 import { AccessControl, AccessControl__factory } from "../../../typechain-types";
 import { FormattedEvmCall, call, event, forward } from "../../votes";
 import contracts, { NamedContract } from "../../contracts";
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { Address } from "../../common/types";
 
 interface AccessControlGrantRoleInput {
@@ -12,7 +12,7 @@ interface AccessControlGrantRoleInput {
   revoked?: boolean;
 }
 
-export class AccessControlGrantRole extends OmnibusItem<AccessControlGrantRoleInput> {
+export class AccessControlGrantRole extends OmnibusAction<AccessControlGrantRoleInput> {
   get title(): string {
     const { role } = this.input;
 

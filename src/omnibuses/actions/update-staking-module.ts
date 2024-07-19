@@ -1,8 +1,8 @@
 import { FormattedEvmCall, call, event, forward } from "../../votes";
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { BigNumberish } from "ethers";
 import { StakingModule } from "../../lido/lido";
-import { OmnibusActionInput } from "../omnibus-item-meta";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
 interface UpdateStakingModuleInput extends OmnibusActionInput {
   stakingModuleId: StakingModule;
@@ -11,7 +11,7 @@ interface UpdateStakingModuleInput extends OmnibusActionInput {
   stakingModuleFee: BigNumberish;
 }
 
-export class UpdateStakingModule extends OmnibusItem<UpdateStakingModuleInput> {
+export class UpdateStakingModule extends OmnibusAction<UpdateStakingModuleInput> {
   get call(): FormattedEvmCall {
     const { stakingModuleId, targetShare, treasuryFee, stakingModuleFee } = this.input;
     return forward(this.contracts.agent, [

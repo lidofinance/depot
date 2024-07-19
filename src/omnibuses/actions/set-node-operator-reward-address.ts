@@ -1,7 +1,7 @@
 import { Address } from "../../common/types";
 import { FormattedEvmCall, call, event, forward } from "../../votes";
 
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 
 interface SetNodeOperatorRewardAddressInput {
   id: number;
@@ -9,7 +9,7 @@ interface SetNodeOperatorRewardAddressInput {
   to: Address;
 }
 
-export class SetNodeOperatorRewardAddress extends OmnibusItem<SetNodeOperatorRewardAddressInput> {
+export class SetNodeOperatorRewardAddress extends OmnibusAction<SetNodeOperatorRewardAddressInput> {
   get title(): string {
     const { id, from, to } = this.input;
     return `Change the reward address of node operator with id ${id} from ${from} to ${to}`;

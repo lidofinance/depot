@@ -5,8 +5,8 @@ import lido, { LidoEthContracts } from "../lido";
 import votes, { EventCheck, EvmScriptParser, FormattedEvmCall } from "../votes";
 import { RpcProvider, SignerWithAddress } from "../providers";
 
-import { OmnibusItem } from "./omnibus-item";
-import { OmnibusItemsGroup } from "./omnibus-items-group";
+import { OmnibusAction } from "./omnibus-action";
+import { OmnibusActionGroup } from "./omnibus-action-group";
 
 export type TitledEvmCall = [string, FormattedEvmCall];
 export type TitledEventChecks = [string, ...EventCheck[]];
@@ -32,12 +32,12 @@ interface OmnibusPlan<N extends NetworkName> {
    * Contains the info about the omnibus execution - the number of the block with execution transaction.
    */
   executedOn?: number | undefined;
-  actions(contracts: LidoEthContracts<N>): (OmnibusItem<any> | OmnibusItemsGroup<any>)[];
+  actions(contracts: LidoEthContracts<N>): (OmnibusAction<any> | OmnibusActionGroup<any>)[];
 }
 
 export class Omnibus<N extends NetworkName> {
   private readonly roadmap: OmnibusPlan<N>;
-  private readonly _actions: (OmnibusItem<any> | OmnibusItemsGroup<any>)[] = [];
+  private readonly _actions: (OmnibusAction<any> | OmnibusActionGroup<any>)[] = [];
 
   constructor(roadmap: OmnibusPlan<N>) {
     this.roadmap = roadmap;
@@ -59,11 +59,11 @@ export class Omnibus<N extends NetworkName> {
   }
 
   public get calls(): FormattedEvmCall[] {
-    return flatten(this.actions.map((a) => (a instanceof OmnibusItem ? a.call : a.items.map((i) => i.call))));
+    return flatten(this.actions.map((a) => (a instanceof OmnibusAction ? a.call : a.items.map((i) => i.call))));
   }
 
   public get titles(): string[] {
-    return flatten(this.actions.map((a) => (a instanceof OmnibusItem ? a.title : a.items.map((i) => i.title))));
+    return flatten(this.actions.map((a) => (a instanceof OmnibusAction ? a.title : a.items.map((i) => i.title))));
   }
 
   public get description(): string {
@@ -95,7 +95,7 @@ export class Omnibus<N extends NetworkName> {
     const actions = this.roadmap.actions(contracts);
     for (const action of actions) {
       action.init(this.roadmap.network, contracts);
-      if (action instanceof OmnibusItemsGroup) {
+      if (action instanceof OmnibusActionGroup) {
         for (const item of action.items) {
           item.init(this.roadmap.network, contracts);
         }
@@ -104,7 +104,7 @@ export class Omnibus<N extends NetworkName> {
     this._actions.push(...actions);
   }
 
-  get actions(): (OmnibusItem<any> | OmnibusItemsGroup<any>)[] {
+  get actions(): (OmnibusAction<any> | OmnibusActionGroup<any>)[] {
     return this._actions;
   }
 }

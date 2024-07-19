@@ -1,4 +1,4 @@
-import { OmnibusHookCtx, OmnibusItem } from "../omnibus-item";
+import { OmnibusHookCtx, OmnibusAction } from "../omnibus-action";
 import { forward, call, event, FormattedEvmCall } from "../../votes";
 import providers from "../../providers";
 
@@ -22,6 +22,7 @@ interface OnchainStateSnapshot {
 }
 
 interface ApplyInsuranceInstanceInput {
+  title: string;
   amount: bigint;
   before: OnchainStateSnapshot;
 }
@@ -35,7 +36,7 @@ async function resolve<T extends Record<string, Promise<unknown>>>(
   return Object.fromEntries(entries.map(([key], index) => [key, results[index]])) as any;
 }
 
-export class ApplyInsuranceAction extends OmnibusItem<ApplyInsuranceInstanceInput> {
+export class ApplyInsuranceAction extends OmnibusAction<ApplyInsuranceInstanceInput> {
   get title() {
     return `Request to burn ${this.input.amount} stETH for cover`;
   }

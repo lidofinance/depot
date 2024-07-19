@@ -19,7 +19,7 @@ export interface OmnibusHookCtx {
   provider: RpcProvider;
 }
 
-export abstract class OmnibusItemMeta<Input extends OmnibusActionInput> {
+export abstract class OmnibusActionMeta<Input extends OmnibusActionInput> {
   private _network: NetworkName | null = null;
   private _contracts: LidoEthContracts | null = null;
 

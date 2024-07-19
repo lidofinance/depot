@@ -1,8 +1,8 @@
 import { OmnibusTestContext } from "../omnibus";
 import { EventCheck, FormattedEvmCall, call, event } from "../../votes";
 
-import { OmnibusItemsGroup } from "../omnibus-items-group";
-import { OmnibusItem } from "../omnibus-item";
+import { OmnibusActionGroup } from "../omnibus-action-group";
+import { OmnibusAction } from "../omnibus-action";
 import { Address } from "../../common/types";
 
 interface RemovePaymentEvmScriptFactoriesInput {
@@ -18,7 +18,7 @@ interface RemoveEvmScriptFactoryInput {
   factory: Address;
 }
 
-abstract class RemoveEvmScriptFactory<T extends RemoveEvmScriptFactoryInput> extends OmnibusItem<T> {
+abstract class RemoveEvmScriptFactory<T extends RemoveEvmScriptFactoryInput> extends OmnibusAction<T> {
   get call(): FormattedEvmCall {
     return call(this.contracts.easyTrack.removeEVMScriptFactory, [this.input.factory]);
   }
@@ -61,7 +61,7 @@ class RemoveRemoveEvmScriptFactory extends RemoveEvmScriptFactory<RemovePaymentE
   }
 }
 
-export class RemovePaymentEvmScriptFactories extends OmnibusItemsGroup<RemovePaymentEvmScriptFactoriesInput> {
+export class RemovePaymentEvmScriptFactories extends OmnibusActionGroup<RemovePaymentEvmScriptFactoriesInput> {
   private _items: (RemoveTopUpEvmScriptFactory | RemoveAddEvmScriptFactory | RemoveRemoveEvmScriptFactory)[];
 
   constructor(input: RemovePaymentEvmScriptFactoriesInput) {
@@ -84,7 +84,7 @@ export class RemovePaymentEvmScriptFactories extends OmnibusItemsGroup<RemovePay
     return `Remove "${this.input.name}" payment EVM Script Factories`;
   }
 
-  get items(): OmnibusItem<any>[] {
+  get items(): OmnibusAction<any>[] {
     return this._items;
   }
 }

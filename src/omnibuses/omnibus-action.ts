@@ -1,11 +1,11 @@
 import { EventCheck, FormattedEvmCall } from "../votes";
 
-import { OmnibusActionInput, OmnibusItemMeta } from "./omnibus-item-meta";
+import { OmnibusActionInput, OmnibusActionMeta } from "./omnibus-action-meta";
 
 /**
  * The base class to implement omnibus item with single action
  */
-export abstract class OmnibusItem<Input extends OmnibusActionInput> extends OmnibusItemMeta<Input> {
+export abstract class OmnibusAction<Input extends OmnibusActionInput> extends OmnibusActionMeta<Input> {
   /**
    * Returns the EVMScript call item
    */
@@ -17,4 +17,4 @@ export abstract class OmnibusItem<Input extends OmnibusActionInput> extends Omni
   abstract get events(): EventCheck[];
 }
 
-export type { OmnibusHookCtx } from "./omnibus-item-meta";
+export type { OmnibusHookCtx } from "./omnibus-action-meta";

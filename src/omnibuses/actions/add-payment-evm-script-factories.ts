@@ -4,8 +4,8 @@ import { AllowedRecipientsRegistry__factory, ERC20__factory } from "../../../typ
 import bytes, { HexStrPrefixed } from "../../common/bytes";
 import providers from "../../providers";
 
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
-import { OmnibusItemsGroup } from "../omnibus-items-group";
+import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
+import { OmnibusActionGroup } from "../omnibus-action-group";
 import { Address } from "../../common/types";
 interface AddPaymentEvmScriptFactoriesInput {
   name: string;
@@ -27,7 +27,7 @@ interface AddEvmScriptFactoryInput {
   factory: Address;
 }
 
-abstract class AddEvmScriptFactory<T extends AddEvmScriptFactoryInput> extends OmnibusItem<T> {
+abstract class AddEvmScriptFactory<T extends AddEvmScriptFactoryInput> extends OmnibusAction<T> {
   get call() {
     const { easyTrack } = this.contracts;
     return call(easyTrack.addEVMScriptFactory, [this.input.factory, this.permission]);
@@ -141,7 +141,7 @@ interface AddTopUpEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
   trustedCaller: Address;
 }
 
-class AddAddRecipientEvmScriptFactory extends OmnibusItem<{
+class AddAddRecipientEvmScriptFactory extends OmnibusAction<{
   name: string;
   factory: Address;
   registry: Address;
@@ -273,7 +273,7 @@ class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<AddRemoveRe
   }
 }
 
-export class AddPaymentEvmScriptFactories extends OmnibusItemsGroup<AddPaymentEvmScriptFactoriesInput> {
+export class AddPaymentEvmScriptFactories extends OmnibusActionGroup<AddPaymentEvmScriptFactoriesInput> {
   private _items: (AddTopUpEvmScriptFactory | AddAddRecipientEvmScriptFactory | AddRemoveRecipientEvmScriptFactory)[];
 
   constructor(input: AddPaymentEvmScriptFactoriesInput) {
@@ -309,7 +309,7 @@ export class AddPaymentEvmScriptFactories extends OmnibusItemsGroup<AddPaymentEv
     }
   }
 
-  get items(): OmnibusItem<any>[] {
+  get items(): OmnibusAction<any>[] {
     return this._items;
   }
 

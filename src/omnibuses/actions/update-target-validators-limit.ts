@@ -1,5 +1,5 @@
 import { FormattedEvmCall, call, event, forward } from "../../votes";
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 
 interface UpdateTargetValidatorsLimitInput {
   stakingModuleId: number;
@@ -8,7 +8,7 @@ interface UpdateTargetValidatorsLimitInput {
   isTargetLimitActive: boolean;
 }
 
-export class UpdateTargetValidatorsLimit extends OmnibusItem<UpdateTargetValidatorsLimitInput> {
+export class UpdateTargetValidatorsLimit extends OmnibusAction<UpdateTargetValidatorsLimitInput> {
   get title(): string {
     const { isTargetLimitActive, nodeOperator, targetValidatorsCount: targetLimit } = this.input;
     const action = isTargetLimitActive ? "Activate" : "Deactivate";

@@ -1,15 +1,16 @@
-import { OmnibusTestContext, TitledEventChecks, TitledEvmCall } from "../omnibus";
-import { FormattedEvmCall, call, event, forward } from "../../votes";
+import { call, event, forward } from "../../votes";
 
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { OmnibusAction } from "../omnibus-action";
+import { OmnibusTestContext } from "../tools/test";
 
 interface SetNodeOperatorNameInput {
+  title: string;
   id: number;
   from: string;
   to: string;
 }
 
-export class SetNodeOperatorName extends OmnibusItem<SetNodeOperatorNameInput> {
+export class SetNodeOperatorName extends OmnibusAction<SetNodeOperatorNameInput> {
   get title() {
     const { id, from, to } = this.input;
     return `Change the on-chain name of node operator with id ${id} from "${from}" to "${to}"`;

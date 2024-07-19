@@ -5,7 +5,7 @@ import { assert } from "../../common/assert";
 import providers from "../../providers/providers";
 import { ContractTransactionReceipt, Log, TransactionReceipt } from "ethers";
 import votes from "../../votes";
-import { OmnibusItem } from "../omnibus-item";
+import { OmnibusAction } from "../omnibus-action";
 import { Omnibus } from "../omnibus";
 
 interface MochaTest {
@@ -77,7 +77,7 @@ export const testOmnibus = async (omnibus: Omnibus<any>, provider: RpcProvider) 
     for (let i = 0; i < omnibus.actions.length; ++i) {
       const action = omnibus.actions[i];
 
-      if (action instanceof OmnibusItem) {
+      if (action instanceof OmnibusAction) {
         eventsValidateFromIndex = await createOmnibusItemTestSuite(
           voteItemsTestSuite,
           action,
@@ -117,7 +117,7 @@ export const testOmnibus = async (omnibus: Omnibus<any>, provider: RpcProvider) 
 
 async function createOmnibusItemTestSuite(
   parentSuite: Mocha.Suite,
-  action: OmnibusItem<any>,
+  action: OmnibusAction<any>,
   provider: RpcProvider,
   voteItemIndex: number,
   enactReceipt: TransactionReceipt | ContractTransactionReceipt,

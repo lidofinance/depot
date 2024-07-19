@@ -1,7 +1,7 @@
 import { call, event, forward } from "../../votes";
 
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
-import { OmnibusItemsGroup } from "../omnibus-items-group";
+import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
+import { OmnibusActionGroup } from "../omnibus-action-group";
 import { Address } from "../../common/types";
 
 interface NewNodeOperatorInput {
@@ -18,7 +18,7 @@ interface AddNodeOperatorItemInput extends NewNodeOperatorInput {
   expectedNodeOperatorId: number;
 }
 
-export class AddNodeOperators extends OmnibusItemsGroup<AddNodeOperatorsInput> {
+export class AddNodeOperators extends OmnibusActionGroup<AddNodeOperatorsInput> {
   public readonly items: AddNodeOperatorItem[];
   public readonly title = "Add the list of node operators to curated staking module";
 
@@ -61,7 +61,7 @@ export class AddNodeOperators extends OmnibusItemsGroup<AddNodeOperatorsInput> {
   }
 }
 
-class AddNodeOperatorItem extends OmnibusItem<AddNodeOperatorItemInput> {
+class AddNodeOperatorItem extends OmnibusAction<AddNodeOperatorItemInput> {
   get title() {
     const { name, rewardAddress } = this.input;
     return `Add node operator "${name}" with reward address ${rewardAddress}`;

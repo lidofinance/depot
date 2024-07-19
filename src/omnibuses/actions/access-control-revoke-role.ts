@@ -2,7 +2,7 @@ import { BaseContract, id } from "ethers";
 import contracts from "../../contracts";
 import { AccessControl, AccessControl__factory } from "../../../typechain-types";
 import { forward, call, event } from "../../votes";
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { Address } from "../../common/types";
 
 interface AccessControlRevokeRoleInput {
@@ -11,7 +11,7 @@ interface AccessControlRevokeRoleInput {
   role: string;
 }
 
-export class AccessControlRevokeRole extends OmnibusItem<AccessControlRevokeRoleInput> {
+export class AccessControlRevokeRole extends OmnibusAction<AccessControlRevokeRoleInput> {
   get call() {
     const { role, from } = this.input;
     return forward(this.contracts.agent, [call(this.accessControl.revokeRole, [id(role), from])]);

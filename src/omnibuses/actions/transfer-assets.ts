@@ -1,12 +1,12 @@
 import { call, event, FormattedEvmCall } from "../../votes";
-import { OmnibusHookCtx, OmnibusItem } from "../omnibus-item";
+import { OmnibusHookCtx, OmnibusAction } from "../omnibus-action";
 import { BigNumberish } from "ethers";
 import { Address } from "../../common/types";
 import { ERC20 } from "../../../typechain-types";
 import { NetworkName } from "../../networks";
 import { LidoEthContracts } from "../../lido";
 import { NamedContract } from "../../contracts";
-import { OmnibusActionInput } from "../omnibus-item-meta";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
 interface TransferAssetsInput extends OmnibusActionInput {
   to: Address;
@@ -14,7 +14,7 @@ interface TransferAssetsInput extends OmnibusActionInput {
   amount: BigNumberish;
 }
 
-export class TransferAssets extends OmnibusItem<TransferAssetsInput> {
+export class TransferAssets extends OmnibusAction<TransferAssetsInput> {
   private amountBefore: BigNumberish = 0;
 
   init(network: NetworkName, contracts: LidoEthContracts) {
