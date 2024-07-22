@@ -4,6 +4,7 @@ import contracts from "../contracts";
 import { TypedContractEvent } from "../../typechain-types/common";
 import { OverloadedInputResultMap } from "./overloaded-types-helper";
 import { Address } from "../common/types";
+import lido from "../lido";
 
 export interface EventCheck {
   args?: unknown[];
@@ -49,9 +50,25 @@ export function event<T extends TypedContract, K extends keyof OverloadedInputRe
   };
 }
 
+// This function is only useful for the subsequence function debugging
+// Usage: const parsedLog = parseLog(log);
+function parseLog(log: Log) {
+  const { agent, callsScript, voting, curatedStakingModule } = lido.chainId(1n);
+  let parsedLog = voting.interface.parseLog(log);
+  if (!parsedLog) {
+    parsedLog = curatedStakingModule.interface.parseLog(log);
+  }
+  if (!parsedLog) {
+    parsedLog = agent.interface.parseLog(log);
+  }
+  if (!parsedLog) {
+    parsedLog = callsScript.interface.parseLog(log);
+  }
+  return parsedLog;
+}
+
 export function subsequence(logs: Log[], subsequence: EventCheck[], fromIndex: number) {
   const result: number[] = new Array(subsequence.length).fill(-1);
-
   let eventsIndex = 0;
   for (let logsIndex = fromIndex; logsIndex < logs.length; ++logsIndex) {
     if (eventsIndex === subsequence.length) break;
