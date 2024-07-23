@@ -30,12 +30,12 @@ interface AddEvmScriptFactoryInput extends OmnibusActionInput {
 }
 
 abstract class AddEvmScriptFactory<T extends AddEvmScriptFactoryInput> extends OmnibusAction<T> {
-  getCall() {
+  getEVMCall() {
     const { easyTrack } = this.contracts;
     return call(easyTrack.addEVMScriptFactory, [this.input.factory, this.permission]);
   }
 
-  getEvents(): EventCheck[] {
+  getExpectedEvents(): EventCheck[] {
     const { easyTrack } = this.contracts;
     const { factory } = this.input;
     return [event(easyTrack, "EVMScriptFactoryAdded", { args: [factory, this.permission] })];
@@ -154,13 +154,13 @@ class AddAddRecipientEvmScriptFactory extends OmnibusAction<{
     return `Add "${this.input.name} Add Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
   }
 
-  getCall(): FormattedEvmCall {
+  getEVMCall(): FormattedEvmCall {
     const { easyTrack } = this.contracts;
     const { factory } = this.input;
     return call(easyTrack.addEVMScriptFactory, [factory, this.permission]);
   }
 
-  getEvents(): EventCheck[] {
+  getExpectedEvents(): EventCheck[] {
     return [
       event(this.contracts.easyTrack, "EVMScriptFactoryAdded", {
         args: [this.input.factory, this.permission],
@@ -227,7 +227,7 @@ class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<AddRemoveRe
     return `Add "${this.input.name} Remove Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
   }
 
-  getEvents(): EventCheck[] {
+  getExpectedEvents(): EventCheck[] {
     const { easyTrack } = this.contracts;
     return [
       event(easyTrack, "EVMScriptFactoryAdded", {

@@ -17,7 +17,7 @@ interface AddNodeOperatorsInput extends OmnibusActionInput {
 export class AddNodeOperators extends OmnibusAction<AddNodeOperatorsInput> {
   private operatorsCountBefore = 0;
 
-  getCall() {
+  getEVMCall() {
     const calls = this.input.operators.map((item) => {
       const { name, rewardAddress } = item;
       const { curatedStakingModule } = this.contracts;
@@ -26,7 +26,7 @@ export class AddNodeOperators extends OmnibusAction<AddNodeOperatorsInput> {
     return forward(this.contracts.agent, calls);
   }
 
-  getEvents() {
+  getExpectedEvents() {
     const { callsScript, curatedStakingModule, agent, voting } = this.contracts;
     const subItemEvents = this.input.operators.flatMap((item) => {
       const { name, rewardAddress } = item;

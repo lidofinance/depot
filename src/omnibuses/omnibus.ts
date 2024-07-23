@@ -60,7 +60,7 @@ export class Omnibus<N extends NetworkName> {
 
   public get calls(): FormattedEvmCall[] {
     return flatten(
-      this.actions.map((a) => (a instanceof OmnibusAction ? a.getCall() : a.items.map((i) => i.getCall()))),
+      this.actions.map((a) => (a instanceof OmnibusAction ? a.getEVMCall() : a.items.map((i) => i.getEVMCall()))),
     );
   }
 

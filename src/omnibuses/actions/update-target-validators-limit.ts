@@ -22,7 +22,7 @@ export class UpdateTargetValidatorsLimit extends OmnibusAction<UpdateTargetValid
     return this.contracts.curatedStakingModule;
   }
 
-  getCall(): FormattedEvmCall {
+  getEVMCall(): FormattedEvmCall {
     const { stakingModuleId, nodeOperator, isTargetLimitActive, targetValidatorsCount: targetLimit } = this.input;
     return forward(this.contracts.agent, [
       call(this.stakingRouter.updateTargetValidatorsLimits, [
@@ -34,7 +34,7 @@ export class UpdateTargetValidatorsLimit extends OmnibusAction<UpdateTargetValid
     ]);
   }
 
-  getEvents() {
+  getExpectedEvents() {
     const { agent, callsScript, curatedStakingModule, voting } = this.contracts;
     return [
       event(callsScript, "LogScriptCall", { emitter: voting }),

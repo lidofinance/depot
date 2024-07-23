@@ -13,12 +13,12 @@ interface AccessControlRevokeRoleInput extends OmnibusActionInput {
 }
 
 export class AccessControlRevokeRole extends OmnibusAction<AccessControlRevokeRoleInput> {
-  getCall() {
+  getEVMCall() {
     const { role, from } = this.input;
     return forward(this.contracts.agent, [call(this.accessControl.revokeRole, [id(role), from])]);
   }
 
-  getEvents() {
+  getExpectedEvents() {
     return [
       event(this.accessControl, "RoleRevoked", {
         args: [id(this.input.role), this.input.from, undefined],

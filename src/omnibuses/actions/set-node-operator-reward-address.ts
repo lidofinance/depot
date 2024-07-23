@@ -15,12 +15,12 @@ export class SetNodeOperatorRewardAddress extends OmnibusAction<SetNodeOperatorR
     return this.input.title;
   }
 
-  getCall(): FormattedEvmCall {
+  getEVMCall(): FormattedEvmCall {
     const { agent, curatedStakingModule } = this.contracts;
     return forward(agent, [call(curatedStakingModule.setNodeOperatorRewardAddress, [this.input.id, this.input.to])]);
   }
 
-  getEvents() {
+  getExpectedEvents() {
     const { curatedStakingModule } = this.contracts;
     return [
       event(curatedStakingModule, "NodeOperatorRewardAddressSet", {

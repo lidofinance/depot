@@ -26,12 +26,12 @@ export class AccessControlGrantRole extends OmnibusAction<AccessControlGrantRole
     return contracts.address(this.input.on);
   }
 
-  getCall(): FormattedEvmCall {
+  getEVMCall(): FormattedEvmCall {
     const { role, to } = this.input;
     return forward(this.contracts.agent, [call(this.accessControl.grantRole, [id(role), to])]);
   }
 
-  getEvents() {
+  getExpectedEvents() {
     const { role, to } = this.input;
     return [event(this.accessControl, "RoleGranted", { args: [id(role), to, undefined] })];
   }

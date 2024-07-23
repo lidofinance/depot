@@ -15,12 +15,12 @@ interface TransferAssetsInput extends OmnibusActionInput {
 export class TransferAssets extends OmnibusAction<TransferAssetsInput> {
   private amountBefore: BigNumberish = 0;
 
-  getCall(): FormattedEvmCall {
+  getEVMCall(): FormattedEvmCall {
     const { to, amount, token } = this.input;
     return call(this.contracts.finance.newImmediatePayment, [token, to, amount, this.title]);
   }
 
-  getEvents() {
+  getExpectedEvents() {
     const { finance, agent } = this.contracts;
     const { to, amount, token } = this.input;
 

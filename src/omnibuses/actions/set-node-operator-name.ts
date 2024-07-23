@@ -15,12 +15,12 @@ export class SetNodeOperatorName extends OmnibusAction<SetNodeOperatorNameInput>
     return this.input.title;
   }
 
-  getCall() {
+  getEVMCall() {
     const { agent, curatedStakingModule } = this.contracts;
     return forward(agent, [call(curatedStakingModule.setNodeOperatorName, [this.input.id, this.input.to])]);
   }
 
-  getEvents() {
+  getExpectedEvents() {
     const { curatedStakingModule } = this.contracts;
     return [
       event(curatedStakingModule, "NodeOperatorNameSet", {

@@ -20,11 +20,11 @@ interface RemoveEvmScriptFactoryInput extends OmnibusActionInput {
 }
 
 abstract class RemoveEvmScriptFactory<T extends RemoveEvmScriptFactoryInput> extends OmnibusAction<T> {
-  getCall(): FormattedEvmCall {
+  getEVMCall(): FormattedEvmCall {
     return call(this.contracts.easyTrack.removeEVMScriptFactory, [this.input.factory]);
   }
 
-  getEvents(): EventCheck[] {
+  getExpectedEvents(): EventCheck[] {
     return [event(this.contracts.easyTrack, "EVMScriptFactoryRemoved", { args: [this.input.factory] })];
   }
 

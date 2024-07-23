@@ -41,7 +41,7 @@ export class ApplyInsuranceAction extends OmnibusAction<ApplyInsuranceInstanceIn
     return `Request to burn ${this.input.amount} stETH for cover`;
   }
 
-  getCall(): FormattedEvmCall {
+  getEVMCall(): FormattedEvmCall {
     const { amount } = this.input;
     const { agent, insuranceFund, burner, stETH } = this.contracts;
     return forward(this.contracts.agent, [
@@ -51,7 +51,7 @@ export class ApplyInsuranceAction extends OmnibusAction<ApplyInsuranceInstanceIn
     ]);
   }
 
-  getEvents() {
+  getExpectedEvents() {
     const { amount } = this.input;
     const { agent, callsScript, insuranceFund, stETH, burner } = this.contracts;
     return [
