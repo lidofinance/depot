@@ -6,7 +6,7 @@ import { RpcProvider } from "../providers";
 import { LidoEthContracts } from "../lido";
 
 export interface OmnibusActionInput {
-  title: string;
+  title?: string;
 }
 
 interface MochaTest {
@@ -30,7 +30,12 @@ export abstract class OmnibusActionMeta<Input extends OmnibusActionInput> {
   }
 
   get title(): string {
-    return this.input.title;
+    if (this.input.title) {
+      return this.input.title;
+    }
+    throw new Error(
+      `Action ${this.constructor.name} failed. You should provide the title in the input or implement the title method by yourself.`,
+    );
   }
 
   get network() {

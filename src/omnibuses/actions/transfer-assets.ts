@@ -7,6 +7,7 @@ import { NamedContract } from "../../contracts";
 import { OmnibusActionInput } from "../omnibus-action-meta";
 
 interface TransferAssetsInput extends OmnibusActionInput {
+  title: string; // The title is required for the assets transfer action
   to: Address;
   token: NamedContract<ERC20>;
   amount: BigNumberish;

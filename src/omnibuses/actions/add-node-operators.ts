@@ -17,6 +17,13 @@ interface AddNodeOperatorsInput extends OmnibusActionInput {
 export class AddNodeOperators extends OmnibusAction<AddNodeOperatorsInput> {
   private operatorsCountBefore = 0;
 
+  get title(): string {
+    return (
+      `Add ${this.input.operators.length} node operators:\n` +
+      this.input.operators.flatMap((item) => ` - ${item.name}`).join("\n")
+    );
+  }
+
   getEVMCall() {
     const calls = this.input.operators.map((item) => {
       const { name, rewardAddress } = item;
