@@ -15,11 +15,14 @@ export class UpdateStakingModule extends OmnibusAction<UpdateStakingModuleInput>
   private get stakingRouter() {
     return this.contracts.stakingRouter;
   }
-  getEVMCall(): FormattedEvmCall {
+
+  getEVMCalls(): FormattedEvmCall[] {
     const { stakingModuleId, targetShare, treasuryFee, stakingModuleFee } = this.input;
-    return forward(this.contracts.agent, [
-      call(this.stakingRouter.updateStakingModule, [stakingModuleId, targetShare, stakingModuleFee, treasuryFee]),
-    ]);
+    return [
+      forward(this.contracts.agent, [
+        call(this.stakingRouter.updateStakingModule, [stakingModuleId, targetShare, stakingModuleFee, treasuryFee]),
+      ]),
+    ];
   }
 
   getExpectedEvents() {

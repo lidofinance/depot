@@ -5,6 +5,7 @@ import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { OmnibusActionInput } from "../omnibus-action-meta";
 
 interface SetNodeOperatorRewardAddressInput extends OmnibusActionInput {
+  title: string;
   id: number;
   from: Address;
   to: Address;
@@ -15,9 +16,9 @@ export class SetNodeOperatorRewardAddress extends OmnibusAction<SetNodeOperatorR
     return this.input.title;
   }
 
-  getEVMCall(): FormattedEvmCall {
+  getEVMCalls(): FormattedEvmCall[] {
     const { agent, curatedStakingModule } = this.contracts;
-    return forward(agent, [call(curatedStakingModule.setNodeOperatorRewardAddress, [this.input.id, this.input.to])]);
+    return [forward(agent, [call(curatedStakingModule.setNodeOperatorRewardAddress, [this.input.id, this.input.to])])];
   }
 
   getExpectedEvents() {

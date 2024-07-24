@@ -1,4 +1,4 @@
-import { call, event, forward } from "../../votes";
+import { call, event, FormattedEvmCall, forward } from "../../votes";
 
 import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { Address } from "../../common/types";
@@ -24,13 +24,13 @@ export class AddNodeOperators extends OmnibusAction<AddNodeOperatorsInput> {
     );
   }
 
-  getEVMCall() {
+  getEVMCalls(): FormattedEvmCall[] {
     const calls = this.input.operators.map((item) => {
       const { name, rewardAddress } = item;
       const { curatedStakingModule } = this.contracts;
       return call(curatedStakingModule.addNodeOperator, [name, rewardAddress]);
     });
-    return forward(this.contracts.agent, calls);
+    return [forward(this.contracts.agent, calls)];
   }
 
   getExpectedEvents() {

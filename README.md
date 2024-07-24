@@ -1,4 +1,4 @@
-# 👷🏼 Hardhat Scripts Repo (WIP)
+# 👷🏼 Depot
 
 The purpose of this repo is to build, test and run omnibuses.
 
@@ -15,6 +15,10 @@ Omnibus is a collection of actions that are supposed to be executed after the vo
 Action is a base brick of each omnibus.
 It is single task like changing protocol settings, granting/revoking access, transferring tokens, etc.
 You can find all available actions in the [actions](./src/omnibuses/actions) folder.
+
+#### Writing actions
+
+Each action can produce one or more calls to the network.
 
 ### Keystores
 

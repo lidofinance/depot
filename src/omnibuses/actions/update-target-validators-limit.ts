@@ -3,6 +3,7 @@ import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { OmnibusActionInput } from "../omnibus-action-meta";
 
 interface UpdateTargetValidatorsLimitInput extends OmnibusActionInput {
+  title: string;
   stakingModuleId: number;
   nodeOperator: { name: string; id: number };
   targetValidatorsCount: number;
@@ -22,16 +23,18 @@ export class UpdateTargetValidatorsLimit extends OmnibusAction<UpdateTargetValid
     return this.contracts.curatedStakingModule;
   }
 
-  getEVMCall(): FormattedEvmCall {
+  getEVMCalls(): FormattedEvmCall[] {
     const { stakingModuleId, nodeOperator, isTargetLimitActive, targetValidatorsCount: targetLimit } = this.input;
-    return forward(this.contracts.agent, [
-      call(this.stakingRouter.updateTargetValidatorsLimits, [
-        stakingModuleId,
-        nodeOperator.id,
-        isTargetLimitActive,
-        targetLimit,
+    return [
+      forward(this.contracts.agent, [
+        call(this.stakingRouter.updateTargetValidatorsLimits, [
+          stakingModuleId,
+          nodeOperator.id,
+          isTargetLimitActive,
+          targetLimit,
+        ]),
       ]),
-    ]);
+    ];
   }
 
   getExpectedEvents() {

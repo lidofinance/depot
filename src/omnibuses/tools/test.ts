@@ -1,4 +1,4 @@
-import { RpcProvider, SnapshotRestorer } from "../../providers";
+import { RpcProvider } from "../../providers";
 import Mocha, { Test } from "mocha";
 import chalk from "chalk";
 import { assert } from "../../common/assert";
@@ -25,6 +25,11 @@ export interface OmnibusTestContext {
 
 export const testOmnibus = async (omnibus: Omnibus<any>, provider: RpcProvider) => {
   // preparing the mocha tests for omnibus
+
+  // Make a snapshot of the current state of the blockchain
+  const { snapshot } = providers.cheats(provider);
+  const restorer = await snapshot();
+
   const mocha = new Mocha({ timeout: 10 * 60 * 1000, bail: true });
 
   const rootSuite = Mocha.Suite.create(
@@ -42,9 +47,6 @@ export const testOmnibus = async (omnibus: Omnibus<any>, provider: RpcProvider) 
     await action.before({ it, assert, provider });
   }
 
-  const { snapshot } = providers.cheats(provider);
-  let restorer: SnapshotRestorer | null = null;
-
   const launchSuite = Mocha.Suite.create(rootSuite, `Launching & executing the omnibus (voteId = ${omnibus.voteId})`);
 
   let enactReceipt: ContractTransactionReceipt | TransactionReceipt;
@@ -54,7 +56,6 @@ export const testOmnibus = async (omnibus: Omnibus<any>, provider: RpcProvider) 
       new Test(`The omnibus already launched in voting ${omnibus.voteId}. Executing the vote...`, async () => {
         if (!omnibus.voteId) throw new Error(`voteId is not set`);
         enactReceipt = await votes.pass(provider, omnibus.voteId);
-        restorer = await snapshot();
       }),
     );
   } else {
@@ -63,7 +64,6 @@ export const testOmnibus = async (omnibus: Omnibus<any>, provider: RpcProvider) 
         enactReceipt = await votes
           .adopt(provider, omnibus.script, omnibus.description, { gasLimit: 30_000_000 })
           .then((r) => r.enactReceipt);
-        restorer = await snapshot();
       }),
     );
   }
@@ -77,33 +77,14 @@ export const testOmnibus = async (omnibus: Omnibus<any>, provider: RpcProvider) 
     for (let i = 0; i < omnibus.actions.length; ++i) {
       const action = omnibus.actions[i];
 
-      if (action instanceof OmnibusAction) {
-        eventsValidateFromIndex = await createOmnibusItemTestSuite(
-          voteItemsTestSuite,
-          action,
-          provider,
-          voteItemIndex++,
-          enactReceipt,
-          eventsValidateFromIndex,
-        );
-      } else {
-        const items = action.items;
-        const itemGroupTestSuite = Mocha.Suite.create(voteItemsTestSuite, action.title);
-        for (const item of items) {
-          eventsValidateFromIndex = await createOmnibusItemTestSuite(
-            voteItemsTestSuite,
-            item,
-            provider,
-            voteItemIndex++,
-            enactReceipt,
-            eventsValidateFromIndex,
-          );
-        }
-        const it = (title: string, fn?: Mocha.Func | Mocha.AsyncFunc | undefined): void => {
-          itemGroupTestSuite.addTest(new Test(title, fn));
-        };
-        await action.after({ it, assert, provider });
-      }
+      eventsValidateFromIndex = await createOmnibusItemTestSuite(
+        voteItemsTestSuite,
+        action,
+        provider,
+        voteItemIndex++,
+        enactReceipt,
+        eventsValidateFromIndex,
+      );
     }
   });
 
@@ -113,6 +94,9 @@ export const testOmnibus = async (omnibus: Omnibus<any>, provider: RpcProvider) 
       resolve("success");
     });
   });
+
+  // Revert the blockchain state
+  await restorer.revert();
 };
 
 async function createOmnibusItemTestSuite(

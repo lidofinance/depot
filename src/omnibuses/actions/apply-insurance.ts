@@ -41,14 +41,16 @@ export class ApplyInsuranceAction extends OmnibusAction<ApplyInsuranceInstanceIn
     return `Request to burn ${this.input.amount} stETH for cover`;
   }
 
-  getEVMCall(): FormattedEvmCall {
+  getEVMCalls(): FormattedEvmCall[] {
     const { amount } = this.input;
     const { agent, insuranceFund, burner, stETH } = this.contracts;
-    return forward(this.contracts.agent, [
-      call(insuranceFund.transferERC20, [stETH, agent, amount]),
-      call(stETH.approve, [burner, amount]),
-      call(burner.requestBurnMyStETHForCover, [amount]),
-    ]);
+    return [
+      forward(this.contracts.agent, [
+        call(insuranceFund.transferERC20, [stETH, agent, amount]),
+        call(stETH.approve, [burner, amount]),
+        call(burner.requestBurnMyStETHForCover, [amount]),
+      ]),
+    ];
   }
 
   getExpectedEvents() {

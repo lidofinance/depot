@@ -70,11 +70,11 @@ describe("UpdateStakingModule", () => {
   });
 
   it("should correctly set targetShare, treasuryFee, and stakingModuleFee", async () => {
-    const actionCall: AragonEvmForward = updateStakingModule.getEVMCall() as AragonEvmForward;
-    const call = actionCall["calls"][0];
+    const evmCalls: AragonEvmForward[] = updateStakingModule.getEVMCalls() as AragonEvmForward[];
+    const call = evmCalls[0]["calls"][0];
 
-    expect(actionCall["calls"]).to.be.an("array");
-    expect(actionCall["calls"]).to.have.length(1);
+    expect(evmCalls[0]["calls"]).to.be.an("array");
+    expect(evmCalls[0]["calls"]).to.have.length(1);
     expect(call.address).to.equal(await SRContract.getAddress());
     expect(call.calldata).to.equal(callData);
     expect(call["args"]).to.deep.equal([

@@ -78,7 +78,7 @@ task("omnibus:test", "Runs tests for the given omnibus")
 
 task("omnibus:run", "Runs the omnibus with given name")
   .addPositionalParam<string>("name", "Name of the omnibus to run")
-  .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", false, types.boolean)
+  .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", true, types.boolean)
   .addOptionalParam<RpcNodeName | "local" | "remote">(
     "rpc",
     'The RPC node used to launch omnibus. Possible values: hardhat, ganache, anvil, local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',

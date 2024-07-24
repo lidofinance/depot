@@ -1,10 +1,11 @@
 import { EventCheck, FormattedEvmCall, call, event } from "../../votes";
 
-import { OmnibusActionGroup } from "../omnibus-action-group";
 import { OmnibusAction } from "../omnibus-action";
 import { Address } from "../../common/types";
 import { OmnibusTestContext } from "../tools/test";
 import { OmnibusActionInput } from "../omnibus-action-meta";
+import { NetworkName } from "../../networks";
+import { LidoEthContracts } from "../../lido";
 
 interface RemovePaymentEvmScriptFactoriesInput extends OmnibusActionInput {
   name: string;
@@ -20,8 +21,8 @@ interface RemoveEvmScriptFactoryInput extends OmnibusActionInput {
 }
 
 abstract class RemoveEvmScriptFactory<T extends RemoveEvmScriptFactoryInput> extends OmnibusAction<T> {
-  getEVMCall(): FormattedEvmCall {
-    return call(this.contracts.easyTrack.removeEVMScriptFactory, [this.input.factory]);
+  getEVMCalls(): FormattedEvmCall[] {
+    return [call(this.contracts.easyTrack.removeEVMScriptFactory, [this.input.factory])];
   }
 
   getExpectedEvents(): EventCheck[] {
@@ -62,23 +63,18 @@ class RemoveRemoveEvmScriptFactory extends RemoveEvmScriptFactory<RemovePaymentE
   }
 }
 
-export class RemovePaymentEvmScriptFactories extends OmnibusActionGroup<RemovePaymentEvmScriptFactoriesInput> {
+export class RemovePaymentEvmScriptFactories extends OmnibusAction<RemovePaymentEvmScriptFactoriesInput> {
   private readonly _items: (RemoveTopUpEvmScriptFactory | RemoveAddEvmScriptFactory | RemoveRemoveEvmScriptFactory)[];
 
   constructor(input: RemovePaymentEvmScriptFactoriesInput) {
     super(input);
-    this._items = [
-      new RemoveTopUpEvmScriptFactory({ title: input.title, name: input.name, factory: input.factories.topUp }),
-    ];
+    this._items = [new RemoveTopUpEvmScriptFactory({ name: input.name, factory: input.factories.topUp })];
     if (input.factories.addRecipient) {
-      this._items.push(
-        new RemoveAddEvmScriptFactory({ title: input.title, name: input.name, factory: input.factories.addRecipient }),
-      );
+      this._items.push(new RemoveAddEvmScriptFactory({ name: input.name, factory: input.factories.addRecipient }));
     }
     if (input.factories.removeRecipient) {
       this._items.push(
         new RemoveRemoveEvmScriptFactory({
-          title: input.title,
           name: input.name,
           factory: input.factories.removeRecipient,
         }),
@@ -90,7 +86,16 @@ export class RemovePaymentEvmScriptFactories extends OmnibusActionGroup<RemovePa
     return `Remove "${this.input.name}" payment EVM Script Factories`;
   }
 
-  get items(): OmnibusAction<any>[] {
-    return this._items;
+  init(network: NetworkName, contracts: LidoEthContracts) {
+    super.init(network, contracts);
+    this._items.forEach((item) => item.init(network, contracts));
+  }
+
+  getEVMCalls(): FormattedEvmCall[] {
+    return this._items.flatMap((item) => item.getEVMCalls());
+  }
+
+  getExpectedEvents(): EventCheck[] {
+    return this._items.flatMap((item) => item.getExpectedEvents());
   }
 }

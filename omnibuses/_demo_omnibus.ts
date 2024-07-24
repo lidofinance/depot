@@ -3,6 +3,8 @@ import { TransferAssets } from "../src/omnibuses/actions/transfer-assets";
 import { UpdateStakingModule } from "../src/omnibuses/actions/update-staking-module";
 import { StakingModule } from "../src/lido/lido";
 import { AddNodeOperators } from "../src/omnibuses/actions/add-node-operators";
+import { AddPaymentEvmScriptFactories } from "../src/omnibuses/actions/add-payment-evm-script-factories";
+import { RemovePaymentEvmScriptFactories } from "../src/omnibuses/actions/remove-payment-evm-script-factories";
 
 export default new Omnibus({
   network: "mainnet",
@@ -10,22 +12,21 @@ export default new Omnibus({
   // voteId: 000, // Vote ID should be set only if omnibus is already started.
   // executedOn: 12345678,  // Execution block number should be set only if vote is passed and omnibus was successfully executed.
   quorumReached: false, // Should be set to true if quorum was reached during the vote.
-  actions: ({ ldo }) => [
+  actions: ({ ldo, stETH }) => [
     new UpdateStakingModule({
       title: "Raise Simple DVT target share from 0.5% to 4%", // Title is always required
       stakingModuleId: StakingModule.SimpleDVT,
       targetShare: 400,
-      treasuryFee: 5,
-      stakingModuleFee: 10,
+      treasuryFee: 800,
+      stakingModuleFee: 200,
     }),
     new TransferAssets({
-      title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig", // Title is always required
+      title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
       to: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D", // Pool Maintenance Labs Ltd. (PML) multisig
       token: ldo,
       amount: 180000n * 10n ** 18n,
     }),
     new AddNodeOperators({
-      title: "Add 7 new node operators", // Title is always required
       nodeOperatorsCountBefore: 32,
       operators: [
         {
@@ -57,6 +58,25 @@ export default new Omnibus({
           rewardAddress: "0xcA6817DAb36850D58375A10c78703CE49d41D25a",
         },
       ],
+    }),
+    new AddPaymentEvmScriptFactories({
+      name: "reWARDS stETH",
+      factories: {
+        topUp: "0x54058ee0E0c87Ad813C002262cD75B98A7F59218",
+        addRecipient: "0x929547490Ceb6AeEdD7d72F1Ab8957c0210b6E51",
+        removeRecipient: "0xE9eb838fb3A288bF59E9275Ccd7e124fDff88a9C",
+      },
+      token: stETH.address,
+      registry: "0x48c4929630099b217136b64089E8543dB0E5163a",
+      trustedCaller: "0x87D93d9B2C672bf9c9642d853a8682546a5012B5",
+    }),
+    new RemovePaymentEvmScriptFactories({
+      name: "reWARDS LDO",
+      factories: {
+        topUp: "0x200dA0b6a9905A377CF8D469664C65dB267009d1",
+        addRecipient: "0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252",
+        removeRecipient: "0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7",
+      },
     }),
   ],
 });

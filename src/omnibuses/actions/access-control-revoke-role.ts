@@ -1,7 +1,7 @@
 import { BaseContract, id } from "ethers";
 import contracts from "../../contracts";
 import { AccessControl, AccessControl__factory } from "../../../typechain-types";
-import { forward, call, event } from "../../votes";
+import { forward, call, event, FormattedEvmCall } from "../../votes";
 import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { Address } from "../../common/types";
 import { OmnibusActionInput } from "../omnibus-action-meta";
@@ -13,9 +13,9 @@ interface AccessControlRevokeRoleInput extends OmnibusActionInput {
 }
 
 export class AccessControlRevokeRole extends OmnibusAction<AccessControlRevokeRoleInput> {
-  getEVMCall() {
+  getEVMCalls(): FormattedEvmCall[] {
     const { role, from } = this.input;
-    return forward(this.contracts.agent, [call(this.accessControl.revokeRole, [id(role), from])]);
+    return [forward(this.contracts.agent, [call(this.accessControl.revokeRole, [id(role), from])])];
   }
 
   getExpectedEvents() {

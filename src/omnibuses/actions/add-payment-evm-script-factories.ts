@@ -1,13 +1,18 @@
 import { AbiCoder } from "ethers";
-import { EventCheck, FormattedEvmCall, call, event } from "../../votes";
+import { call, event, EventCheck, FormattedEvmCall } from "../../votes";
 import { AllowedRecipientsRegistry__factory, ERC20__factory } from "../../../typechain-types";
 import bytes, { HexStrPrefixed } from "../../common/bytes";
 import providers from "../../providers";
 
 import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
-import { OmnibusActionGroup } from "../omnibus-action-group";
 import { Address } from "../../common/types";
 import { OmnibusActionInput } from "../omnibus-action-meta";
+import { NetworkName } from "../../networks";
+import { LidoEthContracts } from "../../lido";
+
+const DEFAULT_ENACTOR: Address = "0xEE00eE11EE22ee33eE44ee55ee66Ee77EE88ee99";
+const TEST_RECIPIENT = "0x0102030405060708091011121314151617181920";
+const iAllowedRecipientsRegistry = AllowedRecipientsRegistry__factory.createInterface();
 
 interface AddPaymentEvmScriptFactoriesInput extends OmnibusActionInput {
   name: string;
@@ -20,19 +25,28 @@ interface AddPaymentEvmScriptFactoriesInput extends OmnibusActionInput {
   token: Address;
   trustedCaller: Address;
 }
-const DEFAULT_ENACTOR: Address = "0xEE00eE11EE22ee33eE44ee55ee66Ee77EE88ee99";
-const TEST_RECIPIENT = "0x0102030405060708091011121314151617181920";
-
-const iAllowedRecipientsRegistry = AllowedRecipientsRegistry__factory.createInterface();
 
 interface AddEvmScriptFactoryInput extends OmnibusActionInput {
   factory: Address;
 }
 
+interface AddTopUpEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
+  name: string;
+  token: Address;
+  registry: Address;
+  trustedCaller: Address;
+}
+
+interface RecipientEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
+  name: string;
+  registry: Address;
+  trustedCaller: Address;
+}
+
 abstract class AddEvmScriptFactory<T extends AddEvmScriptFactoryInput> extends OmnibusAction<T> {
-  getEVMCall() {
+  getEVMCalls(): FormattedEvmCall[] {
     const { easyTrack } = this.contracts;
-    return call(easyTrack.addEVMScriptFactory, [this.input.factory, this.permission]);
+    return [call(easyTrack.addEVMScriptFactory, [this.input.factory, this.permission])];
   }
 
   getExpectedEvents(): EventCheck[] {
@@ -48,13 +62,6 @@ abstract class AddEvmScriptFactory<T extends AddEvmScriptFactoryInput> extends O
   }
 
   protected abstract get permission(): HexStrPrefixed;
-}
-
-interface AddTopUpEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
-  name: string;
-  token: Address;
-  registry: Address;
-  trustedCaller: Address;
 }
 
 class AddTopUpEvmScriptFactory extends AddEvmScriptFactory<AddTopUpEvmScriptFactoryInput> {
@@ -136,28 +143,15 @@ class AddTopUpEvmScriptFactory extends AddEvmScriptFactory<AddTopUpEvmScriptFact
   }
 }
 
-interface AddTopUpEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
-  name: string;
-  token: Address;
-  registry: Address;
-  trustedCaller: Address;
-}
-
-class AddAddRecipientEvmScriptFactory extends OmnibusAction<{
-  title: string;
-  name: string;
-  factory: Address;
-  registry: Address;
-  trustedCaller: Address;
-}> {
+class AddAddRecipientEvmScriptFactory extends OmnibusAction<RecipientEvmScriptFactoryInput> {
   get title() {
     return `Add "${this.input.name} Add Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
   }
 
-  getEVMCall(): FormattedEvmCall {
+  getEVMCalls(): FormattedEvmCall[] {
     const { easyTrack } = this.contracts;
     const { factory } = this.input;
-    return call(easyTrack.addEVMScriptFactory, [factory, this.permission]);
+    return [call(easyTrack.addEVMScriptFactory, [factory, this.permission])];
   }
 
   getExpectedEvents(): EventCheck[] {
@@ -216,13 +210,7 @@ class AddAddRecipientEvmScriptFactory extends OmnibusAction<{
   }
 }
 
-interface AddRemoveRecipientEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
-  name: string;
-  registry: Address;
-  trustedCaller: Address;
-}
-
-class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<AddRemoveRecipientEvmScriptFactoryInput> {
+class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<RecipientEvmScriptFactoryInput> {
   get title(): string {
     return `Add "${this.input.name} Remove Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
   }
@@ -276,7 +264,7 @@ class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<AddRemoveRe
   }
 }
 
-export class AddPaymentEvmScriptFactories extends OmnibusActionGroup<AddPaymentEvmScriptFactoriesInput> {
+export class AddPaymentEvmScriptFactories extends OmnibusAction<AddPaymentEvmScriptFactoriesInput> {
   private readonly _items: (
     | AddTopUpEvmScriptFactory
     | AddAddRecipientEvmScriptFactory
@@ -287,7 +275,6 @@ export class AddPaymentEvmScriptFactories extends OmnibusActionGroup<AddPaymentE
     super(input);
     this._items = [
       new AddTopUpEvmScriptFactory({
-        title: input.title,
         name: input.name,
         token: input.token,
         registry: input.registry,
@@ -298,7 +285,6 @@ export class AddPaymentEvmScriptFactories extends OmnibusActionGroup<AddPaymentE
     if (input.factories.addRecipient) {
       this._items.push(
         new AddAddRecipientEvmScriptFactory({
-          title: input.title,
           name: input.name,
           registry: input.registry,
           factory: input.factories.addRecipient,
@@ -309,7 +295,6 @@ export class AddPaymentEvmScriptFactories extends OmnibusActionGroup<AddPaymentE
     if (input.factories.removeRecipient) {
       this._items.push(
         new AddRemoveRecipientEvmScriptFactory({
-          title: input.title,
           name: input.name,
           registry: input.registry,
           factory: input.factories.removeRecipient,
@@ -319,11 +304,20 @@ export class AddPaymentEvmScriptFactories extends OmnibusActionGroup<AddPaymentE
     }
   }
 
-  get items(): OmnibusAction<any>[] {
-    return this._items;
+  init(network: NetworkName, contracts: LidoEthContracts) {
+    super.init(network, contracts);
+    this._items.forEach((item) => item.init(network, contracts));
   }
 
   get title(): string {
     return `Add "${this.input.name}" payment EVM Script Factories`;
+  }
+
+  getEVMCalls(): FormattedEvmCall[] {
+    return this._items.flatMap((item) => item.getEVMCalls());
+  }
+
+  getExpectedEvents(): EventCheck[] {
+    return this._items.flatMap((item) => item.getExpectedEvents());
   }
 }
