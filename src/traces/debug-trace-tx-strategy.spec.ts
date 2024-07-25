@@ -15,7 +15,6 @@ interface TestContext {
 const RPC_NODES = [
   ["anvil", { port: 8544, stepsTracing: true }],
   ["hardhat", { port: 8545 }],
-  ["ganache", { server: { port: 8546 } }],
 ];
 
 describe.skip("DebugTraceTxStrategy", () => {

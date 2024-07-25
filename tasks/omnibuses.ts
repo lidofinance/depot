@@ -81,7 +81,7 @@ task("omnibus:run", "Runs the omnibus with given name")
   .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", true, types.boolean)
   .addOptionalParam<RpcNodeName | "local" | "remote">(
     "rpc",
-    'The RPC node used to launch omnibus. Possible values: hardhat, ganache, anvil, local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
+    'The RPC node used to launch omnibus. Possible values: hardhat, anvil, local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
     "hardhat",
     types.string,
   )
@@ -219,22 +219,6 @@ async function spawnRpcNode(network: NetworkName, nodeType: RpcNodeName, blockNu
       return rpcs.spawn("anvil", {
         forkUrl: networks.rpcUrl("eth", network),
         forkBlockNumber: blockNumber,
-      });
-    else if (nodeType === "ganache")
-      return rpcs.spawn("ganache", {
-        chain: {
-          hardfork: "istanbul",
-          chainId: +networks.get("eth", network).chainId.toString(),
-          vmErrorsOnRPCResponse: true,
-        },
-        wallet: {
-          totalAccounts: 10,
-          mnemonic: "test test test test test test test test test test test junk",
-        },
-        fork: {
-          url: networks.rpcUrl("eth", network),
-          blockNumber,
-        },
       });
   } catch (e) {
     throw new Error(`Failed to spawn "${nodeType}" node: ${e}`);

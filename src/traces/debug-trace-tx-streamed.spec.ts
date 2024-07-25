@@ -27,7 +27,7 @@ async function streamDebutTraceTransaction(node: SpawnedRpcNode, hash: string, p
 
 async function debugTraceTransaction(node: SpawnedRpcNode, hash: string, params: TraceParameters) {
   const specificParams =
-    node.name === "ganache" || node.name === "hardhat"
+    node.name === "hardhat"
       ? {
           disableStack: params.disableStack ?? false,
           disableStorage: params.disableStorage ?? false,
@@ -53,7 +53,6 @@ interface TestContext {
 const RPC_NODES = [
   ["anvil", { port: 8544, stepsTracing: true }],
   ["hardhat", { port: 8545 }],
-  ["ganache", { server: { port: 8546 } }],
 ];
 
 // prettier-ignore

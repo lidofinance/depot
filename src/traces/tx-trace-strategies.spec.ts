@@ -9,7 +9,6 @@ import { HardhatVmTraceStrategy } from "./hardhat-vm-trace-strategy";
 const RPC_NODES = [
   ["anvil", { port: 8544, stepsTracing: true }],
   ["hardhat", { port: 8545 }],
-  ["ganache", { server: { port: 8546 } }],
 ];
 
 describe.skip("TxTracer strategies", () => {
@@ -45,32 +44,19 @@ describe.skip("TxTracer strategies", () => {
     });
     nodes.push(anvilNode);
     const { provider: anvilProvider } = anvilNode;
-    const anvilCheates = await providers.cheats(anvilProvider);
+    const anvilCheates = providers.cheats(anvilProvider);
     const [anvilOwner] = await anvilCheates.signers();
     const anvilSample = await new TracingSample__factory(anvilOwner).deploy();
     const ar = await anvilSample.deploymentTransaction()?.wait();
     const anvilReceipt = await (await anvilSample.testSuccess({ gasLimit: GAS_LIMIT })).wait();
     const anvilTraceItems = await new DebugTxTraceStrategy(anvilProvider).trace(anvilReceipt!);
 
-    const ganacheNode = await rpcs.spawn("ganache", {
-      server: { port: 8546 },
-      wallet: { mnemonic: "test test test test test test test test test test test junk" },
-      chain: { hardfork: "merge" },
-    });
-    nodes.push(ganacheNode);
-    const { provider: ganacheProvider } = ganacheNode;
-    const ganacheCheates = await providers.cheats(ganacheProvider);
-    const [ganacheOwner] = await ganacheCheates.signers();
-    const ganacheSample = await new TracingSample__factory(ganacheOwner).deploy();
-    const ganacheReceipt = await (await ganacheSample.testSuccess({ gasLimit: GAS_LIMIT })).wait();
-    const ganacheTraceItems = await new DebugTxTraceStrategy(ganacheProvider).trace(ganacheReceipt!);
-
-    assert.equal(hardhatTraceItems.length, ganacheTraceItems.length);
-    assert.equal(ganacheTraceItems.length, anvilTraceItems.length);
+    assert.equal(hardhatTraceItems.length, anvilTraceItems.length);
+    assert.equal(anvilTraceItems.length, anvilTraceItems.length);
 
     for (let i = 0; i < hardhatTraceItems.length; ++i) {
-      assert.deepEqual(hardhatTraceItems[i], ganacheTraceItems[i]);
-      assert.deepEqual(ganacheTraceItems[i], anvilTraceItems[i]);
+      assert.deepEqual(hardhatTraceItems[i], anvilTraceItems[i]);
+      assert.deepEqual(anvilTraceItems[i], anvilTraceItems[i]);
     }
   });
 });
