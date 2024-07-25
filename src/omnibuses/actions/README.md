@@ -5,6 +5,7 @@
 An `Action` is a logical part of an omnibus that provides one or more EVM calls. These calls are composed into an EVM script, which is executed if the omnibus reaches the quorum.
 
 An `Action` can contain:
+
 - A single EVM call, for example [TransferAssets](./transfer-assets.ts)
 - Multiple similar calls, for example [AddNodeOperators](./add-node-operators.ts)
 - Multiple different calls, for example [AddPaymentEvmScriptFactories](./add-payment-evm-script-factories.ts)
@@ -36,7 +37,9 @@ export class ExampleAction extends OmnibusAction<ExampleInput> {
   async after({ it, assert, provider }: OmnibusHookCtx): Promise<void> {}
 }
 ```
+
 Action template for action with dynamic title:
+
 ```typescript
 interface ExampleInput extends OmnibusActionInput {
   requiredField: string;
@@ -47,7 +50,7 @@ export class ExampleAction extends OmnibusAction<ExampleInput> {
   get title(): string {
     return `ExampleAction: ${this.input.requiredField}`;
   }
-  
+
   getEVMCalls(): FormattedEvmCall[] {}
 
   getExpectedEvents(): EventCheck[] {}
@@ -57,4 +60,3 @@ export class ExampleAction extends OmnibusAction<ExampleInput> {
   async after({ it, assert, provider }: OmnibusHookCtx): Promise<void> {}
 }
 ```
-
