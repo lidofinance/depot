@@ -177,9 +177,9 @@ class AddAddRecipientEvmScriptFactory extends OmnibusAction<RecipientEvmScriptFa
 
       const { mine, unlock, increaseTime } = providers.cheats(provider);
 
-      const trustedSigner = await unlock(trustedCaller);
+      const trustedSigner = await unlock(trustedCaller, 10n ** 18n);
 
-      const createTx = await easyTrack.connect(trustedSigner).createMotion(factory, calldata, { gasLimit: 5_000_000 });
+      const createTx = await easyTrack.connect(trustedSigner).createMotion(factory, calldata, { gasLimit: 3_000_000 });
 
       await createTx.wait();
 
@@ -319,5 +319,17 @@ export class AddPaymentEvmScriptFactories extends OmnibusAction<AddPaymentEvmScr
 
   getExpectedEvents(): EventCheck[] {
     return this._items.flatMap((item) => item.getExpectedEvents());
+  }
+
+  async before({ it, assert, provider }: OmnibusHookCtx): Promise<void> {
+    for (const item of this._items) {
+      await item.before({ it, assert, provider });
+    }
+  }
+
+  async after({ it, assert, provider }: OmnibusHookCtx): Promise<void> {
+    for (const item of this._items) {
+      await item.after({ it, assert, provider });
+    }
   }
 }

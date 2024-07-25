@@ -62,12 +62,12 @@ export default new Omnibus({
     new AddPaymentEvmScriptFactories({
       name: "reWARDS stETH",
       factories: {
-        topUp: "0x54058ee0E0c87Ad813C002262cD75B98A7F59218",
-        addRecipient: "0x929547490Ceb6AeEdD7d72F1Ab8957c0210b6E51",
-        removeRecipient: "0xE9eb838fb3A288bF59E9275Ccd7e124fDff88a9C",
+        topUp: "0x85d703B2A4BaD713b596c647badac9A1e95bB03d",
+        addRecipient: "0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C",
+        removeRecipient: "0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E",
       },
       token: stETH.address,
-      registry: "0x48c4929630099b217136b64089E8543dB0E5163a",
+      registry: "0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A",
       trustedCaller: "0x87D93d9B2C672bf9c9642d853a8682546a5012B5",
     }),
     new RemovePaymentEvmScriptFactories({
