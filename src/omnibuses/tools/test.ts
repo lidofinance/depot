@@ -89,14 +89,14 @@ export const testOmnibus = async (omnibus: Omnibus<any>, provider: RpcProvider) 
   });
 
   await new Promise((resolve, reject) => {
-    mocha.run((failures) => {
+    mocha.run(async (failures) => {
+      // Revert the blockchain state
+      await restorer.revert();
+
       if (failures) reject("some tests failed");
       resolve("success");
     });
   });
-
-  // Revert the blockchain state
-  await restorer.revert();
 };
 
 async function createOmnibusItemTestSuite(
