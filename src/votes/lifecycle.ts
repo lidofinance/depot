@@ -7,13 +7,15 @@ import { NonPayableOverrides } from "../../typechain-types/common";
 export async function start(
   creator: Signer,
   evmScript: string,
-  meta: string,
+  description: string,
   castVote: boolean = false,
   overrides?: NonPayableOverrides,
 ) {
   const { voting, tokenManager } = lido.chainId(await providers.chainId(creator), creator);
 
-  const startVoteScript = evm(call(voting["newVote(bytes,string,bool,bool)"], [evmScript, meta, castVote, false]));
+  const startVoteScript = evm(
+    call(voting["newVote(bytes,string,bool,bool)"], [evmScript, description, castVote, false]),
+  );
   return tokenManager.connect(creator).forward(startVoteScript, overrides ?? {});
 }
 
