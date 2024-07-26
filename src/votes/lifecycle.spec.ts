@@ -62,6 +62,8 @@ describe("start function", () => {
   });
 
   it("should start a vote with default castVote parameter", async () => {
+    await start(mockSigner, "mockEvmScript", "Test Description");
+
     expect(mockCall.firstCall.args).to.be.deep.equal([
       mockVoting["newVote(bytes,string,bool,bool)"],
       ["mockEvmScript", "Test Description", false, false],
