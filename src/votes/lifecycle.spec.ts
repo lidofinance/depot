@@ -5,12 +5,11 @@ import { ContractTransactionResponse, Signer } from "ethers";
 import lido from "../lido";
 import providers from "../providers";
 import * as voteScript from "./vote-script";
-import Sinon from "sinon";
 import { HexStrPrefixed } from "../common/bytes";
 import { ContractEvmCall } from "./vote-script";
 import { randomAddress } from "hardhat/internal/hardhat-network/provider/utils/random";
 
-describe("start function", () => {
+describe("lifecycle functions", () => {
   let mockSigner: Signer;
   let mockVoting: any;
   let mockTokenManager: any;
@@ -27,10 +26,10 @@ describe("start function", () => {
     mockVoting = {
       "newVote(bytes,string,bool,bool)": sinon.stub().resolves({}),
       interface: {
-        getEvent: Sinon.stub().returns({
+        getEvent: sinon.stub().returns({
           topicHash: mockTopicHash,
         }),
-        parseLog: Sinon.stub().returns({ args: [BigInt(1)] }),
+        parseLog: sinon.stub().returns({ args: [BigInt(1)] }),
         executeVote: sinon.stub(),
       },
     };
