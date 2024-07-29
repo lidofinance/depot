@@ -4,20 +4,21 @@ import prompt from "../common/prompt";
 import { PrivateKey } from "../common/types";
 import { NamedKeystore } from "./named-keystore";
 import { NamedKeystoresStorage } from "./named-keystores-storage";
+import { KnownError } from "../common/errors";
 
-export class NoKeystoreError extends Error {
+export class NoKeystoreError extends KnownError {
   constructor() {
     super(`Accounts not found. Aborting...`);
   }
 }
 
-export class AccountAlreadyExistsError extends Error {
+export class AccountAlreadyExistsError extends KnownError {
   constructor(account: NamedKeystore) {
     super(`Account with name "${account.name}" (${account.address}) already exists. Aborting...`);
   }
 }
 
-class InvalidPrivateKey extends Error {
+class InvalidPrivateKey extends KnownError {
   constructor() {
     super(`Private key value is invalid hex string`);
   }

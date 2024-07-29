@@ -5,6 +5,10 @@ import { NetworkName } from "../networks";
 import { RpcProvider } from "../providers";
 import { LidoEthContracts } from "../lido";
 
+export interface OmnibusActionInput {
+  title?: string;
+}
+
 interface MochaTest {
   (title: string, fn?: Mocha.Func | Mocha.AsyncFunc | undefined): void;
 }
@@ -15,7 +19,7 @@ export interface OmnibusHookCtx {
   provider: RpcProvider;
 }
 
-export abstract class OmnibusItemMeta<Input = never> {
+export abstract class OmnibusActionMeta<Input extends OmnibusActionInput> {
   private _network: NetworkName | null = null;
   private _contracts: LidoEthContracts | null = null;
 
@@ -23,6 +27,15 @@ export abstract class OmnibusItemMeta<Input = never> {
 
   constructor(input: Input) {
     this.input = input;
+  }
+
+  get title(): string {
+    if (this.input.title) {
+      return this.input.title;
+    }
+    throw new Error(
+      `Action ${this.constructor.name} failed. You should provide the title in the input or implement the title method by yourself.`,
+    );
   }
 
   get network() {
@@ -43,8 +56,6 @@ export abstract class OmnibusItemMeta<Input = never> {
     this._network = network;
     this._contracts = contracts;
   }
-
-  abstract get title(): string;
 
   /**
    * The hook launched before the vote with omnibus is submitted and executed.

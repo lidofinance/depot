@@ -6,21 +6,7 @@ import { flatten, kebabCase } from "lodash";
 import { Stringable } from "./common/types";
 import files from "./common/files";
 import treeKill from "tree-kill";
-
-export type Hardfork =
-  | "constantinople"
-  | "byzantium"
-  | "petersburg"
-  | "istanbul"
-  | "muirGlacier"
-  | "berlin"
-  | "london"
-  | "arrowGlazier"
-  | "grayGlacier"
-  | "merge"
-  | "shanghai";
-
-export type RpcNodeName = "hardhat" | "anvil" | "ganache";
+export type RpcNodeName = "hardhat" | "anvil";
 
 export type HardhatNodeOptions = Partial<{
   port: number;
@@ -72,77 +58,7 @@ export type AnvilNodeOptions = Partial<{
   stepsTracing: boolean;
 }>;
 
-export type GanacheNodeOptions = Partial<{
-  chain: Partial<{
-    allowUnlimitedContractSize: boolean;
-    allowUnlimitedInitCodeSize: boolean;
-    asyncRequestProcessing: boolean;
-    chainId: number;
-    networkId: number;
-    time: string;
-    hardfork: Hardfork;
-    vmErrorsOnRPCResponse: boolean;
-  }>;
-  database: Partial<{
-    dbPath: string;
-  }>;
-  logging: Partial<{
-    debug: boolean;
-    quiet: boolean;
-    verbose: boolean;
-    file: boolean;
-  }>;
-  miner: Partial<{
-    blockTime: number;
-    timestampIncrement: string;
-    defaultGasPrice: string;
-    blockGasLimit: string;
-    difficulty: string;
-    callGasLimit: string;
-    instamine: "eager" | "strict";
-    coinbase: string;
-    extraData: string;
-    priceBump: string;
-  }>;
-  wallet: Partial<{
-    accounts: string[];
-    totalAccounts: number;
-    determenistic: boolean;
-    seed: string;
-    mnemonic: string;
-    unlockedAccounts: string[];
-    lock: boolean;
-    passphrase: string;
-    accountKeysPath: string;
-    defaultBalance: number;
-    hdPath: string;
-  }>;
-  fork: Partial<{
-    url: string;
-    network: "mainnet" | "goerli" | "görli" | "sepolia";
-    blockNumber: number;
-    preLatestConfirmation: number;
-    username: string;
-    password: string;
-    jwt: string;
-    userAgent: string;
-    origin: string;
-    headers: string[];
-    requestsPerSecond: number;
-    disableCache: boolean;
-    deleteCache: boolean;
-  }>;
-  server: Partial<{
-    ws: boolean;
-    wsBinary: "true" | "false" | "auto" | boolean;
-    rpcEndpoint: string;
-    chunkSize: number;
-    host: string;
-    port: number;
-  }>;
-}>;
-
-type RpcNodeOptions = AnvilNodeOptions | HardhatNodeOptions | GanacheNodeOptions;
+type RpcNodeOptions = AnvilNodeOptions | HardhatNodeOptions;
 export interface SpawnedRpcNode<N extends RpcNodeName = RpcNodeName, O extends RpcNodeOptions = RpcNodeOptions> {
   url: string;
   host: string;
@@ -206,28 +122,11 @@ function spawnAnvilProcess(options: AnvilNodeOptions) {
   return spawnProcess({ command: "anvil", flags });
 }
 
-function spawnGanacheProcess(options: GanacheNodeOptions) {
-  const prefixFlag = (prefix: string, flag: string) => `--${prefix}.${flag}`;
-  const flags: string[] = [];
-  for (const [namespace, namespaceFlags] of Object.entries(options)) {
-    for (const [flag, value] of Object.entries(namespaceFlags) || {}) {
-      if (value === undefined) continue;
-      flags.push(prefixFlag(namespace, flag), value.toString());
-    }
-  }
-
-  return spawnProcess({ command: "npx", args: ["ganache-cli"], flags });
-}
-
 async function spawnNode(name: "anvil", options?: AnvilNodeOptions): Promise<SpawnedRpcNode<"anvil", AnvilNodeOptions>>;
 async function spawnNode(
   name: "hardhat",
   options?: HardhatNodeOptions,
 ): Promise<SpawnedRpcNode<"hardhat", HardhatNodeOptions>>;
-async function spawnNode(
-  name: "ganache",
-  options?: GanacheNodeOptions,
-): Promise<SpawnedRpcNode<"ganache", GanacheNodeOptions>>;
 async function spawnNode(name: RpcNodeName, options: RpcNodeOptions = {}): Promise<SpawnedRpcNode> {
   let port: number;
   let host: string;
@@ -240,13 +139,6 @@ async function spawnNode(name: RpcNodeName, options: RpcNodeOptions = {}): Promi
     port = (options as HardhatNodeOptions).port ?? DEFAULT_PORT;
     host = (options as HardhatNodeOptions).hostname ?? DEFAULT_HOST;
     node = spawnHardhatProcess(options as AnvilNodeOptions);
-  } else if (name === "ganache") {
-    port = (options as GanacheNodeOptions).server?.port ?? DEFAULT_PORT;
-    host = (options as GanacheNodeOptions).server?.host ?? DEFAULT_HOST;
-    node = spawnGanacheProcess({
-      ...options,
-      server: { ...(options as GanacheNodeOptions).server, port, host },
-    } as GanacheNodeOptions);
   } else {
     throw new Error(`Unsupported node "${name}"`);
   }
@@ -262,13 +154,15 @@ async function spawnNode(name: RpcNodeName, options: RpcNodeOptions = {}): Promi
 
   await files.touchDir(config.logsDir);
 
-  return new Promise<SpawnedRpcNode>((resolve, reject) => {
+  return new Promise<SpawnedRpcNode>((resolve) => {
     const url = `http://${host}:${port}`;
     const provider = new JsonRpcProvider(url);
 
     const absoluteLogPath = path.resolve(config.logsDir, `${name}_${port}.log`);
     const logStream = createWriteStream(absoluteLogPath, { encoding: "utf-8" });
-    const errorListener = (chunk: any) => reject(new Error(`RPC Node Error:: ${chunk.toString()}`));
+    const errorListener = (chunk: any) => {
+      logStream.write(chunk.toString());
+    };
 
     const stop = () => {
       return new Promise<void>((resolve) => {

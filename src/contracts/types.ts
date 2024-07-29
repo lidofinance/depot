@@ -1,5 +1,6 @@
 import type { JsonFragment, ContractRunner, BaseContract } from "ethers";
 import { ChainName } from "../networks";
+import { Address } from "../common/types";
 
 export type ChainId = string | number | bigint;
 

@@ -1,6 +1,7 @@
-import { OmnibusHookCtx, OmnibusItem } from "../omnibus-item";
+import { OmnibusHookCtx, OmnibusAction } from "../omnibus-action";
 import { forward, call, event, FormattedEvmCall } from "../../votes";
 import providers from "../../providers";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
 const COVER_INDEX = 0;
 const NONCOVER_INDEX = 1;
@@ -21,7 +22,7 @@ interface OnchainStateSnapshot {
   };
 }
 
-interface ApplyInsuranceInstanceInput {
+interface ApplyInsuranceInstanceInput extends OmnibusActionInput {
   amount: bigint;
   before: OnchainStateSnapshot;
 }
@@ -35,22 +36,24 @@ async function resolve<T extends Record<string, Promise<unknown>>>(
   return Object.fromEntries(entries.map(([key], index) => [key, results[index]])) as any;
 }
 
-export class ApplyInsuranceAction extends OmnibusItem<ApplyInsuranceInstanceInput> {
+export class ApplyInsuranceAction extends OmnibusAction<ApplyInsuranceInstanceInput> {
   get title() {
     return `Request to burn ${this.input.amount} stETH for cover`;
   }
 
-  get call(): FormattedEvmCall {
+  getEVMCalls(): FormattedEvmCall[] {
     const { amount } = this.input;
     const { agent, insuranceFund, burner, stETH } = this.contracts;
-    return forward(this.contracts.agent, [
-      call(insuranceFund.transferERC20, [stETH, agent, amount]),
-      call(stETH.approve, [burner, amount]),
-      call(burner.requestBurnMyStETHForCover, [amount]),
-    ]);
+    return [
+      forward(this.contracts.agent, [
+        call(insuranceFund.transferERC20, [stETH, agent, amount]),
+        call(stETH.approve, [burner, amount]),
+        call(burner.requestBurnMyStETHForCover, [amount]),
+      ]),
+    ];
   }
 
-  get events() {
+  getExpectedEvents() {
     const { amount } = this.input;
     const { agent, callsScript, insuranceFund, stETH, burner } = this.contracts;
     return [

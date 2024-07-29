@@ -30,7 +30,7 @@ const DEFAULT_PARAMS: TraceParameters = {
   enableReturnData: false,
 };
 
-type RpcNodeName = "hardhat" | "anvil" | "ganache" | "geth" | "erigon" | "other";
+type RpcNodeName = "hardhat" | "anvil" | "geth" | "erigon" | "other";
 
 export class DebugTraceTxStreamed {
   private requestId: number = 1;
@@ -104,7 +104,7 @@ export class DebugTraceTxStreamed {
   }
 
   private mapTraceParameters(rpcName: RpcNodeName, params: TraceParameters) {
-    if (rpcName === "ganache" || rpcName === "hardhat" || rpcName === "erigon") {
+    if (rpcName === "hardhat" || rpcName === "erigon") {
       return {
         disableStack: params.disableStack ?? false,
         disableStorage: params.disableStorage ?? false,
@@ -161,7 +161,6 @@ export class DebugTraceTxStreamed {
     if (name.startsWith("geth")) return "geth";
     else if (name.startsWith("anvil")) return "anvil";
     else if (name.startsWith("hardhat")) return "hardhat";
-    else if (name.startsWith("ganache")) return "ganache";
     else if (name.startsWith("erigon")) return "erigon";
     return "other";
   }

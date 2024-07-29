@@ -1,17 +1,19 @@
 import chalk from "chalk";
 import { task } from "hardhat/config";
-import { JsonRpcProvider, Wallet } from "ethers";
+import { BigNumberish, ContractTransactionReceipt, JsonRpcProvider, Wallet } from "ethers";
 import * as types from "hardhat/internal/core/params/argumentTypes";
 
 import votes from "../src/votes";
 import rpcs, { RpcNodeName } from "../src/rpcs";
-import providers from "../src/providers";
 import traces from "../src/traces";
-import { Omnibus, SimulationGroup } from "../src/omnibuses/omnibus";
+import { Omnibus } from "../src/omnibuses/omnibus";
 import networks, { NetworkName } from "../src/networks";
 import bytes from "../src/common/bytes";
 import format from "../src/common/format";
 import prompt from "../src/common/prompt";
+import { simulateOmnibus, SimulationGroup } from "../src/omnibuses/tools/simulate";
+import { testOmnibus } from "../src/omnibuses/tools/test";
+import { isKnownError } from "../src/common/errors";
 
 traces.hardhat.enableTracing();
 
@@ -57,23 +59,13 @@ task("omnibus:test", "Runs tests for the given omnibus")
     let [provider, node] = await prepareExecEnv(omnibus.network, rpc, blockNumber);
 
     try {
-      if (!omnibus.isLaunched) {
-        const currentBlockNumber = await provider.getBlockNumber();
-        const block = await provider.getBlock(currentBlockNumber);
-        if (!block) {
-          throw new Error(`Block ${currentBlockNumber} not found`);
-        }
-        const currentTimestamp = block.timestamp;
-        if (omnibus.launchingTimestamp > currentTimestamp) {
-          await providers.cheats(provider).increaseTime(omnibus.launchingTimestamp - currentTimestamp);
-        }
-      }
+      omnibus.init(provider);
 
-      await omnibus.test(provider);
+      await testOmnibus(omnibus, provider);
 
       if (simulate) {
         console.log(`Simulating the omnibus using "${rpc}" node...`);
-        printOmnibusSimulation(await omnibus.simulate(provider));
+        printOmnibusSimulation(await simulateOmnibus(omnibus, provider));
       } else {
         console.log(`The simulation step was skipped.`);
       }
@@ -89,7 +81,7 @@ task("omnibus:run", "Runs the omnibus with given name")
   .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", true, types.boolean)
   .addOptionalParam<RpcNodeName | "local" | "remote">(
     "rpc",
-    'The RPC node used to launch omnibus. Possible values: hardhat, ganache, anvil, local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
+    'The RPC node used to launch omnibus. Possible values: hardhat, anvil, local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
     "hardhat",
     types.string,
   )
@@ -111,6 +103,10 @@ task("omnibus:run", "Runs the omnibus with given name")
     const [provider, node] = await prepareExecEnv(omnibus.network, rpc);
 
     try {
+      // Init omnibus
+      await omnibus.init(provider);
+
+      // Prepare execution environment
       const network = await provider.getNetwork();
       console.log(`Network:`);
       console.log(`  - rpc: ${rpc}`);
@@ -125,8 +121,9 @@ task("omnibus:run", "Runs the omnibus with given name")
       console.log(`  - nonce: ${await pilot.getNonce()}`);
       console.log(`  - balance: ${hre.ethers.formatEther(await provider.getBalance(pilot))} ETH\n`);
 
+      // Simulate omnibus and ask for confirmation
       console.log(`Simulating the omnibus using "hardhat" node...`);
-      printOmnibusSimulation(await omnibus.simulate(hre.ethers.provider));
+      printOmnibusSimulation(await simulateOmnibus(omnibus, provider));
       const isConfirmed = await prompt.confirm("Does it look good?");
 
       if (!isConfirmed) {
@@ -134,16 +131,24 @@ task("omnibus:run", "Runs the omnibus with given name")
         return;
       }
 
+      // Launch the omnibus
       console.log(`Sending the tx to start the vote...`);
       const tx = await votes.start(pilot, omnibus.script, omnibus.description);
 
       console.log("Transaction successfully sent:", tx.hash);
 
       console.log("Waiting transaction will be confirmed...");
-      const { voteId } = await votes.wait(tx);
+      const { voteId, receipt } = await votes.wait(tx);
 
-      console.log(`Omnibus ${voteId} was launched successfully 🎉`);
+      await printVoteInfo(voteId, receipt);
+
       await prompt.sigint();
+    } catch (e) {
+      if (isKnownError(e)) {
+        console.error(e.message);
+        return;
+      }
+      throw e;
     } finally {
       await node?.stop();
     }
@@ -160,6 +165,20 @@ function printOmnibusSimulation([gasUsed, groups]: [bigint, SimulationGroup[]]) 
     console.log(group.trace.format(2));
     console.log();
   }
+}
+
+async function printVoteInfo(voteId: BigNumberish, receipt: ContractTransactionReceipt) {
+  const launchBlock = await receipt.getBlock();
+  const launchDate = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(
+    new Date(launchBlock.timestamp * 1000),
+  );
+  console.log(`
+Omnibus successfully launched 🎉!
+Details:
+    Vote ID: ${voteId}
+    Block number: ${receipt.blockNumber}
+    Launch date: ${launchDate}
+`);
 }
 
 async function prepareExecEnv(network: NetworkName, rpc: RpcNodeName | "local" | "remote", blockNumber?: number) {
@@ -190,31 +209,19 @@ async function prepareExecEnv(network: NetworkName, rpc: RpcNodeName | "local" |
 }
 
 async function spawnRpcNode(network: NetworkName, nodeType: RpcNodeName, blockNumber?: number) {
-  if (nodeType === "hardhat")
-    return rpcs.spawn("hardhat", {
-      fork: networks.rpcUrl("eth", network),
-      forkBlockNumber: blockNumber,
-    });
-  else if (nodeType === "anvil")
-    return rpcs.spawn("anvil", {
-      forkUrl: networks.rpcUrl("eth", network),
-      forkBlockNumber: blockNumber,
-    });
-  else if (nodeType === "ganache")
-    return rpcs.spawn("ganache", {
-      chain: {
-        hardfork: "istanbul",
-        chainId: +networks.get("eth", network).chainId.toString(),
-        vmErrorsOnRPCResponse: true,
-      },
-      wallet: {
-        totalAccounts: 10,
-        mnemonic: "test test test test test test test test test test test junk",
-      },
-      fork: {
-        url: networks.rpcUrl("eth", network),
-        blockNumber,
-      },
-    });
+  try {
+    if (nodeType === "hardhat")
+      return rpcs.spawn("hardhat", {
+        fork: networks.rpcUrl("eth", network),
+        forkBlockNumber: blockNumber,
+      });
+    else if (nodeType === "anvil")
+      return rpcs.spawn("anvil", {
+        forkUrl: networks.rpcUrl("eth", network),
+        forkBlockNumber: blockNumber,
+      });
+  } catch (e) {
+    throw new Error(`Failed to spawn "${nodeType}" node: ${e}`);
+  }
   throw new Error(`Unsupported node type "${nodeType}"`);
 }

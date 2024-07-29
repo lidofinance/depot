@@ -1,25 +1,24 @@
 import { BaseContract, id } from "ethers";
 import contracts from "../../contracts";
 import { AccessControl, AccessControl__factory } from "../../../typechain-types";
-import { forward, call, event } from "../../votes";
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { forward, call, event, FormattedEvmCall } from "../../votes";
+import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
+import { Address } from "../../common/types";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
-interface AccessControlRevokeRoleInput {
+interface AccessControlRevokeRoleInput extends OmnibusActionInput {
   on: Address | BaseContract;
   from: Address | BaseContract;
   role: string;
 }
 
-export class AccessControlRevokeRole extends OmnibusItem<AccessControlRevokeRoleInput> {
-  get call() {
+export class AccessControlRevokeRole extends OmnibusAction<AccessControlRevokeRoleInput> {
+  getEVMCalls(): FormattedEvmCall[] {
     const { role, from } = this.input;
-    return forward(this.contracts.agent, [call(this.accessControl.revokeRole, [id(role), from])]);
-  }
-  public get title(): string {
-    return `Revoke "${this.input.role}" on ${this.onAddress} from ${this.fromAddress}`;
+    return [forward(this.contracts.agent, [call(this.accessControl.revokeRole, [id(role), from])])];
   }
 
-  get events() {
+  getExpectedEvents() {
     return [
       event(this.accessControl, "RoleRevoked", {
         args: [id(this.input.role), this.input.from, undefined],
@@ -32,7 +31,7 @@ export class AccessControlRevokeRole extends OmnibusItem<AccessControlRevokeRole
 
     it(`Role "${role}" was successfully revoked from account ${this.fromAddress} on contract ${this.onAddress}`, async () => {
       const hasPermission = await this.accessControl.connect(provider).hasRole(id(role), from);
-      assert.isFalse(hasPermission, "Invalid state after role revoking");
+      assert.equal(hasPermission, false, "Invalid state after role revoking");
     });
   }
 

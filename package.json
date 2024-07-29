@@ -2,11 +2,17 @@
   "name": "hardhat-project",
   "scripts": {
     "omnibus": "ts-node --files ./scripts/omnibs.ts",
-    "omnibus:test": "hardhat omnibus:test --rpc local",
-    "keystore:generate": "hardhat keystore:generate",
-    "keystore:list": "hardhat keystore:list",
+    "omnibus:run": "hardhat omnibus:run",
+    "omnibus:test": "hardhat omnibus:test",
+    "ks:add": "hardhat keystore:add",
+    "ks:ls": "hardhat keystore:list",
+    "ks:del": "hardhat keystore:delete",
+    "ks:gen": "hardhat keystore:generate",
+    "ks:pwd": "hardhat keystore:password",
+    "style": "prettier --write .",
     "test": "nyc --reporter text-summary mocha",
-    "style": "prettier --write ."
+    "typechain": "SKIP_TYPECHAIN=true hardhat typechain",
+    "postinstall": "pnpm typechain"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.4",
@@ -22,7 +28,6 @@
     "@types/sinon": "^17.0.3",
     "chai-as-promised": "^7.1.1",
     "ethers": "^6.7.1",
-    "hardhat": "^2.16.1",
     "nock": "^13.5.0",
     "nyc": "^15.1.0",
     "prettier": "^3.2.5",
@@ -37,7 +42,7 @@
     "clarinet": "^0.12.6",
     "commander": "^11.1.0",
     "dotenv": "^16.3.1",
-    "ganache": "^7.9.1",
+    "hardhat": "2.19.5",
     "lodash": "^4.17.21",
     "mocha": "^10.2.0",
     "node-fetch": "^2.7.0",

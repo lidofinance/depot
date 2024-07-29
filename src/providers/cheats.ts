@@ -5,7 +5,7 @@ import { UnsupportedProviderError, isHardhatEthersProvider, isJsonRpcProvider } 
 import { RpcProvider, SignerWithAddress, SnapshotRestorer } from "./types";
 import { Address } from "../common/types";
 
-type NodeName = "hardhat" | "anvil" | "ganache";
+type NodeName = "hardhat" | "anvil";
 
 interface LocalNodeInfo {
   name: NodeName;
@@ -50,7 +50,6 @@ async function fetchNodeInfo<T extends RpcProvider>(provider: T): Promise<LocalN
 
   if (name.startsWith("anvil")) return { name: "anvil", version };
   if (name.startsWith("hardhat")) return { name: "hardhat", version };
-  if (name.startsWith("ganache")) return { name: "ganache", version };
   throw new UnsupportedRpcNode(clientInfo);
 }
 
@@ -60,8 +59,6 @@ async function sendMine(node: LocalNodeInfo, provider: RpcProvider, blocks: numb
       return provider.send("anvil_mine", [blocks]);
     case "hardhat":
       return provider.send("hardhat_mine", ["0x" + blocks.toString(16)]);
-    case "ganache":
-      return provider.send("evm_mine", [{ blocks }]);
   }
 }
 
@@ -83,9 +80,6 @@ async function sendImpersonate(node: LocalNodeInfo, provider: RpcProvider, addre
       return true;
     case "hardhat":
       return provider.send("hardhat_impersonateAccount", [address]);
-    case "ganache":
-      await provider.send("evm_addAccount", [address, ""]);
-      return provider.send("personal_unlockAccount", [address, ""]);
   }
 }
 
@@ -102,8 +96,6 @@ async function sendSetCode(
       return provider.send("anvil_setCode", params);
     case "hardhat":
       return provider.send("hardhat_setCode", params);
-    case "ganache":
-      return provider.send("evm_setAccountCode", params);
   }
 }
 
@@ -120,8 +112,6 @@ async function sendSetBalance(
       return provider.send("anvil_setBalance", params);
     case "hardhat":
       return provider.send("hardhat_setBalance", params);
-    case "ganache":
-      return provider.send("evm_setAccountBalance", params);
   }
 }
 
@@ -149,8 +139,6 @@ async function sendReset(
       return provider.send("anvil_reset", [params]);
     case "hardhat":
       return provider.send("hardhat_reset", [params]);
-    case "ganache":
-      throw new Error(`Ganache node does not support resetting`);
   }
 }
 
@@ -160,8 +148,6 @@ async function sendLock(node: LocalNodeInfo, provider: RpcProvider, address: Add
       return provider.send("anvil_stopImpersonatingAccount", [address]);
     case "hardhat":
       return provider.send("hardhat_stopImpersonatingAccount", [address]);
-    case "ganache":
-      return provider.send("personal_lockAccount", [address]);
   }
 }
 

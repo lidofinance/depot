@@ -1,26 +1,27 @@
 import { Address } from "../../common/types";
 import { FormattedEvmCall, call, event, forward } from "../../votes";
 
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
-interface SetNodeOperatorRewardAddressInput {
+interface SetNodeOperatorRewardAddressInput extends OmnibusActionInput {
+  title: string;
   id: number;
   from: Address;
   to: Address;
 }
 
-export class SetNodeOperatorRewardAddress extends OmnibusItem<SetNodeOperatorRewardAddressInput> {
+export class SetNodeOperatorRewardAddress extends OmnibusAction<SetNodeOperatorRewardAddressInput> {
   get title(): string {
-    const { id, from, to } = this.input;
-    return `Change the reward address of node operator with id ${id} from ${from} to ${to}`;
+    return this.input.title;
   }
 
-  get call(): FormattedEvmCall {
+  getEVMCalls(): FormattedEvmCall[] {
     const { agent, curatedStakingModule } = this.contracts;
-    return forward(agent, [call(curatedStakingModule.setNodeOperatorRewardAddress, [this.input.id, this.input.to])]);
+    return [forward(agent, [call(curatedStakingModule.setNodeOperatorRewardAddress, [this.input.id, this.input.to])])];
   }
 
-  get events() {
+  getExpectedEvents() {
     const { curatedStakingModule } = this.contracts;
     return [
       event(curatedStakingModule, "NodeOperatorRewardAddressSet", {

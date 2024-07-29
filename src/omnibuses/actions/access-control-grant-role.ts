@@ -2,26 +2,18 @@ import { id } from "ethers";
 import { AccessControl, AccessControl__factory } from "../../../typechain-types";
 import { FormattedEvmCall, call, event, forward } from "../../votes";
 import contracts, { NamedContract } from "../../contracts";
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
+import { Address } from "../../common/types";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
-interface AccessControlGrantRoleInput {
+interface AccessControlGrantRoleInput extends OmnibusActionInput {
   role: string;
   on: Address | NamedContract;
   to: Address | NamedContract;
   revoked?: boolean;
 }
 
-export class AccessControlGrantRole extends OmnibusItem<AccessControlGrantRoleInput> {
-  get title(): string {
-    const { role } = this.input;
-
-    return `Grant "${role}" on ${this.onAddress} to ${this.toAddress}`;
-  }
-  get call(): FormattedEvmCall {
-    const { role, to } = this.input;
-    return forward(this.contracts.agent, [call(this.accessControl.grantRole, [id(role), to])]);
-  }
-
+export class AccessControlGrantRole extends OmnibusAction<AccessControlGrantRoleInput> {
   private get accessControl(): AccessControl {
     return AccessControl__factory.connect(contracts.address(this.input.on));
   }
@@ -34,7 +26,12 @@ export class AccessControlGrantRole extends OmnibusItem<AccessControlGrantRoleIn
     return contracts.address(this.input.on);
   }
 
-  get events() {
+  getEVMCalls(): FormattedEvmCall[] {
+    const { role, to } = this.input;
+    return [forward(this.contracts.agent, [call(this.accessControl.grantRole, [id(role), to])])];
+  }
+
+  getExpectedEvents() {
     const { role, to } = this.input;
     return [event(this.accessControl, "RoleGranted", { args: [id(role), to, undefined] })];
   }
@@ -42,7 +39,7 @@ export class AccessControlGrantRole extends OmnibusItem<AccessControlGrantRoleIn
   async before({ assert, provider }: OmnibusHookCtx): Promise<void> {
     const { role, to } = this.input;
     const hasRole = await this.accessControl.connect(provider).hasRole(id(role), to);
-    assert.isFalse(hasRole, `Role "${role}" already granted to ${this.toAddress} on contract ${this.onAddress}`);
+    assert.equal(hasRole, false, `Role "${role}" already granted to ${this.toAddress} on contract ${this.onAddress}`);
   }
 
   async after({ it, assert, provider }: OmnibusHookCtx): Promise<void> {
@@ -51,7 +48,7 @@ export class AccessControlGrantRole extends OmnibusItem<AccessControlGrantRoleIn
 
     it(`Role "${role}" was successfully granted`, async () => {
       const hasPermission = await this.accessControl.connect(provider).hasRole(id(role), to);
-      assert.isTrue(hasPermission, "Invalid state after role granting");
+      assert.equal(hasPermission, true, "Invalid state after role granting");
     });
   }
 }

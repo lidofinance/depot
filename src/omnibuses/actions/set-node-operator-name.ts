@@ -1,26 +1,27 @@
-import { OmnibusTestContext, TitledEventChecks, TitledEvmCall } from "../omnibus";
-import { FormattedEvmCall, call, event, forward } from "../../votes";
+import { call, event, FormattedEvmCall, forward } from "../../votes";
 
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
+import { OmnibusAction } from "../omnibus-action";
+import { OmnibusTestContext } from "../tools/test";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
-interface SetNodeOperatorNameInput {
+interface SetNodeOperatorNameInput extends OmnibusActionInput {
+  title: string;
   id: number;
   from: string;
   to: string;
 }
 
-export class SetNodeOperatorName extends OmnibusItem<SetNodeOperatorNameInput> {
+export class SetNodeOperatorName extends OmnibusAction<SetNodeOperatorNameInput> {
   get title() {
-    const { id, from, to } = this.input;
-    return `Change the on-chain name of node operator with id ${id} from "${from}" to "${to}"`;
+    return this.input.title;
   }
 
-  get call() {
+  getEVMCalls(): FormattedEvmCall[] {
     const { agent, curatedStakingModule } = this.contracts;
-    return forward(agent, [call(curatedStakingModule.setNodeOperatorName, [this.input.id, this.input.to])]);
+    return [forward(agent, [call(curatedStakingModule.setNodeOperatorName, [this.input.id, this.input.to])])];
   }
 
-  get events() {
+  getExpectedEvents() {
     const { curatedStakingModule } = this.contracts;
     return [
       event(curatedStakingModule, "NodeOperatorNameSet", {

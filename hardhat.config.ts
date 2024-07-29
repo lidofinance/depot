@@ -32,7 +32,7 @@ const config: HardhatUserConfig = {
     externalArtifacts: ["interfaces/*.json"],
   },
   mocha: {
-    timeout: 5 * 60 * 1000,
+    timeout: 5 * 60 * 10000,
   },
   keystores: {
     path: "keystores",

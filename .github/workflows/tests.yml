@@ -18,6 +18,8 @@ jobs:
 
       - name: Install node
         uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
 
       - uses: pnpm/action-setup@v3
         with:
@@ -29,7 +31,7 @@ jobs:
       - name: Generate typechain
         env:
           SKIP_TYPECHAIN: true
-        run: pnpm exec hardhat typechain
+        run: pnpm run typechain
 
       - name: Run unit tests
         run: pnpm run test

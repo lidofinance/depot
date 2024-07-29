@@ -21,7 +21,7 @@ describe("NamedKeystores", () => {
 
   beforeEach(async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), "named-keystores-"));
-    storage = await NamedKeystoresStorage.create(tmpDir);
+    storage = NamedKeystoresStorage.create(tmpDir);
     namedKeystores = create(storage);
     selectStub = sinon.stub(prompt, "select");
   });

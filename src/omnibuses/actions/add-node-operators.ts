@@ -1,98 +1,74 @@
-import { call, event, forward } from "../../votes";
+import { call, event, FormattedEvmCall, forward } from "../../votes";
 
-import { OmnibusItem, OmnibusHookCtx } from "../omnibus-item";
-import { OmnibusItemsGroup } from "../omnibus-items-group";
+import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { Address } from "../../common/types";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 
 interface NewNodeOperatorInput {
   name: string;
   rewardAddress: Address;
 }
 
-interface AddNodeOperatorsInput {
+interface AddNodeOperatorsInput extends OmnibusActionInput {
   nodeOperatorsCountBefore: number;
   operators: NewNodeOperatorInput[];
 }
 
-interface AddNodeOperatorItemInput extends NewNodeOperatorInput {
-  expectedNodeOperatorId: number;
-}
+export class AddNodeOperators extends OmnibusAction<AddNodeOperatorsInput> {
+  private operatorsCountBefore = 0;
 
-export class AddNodeOperators extends OmnibusItemsGroup<AddNodeOperatorsInput> {
-  public readonly items: AddNodeOperatorItem[];
-  public readonly title = "Add the list of node operators to curated staking module";
-
-  constructor(input: AddNodeOperatorsInput) {
-    super(input);
-    this.items = input.operators.map(
-      (i, index) =>
-        new AddNodeOperatorItem({
-          ...i,
-          expectedNodeOperatorId: input.nodeOperatorsCountBefore + index,
-        }),
+  get title(): string {
+    return (
+      `Add ${this.input.operators.length} node operators:\n` +
+      this.input.operators.flatMap((item) => ` - ${item.name}`).join("\n")
     );
   }
 
-  async before({ it, assert }: OmnibusHookCtx): Promise<void> {
+  getEVMCalls(): FormattedEvmCall[] {
+    const calls = this.input.operators.map((item) => {
+      const { name, rewardAddress } = item;
+      const { curatedStakingModule } = this.contracts;
+      return call(curatedStakingModule.addNodeOperator, [name, rewardAddress]);
+    });
+    return [forward(this.contracts.agent, calls)];
+  }
+
+  getExpectedEvents() {
+    const { callsScript, curatedStakingModule, agent, voting } = this.contracts;
+    const subItemEvents = this.input.operators.flatMap((item) => {
+      const { name, rewardAddress } = item;
+      return [
+        event(callsScript, "LogScriptCall", { emitter: agent }),
+        event(curatedStakingModule, "NodeOperatorAdded", {
+          args: [undefined, name, rewardAddress, 0],
+        }),
+      ];
+    });
+
+    return [
+      event(callsScript, "LogScriptCall", { emitter: voting }),
+      ...subItemEvents,
+      event(agent, "ScriptResult"),
+      event(voting, "ScriptResult"),
+      event(voting, "ExecuteVote"),
+    ];
+  }
+
+  async before(): Promise<void> {
     const { curatedStakingModule } = this.contracts;
-    const { operators, nodeOperatorsCountBefore } = this.input;
-
-    it("Expected node operators count is correct", async () => {
-      const nodeOperatorsCount = await curatedStakingModule.getNodeOperatorsCount();
-      assert.equal(nodeOperatorsCountBefore, +nodeOperatorsCount.toString());
-    });
-
-    it("Expected node operator ids are not registered", async () => {
-      for (let i = 0; i < operators.length; ++i) {
-        await assert.reverts(curatedStakingModule.getNodeOperator(nodeOperatorsCountBefore + i, true), "OUT_OF_RANGE");
-      }
-    });
+    const nodeOperatorsCount = await curatedStakingModule.getNodeOperatorsCount();
+    this.operatorsCountBefore = +nodeOperatorsCount.toString();
   }
 
   async after({ it, assert }: OmnibusHookCtx): Promise<void> {
     it("Validate node operators count changed correctly", async () => {
       const { curatedStakingModule } = this.contracts;
-      const { nodeOperatorsCountBefore, operators } = this.input;
+      const { operators } = this.input;
+
       assert.equal(
-        BigInt(nodeOperatorsCountBefore + operators.length),
+        BigInt(this.operatorsCountBefore + operators.length),
         await curatedStakingModule.getNodeOperatorsCount(),
       );
-    });
-  }
-}
-
-class AddNodeOperatorItem extends OmnibusItem<AddNodeOperatorItemInput> {
-  get title() {
-    const { name, rewardAddress } = this.input;
-    return `Add node operator "${name}" with reward address ${rewardAddress}`;
-  }
-
-  get call() {
-    const { name, rewardAddress } = this.input;
-    const { curatedStakingModule } = this.contracts;
-    return forward(this.contracts.agent, [call(curatedStakingModule.addNodeOperator, [name, rewardAddress])]);
-  }
-
-  get events() {
-    const { name, rewardAddress, expectedNodeOperatorId } = this.input;
-    const { agent, voting, callsScript, curatedStakingModule } = this.contracts;
-    return [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
-      event(callsScript, "LogScriptCall", { emitter: agent }),
-      event(curatedStakingModule, "NodeOperatorAdded", {
-        args: [expectedNodeOperatorId, name, rewardAddress, 0],
-      }),
-      event(agent, "ScriptResult"),
-    ];
-  }
-
-  async after({ it, assert }: OmnibusHookCtx) {
-    const { name, expectedNodeOperatorId } = this.input;
-    const { curatedStakingModule } = this.contracts;
-
-    it(`Validate node operator was added successfully`, async () => {
-      const operator = await curatedStakingModule.getNodeOperator(expectedNodeOperatorId, true);
-      assert.equal(operator.name, name);
     });
   }
 }
