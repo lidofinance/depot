@@ -8,7 +8,6 @@ describe("AddNodeOperators", () => {
 
   beforeEach(() => {
     addNodeOperators = new AddNodeOperators({
-      nodeOperatorsCountBefore: 0,
       operators: [
         { name: "Operator 1", rewardAddress: randomAddress().toString() as HexStrPrefixed },
         { name: "Operator 2", rewardAddress: randomAddress().toString() as HexStrPrefixed },

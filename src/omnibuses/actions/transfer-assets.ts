@@ -39,9 +39,10 @@ export class TransferAssets extends OmnibusAction<TransferAssetsInput> {
   async after({ it, assert }: OmnibusHookCtx): Promise<void> {
     const { amount, to, token } = this.input;
     const balanceAfter = await token.balanceOf(to);
+
     it(`assets was transferred successfully`, async () => {
-      const balanceBefore = BigInt(this.amountBefore) + BigInt(amount);
-      assert.equal(balanceBefore, balanceAfter);
+      const expectedBalance = BigInt(this.amountBefore) + BigInt(amount);
+      assert.equal(expectedBalance, balanceAfter);
     });
   }
 }

@@ -10,7 +10,6 @@ interface NewNodeOperatorInput {
 }
 
 interface AddNodeOperatorsInput extends OmnibusActionInput {
-  nodeOperatorsCountBefore: number;
   operators: NewNodeOperatorInput[];
 }
 
