@@ -27,7 +27,6 @@ export default new Omnibus({
       amount: 180000n * 10n ** 18n,
     }),
     new AddNodeOperators({
-      nodeOperatorsCountBefore: 32,
       operators: [
         {
           name: "A41",
