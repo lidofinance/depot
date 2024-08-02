@@ -11,6 +11,7 @@ import networks, { NetworkName } from "../src/networks";
 import bytes from "../src/common/bytes";
 import format from "../src/common/format";
 import prompt from "../src/common/prompt";
+import env from "../src/common/env";
 import { simulateOmnibus, SimulationGroup } from "../src/omnibuses/tools/simulate";
 import { testOmnibus } from "../src/omnibuses/tools/test";
 import { isKnownError } from "../src/common/errors";
@@ -92,6 +93,9 @@ task("omnibus:run", "Runs the omnibus with given name")
       console.log(`Omnibus already was executed. Aborting...`);
       return;
     }
+
+    // Check environment variables
+    env.check();
 
     console.log(`Running the omnibus ${name} on "${omnibus.network}" network\n`);
     console.log(`Omnibus items:`);
