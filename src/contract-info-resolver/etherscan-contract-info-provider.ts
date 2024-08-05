@@ -37,6 +37,10 @@ interface EtherscanGetSourceCodeResult {
   SwarmSource: string;
 }
 
+const sourceNotVerifiedErr = "Contract source code not verified";
+const maxRateLimitErr = "Max rate limit reached";
+const rateLimitTimeout = 500;
+
 export class EtherscanContractInfoProvider implements ContractInfoProvider {
   private readonly chains: EtherscanChainConfig[];
   private readonly etherscanToken: string;

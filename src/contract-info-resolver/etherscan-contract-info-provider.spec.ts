@@ -215,6 +215,61 @@ it("It retries if Etherscan returns rate limit error", async () => {
       `Unexpected Etherscan Response: ${JSON.stringify(mockResponse)}`,
     );
   });
+
+  it("retries on rate limit error", async () => {
+    const mockResponse = {
+      status: "0",
+      message: "NOTOK",
+      result: "Max rate limit reached",
+    };
+    nock(ETHERSCAN_API_URL!.urls.apiURL).get(new RegExp(".*")).reply(200, mockResponse);
+
+    const secondMockResponse = {
+      status: "1",
+      message: "OK",
+      result: [
+        {
+          SourceCode: "contract A {}",
+          ABI: '[{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}]',
+          ContractName: "Flattened",
+          CompilerVersion: "v0.6.12+commit.27d51765",
+          OptimizationUsed: "1",
+          Runs: "200",
+          ConstructorArguments: "000000000000000000000000ae7ab96520de3a18e5e111b5eaab095312d7fe84",
+          EVMVersion: "Default",
+          Library: "",
+          LicenseType: "GNU GPLv3",
+          Proxy: "0",
+          Implementation: "0x",
+          SwarmSource: "ipfs://186e50b7fede392854c0f7a5c7a0ca06364c7a59f763103f5fdc8e825f75be23",
+        },
+      ],
+    };
+    nock(ETHERSCAN_API_URL!.urls.apiURL).get(new RegExp(".*")).reply(200, secondMockResponse);
+
+    const res = await abiProvider.request(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS);
+
+    assert.isNotNull(res);
+    assert.equal(res.name, secondMockResponse.result[0].ContractName);
+    assert.deepEqual(res.abi, JSON.parse(secondMockResponse.result[0].ABI));
+    assert.equal(res.compilerVersion, secondMockResponse.result[0].CompilerVersion);
+    assert.equal(res.constructorArgs, bytes.normalize(secondMockResponse.result[0].ConstructorArguments));
+    assert.equal(res.evmVersion, secondMockResponse.result[0].EVMVersion);
+    assert.equal(res.implementation, bytes.normalize(secondMockResponse.result[0].Implementation));
+    assert.equal(
+      res.sourceCode,
+      JSON.stringify({
+        language: "Solidity",
+        sources: { "Flattened.sol": "contract A {}" },
+        settings: {
+          libraries: {},
+          outputSelection: { "*": { "": ["ast"], "*": ["metadata", "evm.bytecode", "evm.bytecode.sourceMap"] } },
+          evmVersion: "Default",
+          optimizer: { enabled: true, runs: "200" },
+        },
+      }),
+    );
+  });
 });
 
 const ETHERSCAN_RESPONSES_MOCK = {
