@@ -1,5 +1,5 @@
 import path from "path";
-import { uploadDescription } from "./upload_description";
+import { uploadDescription } from "./upload-description";
 import { expect } from "chai";
 import sinon from "sinon";
 import { HardhatRuntimeEnvironment, RunSuperFunction } from "hardhat/types";

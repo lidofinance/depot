@@ -1,8 +1,8 @@
 import path from "path";
-import { Omnibus } from "../../src/omnibuses/omnibus";
-import { NetworkName } from "../../src/networks";
+import { Omnibus } from "../omnibuses/omnibus";
+import { NetworkName } from "../networks";
 import { ActionType } from "hardhat/types";
-import { uploadToIpfs } from "../../src/ipfs";
+import { uploadToIpfs } from "../ipfs";
 
 export const uploadDescription: ActionType<{ name: string }> = async ({ name }) => {
   const omnibusPath = path.join(process.env.PWD!, `omnibuses/${name}.ts`);
