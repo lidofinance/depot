@@ -28,6 +28,10 @@ interface EtherscanGetSourceCodeResult {
   SwarmSource: string;
 }
 
+const sourceNotVerifiedErr = "Contract source code not verified";
+const maxRateLimitErr = "Max rate limit reached";
+const rateLimitTimeout = 500;
+
 export class EtherscanContractInfoProvider implements ContractInfoProvider {
   private readonly chains: EtherscanChainConfig[];
   private readonly etherscanToken: string;
@@ -75,10 +79,14 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
     const request = await fetch(getSourceCodeUrl);
     const response = (await request.json()) as EtherscanResponse<EtherscanGetSourceCodeResult[] | string>;
 
-    if (response.status === "0" && response.result === "Contract source code not verified") {
+    if (response.status === "0" && response.result === sourceNotVerifiedErr) {
       throw new Error("Contract is not verified");
     } else if (response.status === "1" && Array.isArray(response.result)) {
       return response.result[0];
+    }
+    if (response.result === maxRateLimitErr) {
+      await new Promise((r) => setTimeout(r, rateLimitTimeout));
+      return this.getContractInfo(chainId, address);
     }
     throw new Error(`Unexpected Etherscan Response: ${JSON.stringify(response)}`);
   }

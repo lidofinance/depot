@@ -39,14 +39,16 @@ export class TxTracer {
 
     for (const address of addresses) {
       if (resolvedContracts.has(address)) continue;
-
-      resolvedContracts.add(address);
-
-      let contract = await this.contractInfoResolver.resolve(chainId, address);
-      if (contract.implementation) {
-        res[address] = await this.contractInfoResolver.resolve(chainId, contract.implementation);
-      } else {
-        res[address] = contract;
+      try {
+        let contract = await this.contractInfoResolver.resolve(chainId, address);
+        if (contract.implementation) {
+          res[address] = await this.contractInfoResolver.resolve(chainId, contract.implementation);
+        } else {
+          res[address] = contract;
+        }
+        resolvedContracts.add(address);
+      } catch (e) {
+        console.error(`Failed to resolve contract info for address ${address}: ${e}`);
       }
     }
     return res;
