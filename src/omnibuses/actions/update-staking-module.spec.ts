@@ -11,7 +11,14 @@ describe("UpdateStakingModule", () => {
   let mockContracts: any;
   let SRContract = StakingRouter__factory.connect(randomAddress().toString());
   const callData = randomHash();
-  sinon.stub(ContractEvmCall.prototype, "calldata").get(() => callData);
+
+  before(() => {
+    sinon.stub(ContractEvmCall.prototype, "calldata").returns(callData);
+  });
+
+  after(() => {
+    sinon.restore();
+  });
 
   const getEvent = sinon.stub().callsFake(function (event: string) {
     const fragment = {
