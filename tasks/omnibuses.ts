@@ -14,6 +14,8 @@ import prompt from "../src/common/prompt";
 import { simulateOmnibus, SimulationGroup } from "../src/omnibuses/tools/simulate";
 import { testOmnibus } from "../src/omnibuses/tools/test";
 import { isKnownError } from "../src/common/errors";
+import Mocha from "mocha";
+import fs from "node:fs/promises";
 
 traces.hardhat.enableTracing();
 
@@ -48,7 +50,7 @@ task("omnibus:test", "Runs tests for the given omnibus")
   .addOptionalParam<RpcNodeName | "local">("rpc", "The dev RPC node type to run tests on", "hardhat", types.string)
   .addOptionalParam<number>("blockNumber", "Block number to spawn rpc node on", undefined, types.int)
   .addOptionalParam<boolean>("simulate", "Shall the simulation be run before the tests", false, types.boolean)
-  .setAction(async ({ name, rpc = "hardhat", blockNumber, simulate }) => {
+  .setAction(async ({ name, rpc = "hardhat", simulate }) => {
     const omnibus: Omnibus<NetworkName> = require(`../omnibuses/${name}.ts`).default;
 
     if (omnibus.isExecuted) {
@@ -56,7 +58,18 @@ task("omnibus:test", "Runs tests for the given omnibus")
       return;
     }
 
-    let [provider, node] = await prepareExecEnv(omnibus.network, rpc, blockNumber);
+    // If test file exists, run it
+    const omnibusTestFile = `omnibuses/${name}.spec.ts`;
+    try {
+      await fs.stat(omnibusTestFile);
+      await runTestFile(omnibusTestFile);
+      return;
+    } catch (e) {
+      console.log(chalk.bold.yellow(`Test file "${omnibusTestFile}" not found. Running embedded tests...\n`));
+    }
+
+    // Otherwise, run the omnibus actions embedded tests
+    const [provider, node] = await prepareExecEnv(omnibus.network, rpc);
 
     try {
       omnibus.init(provider);
@@ -224,4 +237,10 @@ async function spawnRpcNode(network: NetworkName, nodeType: RpcNodeName, blockNu
     throw new Error(`Failed to spawn "${nodeType}" node: ${e}`);
   }
   throw new Error(`Unsupported node type "${nodeType}"`);
+}
+
+async function runTestFile(testFile: string) {
+  const mocha = new Mocha({ timeout: 10 * 60 * 1000, bail: true });
+  mocha.addFile(testFile);
+  await new Promise((resolve) => mocha.run(resolve));
 }
