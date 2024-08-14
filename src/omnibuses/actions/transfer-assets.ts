@@ -1,16 +1,22 @@
 import { call, event, FormattedEvmCall } from "../../votes";
-import { OmnibusHookCtx, OmnibusAction } from "../omnibus-action";
+import { OmnibusAction } from "../omnibus-action";
 import { BigNumberish } from "ethers";
 import { Address } from "../../common/types";
 import { ERC20 } from "../../../typechain-types";
 import { NamedContract } from "../../contracts";
-import { OmnibusActionInput } from "../omnibus-action-meta";
+import { OmnibusActionInput, TestHelpers } from "../omnibus-action-meta";
 
 interface TransferAssetsInput extends OmnibusActionInput {
   title: string; // The title is required for the assets transfer action
   to: Address;
   token: NamedContract<ERC20>;
   amount: BigNumberish;
+}
+
+export interface TransferAssetsExpectedOutput {
+  receiver: Address;
+  token: NamedContract<ERC20>;
+  balance: BigNumberish;
 }
 
 export class TransferAssets extends OmnibusAction<TransferAssetsInput> {
@@ -36,13 +42,11 @@ export class TransferAssets extends OmnibusAction<TransferAssetsInput> {
     this.amountBefore = await token.balanceOf(to);
   }
 
-  async after({ it, assert }: OmnibusHookCtx): Promise<void> {
-    const { amount, to, token } = this.input;
-    const balanceAfter = await token.balanceOf(to);
+  async test({ it, assert }: TestHelpers) {
+    it(`assets were transferred successfully`, async () => {
+      const balanceAfter = await this.input.token.balanceOf(this.input.to);
 
-    it(`assets was transferred successfully`, async () => {
-      const expectedBalance = BigInt(this.amountBefore) + BigInt(amount);
-      assert.equal(expectedBalance, balanceAfter);
+      assert.equal(balanceAfter, BigInt(this.amountBefore) + BigInt(this.input.amount));
     });
   }
 }

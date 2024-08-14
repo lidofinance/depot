@@ -1,62 +1,42 @@
 import { assert } from "../src/common/assert";
-import { BigNumberish, JsonRpcProvider } from "ethers";
+import { JsonRpcProvider } from "ethers";
 import networks, { NetworkName } from "../src/networks";
 import votes from "../src/votes";
-import { before } from "mocha";
+import { before, Test } from "mocha";
 import { Omnibus } from "../src/omnibuses/omnibus";
 import lido from "../src/lido";
+import { TransferAssets } from "../src/omnibuses/actions/transfer-assets";
+import { UpdateStakingModule } from "../src/omnibuses/actions/update-staking-module";
 import { StakingModule } from "../src/lido/lido";
 
-describe("Test _demo_omnibus", async () => {
+describe("Test _demo_omnibus", async function () {
   const omnibus: Omnibus<NetworkName> = require(`../omnibuses/_demo_omnibus.ts`).default;
   const url = networks.localRpcUrl("eth");
   const provider = new JsonRpcProvider(url);
   const contracts = lido.eth[omnibus.network](provider);
+
   omnibus.init(provider);
 
-  // State before
-  let balanceBefore: BigNumberish;
-  let nodeOperatorsCountBefore: BigNumberish;
-
-  // Actions inputs
-  const receiver = "0x17F6b2C738a63a8D3A113a228cfd0b373244633D";
-  const amount = 180000n * 10n ** 18n;
-  const expectedTargetShare = 400 as BigNumberish;
-  const addedOperators = [
-    {
-      name: "A41",
-      rewardAddress: "0x2A64944eBFaFF8b6A0d07B222D3d83ac29c241a7",
-    },
-    {
-      name: "Develp GmbH",
-      rewardAddress: "0x0a6a0b60fFeF196113b3530781df6e747DdC565e",
-    },
-    {
-      name: "Ebunker",
-      rewardAddress: "0x2A2245d1f47430b9f60adCFC63D158021E80A728",
-    },
-    {
-      name: "Gateway.fm AS",
-      rewardAddress: "0x78CEE97C23560279909c0215e084dB293F036774",
-    },
-    {
-      name: "Numic",
-      rewardAddress: "0x0209a89b6d9F707c14eB6cD4C3Fb519280a7E1AC",
-    },
-    {
-      name: "ParaFi Technologies LLC",
-      rewardAddress: "0x5Ee590eFfdf9456d5666002fBa05fbA8C3752CB7",
-    },
-    {
-      name: "RockawayX Infra",
-      rewardAddress: "0xcA6817DAb36850D58375A10c78703CE49d41D25a",
-    },
-  ];
+  const actions = {
+    transferAssets: new TransferAssets({
+      title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
+      to: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
+      token: contracts.ldo,
+      amount: 180000n * 10n ** 18n,
+    }),
+    updateStakingModule: new UpdateStakingModule({
+      title: "Raise Simple DVT target share from 0.5% to 4%",
+      stakingModuleId: StakingModule.SimpleDVT,
+      targetShare: 400,
+      treasuryFee: 800,
+      stakingModuleFee: 200,
+    }),
+  };
 
   // Preparation step
   before(async () => {
-    balanceBefore = await contracts.ldo.balanceOf(receiver);
-    nodeOperatorsCountBefore = await contracts.curatedStakingModule.getNodeOperatorsCount();
+    await actions.transferAssets.before();
+    await actions.updateStakingModule.before();
 
     try {
       await votes
@@ -67,23 +47,25 @@ describe("Test _demo_omnibus", async () => {
     }
   });
 
-  // Tests
-  it(`assure that assets was transferred successfully`, async () => {
-    const balanceAfter = await contracts.ldo.balanceOf(receiver);
-    const expectedBalance = BigInt(balanceBefore) + BigInt(amount);
+  it("all actions are included in the test suite", async () => {
+    const absentActions = omnibus.actions
+      .map((action) => {
+        if (!Object.values(actions).filter((test) => test.constructor.name === action.constructor.name).length) {
+          return action.constructor.name;
+        }
+      })
+      .filter((action) => action);
 
-    assert.equal(expectedBalance, balanceAfter);
+    assert.isEmpty(
+      absentActions,
+      `The following actions are not included in the test suite:\n\n${absentActions.join("\n")}\n\n`,
+    );
   });
 
-  it(`assure that staking module target share was updated successfully`, async () => {
-    const summary = await contracts.stakingRouter.getStakingModule(StakingModule.SimpleDVT);
+  const _it = (title: string, fn?: Mocha.Func | Mocha.AsyncFunc | undefined): void => {
+    this.addTest(new Test(title, fn));
+  };
 
-    assert.equal(expectedTargetShare, summary.targetShare);
-  });
-
-  it(`assure that node operators were added successfully`, async () => {
-    const nodeOperatorsCountAfter = await contracts.curatedStakingModule.getNodeOperatorsCount();
-
-    assert.equal(BigInt(nodeOperatorsCountBefore) + BigInt(addedOperators.length), nodeOperatorsCountAfter);
-  });
+  await actions.transferAssets.test({ it: _it, assert });
+  await actions.updateStakingModule.test({ it: _it, assert }, contracts);
 });

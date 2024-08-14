@@ -9,7 +9,7 @@ export interface OmnibusActionInput {
   title?: string;
 }
 
-interface MochaTest {
+export interface MochaTest {
   (title: string, fn?: Mocha.Func | Mocha.AsyncFunc | undefined): void;
 }
 
@@ -17,6 +17,11 @@ export interface OmnibusHookCtx {
   it: MochaTest;
   assert: typeof assert;
   provider: RpcProvider;
+}
+
+export interface TestHelpers {
+  it: MochaTest;
+  assert: typeof assert;
 }
 
 export abstract class OmnibusActionMeta<Input extends OmnibusActionInput> {

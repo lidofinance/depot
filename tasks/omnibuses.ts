@@ -58,34 +58,14 @@ task("omnibus:test", "Runs tests for the given omnibus")
       return;
     }
 
-    // If test file exists, run it
     const omnibusTestFile = `omnibuses/${name}.spec.ts`;
     try {
       await fs.stat(omnibusTestFile);
       await runTestFile(omnibusTestFile);
       return;
     } catch (e) {
-      console.log(chalk.bold.yellow(`Test file "${omnibusTestFile}" not found. Running embedded tests...\n`));
-    }
-
-    // Otherwise, run the omnibus actions embedded tests
-    const [provider, node] = await prepareExecEnv(omnibus.network, rpc);
-
-    try {
-      omnibus.init(provider);
-
-      await testOmnibus(omnibus, provider);
-
-      if (simulate) {
-        console.log(`Simulating the omnibus using "${rpc}" node...`);
-        printOmnibusSimulation(await simulateOmnibus(omnibus, provider));
-      } else {
-        console.log(`The simulation step was skipped.`);
-      }
-
-      await prompt.sigint();
-    } finally {
-      await node?.stop();
+      console.warn(chalk.bold.yellow(`Test file "${omnibusTestFile}" not found. Write tests first!`));
+      return;
     }
   });
 

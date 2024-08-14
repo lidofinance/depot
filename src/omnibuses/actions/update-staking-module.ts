@@ -2,7 +2,8 @@ import { FormattedEvmCall, call, event, forward } from "../../votes";
 import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
 import { BigNumberish } from "ethers";
 import { StakingModule } from "../../lido/lido";
-import { OmnibusActionInput } from "../omnibus-action-meta";
+import { OmnibusActionInput, TestHelpers } from "../omnibus-action-meta";
+import { Contracts } from "../../contracts/contracts";
 
 interface UpdateStakingModuleInput extends OmnibusActionInput {
   stakingModuleId: StakingModule;
@@ -42,17 +43,20 @@ export class UpdateStakingModule extends OmnibusAction<UpdateStakingModuleInput>
     ];
   }
 
-  async before({}: OmnibusHookCtx): Promise<void> {}
+  async before(): Promise<void> {}
 
-  async after({ it, assert }: OmnibusHookCtx): Promise<void> {
+  async test({ it, assert }: TestHelpers, contracts: Contracts<any>): Promise<void> {
     const { stakingModuleId, targetShare, treasuryFee, stakingModuleFee } = this.input;
-    const summary = await this.stakingRouter.getStakingModule(stakingModuleId);
+    const summary = await contracts.stakingRouter.getStakingModule(stakingModuleId);
+
     it(`targetShare value was set correctly`, async () => {
       assert.equal(summary.targetShare, targetShare);
     });
+
     it(`treasureFee value was set correctly`, async () => {
       assert.equal(summary.treasuryFee, treasuryFee);
     });
+
     it(`stakingModuleFee value was set correctly`, async () => {
       assert.equal(summary.stakingModuleFee, stakingModuleFee);
     });
