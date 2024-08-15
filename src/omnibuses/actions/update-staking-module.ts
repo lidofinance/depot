@@ -49,19 +49,23 @@ export class UpdateStakingModule extends OmnibusAction<UpdateStakingModuleInput>
 
   async tests(contracts: Contracts<any>) {
     const { stakingModuleId, targetShare, treasuryFee, stakingModuleFee } = this.input;
-    const summary = await contracts.stakingRouter.getStakingModule(stakingModuleId);
 
     return [
       new Test(`targetShare value was set to ${targetShare}`, async () => {
+        const summary = await contracts.stakingRouter.getStakingModule(stakingModuleId);
+
         assert.equal(summary.targetShare, targetShare);
       }),
 
       new Test(`treasureFee value was set to ${treasuryFee}`, async () => {
         const summary = await contracts.stakingRouter.getStakingModule(stakingModuleId);
+
         assert.equal(summary.treasuryFee, treasuryFee);
       }),
 
       new Test(`stakingModuleFee value was set to ${stakingModuleFee}`, async () => {
+        const summary = await contracts.stakingRouter.getStakingModule(stakingModuleId);
+
         assert.equal(summary.stakingModuleFee, stakingModuleFee);
       }),
     ];
