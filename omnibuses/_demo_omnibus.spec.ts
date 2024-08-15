@@ -100,9 +100,8 @@ describe("Test _demo_omnibus following test state pattern", async function () {
 
   Suite.create(this, "Testing omnibus actions...").addTest(
     new Test("network state before as expected", async function () {
-      const stakingModule = await contracts.stakingRouter.getStakingModule(StakingModule.SimpleDVT);
       assert.isTrue((await contracts.ldo.balanceOf("0x17F6b2C738a63a8D3A113a228cfd0b373244633D")) > 0);
-      assert.equal(stakingModule.targetShare, 400n);
+      assert.equal((await contracts.stakingRouter.getStakingModule(StakingModule.SimpleDVT)).targetShare, 400n);
     }),
   );
 
@@ -118,12 +117,11 @@ describe("Test _demo_omnibus following test state pattern", async function () {
 
   stateAfterSuite.addTest(
     new Test("network state after as expected", async function () {
-      const stakingModule = await contracts.stakingRouter.getStakingModule(StakingModule.SimpleDVT);
       assert.equal(
         await contracts.ldo.balanceOf("0x17F6b2C738a63a8D3A113a228cfd0b373244633D"),
         stateAfterSuite.ctx.balanceBefore + 180000n * 10n ** 18n,
       );
-      assert.equal(stakingModule.targetShare, 400n);
+      assert.equal((await contracts.stakingRouter.getStakingModule(StakingModule.SimpleDVT)).targetShare, 400n);
       assert.equal(
         await contracts.curatedStakingModule.getNodeOperatorsCount(),
         stateAfterSuite.ctx.nodeOperatorsBefore + 7n,
