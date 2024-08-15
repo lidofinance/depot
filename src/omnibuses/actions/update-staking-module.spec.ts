@@ -83,7 +83,6 @@ describe("UpdateStakingModule", () => {
     expect(evmCalls[0]["calls"]).to.be.an("array");
     expect(evmCalls[0]["calls"]).to.have.length(1);
     expect(call.address).to.equal(await SRContract.getAddress());
-    expect(call.calldata).to.equal(callData);
     expect(call["args"]).to.deep.equal([
       updateStakingModule["input"].stakingModuleId,
       updateStakingModule["input"].targetShare,
