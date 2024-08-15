@@ -4,6 +4,8 @@ import { BigNumberish } from "ethers";
 import { StakingModule } from "../../lido/lido";
 import { OmnibusActionInput, TestHelpers } from "../omnibus-action-meta";
 import { Contracts } from "../../contracts/contracts";
+import { assert } from "../../common/assert";
+import { Test } from "mocha";
 
 interface UpdateStakingModuleInput extends OmnibusActionInput {
   stakingModuleId: StakingModule;
@@ -45,20 +47,21 @@ export class UpdateStakingModule extends OmnibusAction<UpdateStakingModuleInput>
 
   async before(): Promise<void> {}
 
-  async test({ it, assert }: TestHelpers, contracts: Contracts<any>): Promise<void> {
+  async tests(contracts: Contracts<any>) {
     const { stakingModuleId, targetShare, treasuryFee, stakingModuleFee } = this.input;
     const summary = await contracts.stakingRouter.getStakingModule(stakingModuleId);
+    return [
+      new Test(`targetShare value was set correctly`, async () => {
+        assert.equal(summary.targetShare, targetShare);
+      }),
 
-    it(`targetShare value was set correctly`, async () => {
-      assert.equal(summary.targetShare, targetShare);
-    });
+      new Test(`treasureFee value was set correctly`, async () => {
+        assert.equal(summary.treasuryFee, treasuryFee);
+      }),
 
-    it(`treasureFee value was set correctly`, async () => {
-      assert.equal(summary.treasuryFee, treasuryFee);
-    });
-
-    it(`stakingModuleFee value was set correctly`, async () => {
-      assert.equal(summary.stakingModuleFee, stakingModuleFee);
-    });
+      new Test(`stakingModuleFee value was set correctly`, async () => {
+        assert.equal(summary.stakingModuleFee, stakingModuleFee);
+      }),
+    ];
   }
 }

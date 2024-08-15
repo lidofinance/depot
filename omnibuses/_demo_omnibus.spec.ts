@@ -2,7 +2,7 @@ import { assert } from "../src/common/assert";
 import { JsonRpcProvider } from "ethers";
 import networks, { NetworkName } from "../src/networks";
 import votes from "../src/votes";
-import { before, Test } from "mocha";
+import { before, Suite, Test } from "mocha";
 import { Omnibus } from "../src/omnibuses/omnibus";
 import lido from "../src/lido";
 import { TransferAssets } from "../src/omnibuses/actions/transfer-assets";
@@ -62,10 +62,9 @@ describe("Test _demo_omnibus", async function () {
     );
   });
 
-  const _it = (title: string, fn?: Mocha.Func | Mocha.AsyncFunc | undefined): void => {
-    this.addTest(new Test(title, fn));
-  };
+  const transferAssetsSuite = Suite.create(this, "Transfer assets");
+  (await actions.transferAssets.tests()).forEach((test) => transferAssetsSuite.addTest(test));
 
-  await actions.transferAssets.test({ it: _it, assert });
-  await actions.updateStakingModule.test({ it: _it, assert }, contracts);
+  const updateStakingModuleSuite = Suite.create(this, "Update staking module");
+  (await actions.updateStakingModule.tests(contracts)).forEach((test) => updateStakingModuleSuite.addTest(test));
 });

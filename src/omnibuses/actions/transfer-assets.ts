@@ -5,6 +5,8 @@ import { Address } from "../../common/types";
 import { ERC20 } from "../../../typechain-types";
 import { NamedContract } from "../../contracts";
 import { OmnibusActionInput, TestHelpers } from "../omnibus-action-meta";
+import { assert } from "../../common/assert";
+import { it, Test } from "mocha";
 
 interface TransferAssetsInput extends OmnibusActionInput {
   title: string; // The title is required for the assets transfer action
@@ -42,11 +44,14 @@ export class TransferAssets extends OmnibusAction<TransferAssetsInput> {
     this.amountBefore = await token.balanceOf(to);
   }
 
-  async test({ it, assert }: TestHelpers) {
-    it(`assets were transferred successfully`, async () => {
-      const balanceAfter = await this.input.token.balanceOf(this.input.to);
+  async tests() {
+    return [
+      new Test(`assets were transferred successfully`, async () => {
+        const { to, token, amount } = this.input;
+        const balanceAfter = await token.balanceOf(to);
 
-      assert.equal(balanceAfter, BigInt(this.amountBefore) + BigInt(this.input.amount));
-    });
+        assert.equal(balanceAfter, BigInt(this.amountBefore) + BigInt(amount));
+      }),
+    ];
   }
 }
