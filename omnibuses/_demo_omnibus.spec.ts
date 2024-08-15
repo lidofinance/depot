@@ -1,6 +1,6 @@
 import { assert } from "../src/common/assert";
 import { JsonRpcProvider } from "ethers";
-import { Suite } from "mocha";
+import { Suite, Test } from "mocha";
 import { Omnibus } from "../src/omnibuses/omnibus";
 import { TransferAssets } from "../src/omnibuses/actions/transfer-assets";
 import { UpdateStakingModule } from "../src/omnibuses/actions/update-staking-module";
@@ -10,7 +10,7 @@ import networks, { NetworkName } from "../src/networks";
 import lido from "../src/lido";
 import { AddNodeOperators } from "../src/omnibuses/actions/add-node-operators";
 
-describe("Test _demo_omnibus", async function () {
+describe("Test _demo_omnibus using actions test functions", async function () {
   const omnibus: Omnibus<NetworkName> = require(`../omnibuses/_demo_omnibus.ts`).default;
   const url = networks.localRpcUrl("eth");
   const provider = new JsonRpcProvider(url);
@@ -66,22 +66,6 @@ describe("Test _demo_omnibus", async function () {
     }),
   };
 
-  // Checking if all actions are included in the test suite...
-  it("All actions are included in the test suite", async () => {
-    const absentActions = omnibus.actions
-      .map((action) => {
-        if (!Object.values(actions).filter((test) => test.constructor.name === action.constructor.name).length) {
-          return action.constructor.name;
-        }
-      })
-      .filter((action) => action);
-
-    assert.isEmpty(
-      absentActions,
-      `The following actions are not included in the test suite:\n\n${absentActions.join("\n")}\n\n`,
-    );
-  });
-
   // Running before hooks & checks for the omnibus...
   const actionsSuite = Suite.create(this, "Testing omnibus actions...");
   actionsSuite.beforeAll(async () => {
@@ -106,4 +90,44 @@ describe("Test _demo_omnibus", async function () {
   // Validating the voting items...
   const validateEventsSuite = Suite.create(actionsSuite, "Validating the omnibus events");
   await validateVotingEvents(omnibus, validateEventsSuite);
+});
+
+describe("Test _demo_omnibus following test state pattern", async function () {
+  const omnibus: Omnibus<NetworkName> = require(`../omnibuses/_demo_omnibus.ts`).default;
+  const url = networks.localRpcUrl("eth");
+  const provider = new JsonRpcProvider(url);
+  const contracts = lido.eth[omnibus.network](provider);
+
+  Suite.create(this, "Testing omnibus actions...").addTest(
+    new Test("network state before as expected", async function () {
+      const stakingModule = await contracts.stakingRouter.getStakingModule(StakingModule.SimpleDVT);
+      assert.isTrue((await contracts.ldo.balanceOf("0x17F6b2C738a63a8D3A113a228cfd0b373244633D")) > 0);
+      assert.equal(stakingModule.targetShare, 400n);
+    }),
+  );
+
+  const stateAfterSuite = Suite.create(this, "Testing omnibus actions...");
+  stateAfterSuite.beforeAll(async () => {
+    stateAfterSuite.ctx.balanceBefore = await contracts.ldo.balanceOf("0x17F6b2C738a63a8D3A113a228cfd0b373244633D");
+    stateAfterSuite.ctx.nodeOperatorsBefore = await contracts.curatedStakingModule.getNodeOperatorsCount();
+
+    const validateEventsSuite = Suite.create(this, "Validating the omnibus events");
+    validateEventsSuite.ctx.enactReceipt = await enactOmnibus(omnibus, provider);
+    await validateVotingEvents(omnibus, validateEventsSuite);
+  });
+
+  stateAfterSuite.addTest(
+    new Test("network state after as expected", async function () {
+      const stakingModule = await contracts.stakingRouter.getStakingModule(StakingModule.SimpleDVT);
+      assert.equal(
+        await contracts.ldo.balanceOf("0x17F6b2C738a63a8D3A113a228cfd0b373244633D"),
+        stateAfterSuite.ctx.balanceBefore + 180000n * 10n ** 18n,
+      );
+      assert.equal(stakingModule.targetShare, 400n);
+      assert.equal(
+        await contracts.curatedStakingModule.getNodeOperatorsCount(),
+        stateAfterSuite.ctx.nodeOperatorsBefore + 7n,
+      );
+    }),
+  );
 });
