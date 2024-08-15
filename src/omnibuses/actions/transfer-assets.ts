@@ -1,6 +1,6 @@
 import { call, event, FormattedEvmCall } from "../../votes";
 import { OmnibusAction } from "../omnibus-action";
-import { BigNumberish } from "ethers";
+import { BigNumberish, formatEther } from "ethers";
 import { Address } from "../../common/types";
 import { ERC20 } from "../../../typechain-types";
 import { NamedContract } from "../../contracts";
@@ -45,9 +45,11 @@ export class TransferAssets extends OmnibusAction<TransferAssetsInput> {
   }
 
   async tests() {
+    const { to, token, amount } = this.input;
+    const tokenName = await token.symbol();
+
     return [
-      new Test(`assets were transferred successfully`, async () => {
-        const { to, token, amount } = this.input;
+      new Test(`${formatEther(amount)} ${tokenName} were transferred to ${to}`, async () => {
         const balanceAfter = await token.balanceOf(to);
 
         assert.equal(balanceAfter, BigInt(this.amountBefore) + BigInt(amount));
