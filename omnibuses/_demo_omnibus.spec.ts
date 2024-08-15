@@ -47,7 +47,7 @@ describe("Test _demo_omnibus", async function () {
     }
   });
 
-  it("all actions are included in the test suite", async () => {
+  it("All actions are included in the test suite", async () => {
     const absentActions = omnibus.actions
       .map((action) => {
         if (!Object.values(actions).filter((test) => test.constructor.name === action.constructor.name).length) {
@@ -62,9 +62,9 @@ describe("Test _demo_omnibus", async function () {
     );
   });
 
-  const transferAssetsSuite = Suite.create(this, "Transfer assets");
+  const transferAssetsSuite = Suite.create(this, "Testing TransferAssets action...");
   (await actions.transferAssets.tests()).forEach((test) => transferAssetsSuite.addTest(test));
 
-  const updateStakingModuleSuite = Suite.create(this, "Update staking module");
+  const updateStakingModuleSuite = Suite.create(this, "Testing UpdateStakingModule action...");
   (await actions.updateStakingModule.tests(contracts)).forEach((test) => updateStakingModuleSuite.addTest(test));
 });

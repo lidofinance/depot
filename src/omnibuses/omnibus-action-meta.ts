@@ -19,11 +19,6 @@ export interface OmnibusHookCtx {
   provider: RpcProvider;
 }
 
-export interface TestHelpers {
-  it: MochaTest;
-  assert: typeof assert;
-}
-
 export abstract class OmnibusActionMeta<Input extends OmnibusActionInput> {
   private _network: NetworkName | null = null;
   private _contracts: LidoEthContracts | null = null;

@@ -4,9 +4,9 @@ import { BigNumberish, formatEther } from "ethers";
 import { Address } from "../../common/types";
 import { ERC20 } from "../../../typechain-types";
 import { NamedContract } from "../../contracts";
-import { OmnibusActionInput, TestHelpers } from "../omnibus-action-meta";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 import { assert } from "../../common/assert";
-import { it, Test } from "mocha";
+import { Test } from "mocha";
 
 interface TransferAssetsInput extends OmnibusActionInput {
   title: string; // The title is required for the assets transfer action

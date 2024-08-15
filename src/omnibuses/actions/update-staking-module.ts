@@ -1,8 +1,8 @@
 import { FormattedEvmCall, call, event, forward } from "../../votes";
-import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
+import { OmnibusAction } from "../omnibus-action";
 import { BigNumberish } from "ethers";
 import { StakingModule } from "../../lido/lido";
-import { OmnibusActionInput, TestHelpers } from "../omnibus-action-meta";
+import { OmnibusActionInput } from "../omnibus-action-meta";
 import { Contracts } from "../../contracts/contracts";
 import { assert } from "../../common/assert";
 import { Test } from "mocha";
