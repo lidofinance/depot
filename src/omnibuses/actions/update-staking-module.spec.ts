@@ -10,11 +10,6 @@ describe("UpdateStakingModule", () => {
   let updateStakingModule: UpdateStakingModule;
   let mockContracts: any;
   let SRContract = StakingRouter__factory.connect(randomAddress().toString());
-  const callData = randomHash();
-
-  before(() => {
-    sinon.stub(ContractEvmCall.prototype, "calldata").returns(callData);
-  });
 
   after(() => {
     sinon.restore();

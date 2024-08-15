@@ -23,6 +23,7 @@ describe("vote script utils", () => {
     expect(result).to.be.instanceOf(ContractEvmCall);
     expect(result.address).to.equal(contractAddress);
     expect(result.calldata).to.equal(callData);
+    sinon.restore();
   });
 
   it("should throw an error if method does not have _contract property", () => {
