@@ -57,6 +57,7 @@ export class UpdateStakingModule extends OmnibusAction<UpdateStakingModuleInput>
       }),
 
       new Test(`treasureFee value was set to ${treasuryFee}`, async () => {
+        const summary = await contracts.stakingRouter.getStakingModule(stakingModuleId);
         assert.equal(summary.treasuryFee, treasuryFee);
       }),
 
