@@ -33,20 +33,7 @@ describe("Test _demo_omnibus", async function () {
     }),
   };
 
-  // Preparation step
-  before(async () => {
-    await actions.transferAssets.before();
-    await actions.updateStakingModule.before();
-
-    try {
-      await votes
-        .adopt(provider, omnibus.script, omnibus.description, { gasLimit: 30_000_000 })
-        .then((r) => r.enactReceipt);
-    } catch (e) {
-      assert.fail(`Failed to adopt the vote: ${e}`);
-    }
-  });
-
+  // Checking if all actions are included in the test suite...
   it("All actions are included in the test suite", async () => {
     const absentActions = omnibus.actions
       .map((action) => {
@@ -62,9 +49,26 @@ describe("Test _demo_omnibus", async function () {
     );
   });
 
-  const transferAssetsSuite = Suite.create(this, "Testing TransferAssets action...");
+  // Running before hooks & checks for the omnibus...
+  const actionsSuite = Suite.create(this, "Testing actions...");
+  actionsSuite.beforeAll(async () => {
+    await actions.transferAssets.before();
+    await actions.updateStakingModule.before();
+
+    try {
+      await votes
+        .adopt(provider, omnibus.script, omnibus.description, { gasLimit: 30_000_000 })
+        .then((r) => r.enactReceipt);
+    } catch (e) {
+      assert.fail(`Failed to adopt the vote: ${e}`);
+    }
+  });
+
+  // Testing TransferAssets action...
+  const transferAssetsSuite = Suite.create(actionsSuite, "Testing TransferAssets action...");
   (await actions.transferAssets.tests()).forEach((test) => transferAssetsSuite.addTest(test));
 
-  const updateStakingModuleSuite = Suite.create(this, "Testing UpdateStakingModule action...");
+  // Testing UpdateStakingModule action...
+  const updateStakingModuleSuite = Suite.create(actionsSuite, "Testing UpdateStakingModule action...");
   (await actions.updateStakingModule.tests(contracts)).forEach((test) => updateStakingModuleSuite.addTest(test));
 });
