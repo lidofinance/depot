@@ -12,7 +12,6 @@ import bytes from "../src/common/bytes";
 import format from "../src/common/format";
 import prompt from "../src/common/prompt";
 import { simulateOmnibus, SimulationGroup } from "../src/omnibuses/tools/simulate";
-import { testOmnibus } from "../src/omnibuses/tools/test";
 import { isKnownError } from "../src/common/errors";
 import Mocha from "mocha";
 import fs from "node:fs/promises";

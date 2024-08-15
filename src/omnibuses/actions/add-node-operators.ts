@@ -1,8 +1,11 @@
 import { call, event, FormattedEvmCall, forward } from "../../votes";
 
-import { OmnibusAction, OmnibusHookCtx } from "../omnibus-action";
+import { OmnibusAction } from "../omnibus-action";
 import { Address } from "../../common/types";
 import { OmnibusActionInput } from "../omnibus-action-meta";
+import { assert } from "../../common/assert";
+import { Test } from "mocha";
+import { Contracts } from "../../contracts/contracts";
 
 interface NewNodeOperatorInput {
   name: string;
@@ -53,21 +56,19 @@ export class AddNodeOperators extends OmnibusAction<AddNodeOperatorsInput> {
     ];
   }
 
-  async before(): Promise<void> {
-    const { curatedStakingModule } = this.contracts;
-    const nodeOperatorsCount = await curatedStakingModule.getNodeOperatorsCount();
+  async before(contracts: Contracts<any>): Promise<void> {
+    const nodeOperatorsCount = await contracts.curatedStakingModule.getNodeOperatorsCount();
     this.operatorsCountBefore = +nodeOperatorsCount.toString();
   }
 
-  async after({ it, assert }: OmnibusHookCtx): Promise<void> {
-    it("Validate node operators count changed correctly", async () => {
-      const { curatedStakingModule } = this.contracts;
-      const { operators } = this.input;
-
-      assert.equal(
-        BigInt(this.operatorsCountBefore + operators.length),
-        await curatedStakingModule.getNodeOperatorsCount(),
-      );
-    });
+  async tests(contracts: Contracts<any>) {
+    return [
+      new Test(`Validate node operators count increased to ${this.input.operators.length}`, async () => {
+        assert.equal(
+          BigInt(this.operatorsCountBefore + this.input.operators.length),
+          await contracts.curatedStakingModule.getNodeOperatorsCount(),
+        );
+      }),
+    ];
   }
 }

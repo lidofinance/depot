@@ -4,6 +4,7 @@ import { assert } from "../common/assert";
 import { NetworkName } from "../networks";
 import { RpcProvider } from "../providers";
 import { LidoEthContracts } from "../lido";
+import { Contracts } from "../contracts/contracts";
 
 export interface OmnibusActionInput {
   title?: string;
@@ -60,9 +61,9 @@ export abstract class OmnibusActionMeta<Input extends OmnibusActionInput> {
   /**
    * The hook launched before the vote with omnibus is submitted and executed.
    * May be used to check preconditions for the vote item
-   * @param ctx {OmnibusHookCtx} - the context of the omnibus
+   * @param contracts
    */
-  async before(ctx: OmnibusHookCtx): Promise<void> {}
+  async before(contracts?: Contracts<any>): Promise<void> {}
 
   /**
    * The callback launched after the vote with omnibus is successfully executed.

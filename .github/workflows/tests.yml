@@ -5,6 +5,14 @@ on:
 
 jobs:
   tests:
+    services:
+      hardhat-node:
+        image: feofanov/hardhat-node
+        ports:
+          - 8545:8545
+        env:
+          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
+
     name: JS tests
     runs-on: ubuntu-latest
     env:
