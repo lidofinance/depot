@@ -7,7 +7,7 @@ import { assert } from "../../common/assert";
 import { Test } from "mocha";
 import { Contracts } from "../../contracts/contracts";
 
-interface NewNodeOperatorInput {
+export interface NewNodeOperatorInput {
   name: string;
   rewardAddress: Address;
 }
