@@ -1,10 +1,8 @@
 import { Omnibus } from "../src/omnibuses/omnibus";
-import { TransferAssets } from "../src/omnibuses/actions/transfer-assets";
-import { UpdateStakingModule } from "../src/omnibuses/actions/update-staking-module";
 import { StakingModule } from "../src/lido/lido";
-import { AddNodeOperators } from "../src/omnibuses/actions/add-node-operators";
 import { AddPaymentEvmScriptFactories } from "../src/omnibuses/actions/add-payment-evm-script-factories";
 import { RemovePaymentEvmScriptFactories } from "../src/omnibuses/actions/remove-payment-evm-script-factories";
+import { AddNodeOperators, TransferAssets, UpdateStakingModule } from "../src/omnibuses/actions";
 
 export default new Omnibus({
   network: "mainnet",
@@ -13,20 +11,20 @@ export default new Omnibus({
   // executedOn: 12345678,  // Execution block number should be set only if vote is passed and omnibus was successfully executed.
   quorumReached: false, // Should be set to true if quorum was reached during the vote.
   actions: ({ ldo, stETH }) => [
-    new UpdateStakingModule({
+    UpdateStakingModule({
       title: "Raise Simple DVT target share from 0.5% to 4%", // Title is always required
       stakingModuleId: StakingModule.SimpleDVT,
       targetShare: 400,
       treasuryFee: 800,
       stakingModuleFee: 200,
     }),
-    new TransferAssets({
+    TransferAssets({
       title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
       to: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D", // Pool Maintenance Labs Ltd. (PML) multisig
       token: ldo,
       amount: 180000n * 10n ** 18n,
     }),
-    new AddNodeOperators({
+    AddNodeOperators({
       operators: [
         {
           name: "A41",

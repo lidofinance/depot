@@ -1,13 +1,13 @@
-import { UpdateStakingModule } from "./update-staking-module";
+import { UpdateStakingModule } from "./action";
 import { expect } from "chai";
 import sinon from "sinon";
-import { StakingModule } from "../../lido/lido";
-import { AragonEvmForward, ContractEvmCall } from "../../votes/vote-script";
-import { StakingRouter__factory } from "../../../typechain-types";
+import { StakingModule } from "../../../lido/lido";
+import { AragonEvmForward } from "../../../votes/vote-script";
+import { StakingRouter__factory } from "../../../../typechain-types";
 import { randomAddress, randomHash } from "hardhat/internal/hardhat-network/provider/utils/random";
 
 describe("UpdateStakingModule", () => {
-  let updateStakingModule: UpdateStakingModule;
+  let updateStakingModule: any;
   let mockContracts: any;
   let SRContract = StakingRouter__factory.connect(randomAddress().toString());
 
@@ -61,7 +61,7 @@ describe("UpdateStakingModule", () => {
       },
     };
 
-    updateStakingModule = new UpdateStakingModule({
+    updateStakingModule = UpdateStakingModule({
       title: "Raise Simple DVT target share from 0.5% to 4%",
       stakingModuleId: StakingModule.SimpleDVT,
       targetShare: 50,

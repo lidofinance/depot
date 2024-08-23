@@ -1,0 +1,70 @@
+import { assert } from "../src/common/assert";
+import { formatEther, JsonRpcProvider } from "ethers";
+import { describe, it } from "mocha";
+import { compareEvents, enactOmnibus } from "../src/omnibuses/tools/test";
+import networks from "../src/networks";
+import lido from "../src/lido";
+import omnibus from "../omnibuses/_demo_omnibus";
+import { Receipt } from "web3-types";
+{{#each imports}}
+{{{this}}}
+{{/each}}
+
+const url = networks.localRpcUrl("eth");
+const provider = new JsonRpcProvider(url);
+const contracts = lido.eth[omnibus.network](provider);
+
+omnibus.init(provider);
+
+// Testing values
+{{#each globalValues}}
+const {{{ @key }}} = {{{ this }}}
+{{/each}}
+
+describe("Testing {{ omnibusName }}...", () => {
+  let enactReceipt: Receipt;
+
+  {{#if beforeChecks}}
+    describe("Check network state before voting...", () => {
+    {{#each beforeChecks}}
+      {{{this}}}
+    {{/each}}
+    });
+  {{/if}}
+
+  describe("Check network state after voting...", () => {
+    {{#each localValues}}
+      let {{{this}}}: any;
+    {{/each}}
+
+    before(async () => {
+      {{#each beforePreps}}
+        {{{this}}}
+      {{/each}}
+
+      // Run and enact omnibus. Keep receipt for further event checks.
+      enactReceipt = await enactOmnibus(omnibus, provider);
+    });
+
+    {{#each testSuites}}
+      {{{this}}}
+    {{/each}}
+  });
+
+  describe("Check fired events by action...", () => {
+    omnibus.actions.forEach((action) => {
+      const expectedEvents = action.getExpectedEvents();
+      const expectedEventsNames = expectedEvents.map((event) => event.fragment.name);
+
+      it(`${action.constructor.name}: ${expectedEventsNames.join(", ")}`, () => {
+        const absentEvents = compareEvents(action.getExpectedEvents(), enactReceipt);
+
+        assert.equal(
+        absentEvents.length,
+        0,
+        `Events not found:\n${absentEvents.map((e) => e.fragment.name).join("\n")}`,
+        );
+      });
+    });
+  });
+});
