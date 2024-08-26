@@ -1,31 +1,22 @@
-import path from "path";
-import { Omnibus } from "../omnibuses/omnibus";
-import { NetworkName } from "../networks";
-import { ActionType } from "hardhat/types";
-import { uploadToIpfs } from "../ipfs";
+import { Config } from "../common/config";
+import { uploadToPinata } from "../ipfs/pinata";
+import * as console from "node:console";
 
-export const uploadDescription: ActionType<{ name: string }> = async ({ name }) => {
-  const omnibusPath = path.join(process.env.PWD!, `omnibuses/${name}.ts`);
-  const omnibus: Omnibus<NetworkName> = require(omnibusPath).default;
-
-  if (omnibus.isExecuted) {
-    console.log(`Omnibus already was executed. Aborting...`);
+export const uploadDescription = async (
+  omnibusName: string,
+  omnibusDescription: string,
+  config: Config,
+): Promise<string | undefined> => {
+  if (omnibusDescription === "") {
+    console.warn("Omnibus description is empty. Skipping...");
     return;
   }
-
-  if (omnibus.description === "") {
-    console.log("Omnibus description is empty. Skipping...");
+  if (!config.pinataToken) {
+    console.error(
+      "Pinata token is missing, upload is impossible. Set PINATA_TOKEN env variable to upload description to IPFS. You can create new one here: https://app.pinata.cloud/developers/api-keys",
+    );
     return;
   }
-
-  const fileName = `${name}_description.md`;
-  const cid = await uploadToIpfs(omnibus.description, fileName);
-  console.log(
-    `Omnibus description successfully uploaded to IPFS with CID:
-    ┌${"─".repeat(cid.length + 2)}┐
-    │ ${cid} │
-    └${"─".repeat(cid.length + 2)}┘
-Don\'t forget to update the omnibus with the new description CID.`,
-  );
-  return cid;
+  const fileName = `${omnibusName}_description.md`;
+  return await uploadToPinata(omnibusDescription, fileName, config.pinataToken);
 };
