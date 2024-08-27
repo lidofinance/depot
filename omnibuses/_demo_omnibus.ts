@@ -26,6 +26,12 @@ export default new Omnibus({
       token: ldo,
       amount: 180000n * 10n ** 18n,
     }),
+    new TransferAssets({
+      title: "Transfer 180,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig",
+      to: "0x9B1cebF7616f2BC73b47D226f90b01a7c9F86956", // Argo Technology Consulting Ltd. (ATC) multisig
+      token: ldo,
+      amount: 110000n * 10n ** 18n,
+    }),
     new AddNodeOperators({
       operators: [
         {

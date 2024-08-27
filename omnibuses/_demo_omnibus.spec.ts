@@ -1,87 +1,111 @@
-import { assert } from "../src/common/assert";
-import { formatEther, JsonRpcProvider } from "ethers";
 import { describe, it } from "mocha";
-import { StakingModule } from "../src/lido/lido";
+import { assert } from "../src/common/assert";
+import { BigNumberish, formatEther, JsonRpcProvider } from "ethers";
 import { compareEvents, enactOmnibus } from "../src/omnibuses/tools/test";
 import networks from "../src/networks";
 import lido from "../src/lido";
 import omnibus from "../omnibuses/_demo_omnibus";
 import { Receipt } from "web3-types";
-import { AddNodeOperators, NewNodeOperatorInput } from "../src/omnibuses/actions/add-node-operators";
+import { StakingModule } from "../src/lido/lido";
+import { checks } from "../src/omnibuses/checks";
 
 const url = networks.localRpcUrl("eth");
 const provider = new JsonRpcProvider(url);
 const contracts = lido.eth[omnibus.network](provider);
 
+const { Balance: balanceChecks, StakingRouter: stakingRouterChecks } = checks(contracts);
+
 omnibus.init(provider);
 
 // Testing values
-const ldoRecipient = "0x17F6b2C738a63a8D3A113a228cfd0b373244633D";
-const ldoAmount = 180000n * 10n ** 18n;
 const expectedTargetShare = 400n;
+const expectedTreasuryFee = 800n;
+const expectedStakingModuleFee = 200n;
+const tokenTransfers = [
+  {
+    recipient: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
+    amount: 180000n * 10n ** 18n,
+  },
+  {
+    recipient: "0x9B1cebF7616f2BC73b47D226f90b01a7c9F86956",
+    amount: 110000n * 10n ** 18n,
+  },
+];
 const newNopCount = 7;
 
-describe("Testing _demo_omnibus...", () => {
+describe("Testing ...", () => {
   let enactReceipt: Receipt;
 
   describe("Check network state before voting...", () => {
-    it("Simple DVT module target share is 4%", async () => {
-      const stakingModule = await contracts.stakingRouter.getStakingModule(StakingModule.SimpleDVT);
-
-      assert.equal(stakingModule.targetShare, 400n);
+    it("Simple DVT module state is as expected", async () => {
+      stakingRouterChecks.checkStakingModule(StakingModule.SimpleDVT, {
+        targetShare: 400n,
+        treasuryFee: 800n,
+        stakingModuleFee: 200n,
+      });
     });
   });
 
   describe("Check network state after voting...", () => {
-    let balanceBefore: any;
-    let nodeOperatorsBefore: any;
+    let agentLDOBalanceBefore: any;
+    let balancesBefore: BigNumberish[];
+    let nodeOperatorsCountBefore: any;
 
     before(async () => {
-      balanceBefore = await contracts.ldo.balanceOf(ldoRecipient);
-      nodeOperatorsBefore = await contracts.curatedStakingModule.getNodeOperatorsCount();
+      agentLDOBalanceBefore = await contracts.ldo.balanceOf(contracts.agent.address);
+      balancesBefore = await Promise.all(tokenTransfers.map(({ recipient }) => contracts.ldo.balanceOf(recipient)));
+      nodeOperatorsCountBefore = await contracts.curatedStakingModule.getNodeOperatorsCount();
 
-      // Run and enact omnibus. Keep receipt for further event checks.
+      // Start and enact omnibus. Keep receipt to check events later.
       enactReceipt = await enactOmnibus(omnibus, provider);
     });
 
     describe("TransferAssets", () => {
-      it(`${formatEther(ldoAmount)} LDO was transferred to ${ldoRecipient}`, async () => {
-        const balanceAfter = await contracts.ldo.balanceOf(ldoRecipient);
+      for (let i = 0; i < tokenTransfers.length; i++) {
+        const { recipient, amount } = tokenTransfers[i];
+        it(`${formatEther(amount)} LDO was transferred to ${recipient}`, async () => {
+          const expectedBalance = BigInt(balancesBefore[i]) + BigInt(amount);
 
-        assert.equal(balanceAfter, balanceBefore + ldoAmount);
+          balanceChecks.checkLDOBalance(recipient, expectedBalance);
+        });
+      }
+
+      it("LDO budget was decreased by the total amount of transfers", async () => {
+        const totalSum = tokenTransfers.reduce((acc, { amount }) => acc + amount, 0n);
+
+        balanceChecks.checkLDOBalance(contracts.agent.address, agentLDOBalanceBefore - totalSum);
       });
     });
 
     describe("UpdateStakingModule", () => {
-      it(`Simple DVT module target share was set to ${expectedTargetShare}`, async () => {
-        const stakingModule = await contracts.stakingRouter.getStakingModule(StakingModule.SimpleDVT);
-
-        assert.equal(stakingModule.targetShare, expectedTargetShare);
+      it(`Simple DVT module was correctly updated`, async () => {
+        stakingRouterChecks.checkStakingModule(StakingModule.SimpleDVT, {
+          targetShare: expectedTargetShare,
+          treasuryFee: expectedTreasuryFee,
+          stakingModuleFee: expectedStakingModuleFee,
+        });
       });
     });
 
     describe("AddNodeOperators", () => {
       it(`node operators count was increased by ${newNopCount}`, async () => {
-        const expectedNodeOperatorsCount = nodeOperatorsBefore + BigInt(newNopCount);
-        const nodeOperatorsCount = await contracts.curatedStakingModule.getNodeOperatorsCount();
+        const expectedNodeOperatorsCount = nodeOperatorsCountBefore + BigInt(newNopCount);
 
-        assert.equal(nodeOperatorsCount, expectedNodeOperatorsCount);
+        stakingRouterChecks.checkNodeOperatorsCount(expectedNodeOperatorsCount);
       });
 
-      const operators = omnibus.actions[2]["input"].operators;
-      operators.forEach((operator: NewNodeOperatorInput, idx: number) => {
-        it(`operator ${operator.name} was added`, async () => {
-          const { name, rewardAddress } = operator;
-          const nopID = nodeOperatorsBefore + BigInt(idx);
-          const nopInfo = await contracts.curatedStakingModule.getNodeOperator(nopID, false);
+      const newOperators = omnibus.actions[3]["input"].operators;
+      for (let i = 0; i < newOperators.length; i++) {
+        const operator = newOperators[i];
+        it(`operator ${operator.name} was successfully added`, async () => {
+          const operatorIndex = nodeOperatorsCountBefore + BigInt(i);
 
-          assert.equal(nopInfo.rewardAddress, rewardAddress, `Operator ${name} not found`);
+          stakingRouterChecks.checkNodeOperator(operatorIndex, operator.name, operator.rewardAddress);
         });
-      });
+      }
     });
   });
 
-  // TODO: approve events check method
   describe("Check fired events by action...", () => {
     omnibus.actions.forEach((action) => {
       const expectedEvents = action.getExpectedEvents();
