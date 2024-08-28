@@ -1,4 +1,4 @@
-import { describe, it } from "mocha";
+import { before, describe, it } from "mocha";
 import { assert } from "../src/common/assert";
 import { BigNumberish, formatEther, JsonRpcProvider } from "ethers";
 import { compareEvents, enactOmnibus } from "../src/omnibuses/tools/test";
@@ -13,7 +13,11 @@ const url = networks.localRpcUrl("eth");
 const provider = new JsonRpcProvider(url);
 const contracts = lido.eth[omnibus.network](provider);
 
-const { Balance: balanceChecks, StakingRouter: stakingRouterChecks } = checks(contracts);
+const {
+  balance: balanceChecks,
+  easyTrack: easyTrackChecks,
+  stakingRouter: stakingRouterChecks,
+} = checks(contracts, provider);
 
 omnibus.init(provider);
 
@@ -32,9 +36,29 @@ const tokenTransfers = [
   },
 ];
 const newNopCount = 7;
+const addFactoryValues = {
+  name: "reWARDS stETH",
+  factories: {
+    topUp: "0x85d703B2A4BaD713b596c647badac9A1e95bB03d" as `0x${string}`,
+    addRecipient: "0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C" as `0x${string}`,
+    removeRecipient: "0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E" as `0x${string}`,
+  },
+  token: "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84" as `0x${string}`, // stETH
+  registry: "0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A" as `0x${string}`,
+  trustedCaller: "0x87D93d9B2C672bf9c9642d853a8682546a5012B5" as `0x${string}`,
+};
 
 describe("Testing _demo_omnibus", () => {
   let enactReceipt: Receipt;
+  let snapshotId: string;
+
+  before(async () => {
+    snapshotId = await provider.send("evm_snapshot", []);
+  });
+
+  after(async () => {
+    await provider.send("evm_revert", [snapshotId]);
+  });
 
   describe("Check network state before voting...", () => {
     it("Simple DVT module state is as expected", async () => {
@@ -103,6 +127,36 @@ describe("Testing _demo_omnibus", () => {
           await stakingRouterChecks.checkNodeOperator(operatorIndex, operator.name, operator.rewardAddress);
         });
       }
+    });
+
+    describe("AddPaymentEvmScriptFactories", () => {
+      it(`Top up factory ${addFactoryValues.name} can make payments`, async () => {
+        await easyTrackChecks.checkFactoryExists(addFactoryValues.factories.topUp);
+        await easyTrackChecks.checkTopUpFactory(
+          addFactoryValues.token,
+          addFactoryValues.factories.topUp,
+          addFactoryValues.registry,
+          addFactoryValues.trustedCaller,
+        );
+      });
+
+      it(`Add recipient factory ${addFactoryValues.name} works as expected`, async () => {
+        await easyTrackChecks.checkFactoryExists(addFactoryValues.factories.addRecipient);
+        await easyTrackChecks.checkAddRecipientFactory(
+          addFactoryValues.factories.addRecipient,
+          addFactoryValues.registry,
+          addFactoryValues.trustedCaller,
+        );
+      });
+
+      it(`Remove recipient factory ${addFactoryValues.name} works as expected`, async () => {
+        await easyTrackChecks.checkFactoryExists(addFactoryValues.factories.removeRecipient);
+        await easyTrackChecks.checkRemoveRecipientFactory(
+          addFactoryValues.factories.removeRecipient,
+          addFactoryValues.registry,
+          addFactoryValues.trustedCaller,
+        );
+      });
     });
   });
 

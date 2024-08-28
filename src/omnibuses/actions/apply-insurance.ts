@@ -78,46 +78,46 @@ export class ApplyInsuranceAction extends OmnibusAction<ApplyInsuranceInstanceIn
     ];
   }
 
-  async before({ it, assert }: OmnibusHookCtx): Promise<void> {
-    const actual = await this.makeOnchainStateSnapshot();
-    const expected = this.input.before;
-
-    // it("Validate insuranceFund stETH balance", async () => {
-    //   assert.isTrue(
-    //     actual.insuranceFundStEthBalance >= expected.insuranceFundStEthBalance,
-    //     "invalid InsuranceFund stETH balance",
-    //   );
-    // });
-
-    // it("Validate InsuranceFund stETH shares", async () => {
-    //   assert.equal(
-    //     actual.insuranceFundStEthShares,
-    //     expected.insuranceFundStEthShares,
-    //     "invalid InsuranceFund stETH shares",
-    //   );
-    // });
-
-    // it("Validate Agent allowance on Burner contract", async () => {
-    //   assert.equal(
-    //     actual.agentStEthAllowanceForBurner,
-    //     expected.agentStEthAllowanceForBurner,
-    //     "invalid Agent allowance on Burner contract",
-    //   );
-    // });
-
-    // it("Validate Burner state", async () => {
-    //   assert.equal(actual.totalBurntForCover, expected.totalBurntForCover);
-    //   assert.isTrue(actual.totalBurntForNonCover >= expected.totalBurntForNonCover);
-    //   assert.equal(
-    //     actual.sharesRequestedToBurn.coverShares,
-    //     expected.sharesRequestedToBurn.coverShares,
-    //   );
-    //   assert.equal(
-    //     actual.sharesRequestedToBurn.nonCoverShares,
-    //     expected.sharesRequestedToBurn.nonCoverShares,
-    //   );
-    // });
-  }
+  // async before({ it, assert }: OmnibusHookCtx): Promise<void> {
+  //   const actual = await this.makeOnchainStateSnapshot();
+  //   const expected = this.input.before;
+  //
+  //   // it("Validate insuranceFund stETH balance", async () => {
+  //   //   assert.isTrue(
+  //   //     actual.insuranceFundStEthBalance >= expected.insuranceFundStEthBalance,
+  //   //     "invalid InsuranceFund stETH balance",
+  //   //   );
+  //   // });
+  //
+  //   // it("Validate InsuranceFund stETH shares", async () => {
+  //   //   assert.equal(
+  //   //     actual.insuranceFundStEthShares,
+  //   //     expected.insuranceFundStEthShares,
+  //   //     "invalid InsuranceFund stETH shares",
+  //   //   );
+  //   // });
+  //
+  //   // it("Validate Agent allowance on Burner contract", async () => {
+  //   //   assert.equal(
+  //   //     actual.agentStEthAllowanceForBurner,
+  //   //     expected.agentStEthAllowanceForBurner,
+  //   //     "invalid Agent allowance on Burner contract",
+  //   //   );
+  //   // });
+  //
+  //   // it("Validate Burner state", async () => {
+  //   //   assert.equal(actual.totalBurntForCover, expected.totalBurntForCover);
+  //   //   assert.isTrue(actual.totalBurntForNonCover >= expected.totalBurntForNonCover);
+  //   //   assert.equal(
+  //   //     actual.sharesRequestedToBurn.coverShares,
+  //   //     expected.sharesRequestedToBurn.coverShares,
+  //   //   );
+  //   //   assert.equal(
+  //   //     actual.sharesRequestedToBurn.nonCoverShares,
+  //   //     expected.sharesRequestedToBurn.nonCoverShares,
+  //   //   );
+  //   // });
+  // }
 
   async after({ it, assert, provider }: OmnibusHookCtx): Promise<void> {
     it("After the insurance applying onchain state changed correctly", async () => {

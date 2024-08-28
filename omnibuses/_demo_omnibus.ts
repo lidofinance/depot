@@ -64,24 +64,24 @@ export default new Omnibus({
         },
       ],
     }),
-    // new AddPaymentEvmScriptFactories({
-    //   name: "reWARDS stETH",
-    //   factories: {
-    //     topUp: "0x85d703B2A4BaD713b596c647badac9A1e95bB03d",
-    //     addRecipient: "0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C",
-    //     removeRecipient: "0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E",
-    //   },
-    //   token: stETH.address,
-    //   registry: "0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A",
-    //   trustedCaller: "0x87D93d9B2C672bf9c9642d853a8682546a5012B5",
-    // }),
-    // new RemovePaymentEvmScriptFactories({
-    //   name: "reWARDS LDO",
-    //   factories: {
-    //     topUp: "0x200dA0b6a9905A377CF8D469664C65dB267009d1",
-    //     addRecipient: "0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252",
-    //     removeRecipient: "0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7",
-    //   },
-    // }),
+    new AddPaymentEvmScriptFactories({
+      name: "reWARDS stETH",
+      factories: {
+        topUp: "0x85d703B2A4BaD713b596c647badac9A1e95bB03d",
+        addRecipient: "0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C",
+        removeRecipient: "0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E",
+      },
+      token: stETH.address,
+      registry: "0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A",
+      trustedCaller: "0x87D93d9B2C672bf9c9642d853a8682546a5012B5",
+    }),
+    new RemovePaymentEvmScriptFactories({
+      name: "reWARDS LDO",
+      factories: {
+        topUp: "0x200dA0b6a9905A377CF8D469664C65dB267009d1",
+        addRecipient: "0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252",
+        removeRecipient: "0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7",
+      },
+    }),
   ],
 });

@@ -9,12 +9,34 @@ export interface StakingModuleParams {
   stakingModuleFee: bigint;
 }
 
-export const checkStakingModule =
-  (contracts: Contracts<typeof LidoOnMainnet>) =>
-  async (stakingModuleID: BigNumberish, params: StakingModuleParams) => {
-    const stakingModule = await contracts.stakingRouter.getStakingModule(stakingModuleID);
+export const checkStakingModule = async (
+  contracts: Contracts<typeof LidoOnMainnet>,
+  stakingModuleID: BigNumberish,
+  params: StakingModuleParams,
+) => {
+  const stakingModule = await contracts.stakingRouter.getStakingModule(stakingModuleID);
 
-    assert.equal(stakingModule.targetShare, params.targetShare);
-    assert.equal(stakingModule.treasuryFee, params.treasuryFee);
-    assert.equal(stakingModule.stakingModuleFee, params.stakingModuleFee);
-  };
+  assert.equal(stakingModule.targetShare, params.targetShare);
+  assert.equal(stakingModule.treasuryFee, params.treasuryFee);
+  assert.equal(stakingModule.stakingModuleFee, params.stakingModuleFee);
+};
+
+export const checkNodeOperator = async (
+  contracts: Contracts<typeof LidoOnMainnet>,
+  nopID: BigNumberish,
+  name: string,
+  rewardAddress: `0x${string}`,
+) => {
+  const nopInfo = await contracts.curatedStakingModule.getNodeOperator(nopID, false);
+
+  assert.equal(nopInfo.rewardAddress, rewardAddress, `Operator ${name} not found`);
+};
+
+export const checkNodeOperatorsCount = async (
+  contracts: Contracts<typeof LidoOnMainnet>,
+  expectedCount: BigNumberish,
+) => {
+  const nodeOperatorsCount = await contracts.curatedStakingModule.getNodeOperatorsCount();
+
+  assert.equal(nodeOperatorsCount, expectedCount);
+};
