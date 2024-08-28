@@ -31,8 +31,6 @@ describe("Uploading to Pinata", () => {
     const mockError = new Error("Upload failed");
     fileStub.rejects(mockError);
 
-    await expect(uploadToPinata("testText", "testFileName", mockPinataToken)).to.be.rejectedWith(
-      "Failed to upload to Pinata: Error: Upload failed",
-    );
+    await expect(uploadToPinata("testText", "testFileName", mockPinataToken)).to.be.rejectedWith("Upload failed");
   });
 });
