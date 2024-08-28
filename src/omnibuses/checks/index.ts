@@ -11,13 +11,13 @@ export interface Checks {
 }
 
 interface BalanceChecks {
-  checkLDOBalance(address: string, balance: BigNumberish): void;
+  checkLDOBalance(address: string, balance: BigNumberish): Promise<void>;
 }
 
 interface StakingRouterChecks {
-  checkNodeOperator(nopID: bigint, name: string, rewardAddress: `0x${string}`): void;
-  checkNodeOperatorsCount(expectedCount: BigNumberish): void;
-  checkStakingModule(stakingModuleID: BigNumberish, expectedParams: StakingModuleParams): void;
+  checkNodeOperator(nopID: bigint, name: string, rewardAddress: `0x${string}`): Promise<void>;
+  checkNodeOperatorsCount(expectedCount: BigNumberish): Promise<void>;
+  checkStakingModule(stakingModuleID: BigNumberish, expectedParams: StakingModuleParams): Promise<void>;
 }
 
 export const checks = (contracts: Contracts<typeof LidoOnMainnet>): Checks => {

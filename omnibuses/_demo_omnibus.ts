@@ -17,8 +17,8 @@ export default new Omnibus({
       title: "Raise Simple DVT target share from 0.5% to 4%", // Title is always required
       stakingModuleId: StakingModule.SimpleDVT,
       targetShare: 400,
-      treasuryFee: 800,
-      stakingModuleFee: 200,
+      treasuryFee: 200,
+      stakingModuleFee: 800,
     }),
     new TransferAssets({
       title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",

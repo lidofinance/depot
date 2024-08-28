@@ -19,8 +19,8 @@ omnibus.init(provider);
 
 // Testing values
 const expectedTargetShare = 400n;
-const expectedTreasuryFee = 800n;
-const expectedStakingModuleFee = 200n;
+const expectedTreasuryFee = 200n;
+const expectedStakingModuleFee = 800n;
 const tokenTransfers = [
   {
     recipient: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
@@ -33,15 +33,15 @@ const tokenTransfers = [
 ];
 const newNopCount = 7;
 
-describe("Testing ...", () => {
+describe("Testing _demo_omnibus", () => {
   let enactReceipt: Receipt;
 
   describe("Check network state before voting...", () => {
     it("Simple DVT module state is as expected", async () => {
-      stakingRouterChecks.checkStakingModule(StakingModule.SimpleDVT, {
+      await stakingRouterChecks.checkStakingModule(StakingModule.SimpleDVT, {
         targetShare: 400n,
-        treasuryFee: 800n,
-        stakingModuleFee: 200n,
+        treasuryFee: 200n,
+        stakingModuleFee: 800n,
       });
     });
   });
@@ -66,20 +66,20 @@ describe("Testing ...", () => {
         it(`${formatEther(amount)} LDO was transferred to ${recipient}`, async () => {
           const expectedBalance = BigInt(balancesBefore[i]) + BigInt(amount);
 
-          balanceChecks.checkLDOBalance(recipient, expectedBalance);
+          await balanceChecks.checkLDOBalance(recipient, expectedBalance);
         });
       }
 
       it("LDO budget was decreased by the total amount of transfers", async () => {
         const totalSum = tokenTransfers.reduce((acc, { amount }) => acc + amount, 0n);
 
-        balanceChecks.checkLDOBalance(contracts.agent.address, agentLDOBalanceBefore - totalSum);
+        await balanceChecks.checkLDOBalance(contracts.agent.address, agentLDOBalanceBefore - totalSum);
       });
     });
 
     describe("UpdateStakingModule", () => {
       it(`Simple DVT module was correctly updated`, async () => {
-        stakingRouterChecks.checkStakingModule(StakingModule.SimpleDVT, {
+        await stakingRouterChecks.checkStakingModule(StakingModule.SimpleDVT, {
           targetShare: expectedTargetShare,
           treasuryFee: expectedTreasuryFee,
           stakingModuleFee: expectedStakingModuleFee,
@@ -91,7 +91,7 @@ describe("Testing ...", () => {
       it(`node operators count was increased by ${newNopCount}`, async () => {
         const expectedNodeOperatorsCount = nodeOperatorsCountBefore + BigInt(newNopCount);
 
-        stakingRouterChecks.checkNodeOperatorsCount(expectedNodeOperatorsCount);
+        await stakingRouterChecks.checkNodeOperatorsCount(expectedNodeOperatorsCount);
       });
 
       const newOperators = omnibus.actions[3]["input"].operators;
@@ -100,7 +100,7 @@ describe("Testing ...", () => {
         it(`operator ${operator.name} was successfully added`, async () => {
           const operatorIndex = nodeOperatorsCountBefore + BigInt(i);
 
-          stakingRouterChecks.checkNodeOperator(operatorIndex, operator.name, operator.rewardAddress);
+          await stakingRouterChecks.checkNodeOperator(operatorIndex, operator.name, operator.rewardAddress);
         });
       }
     });
