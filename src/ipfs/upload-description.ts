@@ -1,5 +1,5 @@
 import { Config } from "../common/config";
-import { uploadToPinata } from "../ipfs/pinata";
+import { uploadToPinata } from "./pinata";
 import * as console from "node:console";
 
 export const uploadDescription = async (

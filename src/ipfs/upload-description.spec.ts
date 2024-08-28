@@ -1,7 +1,7 @@
 import { uploadDescription } from "./upload-description";
 import { expect } from "chai";
 import sinon from "sinon";
-import * as pinata from "../../src/ipfs/pinata";
+import * as pinata from "./pinata";
 import { after } from "mocha";
 
 describe("uploadDescription", () => {
