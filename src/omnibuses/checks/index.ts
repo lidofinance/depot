@@ -6,11 +6,14 @@ import { checkNodeOperator, checkNodeOperatorsCount, checkStakingModule } from "
 import {
   checkAddRecipientFactory,
   checkFactoryExists,
+  checkFactoryNotExists,
   checkRemoveRecipientFactory,
   checkTopUpFactory,
 } from "./easy-track";
 import { RpcProvider } from "../../providers";
+import { checkOmnibusEvents } from "./omnibus-events";
 
+// TODO: consider automatic gathering of checks from the checks folder
 export const checks = (contracts: Contracts<typeof LidoOnMainnet>, provider: RpcProvider) => {
   return {
     balance: {
@@ -18,6 +21,7 @@ export const checks = (contracts: Contracts<typeof LidoOnMainnet>, provider: Rpc
     },
     easyTrack: {
       checkFactoryExists: partial(checkFactoryExists, contracts),
+      checkFactoryNotExists: partial(checkFactoryNotExists, contracts),
       checkAddRecipientFactory: partial(checkAddRecipientFactory, contracts, provider),
       checkRemoveRecipientFactory: partial(checkRemoveRecipientFactory, contracts, provider),
       checkTopUpFactory: partial(checkTopUpFactory, contracts, provider),
@@ -27,5 +31,6 @@ export const checks = (contracts: Contracts<typeof LidoOnMainnet>, provider: Rpc
       checkNodeOperatorsCount: partial(checkNodeOperatorsCount, contracts),
       checkStakingModule: partial(checkStakingModule, contracts),
     },
+    checkActionEvents: partial(checkOmnibusEvents, contracts),
   };
 };

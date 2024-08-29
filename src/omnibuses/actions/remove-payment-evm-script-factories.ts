@@ -2,7 +2,6 @@ import { EventCheck, FormattedEvmCall, call, event } from "../../votes";
 
 import { OmnibusAction } from "../omnibus-action";
 import { Address } from "../../common/types";
-import { OmnibusTestContext } from "../tools/test";
 import { OmnibusActionInput } from "../omnibus-action-meta";
 import { NetworkName } from "../../networks";
 import { LidoEthContracts } from "../../lido";
@@ -26,15 +25,11 @@ abstract class RemoveEvmScriptFactory<T extends RemoveEvmScriptFactoryInput> ext
   }
 
   getExpectedEvents(): EventCheck[] {
-    return [event(this.contracts.easyTrack, "EVMScriptFactoryRemoved", { args: [this.input.factory] })];
-  }
-
-  async after({ it, assert }: OmnibusTestContext): Promise<void> {
-    const { factory } = this.input;
-    it(`Validate EVM script factory ${factory} was removed`, async () => {
-      const evmScriptFactories = await this.contracts.easyTrack.getEVMScriptFactories();
-      assert.notIncludeMembers(evmScriptFactories, [factory]);
-    });
+    const { callsScript, voting, easyTrack } = this.contracts;
+    return [
+      event(callsScript, "LogScriptCall", { emitter: voting }),
+      event(easyTrack, "EVMScriptFactoryRemoved", { args: [this.input.factory] }),
+    ];
   }
 }
 

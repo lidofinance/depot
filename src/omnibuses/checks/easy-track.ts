@@ -16,6 +16,10 @@ export const checkFactoryExists = async (contracts: Contracts<typeof LidoOnMainn
   assert.includeMembers(await contracts.easyTrack.getEVMScriptFactories(), [factory]);
 };
 
+export const checkFactoryNotExists = async (contracts: Contracts<typeof LidoOnMainnet>, factory: Address) => {
+  assert.notIncludeMembers(await contracts.easyTrack.getEVMScriptFactories(), [factory]);
+};
+
 export const checkTopUpFactory = async (
   contracts: Contracts<typeof LidoOnMainnet>,
   provider: RpcProvider,

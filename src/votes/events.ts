@@ -52,8 +52,8 @@ export function event<T extends TypedContract, K extends keyof OverloadedInputRe
 
 // This function is only useful for the subsequence function debugging
 // Usage: const parsedLog = parseLog(log);
-function parseLog(log: Log) {
-  const { agent, callsScript, voting, curatedStakingModule } = lido.chainId(1n);
+export function parseLog(log: Log) {
+  const { agent, callsScript, voting, finance, curatedStakingModule, ldo, easyTrack } = lido.chainId(1n);
   let parsedLog = voting.interface.parseLog(log);
   if (!parsedLog) {
     parsedLog = curatedStakingModule.interface.parseLog(log);
@@ -63,6 +63,15 @@ function parseLog(log: Log) {
   }
   if (!parsedLog) {
     parsedLog = callsScript.interface.parseLog(log);
+  }
+  if (!parsedLog) {
+    parsedLog = finance.interface.parseLog(log);
+  }
+  if (!parsedLog) {
+    parsedLog = ldo.interface.parseLog(log);
+  }
+  if (!parsedLog) {
+    parsedLog = easyTrack.interface.parseLog(log);
   }
   return parsedLog;
 }

@@ -1,11 +1,10 @@
 import { RpcProvider } from "../../providers";
 import Mocha from "mocha";
 import { assert } from "../../common/assert";
-import { JsonRpcProvider, Log } from "ethers";
-import votes, { EventCheck } from "../../votes";
+import { JsonRpcProvider } from "ethers";
+import votes from "../../votes";
 import { Omnibus } from "../omnibus";
 import { NetworkName } from "../../networks";
-import { Receipt } from "web3-types";
 
 interface MochaTest {
   (title: string, fn?: Mocha.Func | Mocha.AsyncFunc | undefined): void;
@@ -42,9 +41,4 @@ export const enactOmnibus = async (omnibus: Omnibus<NetworkName>, provider: Json
   }
 
   return enactReceipt;
-};
-
-export const compareEvents = (expectedEvents: EventCheck[], receipt: Receipt) => {
-  const foundSubsequence = votes.subsequence(receipt.logs as Log[], expectedEvents, 0);
-  return expectedEvents.filter((_, i) => foundSubsequence[i] === -1);
 };

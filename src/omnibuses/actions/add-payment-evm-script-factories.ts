@@ -46,9 +46,14 @@ abstract class AddEvmScriptFactory<T extends AddEvmScriptFactoryInput> extends O
   }
 
   getExpectedEvents(): EventCheck[] {
-    const { easyTrack } = this.contracts;
+    const { easyTrack, callsScript, voting } = this.contracts;
     const { factory } = this.input;
-    return [event(easyTrack, "EVMScriptFactoryAdded", { args: [factory, this.permission] })];
+    return [
+      event(callsScript, "LogScriptCall", { emitter: voting }),
+      event(easyTrack, "EVMScriptFactoryAdded", {
+        args: [factory, this.permission],
+      }),
+    ];
   }
 
   protected abstract get permission(): HexStrPrefixed;
@@ -70,7 +75,7 @@ class AddTopUpEvmScriptFactory extends AddEvmScriptFactory<AddTopUpEvmScriptFact
   }
 }
 
-class AddAddRecipientEvmScriptFactory extends OmnibusAction<RecipientEvmScriptFactoryInput> {
+class AddAddRecipientEvmScriptFactory extends AddEvmScriptFactory<RecipientEvmScriptFactoryInput> {
   get title() {
     return `Add "${this.input.name} Add Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
   }
@@ -81,15 +86,7 @@ class AddAddRecipientEvmScriptFactory extends OmnibusAction<RecipientEvmScriptFa
     return [call(easyTrack.addEVMScriptFactory, [factory, this.permission])];
   }
 
-  getExpectedEvents(): EventCheck[] {
-    return [
-      event(this.contracts.easyTrack, "EVMScriptFactoryAdded", {
-        args: [this.input.factory, this.permission],
-      }),
-    ];
-  }
-
-  private get permission() {
+  protected get permission() {
     return bytes.join(
       // allow to call allowedRecipientsRegistry.addRecipient()
       ...[this.input.registry, iAllowedRecipientsRegistry.getFunction("addRecipient").selector],
@@ -100,15 +97,6 @@ class AddAddRecipientEvmScriptFactory extends OmnibusAction<RecipientEvmScriptFa
 class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<RecipientEvmScriptFactoryInput> {
   get title(): string {
     return `Add "${this.input.name} Remove Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
-  }
-
-  getExpectedEvents(): EventCheck[] {
-    const { easyTrack } = this.contracts;
-    return [
-      event(easyTrack, "EVMScriptFactoryAdded", {
-        args: [this.input.factory, this.permission],
-      }),
-    ];
   }
 
   protected get permission() {

@@ -42,12 +42,6 @@ export class AddNodeOperators extends OmnibusAction<AddNodeOperatorsInput> {
       ];
     });
 
-    return [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
-      ...subItemEvents,
-      event(agent, "ScriptResult"),
-      event(voting, "ScriptResult"),
-      event(voting, "ExecuteVote"),
-    ];
+    return [event(callsScript, "LogScriptCall", { emitter: voting }), ...subItemEvents, event(agent, "ScriptResult")];
   }
 }

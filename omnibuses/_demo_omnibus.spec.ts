@@ -1,7 +1,6 @@
 import { before, describe, it } from "mocha";
-import { assert } from "../src/common/assert";
 import { BigNumberish, formatEther, JsonRpcProvider } from "ethers";
-import { compareEvents, enactOmnibus } from "../src/omnibuses/tools/test";
+import { enactOmnibus } from "../src/omnibuses/tools/test";
 import networks from "../src/networks";
 import lido from "../src/lido";
 import omnibus from "../omnibuses/_demo_omnibus";
@@ -17,6 +16,7 @@ const {
   balance: balanceChecks,
   easyTrack: easyTrackChecks,
   stakingRouter: stakingRouterChecks,
+  checkActionEvents,
 } = checks(contracts, provider);
 
 omnibus.init(provider);
@@ -46,6 +46,15 @@ const addFactoryValues = {
   token: "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84" as `0x${string}`, // stETH
   registry: "0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A" as `0x${string}`,
   trustedCaller: "0x87D93d9B2C672bf9c9642d853a8682546a5012B5" as `0x${string}`,
+};
+
+const removeFactoryValues = {
+  name: "reWARDS LDO",
+  factories: {
+    topUp: "0x200dA0b6a9905A377CF8D469664C65dB267009d1" as `0x${string}`,
+    addRecipient: "0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252" as `0x${string}`,
+    removeRecipient: "0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7" as `0x${string}`,
+  },
 };
 
 describe("Testing _demo_omnibus", () => {
@@ -158,22 +167,25 @@ describe("Testing _demo_omnibus", () => {
         );
       });
     });
+
+    describe("RemovePaymentEvmScriptFactories", () => {
+      it("Top Up factory was removed", async () => {
+        await easyTrackChecks.checkFactoryNotExists(removeFactoryValues.factories.topUp);
+      });
+
+      it("Add recipient factory was removed", async () => {
+        await easyTrackChecks.checkFactoryNotExists(removeFactoryValues.factories.addRecipient);
+      });
+
+      it("Remove recipient factory was removed", async () => {
+        await easyTrackChecks.checkFactoryNotExists(removeFactoryValues.factories.removeRecipient);
+      });
+    });
   });
 
   describe("Check fired events by action...", () => {
-    omnibus.actions.forEach((action) => {
-      const expectedEvents = action.getExpectedEvents();
-      const expectedEventsNames = expectedEvents.map((event) => event.fragment.name);
-
-      it(`${action.constructor.name}: ${expectedEventsNames.join(", ")}`, () => {
-        const absentEvents = compareEvents(action.getExpectedEvents(), enactReceipt);
-
-        assert.equal(
-          absentEvents.length,
-          0,
-          `Events not found:\n${absentEvents.map((e) => e.fragment.name).join("\n")}`,
-        );
-      });
+    it("All expected events were fired", () => {
+      checkActionEvents(omnibus.actions, enactReceipt);
     });
   });
 });

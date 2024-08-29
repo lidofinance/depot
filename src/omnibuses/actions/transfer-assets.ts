@@ -20,12 +20,14 @@ export class TransferAssets extends OmnibusAction<TransferAssetsInput> {
   }
 
   getExpectedEvents() {
-    const { finance, agent } = this.contracts;
+    const { finance, agent, callsScript, voting } = this.contracts;
     const { to, amount, token } = this.input;
 
     return [
+      event(callsScript, "LogScriptCall", { emitter: voting }),
       event(finance, "NewTransaction", { args: [undefined, false, to, amount, this.title] }),
       event(token, "Transfer", { args: [agent, to, amount] }),
+      event(agent, "VaultTransfer", { args: [token, to, amount] }),
     ];
   }
 }
