@@ -1,5 +1,3 @@
-/// <reference path="../../global.d.ts" />
-
 import { AbiCoder } from "ethers";
 import providers from "../../providers/providers";
 import { Contracts } from "../../contracts/contracts";
