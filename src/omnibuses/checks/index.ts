@@ -11,7 +11,7 @@ import {
   checkTopUpFactory,
 } from "./easy-track";
 import { RpcProvider } from "../../providers";
-import { checkOmnibusEvents } from "./omnibus-events";
+import { checkOmnibusEvents } from "./events";
 
 // TODO: consider automatic gathering of checks from the checks folder
 export const checks = (contracts: Contracts<typeof LidoOnMainnet>, provider: RpcProvider) => {

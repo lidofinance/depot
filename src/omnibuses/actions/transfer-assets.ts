@@ -25,6 +25,7 @@ export class TransferAssets extends OmnibusAction<TransferAssetsInput> {
 
     return [
       event(callsScript, "LogScriptCall", { emitter: voting }),
+      event(finance, "NewPeriod", undefined, { optional: true }),
       event(finance, "NewTransaction", { args: [undefined, false, to, amount, this.title] }),
       event(token, "Transfer", { args: [agent, to, amount] }),
       event(agent, "VaultTransfer", { args: [token, to, amount] }),
