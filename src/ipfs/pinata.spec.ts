@@ -4,9 +4,10 @@ import { expect } from "chai";
 import * as pinata from "./utils";
 
 describe("Uploading to Pinata", () => {
-  const mockPinataToken = "mockToken";
   let pinStub: sinon.SinonStub;
   const fileStub = sinon.stub();
+  const mockPinataToken = "mockToken";
+  const testFile = new File(["testText"], "testFileName", { type: "text/markdown" });
 
   before(() => {
     pinStub = sinon.stub(pinata, "getPinata").returns({ upload: { file: fileStub } } as any);
@@ -20,7 +21,7 @@ describe("Uploading to Pinata", () => {
     const mockResult = { IpfsHash: "mockHash" };
     fileStub.resolves(mockResult as any);
 
-    const result = await uploadToPinata("testText", "testFileName", mockPinataToken);
+    const result = await uploadToPinata(testFile, mockPinataToken);
 
     expect(pinStub.calledOnce).to.be.true;
     expect(result).to.equal("mockHash");
@@ -31,6 +32,6 @@ describe("Uploading to Pinata", () => {
     const mockError = new Error("Upload failed");
     fileStub.rejects(mockError);
 
-    await expect(uploadToPinata("testText", "testFileName", mockPinataToken)).to.be.rejectedWith("Upload failed");
+    await expect(uploadToPinata(testFile, mockPinataToken)).to.be.rejectedWith("Upload failed");
   });
 });

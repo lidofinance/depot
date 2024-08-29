@@ -18,5 +18,17 @@ export const uploadDescription = async (
     return;
   }
   const fileName = `${omnibusName}_description.md`;
-  return await uploadToPinata(omnibusDescription, fileName, config.pinataToken);
+  const file = new File([omnibusDescription], fileName, { type: "text/plain" });
+  const cid = await uploadToPinata(file, config.pinataToken);
+
+  const logStr = `https://${cid}.ipfs.w3s.link`;
+  console.log(
+    `Omnibus description successfully uploaded to IPFS:
+┌${"─".repeat(logStr.length + 8)}┐
+│  CID: ${cid} ${" ".repeat(logStr.length - cid.length - 1)} │
+│ Link: ${logStr} │
+└${"─".repeat(logStr.length + 8)}┘`,
+  );
+
+  return cid;
 };

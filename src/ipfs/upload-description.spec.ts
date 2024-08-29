@@ -32,11 +32,15 @@ describe("uploadDescription", () => {
   });
 
   it("should upload description to IPFS and log CID", async () => {
+    const consoleLogStub = sinon.stub(console, "log");
     const mockCid = "randomCID";
     const uploadToPinataMock: sinon.SinonStub = sinon.stub(pinata, "uploadToPinata").resolves(mockCid);
 
     await uploadDescription("testOmnibus", "Test description", { pinataToken: "mockPinataToken" });
 
-    expect(uploadToPinataMock.calledWith("Test description", "testOmnibus_description.md")).to.be.true;
+    expect(uploadToPinataMock.calledWith(new File(["Test description"], "testOmnibus", { type: "text/markdown" }))).to
+      .be.true;
+    expect(consoleLogStub.calledWithMatch(new RegExp(`CID: ${mockCid}`))).to.be.true;
+    expect(consoleLogStub.calledWithMatch(new RegExp(`Link: https://${mockCid}.ipfs.w3s.link`))).to.be.true;
   });
 });
