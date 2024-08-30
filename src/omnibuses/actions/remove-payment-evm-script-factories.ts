@@ -1,12 +1,9 @@
 import { EventCheck, FormattedEvmCall, call, event } from "../../votes";
 
-import { OmnibusAction } from "../omnibus-action";
 import { Address } from "../../common/types";
-import { OmnibusActionInput } from "../omnibus-action-meta";
-import { NetworkName } from "../../networks";
 import { LidoEthContracts } from "../../lido";
 
-interface RemovePaymentEvmScriptFactoriesInput extends OmnibusActionInput {
+interface RemovePaymentEvmScriptFactoriesInput {
   name: string;
   factories: {
     topUp: Address;
@@ -15,82 +12,29 @@ interface RemovePaymentEvmScriptFactoriesInput extends OmnibusActionInput {
   };
 }
 
-interface RemoveEvmScriptFactoryInput extends OmnibusActionInput {
-  factory: Address;
-}
-
-abstract class RemoveEvmScriptFactory<T extends RemoveEvmScriptFactoryInput> extends OmnibusAction<T> {
-  getEVMCalls(): FormattedEvmCall[] {
-    return [call(this.contracts.easyTrack.removeEVMScriptFactory, [this.input.factory])];
+export const RemovePaymentEvmScriptFactories = (
+  contracts: LidoEthContracts<"mainnet">,
+  input: RemovePaymentEvmScriptFactoriesInput,
+) => {
+  const { easyTrack, callsScript, voting } = contracts;
+  const factoriesToRemove = [input.factories.topUp];
+  if (input.factories.addRecipient) {
+    factoriesToRemove.push(input.factories.addRecipient);
+  }
+  if (input.factories.removeRecipient) {
+    factoriesToRemove.push(input.factories.removeRecipient);
   }
 
-  getExpectedEvents(): EventCheck[] {
-    const { callsScript, voting, easyTrack } = this.contracts;
-    return [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
-      event(easyTrack, "EVMScriptFactoryRemoved", { args: [this.input.factory] }),
-    ];
-  }
-}
-
-interface RemovePaymentEvmScriptFactoryInput extends RemoveEvmScriptFactoryInput {
-  name: string;
-}
-
-class RemoveTopUpEvmScriptFactory extends RemoveEvmScriptFactory<RemovePaymentEvmScriptFactoryInput> {
-  get title(): string {
-    const { name, factory } = this.input;
-    return `Remove "${name} Top Up EVM Script Factory" ${factory} from EasyTrack`;
-  }
-}
-
-class RemoveAddEvmScriptFactory extends RemoveEvmScriptFactory<RemovePaymentEvmScriptFactoryInput> {
-  get title(): string {
-    const { name, factory } = this.input;
-    return `Remove "${name} Add Recipient EVM Script Factory" ${factory} from EasyTrack`;
-  }
-}
-
-class RemoveRemoveEvmScriptFactory extends RemoveEvmScriptFactory<RemovePaymentEvmScriptFactoryInput> {
-  get title(): string {
-    const { name, factory } = this.input;
-    return `Remove "${name} Remove Recipient EVM Script Factory" ${factory} from EasyTrack`;
-  }
-}
-
-export class RemovePaymentEvmScriptFactories extends OmnibusAction<RemovePaymentEvmScriptFactoriesInput> {
-  private readonly _items: (RemoveTopUpEvmScriptFactory | RemoveAddEvmScriptFactory | RemoveRemoveEvmScriptFactory)[];
-
-  constructor(input: RemovePaymentEvmScriptFactoriesInput) {
-    super(input);
-    this._items = [new RemoveTopUpEvmScriptFactory({ name: input.name, factory: input.factories.topUp })];
-    if (input.factories.addRecipient) {
-      this._items.push(new RemoveAddEvmScriptFactory({ name: input.name, factory: input.factories.addRecipient }));
-    }
-    if (input.factories.removeRecipient) {
-      this._items.push(
-        new RemoveRemoveEvmScriptFactory({
-          name: input.name,
-          factory: input.factories.removeRecipient,
-        }),
-      );
-    }
-  }
-
-  get title() {
-    return `Remove "${this.input.name}" payment EVM Script Factories`;
-  }
-
-  init(network: NetworkName, contracts: LidoEthContracts) {
-    super.init(network, contracts);
-    this._items.forEach((item) => item.init(network, contracts));
-  }
-
-  getEVMCalls(): FormattedEvmCall[] {
-    return this._items.flatMap((item) => item.getEVMCalls());
-  }
-
-  getExpectedEvents(): EventCheck[] {
-    return this._items.flatMap((item) => item.getExpectedEvents());
-  }
-}
+  return {
+    title: `Remove "${input.name}" payment EVM Script Factories`,
+    getEVMCalls(): FormattedEvmCall[] {
+      return factoriesToRemove.map((factory) => call(easyTrack.removeEVMScriptFactory, [factory]));
+    },
+    getExpectedEvents(): EventCheck[] {
+      return factoriesToRemove.flatMap((factory) => [
+        event(callsScript, "LogScriptCall", { emitter: voting }),
+        event(easyTrack, "EVMScriptFactoryRemoved", { args: [factory] }),
+      ]);
+    },
+  };
+};

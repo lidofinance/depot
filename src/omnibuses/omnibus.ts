@@ -1,12 +1,7 @@
 import { NetworkName } from "../networks";
-import lido, { LidoEthContracts } from "../lido";
-import votes, { EventCheck, EvmScriptParser, FormattedEvmCall } from "../votes";
-import { RpcProvider, SignerWithAddress } from "../providers";
+import { EvmScriptParser, FormattedEvmCall } from "../votes";
 
 import { OmnibusAction } from "./omnibus-action";
-
-export type TitledEvmCall = [string, FormattedEvmCall];
-export type TitledEventChecks = [string, ...EventCheck[]];
 
 interface OmnibusPlan<N extends NetworkName> {
   /**
@@ -29,15 +24,16 @@ interface OmnibusPlan<N extends NetworkName> {
    * Contains the info about the omnibus execution - the number of the block with execution transaction.
    */
   executedOn?: number | undefined;
-  actions(contracts: LidoEthContracts<N>): OmnibusAction<any>[];
+  actions: OmnibusAction[];
 }
 
 export class Omnibus<N extends NetworkName> {
   private readonly roadmap: OmnibusPlan<N>;
-  private readonly _actions: OmnibusAction<any>[] = [];
+  private readonly _actions: OmnibusAction[] = [];
 
   constructor(roadmap: OmnibusPlan<N>) {
     this.roadmap = roadmap;
+    this._actions = roadmap.actions;
   }
 
   /**
@@ -78,24 +74,6 @@ export class Omnibus<N extends NetworkName> {
   public get isExecuted(): boolean {
     return this.isLaunched && this.roadmap.executedOn !== undefined;
   }
-
-  public async launch(launcher: SignerWithAddress) {
-    return votes.start(launcher, this.script, this.description, false);
-  }
-
-  private contracts(provider?: RpcProvider) {
-    return lido.eth[this.network](provider) as LidoEthContracts<N>;
-  }
-
-  init(provider: RpcProvider) {
-    const contracts = this.contracts(provider);
-    const actions = this.roadmap.actions(contracts);
-    actions.forEach((action) => {
-      action.init(this.roadmap.network, contracts);
-      this._actions.push(action);
-    });
-  }
-
   get actions() {
     return this._actions;
   }

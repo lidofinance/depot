@@ -1,38 +1,37 @@
 import { Omnibus } from "../src/omnibuses/omnibus";
-import { TransferAssets } from "../src/omnibuses/actions/transfer-assets";
-import { UpdateStakingModule } from "../src/omnibuses/actions/update-staking-module";
 import { StakingModule } from "../src/lido/lido";
-import { AddNodeOperators } from "../src/omnibuses/actions/add-node-operators";
-import { AddPaymentEvmScriptFactories } from "../src/omnibuses/actions/add-payment-evm-script-factories";
-import { RemovePaymentEvmScriptFactories } from "../src/omnibuses/actions/remove-payment-evm-script-factories";
+import lido from "../src/lido";
+import { omnibusActions } from "../src/omnibuses/actions";
 
+const contracts = lido.eth["mainnet"]();
+const actions = omnibusActions(contracts);
 export default new Omnibus({
   network: "mainnet",
   // launchedOn: 12345678, // Launch block number should be set only if omnibus was successfully launched.
   // voteId: 000, // Vote ID should be set only if omnibus is already started.
   // executedOn: 12345678,  // Execution block number should be set only if vote is passed and omnibus was successfully executed.
   quorumReached: false, // Should be set to true if quorum was reached during the vote.
-  actions: ({ ldo, stETH }) => [
-    new UpdateStakingModule({
+  actions: [
+    actions.stakingRouter.updateStakingModule({
       title: "Raise Simple DVT target share from 0.5% to 4%", // Title is always required
       stakingModuleId: StakingModule.SimpleDVT,
       targetShare: 400,
       treasuryFee: 200,
       stakingModuleFee: 800,
     }),
-    new TransferAssets({
+    actions.assets.transfer({
       title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
       to: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D", // Pool Maintenance Labs Ltd. (PML) multisig
-      token: ldo,
+      token: contracts.ldo,
       amount: 180000n * 10n ** 18n,
     }),
-    new TransferAssets({
-      title: "Transfer 180,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig",
+    actions.assets.transfer({
+      title: "Transfer 110,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig",
       to: "0x9B1cebF7616f2BC73b47D226f90b01a7c9F86956", // Argo Technology Consulting Ltd. (ATC) multisig
-      token: ldo,
+      token: contracts.ldo,
       amount: 110000n * 10n ** 18n,
     }),
-    new AddNodeOperators({
+    actions.stakingRouter.addNodeOperators({
       operators: [
         {
           name: "A41",
@@ -64,18 +63,16 @@ export default new Omnibus({
         },
       ],
     }),
-    new AddPaymentEvmScriptFactories({
+    actions.easyTrack.addPaymentEvmScriptFactories({
       name: "reWARDS stETH",
       factories: {
         topUp: "0x85d703B2A4BaD713b596c647badac9A1e95bB03d",
         addRecipient: "0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C",
         removeRecipient: "0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E",
       },
-      token: stETH.address,
       registry: "0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A",
-      trustedCaller: "0x87D93d9B2C672bf9c9642d853a8682546a5012B5",
     }),
-    new RemovePaymentEvmScriptFactories({
+    actions.easyTrack.removePaymentEvmScriptFactories({
       name: "reWARDS LDO",
       factories: {
         topUp: "0x200dA0b6a9905A377CF8D469664C65dB267009d1",

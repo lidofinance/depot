@@ -10,7 +10,7 @@ import lido from "../../lido";
 
 export const checkOmnibusEvents = (
   contracts: Contracts<typeof LidoOnMainnet>,
-  actions: OmnibusAction<any>[],
+  actions: OmnibusAction[],
   receipt: Receipt,
 ) => {
   let logs = receipt.logs as Log[];

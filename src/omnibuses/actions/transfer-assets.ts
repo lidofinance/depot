@@ -1,34 +1,34 @@
 import { call, event, FormattedEvmCall } from "../../votes";
-import { OmnibusAction } from "../omnibus-action";
 import { BigNumberish } from "ethers";
 import { Address } from "../../common/types";
 import { ERC20 } from "../../../typechain-types";
 import { NamedContract } from "../../contracts";
-import { OmnibusActionInput } from "../omnibus-action-meta";
+import { LidoEthContracts } from "../../lido";
 
-interface TransferAssetsInput extends OmnibusActionInput {
+interface TransferAssetsInput {
   title: string; // The title is required for the assets transfer action
   to: Address;
   token: NamedContract<ERC20>;
   amount: BigNumberish;
 }
 
-export class TransferAssets extends OmnibusAction<TransferAssetsInput> {
-  getEVMCalls(): FormattedEvmCall[] {
-    const { to, amount, token } = this.input;
-    return [call(this.contracts.finance.newImmediatePayment, [token, to, amount, this.title])];
-  }
+export const TransferAssets = (contracts: LidoEthContracts<"mainnet">, input: TransferAssetsInput) => {
+  const { finance, agent, callsScript, voting } = contracts;
+  const { to, amount, token } = input;
 
-  getExpectedEvents() {
-    const { finance, agent, callsScript, voting } = this.contracts;
-    const { to, amount, token } = this.input;
-
-    return [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
-      event(finance, "NewPeriod", undefined, { optional: true }),
-      event(finance, "NewTransaction", { args: [undefined, false, to, amount, this.title] }),
-      event(token, "Transfer", { args: [agent, to, amount] }),
-      event(agent, "VaultTransfer", { args: [token, to, amount] }),
-    ];
-  }
-}
+  return {
+    title: input.title,
+    getEVMCalls(): FormattedEvmCall[] {
+      return [call(finance.newImmediatePayment, [token, to, amount, input.title])];
+    },
+    getExpectedEvents() {
+      return [
+        event(callsScript, "LogScriptCall", { emitter: voting }),
+        event(finance, "NewPeriod", undefined, { optional: true }),
+        event(finance, "NewTransaction", { args: [undefined, false, to, amount, input.title] }),
+        event(token, "Transfer", { args: [agent, to, amount] }),
+        event(agent, "VaultTransfer", { args: [token, to, amount] }),
+      ];
+    },
+  };
+};

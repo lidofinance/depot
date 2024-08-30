@@ -4,10 +4,10 @@ import { randomAddress } from "hardhat/internal/hardhat-network/provider/utils/r
 import { HexStrPrefixed } from "../../common/bytes";
 
 describe("AddNodeOperators", () => {
-  let addNodeOperators: AddNodeOperators;
+  let addNodeOperators: any;
 
   beforeEach(() => {
-    addNodeOperators = new AddNodeOperators({
+    addNodeOperators = AddNodeOperators({} as any, {
       operators: [
         { name: "Operator 1", rewardAddress: randomAddress().toString() as HexStrPrefixed },
         { name: "Operator 2", rewardAddress: randomAddress().toString() as HexStrPrefixed },

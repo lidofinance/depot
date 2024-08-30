@@ -49,7 +49,7 @@ task("omnibus:test", "Runs tests for the given omnibus")
   .addOptionalParam<RpcNodeName | "local">("rpc", "The dev RPC node type to run tests on", "hardhat", types.string)
   .addOptionalParam<number>("blockNumber", "Block number to spawn rpc node on", undefined, types.int)
   .addOptionalParam<boolean>("simulate", "Shall the simulation be run before the tests", false, types.boolean)
-  .setAction(async ({ name, rpc = "hardhat", simulate }) => {
+  .setAction(async ({ name }) => {
     const omnibus: Omnibus<NetworkName> = require(`../omnibuses/${name}.ts`).default;
 
     if (omnibus.isExecuted) {
@@ -95,9 +95,6 @@ task("omnibus:run", "Runs the omnibus with given name")
     const [provider, node] = await prepareExecEnv(omnibus.network, rpc);
 
     try {
-      // Init omnibus
-      await omnibus.init(provider);
-
       // Prepare execution environment
       const network = await provider.getNetwork();
       console.log(`Network:`);

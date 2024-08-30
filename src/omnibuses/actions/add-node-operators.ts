@@ -1,47 +1,44 @@
-import { call, event, FormattedEvmCall, forward } from "../../votes";
+import { call, event, EventCheck, FormattedEvmCall, forward } from "../../votes";
 
-import { OmnibusAction } from "../omnibus-action";
 import { Address } from "../../common/types";
-import { OmnibusActionInput } from "../omnibus-action-meta";
+import { LidoEthContracts } from "../../lido";
 
 export interface NewNodeOperatorInput {
   name: string;
   rewardAddress: Address;
 }
 
-interface AddNodeOperatorsInput extends OmnibusActionInput {
+export interface AddNodeOperatorsInput {
   operators: NewNodeOperatorInput[];
 }
 
-export class AddNodeOperators extends OmnibusAction<AddNodeOperatorsInput> {
-  get title(): string {
-    return (
-      `Add ${this.input.operators.length} node operators:\n` +
-      this.input.operators.flatMap((item) => ` - ${item.name}`).join("\n")
-    );
-  }
+export const AddNodeOperators = (contracts: LidoEthContracts<"mainnet">, input: AddNodeOperatorsInput) => {
+  const { callsScript, curatedStakingModule, agent, voting } = contracts;
+  const { operators } = input;
 
-  getEVMCalls(): FormattedEvmCall[] {
-    const calls = this.input.operators.map((item) => {
-      const { name, rewardAddress } = item;
-      const { curatedStakingModule } = this.contracts;
-      return call(curatedStakingModule.addNodeOperator, [name, rewardAddress]);
-    });
-    return [forward(this.contracts.agent, calls)];
-  }
+  return {
+    title:
+      `Add ${input.operators.length} node operators:\n` +
+      input.operators.flatMap((item) => ` - ${item.name}`).join("\n"),
+    getEVMCalls(): FormattedEvmCall[] {
+      const calls = operators.map((item) => {
+        const { name, rewardAddress } = item;
+        return call(curatedStakingModule.addNodeOperator, [name, rewardAddress]);
+      });
+      return [forward(agent, calls)];
+    },
+    getExpectedEvents(): EventCheck[] {
+      const subItemEvents = operators.flatMap((operator) => {
+        const { name, rewardAddress } = operator;
+        return [
+          event(callsScript, "LogScriptCall", { emitter: agent }),
+          event(curatedStakingModule, "NodeOperatorAdded", {
+            args: [undefined, name, rewardAddress, 0],
+          }),
+        ];
+      });
 
-  getExpectedEvents() {
-    const { callsScript, curatedStakingModule, agent, voting } = this.contracts;
-    const subItemEvents = this.input.operators.flatMap((item) => {
-      const { name, rewardAddress } = item;
-      return [
-        event(callsScript, "LogScriptCall", { emitter: agent }),
-        event(curatedStakingModule, "NodeOperatorAdded", {
-          args: [undefined, name, rewardAddress, 0],
-        }),
-      ];
-    });
-
-    return [event(callsScript, "LogScriptCall", { emitter: voting }), ...subItemEvents, event(agent, "ScriptResult")];
-  }
-}
+      return [event(callsScript, "LogScriptCall", { emitter: voting }), ...subItemEvents, event(agent, "ScriptResult")];
+    },
+  };
+};

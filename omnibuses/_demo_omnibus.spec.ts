@@ -19,8 +19,6 @@ const {
   checkActionEvents,
 } = checks(contracts, provider);
 
-omnibus.init(provider);
-
 // Testing values
 const expectedTargetShare = 400n;
 const expectedTreasuryFee = 200n;
@@ -36,6 +34,36 @@ const tokenTransfers = [
   },
 ];
 const newNopCount = 7;
+const newOperators = [
+  {
+    name: "A41",
+    rewardAddress: "0x2A64944eBFaFF8b6A0d07B222D3d83ac29c241a7",
+  },
+  {
+    name: "Develp GmbH",
+    rewardAddress: "0x0a6a0b60fFeF196113b3530781df6e747DdC565e",
+  },
+  {
+    name: "Ebunker",
+    rewardAddress: "0x2A2245d1f47430b9f60adCFC63D158021E80A728",
+  },
+  {
+    name: "Gateway.fm AS",
+    rewardAddress: "0x78CEE97C23560279909c0215e084dB293F036774",
+  },
+  {
+    name: "Numic",
+    rewardAddress: "0x0209a89b6d9F707c14eB6cD4C3Fb519280a7E1AC",
+  },
+  {
+    name: "ParaFi Technologies LLC",
+    rewardAddress: "0x5Ee590eFfdf9456d5666002fBa05fbA8C3752CB7",
+  },
+  {
+    name: "RockawayX Infra",
+    rewardAddress: "0xcA6817DAb36850D58375A10c78703CE49d41D25a",
+  },
+];
 const addFactoryValues = {
   name: "reWARDS stETH",
   factories: {
@@ -127,13 +155,16 @@ describe("Testing _demo_omnibus", () => {
         await stakingRouterChecks.checkNodeOperatorsCount(expectedNodeOperatorsCount);
       });
 
-      const newOperators = omnibus.actions[3]["input"].operators;
       for (let i = 0; i < newOperators.length; i++) {
         const operator = newOperators[i];
         it(`operator ${operator.name} was successfully added`, async () => {
           const operatorIndex = nodeOperatorsCountBefore + BigInt(i);
 
-          await stakingRouterChecks.checkNodeOperator(operatorIndex, operator.name, operator.rewardAddress);
+          await stakingRouterChecks.checkNodeOperator(
+            operatorIndex,
+            operator.name,
+            operator.rewardAddress as `0x${string}`,
+          );
         });
       }
     });

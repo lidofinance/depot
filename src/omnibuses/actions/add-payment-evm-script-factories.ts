@@ -1,16 +1,13 @@
 import { call, event, EventCheck, FormattedEvmCall } from "../../votes";
 import { AllowedRecipientsRegistry__factory } from "../../../typechain-types";
-import bytes, { HexStrPrefixed } from "../../common/bytes";
+import bytes from "../../common/bytes";
 
-import { OmnibusAction } from "../omnibus-action";
 import { Address } from "../../common/types";
-import { OmnibusActionInput } from "../omnibus-action-meta";
-import { NetworkName } from "../../networks";
 import { LidoEthContracts } from "../../lido";
 
 const iAllowedRecipientsRegistry = AllowedRecipientsRegistry__factory.createInterface();
 
-interface AddPaymentEvmScriptFactoriesInput extends OmnibusActionInput {
+interface AddPaymentEvmScriptFactoriesInput {
   name: string;
   registry: Address;
   factories: {
@@ -18,149 +15,93 @@ interface AddPaymentEvmScriptFactoriesInput extends OmnibusActionInput {
     addRecipient?: Address;
     removeRecipient?: Address;
   };
-  token: Address;
-  trustedCaller: Address;
 }
 
-interface AddEvmScriptFactoryInput extends OmnibusActionInput {
+interface FactoryPermission {
   factory: Address;
+  permission: string;
 }
 
-interface AddTopUpEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
-  name: string;
-  token: Address;
+interface AddEvmScriptFactoryInput {
+  factory: Address;
   registry: Address;
-  trustedCaller: Address;
 }
 
-interface RecipientEvmScriptFactoryInput extends AddEvmScriptFactoryInput {
-  name: string;
-  registry: Address;
-  trustedCaller: Address;
-}
+const AddTopUpEvmScriptFactory = (contracts: LidoEthContracts<"mainnet">, input: AddEvmScriptFactoryInput) => {
+  const { finance } = contracts;
+  const permission = bytes.join(
+    // allow to call finance.newImmediatePayment()
+    ...[finance.address, finance.newImmediatePayment.fragment.selector],
+    // allow to call allowedRecipientsRegistry.updateSpentAmount()
+    ...[input.registry, iAllowedRecipientsRegistry.getFunction("updateSpentAmount").selector],
+  );
+  return {
+    factory: input.factory,
+    permission,
+  };
+};
 
-abstract class AddEvmScriptFactory<T extends AddEvmScriptFactoryInput> extends OmnibusAction<T> {
-  getEVMCalls(): FormattedEvmCall[] {
-    const { easyTrack } = this.contracts;
-    return [call(easyTrack.addEVMScriptFactory, [this.input.factory, this.permission])];
-  }
+const AddAddRecipientEvmScriptFactory = (input: AddEvmScriptFactoryInput) => {
+  const permission = bytes.join(
+    // allow to call allowedRecipientsRegistry.addRecipient()
+    ...[input.registry, iAllowedRecipientsRegistry.getFunction("addRecipient").selector],
+  );
+  return {
+    factory: input.factory,
+    permission,
+  };
+};
 
-  getExpectedEvents(): EventCheck[] {
-    const { easyTrack, callsScript, voting } = this.contracts;
-    const { factory } = this.input;
-    return [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
-      event(easyTrack, "EVMScriptFactoryAdded", {
-        args: [factory, this.permission],
-      }),
-    ];
-  }
+const AddRemoveRecipientEvmScriptFactory = (input: AddEvmScriptFactoryInput) => {
+  const permission = bytes.join(
+    // allow to call allowedRecipientsRegistry.removeRecipient()
+    ...[input.registry, iAllowedRecipientsRegistry.getFunction("removeRecipient").selector],
+  );
+  return {
+    factory: input.factory,
+    permission,
+  };
+};
 
-  protected abstract get permission(): HexStrPrefixed;
-}
-
-class AddTopUpEvmScriptFactory extends AddEvmScriptFactory<AddTopUpEvmScriptFactoryInput> {
-  get title() {
-    return `Add "${this.input.name} Top Up EVM Script Factory" ${this.input.factory} to EasyTrack`;
-  }
-
-  protected get permission() {
-    const { finance } = this.contracts;
-    return bytes.join(
-      // allow to call finance.newImmediatePayment()
-      ...[finance.address, finance.newImmediatePayment.fragment.selector],
-      // allow to call allowedRecipientsRegistry.updateSpentAmount()
-      ...[this.input.registry, iAllowedRecipientsRegistry.getFunction("updateSpentAmount").selector],
-    );
-  }
-}
-
-class AddAddRecipientEvmScriptFactory extends AddEvmScriptFactory<RecipientEvmScriptFactoryInput> {
-  get title() {
-    return `Add "${this.input.name} Add Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
-  }
-
-  getEVMCalls(): FormattedEvmCall[] {
-    const { easyTrack } = this.contracts;
-    const { factory } = this.input;
-    return [call(easyTrack.addEVMScriptFactory, [factory, this.permission])];
-  }
-
-  protected get permission() {
-    return bytes.join(
-      // allow to call allowedRecipientsRegistry.addRecipient()
-      ...[this.input.registry, iAllowedRecipientsRegistry.getFunction("addRecipient").selector],
-    );
-  }
-}
-
-class AddRemoveRecipientEvmScriptFactory extends AddEvmScriptFactory<RecipientEvmScriptFactoryInput> {
-  get title(): string {
-    return `Add "${this.input.name} Remove Recipient EVM Script Factory" ${this.input.factory} to EasyTrack`;
-  }
-
-  protected get permission() {
-    return bytes.join(
-      // allow to call allowedRecipientsRegistry.removeRecipient()
-      ...[this.input.registry, iAllowedRecipientsRegistry.getFunction("removeRecipient").selector],
-    );
-  }
-}
-
-export class AddPaymentEvmScriptFactories extends OmnibusAction<AddPaymentEvmScriptFactoriesInput> {
-  private readonly _items: (
-    | AddTopUpEvmScriptFactory
-    | AddAddRecipientEvmScriptFactory
-    | AddRemoveRecipientEvmScriptFactory
-  )[];
-
-  constructor(input: AddPaymentEvmScriptFactoriesInput) {
-    super(input);
-    this._items = [
-      new AddTopUpEvmScriptFactory({
-        name: input.name,
-        token: input.token,
+export const AddPaymentEvmScriptFactories = (
+  contracts: LidoEthContracts<"mainnet">,
+  input: AddPaymentEvmScriptFactoriesInput,
+) => {
+  const items: FactoryPermission[] = [
+    AddTopUpEvmScriptFactory(contracts, {
+      registry: input.registry,
+      factory: input.factories.topUp,
+    }),
+  ];
+  if (input.factories.addRecipient) {
+    items.push(
+      AddAddRecipientEvmScriptFactory({
         registry: input.registry,
-        factory: input.factories.topUp,
-        trustedCaller: input.trustedCaller,
+        factory: input.factories.addRecipient,
       }),
-    ];
-    if (input.factories.addRecipient) {
-      this._items.push(
-        new AddAddRecipientEvmScriptFactory({
-          name: input.name,
-          registry: input.registry,
-          factory: input.factories.addRecipient,
-          trustedCaller: input.trustedCaller,
+    );
+  }
+  if (input.factories.removeRecipient) {
+    items.push(
+      AddRemoveRecipientEvmScriptFactory({
+        registry: input.registry,
+        factory: input.factories.removeRecipient,
+      }),
+    );
+  }
+
+  return {
+    title: `Add "${input.name}" payment EVM Script Factories`,
+    getEVMCalls(): FormattedEvmCall[] {
+      return items.flatMap((item) => call(contracts.easyTrack.addEVMScriptFactory, [item.factory, item.permission]));
+    },
+    getExpectedEvents(): EventCheck[] {
+      return items.flatMap((item) => [
+        event(contracts.callsScript, "LogScriptCall", { emitter: contracts.voting }),
+        event(contracts.easyTrack, "EVMScriptFactoryAdded", {
+          args: [item.factory, item.permission],
         }),
-      );
-    }
-    if (input.factories.removeRecipient) {
-      this._items.push(
-        new AddRemoveRecipientEvmScriptFactory({
-          name: input.name,
-          registry: input.registry,
-          factory: input.factories.removeRecipient,
-          trustedCaller: input.trustedCaller,
-        }),
-      );
-    }
-  }
-
-  init(network: NetworkName, contracts: LidoEthContracts) {
-    super.init(network, contracts);
-    this._items.forEach((item) => item.init(network, contracts));
-  }
-
-  get title(): string {
-    return `Add "${this.input.name}" payment EVM Script Factories`;
-  }
-
-  getEVMCalls(): FormattedEvmCall[] {
-    return this._items.flatMap((item) => item.getEVMCalls());
-  }
-
-  getExpectedEvents(): EventCheck[] {
-    return this._items.flatMap((item) => item.getExpectedEvents());
-  }
-}
+      ]);
+    },
+  };
+};

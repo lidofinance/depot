@@ -1,44 +1,41 @@
 import { FormattedEvmCall, call, event, forward } from "../../votes";
-import { OmnibusAction } from "../omnibus-action";
 import { BigNumberish } from "ethers";
 import { StakingModule } from "../../lido/lido";
-import { OmnibusActionInput } from "../omnibus-action-meta";
+import { LidoEthContracts } from "../../lido";
 
-interface UpdateStakingModuleInput extends OmnibusActionInput {
+interface UpdateStakingModuleInput {
+  title: string;
   stakingModuleId: StakingModule;
   targetShare: BigNumberish;
   treasuryFee: BigNumberish;
   stakingModuleFee: BigNumberish;
 }
 
-export class UpdateStakingModule extends OmnibusAction<UpdateStakingModuleInput> {
-  private get stakingRouter() {
-    return this.contracts.stakingRouter;
-  }
+export const UpdateStakingModule = (contracts: LidoEthContracts<"mainnet">, input: UpdateStakingModuleInput) => {
+  const { agent, callsScript, voting, stakingRouter } = contracts;
+  const { stakingModuleId, targetShare, stakingModuleFee, treasuryFee } = input;
 
-  getEVMCalls(): FormattedEvmCall[] {
-    const { stakingModuleId, targetShare, treasuryFee, stakingModuleFee } = this.input;
-    return [
-      forward(this.contracts.agent, [
-        call(this.stakingRouter.updateStakingModule, [stakingModuleId, targetShare, stakingModuleFee, treasuryFee]),
-      ]),
-    ];
-  }
-
-  getExpectedEvents() {
-    const { agent, callsScript, voting, stakingRouter } = this.contracts;
-    const { stakingModuleId, targetShare, stakingModuleFee, treasuryFee } = this.input;
-
-    return [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
-      event(callsScript, "LogScriptCall", { emitter: agent }),
-      event(stakingRouter, "StakingModuleTargetShareSet", {
-        args: [stakingModuleId, targetShare, agent],
-      }),
-      event(stakingRouter, "StakingModuleFeesSet", {
-        args: [stakingModuleId, stakingModuleFee, treasuryFee, agent],
-      }),
-      event(agent, "ScriptResult"),
-    ];
-  }
-}
+  return {
+    title: `Update ${StakingModule[input.stakingModuleId]} staking module`,
+    getEVMCalls(): FormattedEvmCall[] {
+      return [
+        forward(agent, [
+          call(stakingRouter.updateStakingModule, [stakingModuleId, targetShare, stakingModuleFee, treasuryFee]),
+        ]),
+      ];
+    },
+    getExpectedEvents() {
+      return [
+        event(callsScript, "LogScriptCall", { emitter: voting }),
+        event(callsScript, "LogScriptCall", { emitter: agent }),
+        event(stakingRouter, "StakingModuleTargetShareSet", {
+          args: [stakingModuleId, targetShare, agent],
+        }),
+        event(stakingRouter, "StakingModuleFeesSet", {
+          args: [stakingModuleId, stakingModuleFee, treasuryFee, agent],
+        }),
+        event(agent, "ScriptResult"),
+      ];
+    },
+  };
+};
