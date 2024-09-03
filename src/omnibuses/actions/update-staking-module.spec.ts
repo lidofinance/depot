@@ -2,7 +2,6 @@ import { UpdateStakingModule } from "./update-staking-module";
 import { expect } from "chai";
 import sinon from "sinon";
 import { StakingModule } from "../../lido/lido";
-import { AragonEvmForward } from "../../votes/vote-script";
 import { StakingRouter__factory } from "../../../typechain-types";
 import { randomAddress, randomHash } from "hardhat/internal/hardhat-network/provider/utils/random";
 
@@ -80,7 +79,7 @@ describe("UpdateStakingModule", () => {
   });
 
   it("should correctly set targetShare, treasuryFee, and stakingModuleFee", async () => {
-    const evmCalls: AragonEvmForward[] = updateStakingModule.getEVMCalls() as AragonEvmForward[];
+    const evmCalls = updateStakingModule.EVMCalls;
     const call = evmCalls[0]["calls"][0];
 
     expect(evmCalls[0]["calls"]).to.be.an("array");
@@ -95,7 +94,7 @@ describe("UpdateStakingModule", () => {
   });
 
   it("should emit correct events after update", async () => {
-    const events = updateStakingModule.getExpectedEvents();
+    const events = updateStakingModule.expectedEvents;
 
     expect(events).to.be.an("array");
     expect(events).to.have.length(5);

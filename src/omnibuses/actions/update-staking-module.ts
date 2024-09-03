@@ -1,4 +1,4 @@
-import { FormattedEvmCall, call, event, forward } from "../../votes";
+import { call, event, forward } from "../../votes";
 import { BigNumberish } from "ethers";
 import { StakingModule } from "../../lido/lido";
 import { LidoEthContracts } from "../../lido";
@@ -17,25 +17,21 @@ export const UpdateStakingModule = (contracts: LidoEthContracts<"mainnet">, inpu
 
   return {
     title: `Update ${StakingModule[input.stakingModuleId]} staking module`,
-    getEVMCalls(): FormattedEvmCall[] {
-      return [
-        forward(agent, [
-          call(stakingRouter.updateStakingModule, [stakingModuleId, targetShare, stakingModuleFee, treasuryFee]),
-        ]),
-      ];
-    },
-    getExpectedEvents() {
-      return [
-        event(callsScript, "LogScriptCall", { emitter: voting }),
-        event(callsScript, "LogScriptCall", { emitter: agent }),
-        event(stakingRouter, "StakingModuleTargetShareSet", {
-          args: [stakingModuleId, targetShare, agent],
-        }),
-        event(stakingRouter, "StakingModuleFeesSet", {
-          args: [stakingModuleId, stakingModuleFee, treasuryFee, agent],
-        }),
-        event(agent, "ScriptResult"),
-      ];
-    },
+    EVMCalls: [
+      forward(agent, [
+        call(stakingRouter.updateStakingModule, [stakingModuleId, targetShare, stakingModuleFee, treasuryFee]),
+      ]),
+    ],
+    expectedEvents: [
+      event(callsScript, "LogScriptCall", { emitter: voting }),
+      event(callsScript, "LogScriptCall", { emitter: agent }),
+      event(stakingRouter, "StakingModuleTargetShareSet", {
+        args: [stakingModuleId, targetShare, agent],
+      }),
+      event(stakingRouter, "StakingModuleFeesSet", {
+        args: [stakingModuleId, stakingModuleFee, treasuryFee, agent],
+      }),
+      event(agent, "ScriptResult"),
+    ],
   };
 };

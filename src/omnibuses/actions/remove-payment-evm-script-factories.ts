@@ -1,4 +1,4 @@
-import { EventCheck, FormattedEvmCall, call, event } from "../../votes";
+import { call, event } from "../../votes";
 
 import { Address } from "../../common/types";
 import { LidoEthContracts } from "../../lido";
@@ -27,14 +27,10 @@ export const RemovePaymentEvmScriptFactories = (
 
   return {
     title: `Remove "${input.name}" payment EVM Script Factories`,
-    getEVMCalls(): FormattedEvmCall[] {
-      return factoriesToRemove.map((factory) => call(easyTrack.removeEVMScriptFactory, [factory]));
-    },
-    getExpectedEvents(): EventCheck[] {
-      return factoriesToRemove.flatMap((factory) => [
-        event(callsScript, "LogScriptCall", { emitter: voting }),
-        event(easyTrack, "EVMScriptFactoryRemoved", { args: [factory] }),
-      ]);
-    },
+    EVMCalls: factoriesToRemove.map((factory) => call(easyTrack.removeEVMScriptFactory, [factory])),
+    expectedEvents: factoriesToRemove.flatMap((factory) => [
+      event(callsScript, "LogScriptCall", { emitter: voting }),
+      event(easyTrack, "EVMScriptFactoryRemoved", { args: [factory] }),
+    ]),
   };
 };

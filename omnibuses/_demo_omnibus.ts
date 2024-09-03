@@ -2,9 +2,11 @@ import { Omnibus } from "../src/omnibuses/omnibus";
 import { StakingModule } from "../src/lido/lido";
 import lido from "../src/lido";
 import { omnibusActions } from "../src/omnibuses/actions";
+import { call, event } from "../src/votes";
 
 const contracts = lido.eth["mainnet"]();
 const actions = omnibusActions(contracts);
+
 export default new Omnibus({
   network: "mainnet",
   // launchedOn: 12345678, // Launch block number should be set only if omnibus was successfully launched.
@@ -13,17 +15,11 @@ export default new Omnibus({
   quorumReached: false, // Should be set to true if quorum was reached during the vote.
   actions: [
     actions.stakingRouter.updateStakingModule({
-      title: "Raise Simple DVT target share from 0.5% to 4%", // Title is always required
+      title: "Raise Simple DVT target share from 0.5% to 4%",
       stakingModuleId: StakingModule.SimpleDVT,
       targetShare: 400,
       treasuryFee: 200,
       stakingModuleFee: 800,
-    }),
-    actions.assets.transfer({
-      title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
-      to: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D", // Pool Maintenance Labs Ltd. (PML) multisig
-      token: contracts.ldo,
-      amount: 180000n * 10n ** 18n,
     }),
     actions.assets.transfer({
       title: "Transfer 110,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig",
@@ -80,5 +76,35 @@ export default new Omnibus({
         removeRecipient: "0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7",
       },
     }),
+    {
+      title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
+      EVMCalls: [
+        call(contracts.finance.newImmediatePayment, [
+          contracts.ldo,
+          "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
+          180000n * 10n ** 18n,
+          "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
+        ]),
+      ],
+      expectedEvents: [
+        event(contracts.callsScript, "LogScriptCall", { emitter: contracts.voting }),
+        event(contracts.finance, "NewPeriod", undefined, { optional: true }),
+        event(contracts.finance, "NewTransaction", {
+          args: [
+            undefined,
+            false,
+            "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
+            180000n * 10n ** 18n,
+            "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
+          ],
+        }),
+        event(contracts.ldo, "Transfer", {
+          args: [contracts.agent, "0x17F6b2C738a63a8D3A113a228cfd0b373244633D", 180000n * 10n ** 18n],
+        }),
+        event(contracts.agent, "VaultTransfer", {
+          args: [contracts.ldo, "0x17F6b2C738a63a8D3A113a228cfd0b373244633D", 180000n * 10n ** 18n],
+        }),
+      ],
+    },
   ],
 });

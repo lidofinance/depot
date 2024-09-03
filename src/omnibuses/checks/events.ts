@@ -16,10 +16,9 @@ export const checkOmnibusEvents = (
   let logs = receipt.logs as Log[];
 
   for (const action of actions) {
-    const expectedEvents = action.getExpectedEvents();
-    const actionLogs = logs.slice(0, expectedEvents.length);
+    const actionLogs = logs.slice(0, action.expectedEvents.length);
 
-    const [foundEventsCount, absentEvents] = matchLogsToEvents(actionLogs, expectedEvents);
+    const [foundEventsCount, absentEvents] = matchLogsToEvents(actionLogs, action.expectedEvents);
 
     assert.equal(
       absentEvents.length,

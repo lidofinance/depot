@@ -1,4 +1,4 @@
-import { call, event, EventCheck, FormattedEvmCall } from "../../votes";
+import { call, event } from "../../votes";
 import { AllowedRecipientsRegistry__factory } from "../../../typechain-types";
 import bytes from "../../common/bytes";
 
@@ -92,16 +92,12 @@ export const AddPaymentEvmScriptFactories = (
 
   return {
     title: `Add "${input.name}" payment EVM Script Factories`,
-    getEVMCalls(): FormattedEvmCall[] {
-      return items.flatMap((item) => call(contracts.easyTrack.addEVMScriptFactory, [item.factory, item.permission]));
-    },
-    getExpectedEvents(): EventCheck[] {
-      return items.flatMap((item) => [
-        event(contracts.callsScript, "LogScriptCall", { emitter: contracts.voting }),
-        event(contracts.easyTrack, "EVMScriptFactoryAdded", {
-          args: [item.factory, item.permission],
-        }),
-      ]);
-    },
+    EVMCalls: items.flatMap((item) => call(contracts.easyTrack.addEVMScriptFactory, [item.factory, item.permission])),
+    expectedEvents: items.flatMap((item) => [
+      event(contracts.callsScript, "LogScriptCall", { emitter: contracts.voting }),
+      event(contracts.easyTrack, "EVMScriptFactoryAdded", {
+        args: [item.factory, item.permission],
+      }),
+    ]),
   };
 };

@@ -1,4 +1,4 @@
-import { call, event, FormattedEvmCall } from "../../votes";
+import { call, event } from "../../votes";
 import { BigNumberish } from "ethers";
 import { Address } from "../../common/types";
 import { ERC20 } from "../../../typechain-types";
@@ -18,17 +18,13 @@ export const TransferAssets = (contracts: LidoEthContracts<"mainnet">, input: Tr
 
   return {
     title: input.title,
-    getEVMCalls(): FormattedEvmCall[] {
-      return [call(finance.newImmediatePayment, [token, to, amount, input.title])];
-    },
-    getExpectedEvents() {
-      return [
-        event(callsScript, "LogScriptCall", { emitter: voting }),
-        event(finance, "NewPeriod", undefined, { optional: true }),
-        event(finance, "NewTransaction", { args: [undefined, false, to, amount, input.title] }),
-        event(token, "Transfer", { args: [agent, to, amount] }),
-        event(agent, "VaultTransfer", { args: [token, to, amount] }),
-      ];
-    },
+    EVMCalls: [call(finance.newImmediatePayment, [token, to, amount, input.title])],
+    expectedEvents: [
+      event(callsScript, "LogScriptCall", { emitter: voting }),
+      event(finance, "NewPeriod", undefined, { optional: true }),
+      event(finance, "NewTransaction", { args: [undefined, false, to, amount, input.title] }),
+      event(token, "Transfer", { args: [agent, to, amount] }),
+      event(agent, "VaultTransfer", { args: [token, to, amount] }),
+    ],
   };
 };
