@@ -2,6 +2,6 @@ import { EventCheck, FormattedEvmCall } from "../votes";
 
 export interface OmnibusAction {
   title: string;
-  EVMCalls: FormattedEvmCall[];
+  evmCall: FormattedEvmCall;
   expectedEvents: EventCheck[];
 }

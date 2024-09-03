@@ -4,6 +4,7 @@ import bytes from "../../common/bytes";
 
 import { Address } from "../../common/types";
 import { LidoEthContracts } from "../../lido";
+import { OmnibusAction } from "../omnibus-action";
 
 const iAllowedRecipientsRegistry = AllowedRecipientsRegistry__factory.createInterface();
 
@@ -66,7 +67,7 @@ const AddRemoveRecipientEvmScriptFactory = (input: AddEvmScriptFactoryInput) => 
 export const AddPaymentEvmScriptFactories = (
   contracts: LidoEthContracts<"mainnet">,
   input: AddPaymentEvmScriptFactoriesInput,
-) => {
+): OmnibusAction[] => {
   const items: FactoryPermission[] = [
     AddTopUpEvmScriptFactory(contracts, {
       registry: input.registry,
@@ -90,14 +91,14 @@ export const AddPaymentEvmScriptFactories = (
     );
   }
 
-  return {
+  return items.map((item) => ({
     title: `Add "${input.name}" payment EVM Script Factories`,
-    EVMCalls: items.flatMap((item) => call(contracts.easyTrack.addEVMScriptFactory, [item.factory, item.permission])),
-    expectedEvents: items.flatMap((item) => [
+    evmCall: call(contracts.easyTrack.addEVMScriptFactory, [item.factory, item.permission]),
+    expectedEvents: [
       event(contracts.callsScript, "LogScriptCall", { emitter: contracts.voting }),
       event(contracts.easyTrack, "EVMScriptFactoryAdded", {
         args: [item.factory, item.permission],
       }),
-    ]),
-  };
+    ],
+  }));
 };

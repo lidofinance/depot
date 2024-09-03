@@ -59,7 +59,8 @@ export default new Omnibus({
         },
       ],
     }),
-    actions.easyTrack.addPaymentEvmScriptFactories({
+    // some action makers can return multiple actions
+    ...actions.easyTrack.addPaymentEvmScriptFactories({
       name: "reWARDS stETH",
       factories: {
         topUp: "0x85d703B2A4BaD713b596c647badac9A1e95bB03d",
@@ -68,7 +69,8 @@ export default new Omnibus({
       },
       registry: "0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A",
     }),
-    actions.easyTrack.removePaymentEvmScriptFactories({
+    // some action makers can return multiple actions
+    ...actions.easyTrack.removePaymentEvmScriptFactories({
       name: "reWARDS LDO",
       factories: {
         topUp: "0x200dA0b6a9905A377CF8D469664C65dB267009d1",
@@ -78,14 +80,12 @@ export default new Omnibus({
     }),
     {
       title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
-      EVMCalls: [
-        call(contracts.finance.newImmediatePayment, [
-          contracts.ldo,
-          "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
-          180000n * 10n ** 18n,
-          "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
-        ]),
-      ],
+      evmCall: call(contracts.finance.newImmediatePayment, [
+        contracts.ldo,
+        "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
+        180000n * 10n ** 18n,
+        "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
+      ]),
       expectedEvents: [
         event(contracts.callsScript, "LogScriptCall", { emitter: contracts.voting }),
         event(contracts.finance, "NewPeriod", undefined, { optional: true }),

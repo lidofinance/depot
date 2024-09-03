@@ -17,11 +17,9 @@ export const UpdateStakingModule = (contracts: LidoEthContracts<"mainnet">, inpu
 
   return {
     title: `Update ${StakingModule[input.stakingModuleId]} staking module`,
-    EVMCalls: [
-      forward(agent, [
-        call(stakingRouter.updateStakingModule, [stakingModuleId, targetShare, stakingModuleFee, treasuryFee]),
-      ]),
-    ],
+    evmCall: forward(agent, [
+      call(stakingRouter.updateStakingModule, [stakingModuleId, targetShare, stakingModuleFee, treasuryFee]),
+    ]),
     expectedEvents: [
       event(callsScript, "LogScriptCall", { emitter: voting }),
       event(callsScript, "LogScriptCall", { emitter: agent }),

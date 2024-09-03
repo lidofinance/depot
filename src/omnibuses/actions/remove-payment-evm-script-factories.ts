@@ -2,6 +2,7 @@ import { call, event } from "../../votes";
 
 import { Address } from "../../common/types";
 import { LidoEthContracts } from "../../lido";
+import { OmnibusAction } from "../omnibus-action";
 
 interface RemovePaymentEvmScriptFactoriesInput {
   name: string;
@@ -15,7 +16,7 @@ interface RemovePaymentEvmScriptFactoriesInput {
 export const RemovePaymentEvmScriptFactories = (
   contracts: LidoEthContracts<"mainnet">,
   input: RemovePaymentEvmScriptFactoriesInput,
-) => {
+): OmnibusAction[] => {
   const { easyTrack, callsScript, voting } = contracts;
   const factoriesToRemove = [input.factories.topUp];
   if (input.factories.addRecipient) {
@@ -25,12 +26,12 @@ export const RemovePaymentEvmScriptFactories = (
     factoriesToRemove.push(input.factories.removeRecipient);
   }
 
-  return {
-    title: `Remove "${input.name}" payment EVM Script Factories`,
-    EVMCalls: factoriesToRemove.map((factory) => call(easyTrack.removeEVMScriptFactory, [factory])),
-    expectedEvents: factoriesToRemove.flatMap((factory) => [
+  return factoriesToRemove.map((factory) => ({
+    title: `Remove "${input.name}" factory ${factory} payment EVM Script Factories`,
+    evmCall: call(easyTrack.removeEVMScriptFactory, [factory]),
+    expectedEvents: [
       event(callsScript, "LogScriptCall", { emitter: voting }),
       event(easyTrack, "EVMScriptFactoryRemoved", { args: [factory] }),
-    ]),
-  };
+    ],
+  }));
 };

@@ -52,7 +52,7 @@ export class Omnibus<N extends NetworkName> {
   }
 
   public get calls(): FormattedEvmCall[] {
-    return this.actions.flatMap((a) => a.EVMCalls);
+    return this.actions.map((a) => a.evmCall);
   }
 
   public get titles(): string[] {

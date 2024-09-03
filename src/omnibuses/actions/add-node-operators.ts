@@ -2,6 +2,7 @@ import { call, event, forward } from "../../votes";
 
 import { Address } from "../../common/types";
 import { LidoEthContracts } from "../../lido";
+import { OmnibusAction } from "../omnibus-action";
 
 export interface NewNodeOperatorInput {
   name: string;
@@ -12,7 +13,10 @@ export interface AddNodeOperatorsInput {
   operators: NewNodeOperatorInput[];
 }
 
-export const AddNodeOperators = (contracts: LidoEthContracts<"mainnet">, input: AddNodeOperatorsInput) => {
+export const AddNodeOperators = (
+  contracts: LidoEthContracts<"mainnet">,
+  input: AddNodeOperatorsInput,
+): OmnibusAction => {
   const { callsScript, curatedStakingModule, agent, voting } = contracts;
   const { operators } = input;
 
@@ -35,7 +39,7 @@ export const AddNodeOperators = (contracts: LidoEthContracts<"mainnet">, input: 
     title:
       `Add ${input.operators.length} node operators:\n` +
       input.operators.flatMap((item) => ` - ${item.name}`).join("\n"),
-    EVMCalls: [forward(agent, calls)],
+    evmCall: forward(agent, calls),
     expectedEvents: [
       event(callsScript, "LogScriptCall", { emitter: voting }),
       ...subItemEvents,

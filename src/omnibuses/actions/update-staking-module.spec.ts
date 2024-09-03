@@ -79,11 +79,8 @@ describe("UpdateStakingModule", () => {
   });
 
   it("should correctly set targetShare, treasuryFee, and stakingModuleFee", async () => {
-    const evmCalls = updateStakingModule.EVMCalls;
-    const call = evmCalls[0]["calls"][0];
+    const call = updateStakingModule.evmCall["calls"][0];
 
-    expect(evmCalls[0]["calls"]).to.be.an("array");
-    expect(evmCalls[0]["calls"]).to.have.length(1);
     expect(call.address).to.equal(await SRContract.getAddress());
     expect(call["args"]).to.deep.equal([
       testValues.stakingModuleId,
