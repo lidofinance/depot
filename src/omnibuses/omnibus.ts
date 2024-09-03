@@ -3,7 +3,8 @@ import { EvmScriptParser, FormattedEvmCall } from "../votes";
 
 import { OmnibusAction } from "./omnibus-action";
 
-interface OmnibusPlan<N extends NetworkName> {
+export interface OmnibusPlan<N extends NetworkName> {
+  actions: OmnibusAction[];
   /**
    Network where the omnibus must be launched. Supported networks: "mainnet", "holesky".
    */
@@ -24,57 +25,28 @@ interface OmnibusPlan<N extends NetworkName> {
    * Contains the info about the omnibus execution - the number of the block with execution transaction.
    */
   executedOn?: number | undefined;
-  actions: OmnibusAction[];
 }
 
-export class Omnibus<N extends NetworkName> {
-  private readonly roadmap: OmnibusPlan<N>;
-  private readonly _actions: OmnibusAction[] = [];
-
-  constructor(roadmap: OmnibusPlan<N>) {
-    this.roadmap = roadmap;
-    this._actions = roadmap.actions;
-  }
-
-  /**
-   * When the vote was launched, returns the id of the vote. In the other case returns undefined.
-   */
-  public get voteId(): number | undefined {
-    return this.roadmap.voteId;
-  }
-
-  public get network() {
-    return this.roadmap.network;
-  }
-
-  public get name(): string {
-    return `${this.roadmap.voteId}`;
-  }
-
-  public get calls(): FormattedEvmCall[] {
-    return this.actions.map((a) => a.evmCall);
-  }
-
-  public get titles(): string[] {
-    return this.actions.map((a) => a.title);
-  }
-
-  public get description(): string {
-    return this.titles.map((title, index) => `${index + 1}. ${title}`).join("\n");
-  }
-
-  public get script(): string {
-    return EvmScriptParser.encode(this.calls);
-  }
-
-  public get isLaunched(): boolean {
-    return this.roadmap.launchedOn !== undefined && this.roadmap.voteId !== undefined;
-  }
-
-  public get isExecuted(): boolean {
-    return this.isLaunched && this.roadmap.executedOn !== undefined;
-  }
-  get actions() {
-    return this._actions;
-  }
+export interface Omnibus {
+  network: NetworkName;
+  summary: string;
+  calls: FormattedEvmCall[];
+  script: string;
+  voteId?: number;
+  isLaunched: boolean;
+  isExecuted: boolean;
+  actions: OmnibusAction[]; // for event checking purposes
 }
+
+export const makeOmnibus = (plan: OmnibusPlan<any>): Omnibus => {
+  return {
+    network: plan.network,
+    summary: plan.actions.map((action, index) => `${index + 1}. ${action.title}`).join("\n"),
+    calls: plan.actions.map((a) => a.evmCall),
+    script: EvmScriptParser.encode(plan.actions.map((a) => a.evmCall)),
+    voteId: plan.voteId,
+    isLaunched: plan.voteId !== undefined,
+    isExecuted: plan.executedOn !== undefined,
+    actions: plan.actions,
+  };
+};

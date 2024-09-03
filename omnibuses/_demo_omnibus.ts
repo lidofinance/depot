@@ -1,4 +1,4 @@
-import { Omnibus } from "../src/omnibuses/omnibus";
+import { OmnibusPlan } from "../src/omnibuses/omnibus";
 import { StakingModule } from "../src/lido/lido";
 import lido from "../src/lido";
 import { omnibusActions } from "../src/omnibuses/actions";
@@ -7,7 +7,7 @@ import { call, event } from "../src/votes";
 const contracts = lido.eth["mainnet"]();
 const actions = omnibusActions(contracts);
 
-export default new Omnibus({
+export default <OmnibusPlan<"mainnet">>{
   network: "mainnet",
   // launchedOn: 12345678, // Launch block number should be set only if omnibus was successfully launched.
   // voteId: 000, // Vote ID should be set only if omnibus is already started.
@@ -107,4 +107,4 @@ export default new Omnibus({
       ],
     },
   ],
-});
+};

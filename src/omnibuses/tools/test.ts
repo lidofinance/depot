@@ -4,7 +4,6 @@ import { assert } from "../../common/assert";
 import { JsonRpcProvider } from "ethers";
 import votes from "../../votes";
 import { Omnibus } from "../omnibus";
-import { NetworkName } from "../../networks";
 
 interface MochaTest {
   (title: string, fn?: Mocha.Func | Mocha.AsyncFunc | undefined): void;
@@ -21,7 +20,7 @@ export interface OmnibusTestContext {
   provider: RpcProvider;
 }
 
-export const enactOmnibus = async (omnibus: Omnibus<NetworkName>, provider: JsonRpcProvider) => {
+export const enactOmnibus = async (omnibus: Omnibus, provider: JsonRpcProvider) => {
   let enactReceipt: any;
 
   if (omnibus.isLaunched) {
@@ -33,7 +32,7 @@ export const enactOmnibus = async (omnibus: Omnibus<NetworkName>, provider: Json
   } else {
     try {
       enactReceipt = await votes
-        .adopt(provider, omnibus.script, omnibus.description, { gasLimit: 30_000_000 })
+        .adopt(provider, omnibus.script, omnibus.summary, { gasLimit: 30_000_000 })
         .then((r) => r.enactReceipt);
     } catch (e) {
       assert.fail(`Failed to adopt the vote: ${e}`);

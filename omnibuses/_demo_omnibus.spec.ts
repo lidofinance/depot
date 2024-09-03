@@ -3,14 +3,16 @@ import { BigNumberish, formatEther, JsonRpcProvider } from "ethers";
 import { enactOmnibus } from "../src/omnibuses/tools/test";
 import networks from "../src/networks";
 import lido from "../src/lido";
-import omnibus from "../omnibuses/_demo_omnibus";
 import { Receipt } from "web3-types";
 import { StakingModule } from "../src/lido/lido";
 import { checks } from "../src/omnibuses/checks";
+import { makeOmnibus } from "../src/omnibuses/omnibus";
+import omnibusPlan from "./_demo_omnibus";
 
+const omnibus = makeOmnibus(omnibusPlan);
 const url = networks.localRpcUrl("eth");
 const provider = new JsonRpcProvider(url);
-const contracts = lido.eth[omnibus.network](provider);
+const contracts = lido.eth[omnibusPlan.network](provider);
 
 const {
   balance: balanceChecks,

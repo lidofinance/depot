@@ -6,7 +6,7 @@ import * as types from "hardhat/internal/core/params/argumentTypes";
 import votes from "../src/votes";
 import rpcs, { RpcNodeName } from "../src/rpcs";
 import traces from "../src/traces";
-import { Omnibus } from "../src/omnibuses/omnibus";
+import { makeOmnibus, Omnibus, OmnibusPlan } from "../src/omnibuses/omnibus";
 import networks, { NetworkName } from "../src/networks";
 import bytes from "../src/common/bytes";
 import format from "../src/common/format";
@@ -50,10 +50,10 @@ task("omnibus:test", "Runs tests for the given omnibus")
   .addOptionalParam<number>("blockNumber", "Block number to spawn rpc node on", undefined, types.int)
   .addOptionalParam<boolean>("simulate", "Shall the simulation be run before the tests", false, types.boolean)
   .setAction(async ({ name }) => {
-    const omnibus: Omnibus<NetworkName> = require(`../omnibuses/${name}.ts`).default;
+    const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
 
     if (omnibus.isExecuted) {
-      console.log(`The omnibus "${omnibus.name}" already executed. Aborting...`);
+      console.log(`The omnibus "${omnibus.voteId}" already executed. Aborting...`);
       return;
     }
 
@@ -78,7 +78,8 @@ task("omnibus:run", "Runs the omnibus with given name")
     types.string,
   )
   .setAction(async ({ name, testAccount, rpc }, hre) => {
-    const omnibus: Omnibus<NetworkName> = require(`../omnibuses/${name}.ts`).default;
+    const omnibusPlan: OmnibusPlan<"mainnet"> = require(`../omnibuses/${name}.ts`).default;
+    const omnibus = makeOmnibus(omnibusPlan);
 
     if (omnibus.isExecuted) {
       console.log(`Omnibus already was executed. Aborting...`);
@@ -86,10 +87,8 @@ task("omnibus:run", "Runs the omnibus with given name")
     }
 
     console.log(`Running the omnibus ${name} on "${omnibus.network}" network\n`);
-    console.log(`Omnibus items:`);
-    omnibus.titles.forEach((title, index) => {
-      console.log(`  ${index + 1}. ${title}`);
-    });
+    console.log(`Omnibus items:\n`);
+    console.log(omnibus.summary);
     console.log("\n");
 
     const [provider, node] = await prepareExecEnv(omnibus.network, rpc);
@@ -122,7 +121,7 @@ task("omnibus:run", "Runs the omnibus with given name")
 
       // Launch the omnibus
       console.log(`Sending the tx to start the vote...`);
-      const tx = await votes.start(pilot, omnibus.script, omnibus.description);
+      const tx = await votes.start(pilot, omnibus.script, omnibus.summary);
 
       console.log("Transaction successfully sent:", tx.hash);
 
