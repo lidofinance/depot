@@ -121,10 +121,10 @@ describe("Testing _demo_omnibus", () => {
       enactReceipt = await enactOmnibus(omnibus, provider);
     });
 
-    describe("TransferAssets", () => {
+    describe("Check that all assets were transferred correctly", () => {
       for (let i = 0; i < tokenTransfers.length; i++) {
         const { recipient, amount } = tokenTransfers[i];
-        it(`${formatEther(amount)} LDO was transferred to ${recipient}`, async () => {
+        it(`${formatEther(amount)} LDO were transferred to ${recipient}`, async () => {
           const expectedBalance = BigInt(balancesBefore[i]) + BigInt(amount);
 
           await balanceChecks.checkLDOBalance(recipient, expectedBalance);
@@ -138,7 +138,7 @@ describe("Testing _demo_omnibus", () => {
       });
     });
 
-    describe("UpdateStakingModule", () => {
+    describe("Check staking module update...", () => {
       it(`Simple DVT module was correctly updated`, async () => {
         await stakingRouterChecks.checkStakingModule(StakingModule.SimpleDVT, {
           targetShare: expectedTargetShare,
@@ -148,7 +148,7 @@ describe("Testing _demo_omnibus", () => {
       });
     });
 
-    describe("AddNodeOperators", () => {
+    describe("Check adding new node operators...", () => {
       it(`node operators count was increased by ${newNopCount}`, async () => {
         const expectedNodeOperatorsCount = nodeOperatorsCountBefore + BigInt(newNopCount);
 
@@ -169,8 +169,8 @@ describe("Testing _demo_omnibus", () => {
       }
     });
 
-    describe("AddPaymentEvmScriptFactories", () => {
-      it(`Top up factory ${addFactoryValues.name} can make payments`, async () => {
+    describe("Check easy track changes...", () => {
+      it(`New top up factory ${addFactoryValues.name} can make payments`, async () => {
         await easyTrackChecks.checkFactoryExists(addFactoryValues.factories.topUp);
         await easyTrackChecks.checkTopUpFactory(
           addFactoryValues.token,
@@ -180,7 +180,7 @@ describe("Testing _demo_omnibus", () => {
         );
       });
 
-      it(`Add recipient factory ${addFactoryValues.name} works as expected`, async () => {
+      it(`New add recipient factory ${addFactoryValues.name} works as expected`, async () => {
         await easyTrackChecks.checkFactoryExists(addFactoryValues.factories.addRecipient);
         await easyTrackChecks.checkAddRecipientFactory(
           addFactoryValues.factories.addRecipient,
@@ -189,7 +189,7 @@ describe("Testing _demo_omnibus", () => {
         );
       });
 
-      it(`Remove recipient factory ${addFactoryValues.name} works as expected`, async () => {
+      it(`New remove recipient factory ${addFactoryValues.name} works as expected`, async () => {
         await easyTrackChecks.checkFactoryExists(addFactoryValues.factories.removeRecipient);
         await easyTrackChecks.checkRemoveRecipientFactory(
           addFactoryValues.factories.removeRecipient,
@@ -197,18 +197,16 @@ describe("Testing _demo_omnibus", () => {
           addFactoryValues.trustedCaller,
         );
       });
-    });
 
-    describe("RemovePaymentEvmScriptFactories", () => {
-      it("Top Up factory was removed", async () => {
+      it(`Top Up factory ${removeFactoryValues.factories.topUp} was removed`, async () => {
         await easyTrackChecks.checkFactoryNotExists(removeFactoryValues.factories.topUp);
       });
 
-      it("Add recipient factory was removed", async () => {
+      it(`Add recipient factory ${removeFactoryValues.factories.addRecipient} was removed`, async () => {
         await easyTrackChecks.checkFactoryNotExists(removeFactoryValues.factories.addRecipient);
       });
 
-      it("Remove recipient factory was removed", async () => {
+      it(`Remove recipient factory ${removeFactoryValues.factories.removeRecipient} was removed`, async () => {
         await easyTrackChecks.checkFactoryNotExists(removeFactoryValues.factories.removeRecipient);
       });
     });
