@@ -8,6 +8,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["./src/global.d.ts"],
-  "files": ["./src/global.d.ts"]
+  "ts-node": {
+    "files": true
+  },
 }
