@@ -6,13 +6,11 @@ import lido from "../src/lido";
 import { Receipt } from "web3-types";
 import { StakingModule } from "../src/lido/lido";
 import { checks } from "../src/omnibuses/checks";
-import { makeOmnibus } from "../src/omnibuses/omnibus";
-import omnibusPlan from "./_demo_omnibus";
+import omnibus from "./_demo_omnibus";
 
-const omnibus = makeOmnibus(omnibusPlan);
 const url = networks.localRpcUrl("eth");
 const provider = new JsonRpcProvider(url);
-const contracts = lido.eth[omnibusPlan.network](provider);
+const contracts = lido.eth[omnibus.network](provider);
 
 const {
   balance: balanceChecks,
@@ -109,7 +107,7 @@ describe("Testing _demo_omnibus", () => {
     });
   });
 
-  describe("Check network state after voting...", () => {
+  describe("Enact omnibus and check network state after voting...", () => {
     let agentLDOBalanceBefore: any;
     let balancesBefore: BigNumberish[];
     let nodeOperatorsCountBefore: any;
@@ -121,6 +119,7 @@ describe("Testing _demo_omnibus", () => {
 
       // Start and enact omnibus. Keep receipt to check events later.
       enactReceipt = await enactOmnibus(omnibus, provider);
+      console.log("    Omnibus enacted successfully. Running checks...");
     });
 
     describe("Check that all assets were transferred correctly", () => {

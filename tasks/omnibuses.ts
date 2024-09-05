@@ -6,7 +6,6 @@ import * as types from "hardhat/internal/core/params/argumentTypes";
 import votes from "../src/votes";
 import rpcs, { RpcNodeName } from "../src/rpcs";
 import traces from "../src/traces";
-import { makeOmnibus, Omnibus, OmnibusPlan } from "../src/omnibuses/omnibus";
 import networks, { NetworkName } from "../src/networks";
 import bytes from "../src/common/bytes";
 import format from "../src/common/format";
@@ -15,6 +14,7 @@ import { simulateOmnibus, SimulationGroup } from "../src/omnibuses/tools/simulat
 import { isKnownError } from "../src/common/errors";
 import Mocha from "mocha";
 import fs from "node:fs/promises";
+import { Omnibus } from "../src/omnibuses/omnibuses";
 
 traces.hardhat.enableTracing();
 
@@ -63,6 +63,7 @@ task("omnibus:test", "Runs tests for the given omnibus")
       await runTestFile(omnibusTestFile);
       return;
     } catch (e) {
+      console.error(e);
       console.warn(chalk.bold.yellow(`Test file "${omnibusTestFile}" not found. Write tests first!`));
       return;
     }
@@ -78,8 +79,7 @@ task("omnibus:run", "Runs the omnibus with given name")
     types.string,
   )
   .setAction(async ({ name, testAccount, rpc }, hre) => {
-    const omnibusPlan: OmnibusPlan<"mainnet"> = require(`../omnibuses/${name}.ts`).default;
-    const omnibus = makeOmnibus(omnibusPlan);
+    const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
 
     if (omnibus.isExecuted) {
       console.log(`Omnibus already was executed. Aborting...`);

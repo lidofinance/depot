@@ -1,17 +1,17 @@
-import { UpdateStakingModule } from "./update-staking-module";
 import { expect } from "chai";
 import sinon from "sinon";
 import { StakingModule } from "../../lido/lido";
 import { StakingRouter__factory } from "../../../typechain-types";
 import { randomAddress, randomHash } from "hardhat/internal/hardhat-network/provider/utils/random";
+import stakingRouter from "./staking-router";
 
 describe("UpdateStakingModule", () => {
   let mockContracts: any;
-  let updateStakingModule: any;
+  let updateStakingModuleAction: any;
   let SRContract = StakingRouter__factory.connect(randomAddress().toString());
 
   const testValues = {
-    title: "Raise Simple DVT target share from 0.5% to 4%",
+    title: 'Update "SimpleDVT" staking module',
     stakingModuleId: StakingModule.SimpleDVT,
     targetShare: 50,
     treasuryFee: 5,
@@ -68,18 +68,22 @@ describe("UpdateStakingModule", () => {
       },
     };
 
-    updateStakingModule = UpdateStakingModule(mockContracts, {
+    updateStakingModuleAction = stakingRouter.updateStakingModule(mockContracts, {
       title: "Raise Simple DVT target share from 0.5% to 4%",
       stakingModuleId: testValues.stakingModuleId,
       targetShare: testValues.targetShare,
       treasuryFee: testValues.treasuryFee,
       stakingModuleFee: testValues.stakingModuleFee,
     });
-    updateStakingModule["_contracts"] = mockContracts as any;
+    updateStakingModuleAction["_contracts"] = mockContracts as any;
+  });
+
+  it("should return the correct title", () => {
+    expect(updateStakingModuleAction.title).to.equal(testValues.title);
   });
 
   it("should correctly set targetShare, treasuryFee, and stakingModuleFee", async () => {
-    const call = updateStakingModule.evmCall["calls"][0];
+    const call = updateStakingModuleAction.evmCall["calls"][0];
 
     expect(call.address).to.equal(await SRContract.getAddress());
     expect(call["args"]).to.deep.equal([
@@ -91,7 +95,7 @@ describe("UpdateStakingModule", () => {
   });
 
   it("should emit correct events after update", async () => {
-    const events = updateStakingModule.expectedEvents;
+    const events = updateStakingModuleAction.expectedEvents;
 
     expect(events).to.be.an("array");
     expect(events).to.have.length(5);

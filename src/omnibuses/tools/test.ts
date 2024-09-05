@@ -1,24 +1,7 @@
-import { RpcProvider } from "../../providers";
-import Mocha from "mocha";
 import { assert } from "../../common/assert";
 import { JsonRpcProvider } from "ethers";
 import votes from "../../votes";
-import { Omnibus } from "../omnibus";
-
-interface MochaTest {
-  (title: string, fn?: Mocha.Func | Mocha.AsyncFunc | undefined): void;
-}
-
-export interface OmnibusBeforeContext {
-  assert: typeof assert;
-  provider: RpcProvider;
-}
-
-export interface OmnibusTestContext {
-  it: MochaTest;
-  assert: typeof assert;
-  provider: RpcProvider;
-}
+import { Omnibus } from "../omnibuses";
 
 export const enactOmnibus = async (omnibus: Omnibus, provider: JsonRpcProvider) => {
   let enactReceipt: any;

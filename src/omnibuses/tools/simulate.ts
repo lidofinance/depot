@@ -2,8 +2,8 @@ import { RpcProvider } from "../../providers";
 import providers from "../../providers/providers";
 import votes, { FormattedEvmCall } from "../../votes";
 import bytes from "../../common/bytes";
-import { Omnibus } from "../omnibus";
 import { TxTrace } from "../../traces/tx-traces";
+import { Omnibus } from "../omnibuses";
 
 export interface SimulationGroup {
   call: FormattedEvmCall;

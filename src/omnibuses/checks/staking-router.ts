@@ -1,7 +1,7 @@
 import { Contracts } from "../../contracts/contracts";
-import LidoOnMainnet from "../../../configs/lido-on-mainnet";
 import { BigNumberish } from "ethers";
 import { assert } from "../../common/assert";
+import { Lido } from "../../../configs/types";
 
 export interface StakingModuleParams {
   targetShare: bigint;
@@ -10,7 +10,7 @@ export interface StakingModuleParams {
 }
 
 export const checkStakingModule = async (
-  contracts: Contracts<typeof LidoOnMainnet>,
+  contracts: Contracts<Lido>,
   stakingModuleID: BigNumberish,
   params: StakingModuleParams,
 ) => {
@@ -22,7 +22,7 @@ export const checkStakingModule = async (
 };
 
 export const checkNodeOperator = async (
-  contracts: Contracts<typeof LidoOnMainnet>,
+  contracts: Contracts<Lido>,
   nopID: BigNumberish,
   name: string,
   rewardAddress: `0x${string}`,
@@ -32,10 +32,7 @@ export const checkNodeOperator = async (
   assert.equal(nopInfo.rewardAddress, rewardAddress, `Operator ${name} not found`);
 };
 
-export const checkNodeOperatorsCount = async (
-  contracts: Contracts<typeof LidoOnMainnet>,
-  expectedCount: BigNumberish,
-) => {
+export const checkNodeOperatorsCount = async (contracts: Contracts<Lido>, expectedCount: BigNumberish) => {
   const nodeOperatorsCount = await contracts.curatedStakingModule.getNodeOperatorsCount();
 
   assert.equal(nodeOperatorsCount, expectedCount);

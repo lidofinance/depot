@@ -1,25 +1,25 @@
 import { AbiCoder } from "ethers";
 import providers from "../../providers/providers";
 import { Contracts } from "../../contracts/contracts";
-import LidoOnMainnet from "../../../configs/lido-on-mainnet";
 import { Address } from "../../common/types";
 import { AllowedRecipientsRegistry__factory, ERC20__factory } from "../../../typechain-types/factories/interfaces";
 import { RpcProvider } from "../../providers";
 import { assert } from "../../common/assert";
+import { Lido } from "../../../configs/types";
 
 const DEFAULT_ENACTOR: Address = "0xEE00eE11EE22ee33eE44ee55ee66Ee77EE88ee99";
 const TEST_RECIPIENT = "0x0102030405060708091011121314151617181920";
 
-export const checkFactoryExists = async (contracts: Contracts<typeof LidoOnMainnet>, factory: Address) => {
+export const checkFactoryExists = async (contracts: Contracts<Lido>, factory: Address) => {
   assert.includeMembers(await contracts.easyTrack.getEVMScriptFactories(), [factory]);
 };
 
-export const checkFactoryNotExists = async (contracts: Contracts<typeof LidoOnMainnet>, factory: Address) => {
+export const checkFactoryNotExists = async (contracts: Contracts<Lido>, factory: Address) => {
   assert.notIncludeMembers(await contracts.easyTrack.getEVMScriptFactories(), [factory]);
 };
 
 export const checkTopUpFactory = async (
-  contracts: Contracts<typeof LidoOnMainnet>,
+  contracts: Contracts<Lido>,
   provider: RpcProvider,
   token: Address,
   factory: Address,
@@ -83,7 +83,7 @@ export const checkTopUpFactory = async (
 };
 
 export const checkAddRecipientFactory = async (
-  contracts: Contracts<typeof LidoOnMainnet>,
+  contracts: Contracts<Lido>,
   provider: RpcProvider,
   factory: Address,
   registry: Address,
@@ -126,7 +126,7 @@ export const checkAddRecipientFactory = async (
 };
 
 export const checkRemoveRecipientFactory = async (
-  contracts: Contracts<typeof LidoOnMainnet>,
+  contracts: Contracts<Lido>,
   provider: RpcProvider,
   factory: Address,
   registry: Address,

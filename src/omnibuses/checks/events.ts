@@ -2,17 +2,13 @@ import { BaseContract, EventFragment, EventLog, Interface, Log } from "ethers";
 import { Receipt } from "web3-types";
 import { assert } from "../../common/assert";
 import { event, EventCheck } from "../../votes";
-import { OmnibusAction } from "../omnibus-action";
 import contracts, { Contracts } from "../../contracts/contracts";
-import LidoOnMainnet from "../../../configs/lido-on-mainnet";
 import bytes from "../../common/bytes";
 import lido from "../../lido";
+import { Lido } from "../../../configs/types";
+import { OmnibusAction } from "../omnibuses";
 
-export const checkOmnibusEvents = (
-  contracts: Contracts<typeof LidoOnMainnet>,
-  actions: OmnibusAction[],
-  receipt: Receipt,
-) => {
+export const checkOmnibusEvents = (contracts: Contracts<Lido>, actions: OmnibusAction[], receipt: Receipt) => {
   let logs = receipt.logs as Log[];
 
   for (const action of actions) {

@@ -1,10 +1,10 @@
 import { Address } from "web3-types";
-import lido from "../../lido";
-import { OmnibusAction } from "../omnibus-action";
 import bytes, { HexStrPrefixed } from "../../common/bytes";
-import { NetworkName } from "../../networks";
 import { call, event } from "../../votes";
 import { AllowedRecipientsRegistry__factory } from "../../../typechain-types";
+import { Contracts } from "../../contracts/contracts";
+import { Lido } from "../../../configs/types";
+import { OmnibusAction } from "../omnibuses";
 
 const iAllowedRecipientsRegistry = AllowedRecipientsRegistry__factory.createInterface();
 
@@ -23,10 +23,10 @@ interface RemovePaymentEvmScriptFactoryInput {
 }
 
 function removeEvmScriptFactory(
-  network: NetworkName,
+  contracts: Contracts<Lido>,
   { factory, title }: RemovePaymentEvmScriptFactoryInput,
 ): OmnibusAction {
-  const { easyTrack, callsScript, voting } = lido.eth[network]();
+  const { easyTrack, callsScript, voting } = contracts;
   return {
     title: title,
     evmCall: call(easyTrack.removeEVMScriptFactory, [factory]),
@@ -37,8 +37,8 @@ function removeEvmScriptFactory(
   };
 }
 
-function addEvmScriptFactory(network: NetworkName, input: AddEvmScriptFactoryInput): OmnibusAction {
-  const { easyTrack, callsScript, voting } = lido.eth[network]();
+function addEvmScriptFactory(contracts: Contracts<Lido>, input: AddEvmScriptFactoryInput): OmnibusAction {
+  const { easyTrack, callsScript, voting } = contracts;
   return {
     title: input.title,
     evmCall: call(easyTrack.addEVMScriptFactory, [input.factory, input.permission]),
@@ -57,19 +57,25 @@ interface AddNamedEvmScriptFactoryInput {
   registry: Address;
 }
 
-function addTopUpEvmScriptFactory(network: NetworkName, input: AddNamedEvmScriptFactoryInput): OmnibusAction {
-  return addEvmScriptFactory(network, {
+function addTopUpEvmScriptFactory(contracts: Contracts<Lido>, input: AddNamedEvmScriptFactoryInput): OmnibusAction {
+  const { finance } = contracts;
+  return addEvmScriptFactory(contracts, {
     title: `Add top up EVM Script Factory "${input.name}"`,
     factory: input.factory,
     permission: bytes.join(
-      // allow to call allowedRecipientsRegistry.addRecipient()
-      ...[input.registry, iAllowedRecipientsRegistry.getFunction("addRecipient").selector],
+      // allow to call finance.newImmediatePayment()
+      ...[finance.address, finance.newImmediatePayment.fragment.selector],
+      // allow to call allowedRecipientsRegistry.updateSpentAmount()
+      ...[input.registry, iAllowedRecipientsRegistry.getFunction("updateSpentAmount").selector],
     ),
   });
 }
 
-function addAddRecipientEvmScriptFactory(network: NetworkName, input: AddNamedEvmScriptFactoryInput): OmnibusAction {
-  return addEvmScriptFactory(network, {
+function addAddRecipientEvmScriptFactory(
+  contracts: Contracts<Lido>,
+  input: AddNamedEvmScriptFactoryInput,
+): OmnibusAction {
+  return addEvmScriptFactory(contracts, {
     title: `Add add recipient EVM Script Factory "${input.name}"`,
     factory: input.factory,
     permission: bytes.join(
@@ -79,8 +85,11 @@ function addAddRecipientEvmScriptFactory(network: NetworkName, input: AddNamedEv
   });
 }
 
-function addRemoveRecipientEvmScriptFactory(network: NetworkName, input: AddNamedEvmScriptFactoryInput): OmnibusAction {
-  return addEvmScriptFactory(network, {
+function addRemoveRecipientEvmScriptFactory(
+  contracts: Contracts<Lido>,
+  input: AddNamedEvmScriptFactoryInput,
+): OmnibusAction {
+  return addEvmScriptFactory(contracts, {
     title: `Add remove recipient EVM Script Factory "${input.name}"`,
     factory: input.factory,
     permission: bytes.join(
@@ -100,14 +109,21 @@ interface AddPaymentEvmScriptFactoriesInput {
   };
 }
 
-function addPaymentEvmScriptFactories(network: NetworkName, input: AddPaymentEvmScriptFactoriesInput): OmnibusAction[] {
+function addPaymentEvmScriptFactories(
+  contracts: Contracts<Lido>,
+  input: AddPaymentEvmScriptFactoriesInput,
+): OmnibusAction[] {
   const commonInput = { name: input.name, registry: input.registry };
-  const res: OmnibusAction[] = [addTopUpEvmScriptFactory(network, { ...commonInput, factory: input.factories.topUp })];
+  const res: OmnibusAction[] = [
+    addTopUpEvmScriptFactory(contracts, { ...commonInput, factory: input.factories.topUp }),
+  ];
   if (input.factories.addRecipient) {
-    res.push(addAddRecipientEvmScriptFactory(network, { ...commonInput, factory: input.factories.addRecipient }));
+    res.push(addAddRecipientEvmScriptFactory(contracts, { ...commonInput, factory: input.factories.addRecipient }));
   }
   if (input.factories.removeRecipient) {
-    res.push(addAddRecipientEvmScriptFactory(network, { ...commonInput, factory: input.factories.removeRecipient }));
+    res.push(
+      addRemoveRecipientEvmScriptFactory(contracts, { ...commonInput, factory: input.factories.removeRecipient }),
+    );
   }
   return res;
 }
@@ -122,18 +138,18 @@ interface RemovePaymentEvmScriptFactoriesInput {
 }
 
 function removePaymentEvmScriptFactories(
-  network: NetworkName,
+  contracts: Contracts<Lido>,
   input: RemovePaymentEvmScriptFactoriesInput,
 ): OmnibusAction[] {
   const res: OmnibusAction[] = [
-    removeEvmScriptFactory(network, {
+    removeEvmScriptFactory(contracts, {
       title: `Remove Top Up EVM Script Factory "${input.factories.topUp}"`,
       factory: input.factories.topUp,
     }),
   ];
   if (input.factories.addRecipient) {
     res.push(
-      removeEvmScriptFactory(network, {
+      removeEvmScriptFactory(contracts, {
         title: `Remove Add Recipient EVM Script Factory "${input.factories.addRecipient}"`,
         factory: input.factories.addRecipient,
       }),
@@ -141,7 +157,7 @@ function removePaymentEvmScriptFactories(
   }
   if (input.factories.removeRecipient) {
     res.push(
-      removeEvmScriptFactory(network, {
+      removeEvmScriptFactory(contracts, {
         title: `Remove Remove Recipient EVM Script Factory "${input.factories.addRecipient}"`,
         factory: input.factories.removeRecipient,
       }),
