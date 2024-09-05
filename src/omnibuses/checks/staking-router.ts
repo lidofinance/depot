@@ -1,7 +1,6 @@
-import { Contracts } from "../../contracts/contracts";
 import { BigNumberish } from "ethers";
 import { assert } from "../../common/assert";
-import { Lido } from "../../../configs/types";
+import { CheckContext } from "./checks";
 
 export interface StakingModuleParams {
   targetShare: bigint;
@@ -9,8 +8,8 @@ export interface StakingModuleParams {
   stakingModuleFee: bigint;
 }
 
-export const checkStakingModule = async (
-  contracts: Contracts<Lido>,
+const checkStakingModule = async (
+  { contracts }: CheckContext,
   stakingModuleID: BigNumberish,
   params: StakingModuleParams,
 ) => {
@@ -21,8 +20,8 @@ export const checkStakingModule = async (
   assert.equal(stakingModule.stakingModuleFee, params.stakingModuleFee);
 };
 
-export const checkNodeOperator = async (
-  contracts: Contracts<Lido>,
+const checkNodeOperator = async (
+  { contracts }: CheckContext,
   nopID: BigNumberish,
   name: string,
   rewardAddress: `0x${string}`,
@@ -32,8 +31,14 @@ export const checkNodeOperator = async (
   assert.equal(nopInfo.rewardAddress, rewardAddress, `Operator ${name} not found`);
 };
 
-export const checkNodeOperatorsCount = async (contracts: Contracts<Lido>, expectedCount: BigNumberish) => {
+const checkNodeOperatorsCount = async ({ contracts }: CheckContext, expectedCount: BigNumberish) => {
   const nodeOperatorsCount = await contracts.curatedStakingModule.getNodeOperatorsCount();
 
   assert.equal(nodeOperatorsCount, expectedCount);
+};
+
+export default {
+  checkStakingModule,
+  checkNodeOperator,
+  checkNodeOperatorsCount,
 };

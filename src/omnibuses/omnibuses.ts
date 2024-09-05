@@ -4,14 +4,14 @@ import actions from "./actions/actions";
 import lido, { LidoEthContracts } from "../lido";
 import { flatten, mapValues, partial } from "lodash";
 
-type BindContracts<R extends Record<string, any>> = {
-  [K in keyof R]: AppliedActionsRecord<R[K]>;
+export type BindFirstParam<R extends Record<string, any>> = {
+  [K in keyof R]: BoundRecord<R[K]>;
 };
-type AppliedActionsRecord<F extends (...args: any[]) => any> = (...args: OmitFirstParameter<F>) => ReturnType<F>;
+type BoundRecord<F extends (...args: any[]) => any> = (...args: OmitFirstParameter<F>) => ReturnType<F>;
 type OmitFirstParameter<F> = F extends (arg0: any, ...rest: infer R) => any ? R : never;
 
 type AppliedActions = {
-  [K in keyof typeof actions]: BindContracts<(typeof actions)[K]>;
+  [K in keyof typeof actions]: BindFirstParam<(typeof actions)[K]>;
 };
 
 interface Context<N extends NetworkName> {

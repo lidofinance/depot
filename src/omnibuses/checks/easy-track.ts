@@ -1,26 +1,23 @@
 import { AbiCoder } from "ethers";
 import providers from "../../providers/providers";
-import { Contracts } from "../../contracts/contracts";
 import { Address } from "../../common/types";
 import { AllowedRecipientsRegistry__factory, ERC20__factory } from "../../../typechain-types/factories/interfaces";
-import { RpcProvider } from "../../providers";
 import { assert } from "../../common/assert";
-import { Lido } from "../../../configs/types";
+import { CheckContext } from "./checks";
 
 const DEFAULT_ENACTOR: Address = "0xEE00eE11EE22ee33eE44ee55ee66Ee77EE88ee99";
 const TEST_RECIPIENT = "0x0102030405060708091011121314151617181920";
 
-export const checkFactoryExists = async (contracts: Contracts<Lido>, factory: Address) => {
+const checkFactoryExists = async ({ contracts }: CheckContext, factory: Address) => {
   assert.includeMembers(await contracts.easyTrack.getEVMScriptFactories(), [factory]);
 };
 
-export const checkFactoryNotExists = async (contracts: Contracts<Lido>, factory: Address) => {
+const checkFactoryNotExists = async ({ contracts }: CheckContext, factory: Address) => {
   assert.notIncludeMembers(await contracts.easyTrack.getEVMScriptFactories(), [factory]);
 };
 
-export const checkTopUpFactory = async (
-  contracts: Contracts<Lido>,
-  provider: RpcProvider,
+const checkTopUpFactory = async (
+  { contracts, provider }: CheckContext,
   token: Address,
   factory: Address,
   registry: Address,
@@ -82,9 +79,8 @@ export const checkTopUpFactory = async (
   }
 };
 
-export const checkAddRecipientFactory = async (
-  contracts: Contracts<Lido>,
-  provider: RpcProvider,
+const checkAddRecipientFactory = async (
+  { contracts, provider }: CheckContext,
   factory: Address,
   registry: Address,
   trustedCaller: Address,
@@ -125,9 +121,8 @@ export const checkAddRecipientFactory = async (
   assert.equal(await registryContract.isRecipientAllowed(TEST_RECIPIENT), true);
 };
 
-export const checkRemoveRecipientFactory = async (
-  contracts: Contracts<Lido>,
-  provider: RpcProvider,
+const checkRemoveRecipientFactory = async (
+  { contracts, provider }: CheckContext,
   factory: Address,
   registry: Address,
   trustedCaller: Address,
@@ -158,4 +153,12 @@ export const checkRemoveRecipientFactory = async (
   const recipientsAfter = await registryContract.getAllowedRecipients();
   assert.equal(recipientsAfter.length, recipientsBefore.length - 1);
   assert.equal(await registryContract.isRecipientAllowed(TEST_RECIPIENT), false);
+};
+
+export default {
+  checkFactoryExists,
+  checkFactoryNotExists,
+  checkAddRecipientFactory,
+  checkRemoveRecipientFactory,
+  checkTopUpFactory,
 };

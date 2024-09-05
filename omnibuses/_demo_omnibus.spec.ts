@@ -5,19 +5,14 @@ import networks from "../src/networks";
 import lido from "../src/lido";
 import { Receipt } from "web3-types";
 import { StakingModule } from "../src/lido/lido";
-import { checks } from "../src/omnibuses/checks";
 import omnibus from "./_demo_omnibus";
+import checks from "../src/omnibuses/checks";
+
+const { stakingRouter, tokens, easyTrack, events } = checks.mainnet;
 
 const url = networks.localRpcUrl("eth");
 const provider = new JsonRpcProvider(url);
 const contracts = lido.eth[omnibus.network](provider);
-
-const {
-  balance: balanceChecks,
-  easyTrack: easyTrackChecks,
-  stakingRouter: stakingRouterChecks,
-  checkActionEvents,
-} = checks(contracts, provider);
 
 // Testing values
 const expectedTargetShare = 400n;
@@ -99,7 +94,7 @@ describe("Testing _demo_omnibus", () => {
 
   describe("Check network state before voting...", () => {
     it("Simple DVT module state is as expected", async () => {
-      await stakingRouterChecks.checkStakingModule(StakingModule.SimpleDVT, {
+      await stakingRouter.checkStakingModule(StakingModule.SimpleDVT, {
         targetShare: 400n,
         treasuryFee: 200n,
         stakingModuleFee: 800n,
@@ -128,20 +123,20 @@ describe("Testing _demo_omnibus", () => {
         it(`${formatEther(amount)} LDO were transferred to ${recipient}`, async () => {
           const expectedBalance = BigInt(balancesBefore[i]) + BigInt(amount);
 
-          await balanceChecks.checkLDOBalance(recipient, expectedBalance);
+          await tokens.checkLDOBalance(recipient, expectedBalance);
         });
       }
 
       it("LDO budget was decreased by the total amount of transfers", async () => {
         const totalSum = tokenTransfers.reduce((acc, { amount }) => acc + amount, 0n);
 
-        await balanceChecks.checkLDOBalance(contracts.agent.address, agentLDOBalanceBefore - totalSum);
+        await tokens.checkLDOBalance(contracts.agent.address, agentLDOBalanceBefore - totalSum);
       });
     });
 
     describe("Check staking module update...", () => {
       it(`Simple DVT module was correctly updated`, async () => {
-        await stakingRouterChecks.checkStakingModule(StakingModule.SimpleDVT, {
+        await stakingRouter.checkStakingModule(StakingModule.SimpleDVT, {
           targetShare: expectedTargetShare,
           treasuryFee: expectedTreasuryFee,
           stakingModuleFee: expectedStakingModuleFee,
@@ -153,7 +148,7 @@ describe("Testing _demo_omnibus", () => {
       it(`node operators count was increased by ${newNopCount}`, async () => {
         const expectedNodeOperatorsCount = nodeOperatorsCountBefore + BigInt(newNopCount);
 
-        await stakingRouterChecks.checkNodeOperatorsCount(expectedNodeOperatorsCount);
+        await stakingRouter.checkNodeOperatorsCount(expectedNodeOperatorsCount);
       });
 
       for (let i = 0; i < newOperators.length; i++) {
@@ -161,19 +156,15 @@ describe("Testing _demo_omnibus", () => {
         it(`operator ${operator.name} was successfully added`, async () => {
           const operatorIndex = nodeOperatorsCountBefore + BigInt(i);
 
-          await stakingRouterChecks.checkNodeOperator(
-            operatorIndex,
-            operator.name,
-            operator.rewardAddress as `0x${string}`,
-          );
+          await stakingRouter.checkNodeOperator(operatorIndex, operator.name, operator.rewardAddress as `0x${string}`);
         });
       }
     });
 
     describe("Check easy track changes...", () => {
       it(`New top up factory ${addFactoryValues.name} can make payments`, async () => {
-        await easyTrackChecks.checkFactoryExists(addFactoryValues.factories.topUp);
-        await easyTrackChecks.checkTopUpFactory(
+        await easyTrack.checkFactoryExists(addFactoryValues.factories.topUp);
+        await easyTrack.checkTopUpFactory(
           addFactoryValues.token,
           addFactoryValues.factories.topUp,
           addFactoryValues.registry,
@@ -182,8 +173,8 @@ describe("Testing _demo_omnibus", () => {
       });
 
       it(`New add recipient factory ${addFactoryValues.name} works as expected`, async () => {
-        await easyTrackChecks.checkFactoryExists(addFactoryValues.factories.addRecipient);
-        await easyTrackChecks.checkAddRecipientFactory(
+        await easyTrack.checkFactoryExists(addFactoryValues.factories.addRecipient);
+        await easyTrack.checkAddRecipientFactory(
           addFactoryValues.factories.addRecipient,
           addFactoryValues.registry,
           addFactoryValues.trustedCaller,
@@ -191,8 +182,8 @@ describe("Testing _demo_omnibus", () => {
       });
 
       it(`New remove recipient factory ${addFactoryValues.name} works as expected`, async () => {
-        await easyTrackChecks.checkFactoryExists(addFactoryValues.factories.removeRecipient);
-        await easyTrackChecks.checkRemoveRecipientFactory(
+        await easyTrack.checkFactoryExists(addFactoryValues.factories.removeRecipient);
+        await easyTrack.checkRemoveRecipientFactory(
           addFactoryValues.factories.removeRecipient,
           addFactoryValues.registry,
           addFactoryValues.trustedCaller,
@@ -200,22 +191,22 @@ describe("Testing _demo_omnibus", () => {
       });
 
       it(`Top Up factory ${removeFactoryValues.factories.topUp} was removed`, async () => {
-        await easyTrackChecks.checkFactoryNotExists(removeFactoryValues.factories.topUp);
+        await easyTrack.checkFactoryNotExists(removeFactoryValues.factories.topUp);
       });
 
       it(`Add recipient factory ${removeFactoryValues.factories.addRecipient} was removed`, async () => {
-        await easyTrackChecks.checkFactoryNotExists(removeFactoryValues.factories.addRecipient);
+        await easyTrack.checkFactoryNotExists(removeFactoryValues.factories.addRecipient);
       });
 
       it(`Remove recipient factory ${removeFactoryValues.factories.removeRecipient} was removed`, async () => {
-        await easyTrackChecks.checkFactoryNotExists(removeFactoryValues.factories.removeRecipient);
+        await easyTrack.checkFactoryNotExists(removeFactoryValues.factories.removeRecipient);
       });
     });
   });
 
   describe("Check fired events by action...", () => {
     it("All expected events were fired", () => {
-      checkActionEvents(omnibus.actions, enactReceipt);
+      events.checkOmnibusEvents(omnibus.actions, enactReceipt);
     });
   });
 });

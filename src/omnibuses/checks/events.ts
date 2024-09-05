@@ -2,13 +2,13 @@ import { BaseContract, EventFragment, EventLog, Interface, Log } from "ethers";
 import { Receipt } from "web3-types";
 import { assert } from "../../common/assert";
 import { event, EventCheck } from "../../votes";
-import contracts, { Contracts } from "../../contracts/contracts";
 import bytes from "../../common/bytes";
 import lido from "../../lido";
-import { Lido } from "../../../configs/types";
+import contracts from "../../contracts";
 import { OmnibusAction } from "../omnibuses";
+import { CheckContext } from "./checks";
 
-export const checkOmnibusEvents = (contracts: Contracts<Lido>, actions: OmnibusAction[], receipt: Receipt) => {
+const checkOmnibusEvents = ({ contracts }: CheckContext, actions: OmnibusAction[], receipt: Receipt) => {
   let logs = receipt.logs as Log[];
 
   for (const action of actions) {
@@ -119,3 +119,7 @@ function isArgsMatches(log: Log, fragment: EventFragment, eventArgs: unknown[]):
   }
   return true;
 }
+
+export default {
+  checkOmnibusEvents,
+};
