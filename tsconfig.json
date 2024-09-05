@@ -10,5 +10,5 @@
   },
   "ts-node": {
     "files": true
-  },
+  }
 }
