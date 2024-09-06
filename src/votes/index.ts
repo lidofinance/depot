@@ -1,4 +1,4 @@
-import { EventCheck, EventsGroup, subsequence } from "./events";
+import { EventCheck, EventsGroup } from "./events";
 import { EvmCall } from "./evm-script-parser";
 import { start, wait, execute } from "./lifecycle";
 import { adopt, creator, pass } from "./testing";
@@ -12,7 +12,6 @@ export { EvmScriptParser } from "./evm-script-parser";
 
 export type { EventCheck, EventsGroup, EvmCall };
 export default {
-  subsequence,
   start,
   execute,
   wait,

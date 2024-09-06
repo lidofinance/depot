@@ -2,8 +2,8 @@ import { RpcProvider } from "../../providers";
 import providers from "../../providers/providers";
 import votes, { FormattedEvmCall } from "../../votes";
 import bytes from "../../common/bytes";
-import { Omnibus } from "../omnibus";
 import { TxTrace } from "../../traces/tx-traces";
+import { Omnibus } from "../omnibuses";
 
 export interface SimulationGroup {
   call: FormattedEvmCall;
@@ -12,12 +12,12 @@ export interface SimulationGroup {
 }
 
 export const simulateOmnibus = async (
-  omnibus: Omnibus<any>,
+  omnibus: Omnibus,
   provider: RpcProvider,
 ): Promise<[gasUsed: bigint, SimulationGroup[]]> => {
   const snapshotRestorer = await providers.cheats(provider).snapshot();
 
-  const { enactReceipt } = await votes.adopt(provider, omnibus.script, omnibus.description, {
+  const { enactReceipt } = await votes.adopt(provider, omnibus.script, omnibus.summary, {
     gasLimit: 30_000_000,
   });
 
@@ -25,7 +25,7 @@ export const simulateOmnibus = async (
 
   const res: SimulationGroup[] = [];
 
-  const { calls, titles } = omnibus;
+  const { calls, actions } = omnibus;
 
   let voteCallIndices: number[] = [];
   for (let i = 0; i < omnibus.calls.length; ++i) {
@@ -44,7 +44,7 @@ export const simulateOmnibus = async (
     const traceEndInd = voteCallIndices[ind + 1];
     const traceSlice = voteTrace.slice(traceStartInd, traceEndInd);
     res.push({
-      title: titles[ind],
+      title: actions[ind].title,
       trace: traceSlice,
       call: calls[ind],
     });

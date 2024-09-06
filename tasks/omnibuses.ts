@@ -6,14 +6,15 @@ import * as types from "hardhat/internal/core/params/argumentTypes";
 import votes from "../src/votes";
 import rpcs, { RpcNodeName } from "../src/rpcs";
 import traces from "../src/traces";
-import { Omnibus } from "../src/omnibuses/omnibus";
 import networks, { NetworkName } from "../src/networks";
 import bytes from "../src/common/bytes";
 import format from "../src/common/format";
 import prompt from "../src/common/prompt";
 import { simulateOmnibus, SimulationGroup } from "../src/omnibuses/tools/simulate";
-import { testOmnibus } from "../src/omnibuses/tools/test";
 import { isKnownError } from "../src/common/errors";
+import Mocha from "mocha";
+import fs from "node:fs/promises";
+import { Omnibus } from "../src/omnibuses/omnibuses";
 
 traces.hardhat.enableTracing();
 
@@ -48,31 +49,23 @@ task("omnibus:test", "Runs tests for the given omnibus")
   .addOptionalParam<RpcNodeName | "local">("rpc", "The dev RPC node type to run tests on", "hardhat", types.string)
   .addOptionalParam<number>("blockNumber", "Block number to spawn rpc node on", undefined, types.int)
   .addOptionalParam<boolean>("simulate", "Shall the simulation be run before the tests", false, types.boolean)
-  .setAction(async ({ name, rpc = "hardhat", blockNumber, simulate }) => {
-    const omnibus: Omnibus<NetworkName> = require(`../omnibuses/${name}.ts`).default;
+  .setAction(async ({ name }) => {
+    const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
 
     if (omnibus.isExecuted) {
-      console.log(`The omnibus "${omnibus.name}" already executed. Aborting...`);
+      console.log(`The omnibus "${omnibus.voteId}" already executed. Aborting...`);
       return;
     }
 
-    let [provider, node] = await prepareExecEnv(omnibus.network, rpc, blockNumber);
-
+    const omnibusTestFile = `omnibuses/${name}.spec.ts`;
     try {
-      omnibus.init(provider);
-
-      await testOmnibus(omnibus, provider);
-
-      if (simulate) {
-        console.log(`Simulating the omnibus using "${rpc}" node...`);
-        printOmnibusSimulation(await simulateOmnibus(omnibus, provider));
-      } else {
-        console.log(`The simulation step was skipped.`);
-      }
-
-      await prompt.sigint();
-    } finally {
-      await node?.stop();
+      await fs.stat(omnibusTestFile);
+      await runTestFile(omnibusTestFile);
+      return;
+    } catch (e) {
+      console.error(e);
+      console.warn(chalk.bold.yellow(`Test file "${omnibusTestFile}" not found. Write tests first!`));
+      return;
     }
   });
 
@@ -86,7 +79,7 @@ task("omnibus:run", "Runs the omnibus with given name")
     types.string,
   )
   .setAction(async ({ name, testAccount, rpc }, hre) => {
-    const omnibus: Omnibus<NetworkName> = require(`../omnibuses/${name}.ts`).default;
+    const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
 
     if (omnibus.isExecuted) {
       console.log(`Omnibus already was executed. Aborting...`);
@@ -94,18 +87,13 @@ task("omnibus:run", "Runs the omnibus with given name")
     }
 
     console.log(`Running the omnibus ${name} on "${omnibus.network}" network\n`);
-    console.log(`Omnibus items:`);
-    omnibus.titles.forEach((title, index) => {
-      console.log(`  ${index + 1}. ${title}`);
-    });
+    console.log(`Omnibus items:\n`);
+    console.log(omnibus.summary);
     console.log("\n");
 
     const [provider, node] = await prepareExecEnv(omnibus.network, rpc);
 
     try {
-      // Init omnibus
-      await omnibus.init(provider);
-
       // Prepare execution environment
       const network = await provider.getNetwork();
       console.log(`Network:`);
@@ -133,7 +121,7 @@ task("omnibus:run", "Runs the omnibus with given name")
 
       // Launch the omnibus
       console.log(`Sending the tx to start the vote...`);
-      const tx = await votes.start(pilot, omnibus.script, omnibus.description);
+      const tx = await votes.start(pilot, omnibus.script, omnibus.summary);
 
       console.log("Transaction successfully sent:", tx.hash);
 
@@ -224,4 +212,10 @@ async function spawnRpcNode(network: NetworkName, nodeType: RpcNodeName, blockNu
     throw new Error(`Failed to spawn "${nodeType}" node: ${e}`);
   }
   throw new Error(`Unsupported node type "${nodeType}"`);
+}
+
+async function runTestFile(testFile: string) {
+  const mocha = new Mocha({ timeout: 10 * 60 * 1000, bail: true });
+  mocha.addFile(testFile);
+  await new Promise((resolve) => mocha.run(resolve));
 }
