@@ -21,6 +21,7 @@ interface Context<N extends NetworkName> {
 
 export interface OmnibusPlan<N extends NetworkName> {
   items: (ctx: Context<N>) => (OmnibusAction | OmnibusAction[])[];
+  description: string;
   /**
    Network where the omnibus must be launched. Supported networks: "mainnet", "holesky".
    */
@@ -46,6 +47,7 @@ export interface OmnibusPlan<N extends NetworkName> {
 export interface Omnibus {
   network: NetworkName;
   summary: string;
+  description: string;
   calls: FormattedEvmCall[];
   script: string;
   voteId?: number;
@@ -74,6 +76,7 @@ function create<N extends NetworkName>(plan: OmnibusPlan<N>): Omnibus {
     isExecuted: plan.executedOn !== undefined,
     actions: items,
     summary: items.map((action, index) => `${index + 1}. ${action.title}`).join("\n"),
+    description: plan.description,
     calls: items.map((a) => a.evmCall),
     script: EvmScriptParser.encode(items.map((a) => a.evmCall)),
   };

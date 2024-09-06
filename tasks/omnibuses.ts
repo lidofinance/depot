@@ -14,7 +14,11 @@ import { simulateOmnibus, SimulationGroup } from "../src/omnibuses/tools/simulat
 import { isKnownError } from "../src/common/errors";
 import Mocha from "mocha";
 import fs from "node:fs/promises";
+import path from "node:path";
 import { Omnibus } from "../src/omnibuses/omnibuses";
+import { uploadDescription } from "../src/ipfs/upload-description";
+import { getConfigFromEnv } from "../src/common/config";
+import { getIPFSFileByCID } from "../src/ipfs/utils";
 
 traces.hardhat.enableTracing();
 
@@ -72,13 +76,14 @@ task("omnibus:test", "Runs tests for the given omnibus")
 task("omnibus:run", "Runs the omnibus with given name")
   .addPositionalParam<string>("name", "Name of the omnibus to run")
   .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", true, types.boolean)
+  .addOptionalParam<string>("cid", "IPFS description CID", "", types.string)
   .addOptionalParam<RpcNodeName | "local" | "remote">(
     "rpc",
     'The RPC node used to launch omnibus. Possible values: hardhat, anvil, local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
     "hardhat",
     types.string,
   )
-  .setAction(async ({ name, testAccount, rpc }, hre) => {
+  .setAction(async ({ name, testAccount, cid, rpc }, hre) => {
     const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
 
     if (omnibus.isExecuted) {
@@ -90,6 +95,76 @@ task("omnibus:run", "Runs the omnibus with given name")
     console.log(`Omnibus items:\n`);
     console.log(omnibus.summary);
     console.log("\n");
+
+    const VOTE_CID_PREFIX = "lidovoteipfs://";
+    if (!cid) {
+      try {
+        cid = await fs.readFile(getCIDFilePath(name), "utf-8");
+        console.log(`CID was found in the file: ${cid}`);
+      } catch (e) {
+        const confirm = await prompt.confirm("CID was not provided. Do you want to upload a new one?");
+        if (confirm) {
+          cid = await uploadDescription(name, omnibus.description, getConfigFromEnv());
+          if (cid) {
+            await saveCID(name, cid);
+          }
+        }
+      }
+    }
+
+    if (cid) {
+      try {
+        console.log(`Fetching description from IPFS...`);
+        const desc = await getIPFSFileByCID(cid);
+        const answer = await prompt.select(
+          `Check description from IPFS ${cid}:\n${"-".repeat(10)}\n${desc}\n${"-".repeat(10)}\nWhat do you want to do?`,
+          [
+            { title: "Use this CID", value: "use" },
+            { title: "Upload description from omnibus", value: "upload" },
+            { title: "Use summary as description", value: "summary" },
+            { title: "Exit and solve it manually", value: "abort" },
+          ],
+        );
+        if (answer === "use") {
+          console.log(`Using the CID: ${cid}`);
+        } else if (answer === "upload") {
+          console.log(`Uploading the description to IPFS`);
+          cid = await uploadDescription(name, omnibus.description, getConfigFromEnv());
+          if (cid) {
+            await saveCID(name, cid);
+          }
+        } else if (answer === "summary") {
+          console.log(`Using the the omnibus summary as a description`);
+          cid = "";
+        } else {
+          return;
+        }
+      } catch (e: any) {
+        console.error(`Error fetching description from IPFS: ${e.message}`);
+        const answer = await prompt.select(`Can't get description from IPFS. What do you want to do?`, [
+          { title: "Use this CID anyway", value: "use" },
+          { title: "Use omnibus summary as a description", value: "summary" },
+          { title: "Exit and solve it manually", value: "abort" },
+        ]);
+        if (answer === "use") {
+          console.log(`Using the CID: ${cid}`);
+        } else if (answer === "summary") {
+          console.log(`Using the the omnibus summary as a description`);
+          cid = "";
+        } else {
+          return;
+        }
+      }
+    }
+
+    const omnibusDescription = cid ? `${omnibus.summary}\n${VOTE_CID_PREFIX}${cid}` : omnibus.summary;
+    const confirm = await prompt.confirm(
+      "Omnibus description:\n\n" + omnibusDescription + "\n\nDo you want to proceed?",
+    );
+    if (!confirm) {
+      console.log("The omnibus launch was canceled");
+      return;
+    }
 
     const [provider, node] = await prepareExecEnv(omnibus.network, rpc);
 
@@ -121,7 +196,7 @@ task("omnibus:run", "Runs the omnibus with given name")
 
       // Launch the omnibus
       console.log(`Sending the tx to start the vote...`);
-      const tx = await votes.start(pilot, omnibus.script, omnibus.summary);
+      const tx = await votes.start(pilot, omnibus.script, omnibusDescription);
 
       console.log("Transaction successfully sent:", tx.hash);
 
@@ -139,6 +214,22 @@ task("omnibus:run", "Runs the omnibus with given name")
       throw e;
     } finally {
       await node?.stop();
+    }
+  });
+
+task("omnibus:upload-description", "Uploads omnibus description to IPFS")
+  .addPositionalParam<string>("name", "Name of the omnibus to run")
+  .setAction(async ({ name }) => {
+    const config = getConfigFromEnv();
+    const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
+    if (omnibus.isExecuted) {
+      console.log(`Omnibus already was executed. Aborting...`);
+      return;
+    }
+
+    const cid = await uploadDescription(name, omnibus.summary, config);
+    if (cid) {
+      await saveCID(name, cid);
     }
   });
 
@@ -219,3 +310,8 @@ async function runTestFile(testFile: string) {
   mocha.addFile(testFile);
   await new Promise((resolve) => mocha.run(resolve));
 }
+
+const getCIDFilePath = (omnibusName: string) => path.join("artifacts", `${omnibusName}_description_cid`);
+const saveCID = async (omnibusName: string, cid: string) => {
+  await fs.writeFile(getCIDFilePath(omnibusName), cid);
+};
