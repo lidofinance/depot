@@ -18,7 +18,7 @@ You can find all available actions in the [actions](./src/omnibuses/actions) fol
 
 #### Writing actions
 
-Each action can produce one or more calls to the network.
+[Writing Omnibus Actions 101](./src/omnibuses/actions/README.md)
 
 ### Keystores
 
@@ -40,35 +40,64 @@ Keystores allow you to store your private keys in a secure way.
 As it was mentioned before, omnibus is a collection of actions, so you need to create a new file in the [omnibuses](./src/omnibuses) folder.
 Naming convention is to name omnibuses `${YYYY_MM_DD}.ts`.
 
-An example of the omnibus [file](./omnibuses/_demo_omnibus.ts) is below:
+Omnibus example:
 
 ```typescript
-export default new Omnibus({
+export default omnibuses.create({
   network: "mainnet",
-  // launchedOn: 12345678, // Launch block number should be set only if omnibus was successfully launched.
-  // voteId: 000, // Vote ID should be set only if omnibus is already started.
-  // executedOn: 12345678,  // Execution block number should be set only if vote is passed and omnibus was successfully executed.
-  quorumReached: false, // Should be set to true if quorum was reached during the vote.
-  actions: ({ ldo }) => [
-    new UpdateStakingModule({
-      title: "Raise Simple DVT target share from 0.5% to 4%", // Title is always required
-      stakingModuleId: StakingModule.SimpleDVT,
-      targetShare: 400,
-      treasuryFee: 5,
-      stakingModuleFee: 10,
-    }),
-    new TransferAssets({
-      title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig", // Title is always required
-      to: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D", // Pool Maintenance Labs Ltd. (PML) multisig
-      token: ldo,
-      amount: 180000n * 10n ** 18n,
+  quorumReached: false,
+  items: ({ actions, contracts }) => [
+    actions.tokens.transferLDO({
+      title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
+      to: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
+      amount: 180_000n * 10n ** 18n,
     }),
   ],
 });
 ```
 
-Usually, it should be enough action to build an omnibus. Every action is able to test its own logic,
-so usually you don't need to write additional tests for the omnibus itself.
+You can use as predefined actions as the custom ones:
+
+```typescript
+export default omnibuses.create({
+  network: "mainnet",
+  quorumReached: false,
+  items: ({ contracts }) => [
+    {
+      title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
+      evmCall: call(contracts.finance.newImmediatePayment, [
+        contracts.ldo,
+        "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
+        180_000n * 10n ** 18n,
+        "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
+      ]),
+      expectedEvents: [
+        event(contracts.callsScript, "LogScriptCall", { emitter: contracts.voting }),
+        event(contracts.finance, "NewPeriod", undefined, { optional: true }),
+        event(contracts.finance, "NewTransaction", {
+          args: [
+            undefined,
+            false,
+            "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
+            180_000n * 10n ** 18n,
+            "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
+          ],
+        }),
+        event(contracts.ldo, "Transfer", {
+          args: [contracts.agent, "0x17F6b2C738a63a8D3A113a228cfd0b373244633D", 180_000n * 10n ** 18n],
+        }),
+        event(contracts.agent, "VaultTransfer", {
+          args: [contracts.ldo, "0x17F6b2C738a63a8D3A113a228cfd0b373244633D", 180_000n * 10n ** 18n],
+        }),
+      ],
+    },
+  ],
+});
+```
+
+The two examples above are equivalent. The first one uses predefined action [transferLDO](./src/omnibuses/actions/tokens.ts) and the second one uses custom action with the same logic.
+
+Detailed example of omnibus you can find in the [file](./omnibuses/_demo_omnibus.ts).
 
 ## Test omnibus
 
@@ -137,5 +166,5 @@ Details:
     Launch date: 01 Jan 1970
 ```
 
-You have to set vote ID in the omnibus file along with the block number.
+You have to set vote ID in the omnibus file.
 Also, you can add launch date to the comments if it looks relevant.

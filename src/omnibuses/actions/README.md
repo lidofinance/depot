@@ -2,61 +2,45 @@
 
 ## What is an omnibus action?
 
-An `Action` is a logical part of an omnibus that provides one or more EVM calls. These calls are composed into an EVM script, which is executed if the omnibus reaches the quorum.
-
-An `Action` can contain:
-
-- A single EVM call, for example [TransferAssets](./transfer-assets.ts)
-- Multiple similar calls, for example [AddNodeOperators](./add-node-operators.ts)
-- Multiple different calls, for example [AddPaymentEvmScriptFactories](./add-payment-evm-script-factories.ts)
-
-If an `Action` contains multiple calls, they should be united by the same business logic.
-
-An `Action` should be able to test the changes it made by itself. It should have tests written in `before` and `after` methods.
-
-Additionally, an `Action` must have a `title` field in its input or a `title` getter method which returns an action title.
-
-## `Action` structure
-
-Action template for action with static title:
+An `Action` is a logical part of an omnibus that provides single EVM call. These calls are composed into an EVM script, which is executed if the omnibus reaches the quorum.
+An `Action` MUST satisfy the `OmnibusAction` interface:
 
 ```typescript
-interface ExampleInput extends OmnibusActionInput {
+interface OmnibusAction {
   title: string;
-  requiredField: string;
-  optionalField?: number;
-}
-
-export class ExampleAction extends OmnibusAction<ExampleInput> {
-  getEVMCalls(): FormattedEvmCall[] {}
-
-  getExpectedEvents(): EventCheck[] {}
-
-  async before({ assert, provider }: OmnibusHookCtx): Promise<void> {}
-
-  async after({ it, assert, provider }: OmnibusHookCtx): Promise<void> {}
+  evmCall: FormattedEvmCall;
+  expectedEvents: EventCheck[];
 }
 ```
 
-Action template for action with dynamic title:
+Action maker function can return either single `OmnibusAction` or an array of `OmnibusAction` objects.
+
+## `Action` structure
+
+Action should be a function that accepts contracts as a first param and input as a second and return an object or an array of objects.
+
+Example
 
 ```typescript
-interface ExampleInput extends OmnibusActionInput {
-  requiredField: string;
-  optionalField?: number;
+interface MyActionInput {
+  title: string;
+  to: Address;
+  amount: BigNumberish;
 }
 
-export class ExampleAction extends OmnibusAction<ExampleInput> {
-  get title(): string {
-    return `ExampleAction: ${this.input.requiredField}`;
-  }
+function myAction(contracts: Contracts<Lido>, input: MyActionInput): OmnibusAction {
+  const { agent, finance, callsScript, voting } = contracts; // contracts that are used in the action
+  const { to, amount, title } = input; // input that is passed to the action
 
-  getEVMCalls(): FormattedEvmCall[] {}
-
-  getExpectedEvents(): EventCheck[] {}
-
-  async before({ assert, provider }: OmnibusHookCtx): Promise<void> {}
-
-  async after({ it, assert, provider }: OmnibusHookCtx): Promise<void> {}
+  return {
+    title: title, // title of the action that will be added in omnbibus description
+    evmCall: call(someContract.someMethod, [methodArg1, methodArg2]), // call that will be added to the omnibus script
+    expectedEvents: [
+      event(callsScript, "LogScriptCall", { emitter: voting }), // callScript event will be fired in the each action
+      event(anotherContract, "anotherMethod", { args: [agent, to, amount] }), // required event with args
+      event(anotherContract, "anotherMethod1", undefined), // required event without args
+      event(someContract, "someMethod", undefined, { optional: true }), // optional event without args
+    ],
+  };
 }
 ```
