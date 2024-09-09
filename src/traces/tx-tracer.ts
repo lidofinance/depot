@@ -34,18 +34,21 @@ export class TxTracer {
   private async resolveContracts(chainId: bigint, addresses: Address[]): Promise<Record<Address, ContractInfo>> {
     const res: Record<Address, ContractInfo> = {};
     if (!this.contractInfoResolver) return res;
+
     const resolvedContracts = new Set<Address>();
+
     for (const address of addresses) {
       if (resolvedContracts.has(address)) continue;
-      resolvedContracts.add(address);
-      let { res: contract } = await this.contractInfoResolver.resolve(chainId, address);
-      if (contract) {
+      try {
+        let contract = await this.contractInfoResolver.resolve(chainId, address);
         if (contract.implementation) {
-          const { res: implementation } = await this.contractInfoResolver.resolve(chainId, contract.implementation);
-          res[address] = implementation;
+          res[address] = await this.contractInfoResolver.resolve(chainId, contract.implementation);
         } else {
           res[address] = contract;
         }
+        resolvedContracts.add(address);
+      } catch (e) {
+        console.error(`Failed to resolve contract info for address ${address}: ${e}`);
       }
     }
     return res;
