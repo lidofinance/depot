@@ -16,6 +16,8 @@ import { NamedContract } from "../contracts";
 
 type TxTraceOpcodes = LogEvmOpcodes | CallEvmOpcodes | CreateEvmOpcodes | SelfDestructEvmOpcodes;
 
+const IGNORED_LOGS = new Set(["LogScriptCall", "ScriptResult"]);
+
 interface TxTraceItemMeta<T extends TxTraceOpcodes> {
   type: T;
   depth: number;
@@ -84,23 +86,26 @@ export class TxTrace {
   }
 
   public format(padding: number = 0): string {
-    return this.calls.map((log) => this.formatOpCode(log, padding)).join("\n");
+    return this.calls.map((log) => this.formatOpCode(log, padding)).join("");
   }
 
-  public formatOpCode(txTraceItem: TxTraceItem, padding?: number) {
-    if (isCallOpcode(txTraceItem.type)) return this.formatCallTraceItem(txTraceItem as TxTraceCallItem, padding);
+  public formatOpCode(txTraceItem: TxTraceItem, padding?: number): string {
+    let logString: string;
+    if (isCallOpcode(txTraceItem.type)) logString = this.formatCallTraceItem(txTraceItem as TxTraceCallItem, padding);
     else if (isCreateOpcode(txTraceItem.type))
-      return this.formatCreateTraceItem(txTraceItem as TxTraceCreateItem, padding);
+      logString = this.formatCreateTraceItem(txTraceItem as TxTraceCreateItem, padding);
     else if (isSelfDestructOpcode(txTraceItem.type))
-      return this.formatSelfDestructTraceItem(txTraceItem as TxTraceSelfDestructItem, padding);
-    else if (isLogOpcode(txTraceItem.type)) return this.formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
-    else return " ".repeat(txTraceItem.depth + (padding ?? 0)) + txTraceItem.type;
+      logString = this.formatSelfDestructTraceItem(txTraceItem as TxTraceSelfDestructItem, padding);
+    else if (isLogOpcode(txTraceItem.type)) logString = this.formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
+    else logString = " ".repeat(txTraceItem.depth + (padding ?? 0)) + txTraceItem.type;
+    return logString ? logString + "\n" : "";
   }
 
   private formatCallTraceItem(traceCallItem: TxTraceCallItem, padding: number = 0) {
     const paddingLeft = "  ".repeat(traceCallItem.depth + padding);
     const opcode = format.opcode(traceCallItem.type);
     const contract = this.contracts[traceCallItem.address];
+
     const methodCallInfo = contract ? this.parseMethodCall(contract, traceCallItem.input, traceCallItem.output) : null;
 
     const contractLabel = methodCallInfo?.contractLabel || format.contract("UNKNOWN", traceCallItem.address);
@@ -133,7 +138,7 @@ export class TxTrace {
     return " ".repeat(txSelfDestructTraceItem.depth + (padding ?? 0)) + txSelfDestructTraceItem.type;
   }
 
-  private formatLogTraceItem(txTraceLogItem: TxTraceLogItem, padding: number = 0) {
+  private formatLogTraceItem(txTraceLogItem: TxTraceLogItem, padding: number = 0): string {
     const contract = this.contracts[txTraceLogItem.address!];
     if (!contract) {
       return " ".repeat(txTraceLogItem.depth + (padding ?? 0)) + txTraceLogItem.type;
@@ -147,6 +152,10 @@ export class TxTrace {
     });
     if (!log) {
       return " ".repeat(txTraceLogItem.depth + (padding ?? 0)) + txTraceLogItem.type;
+    }
+
+    if (IGNORED_LOGS.has(log.name)) {
+      return "";
     }
 
     const paddingLeft = "  ".repeat(txTraceLogItem.depth + (padding ?? 0));
