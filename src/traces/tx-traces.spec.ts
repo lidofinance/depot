@@ -128,10 +128,13 @@ describe("Transaction traces", function () {
 
       const result = txTrace["formatCallTraceItem"](traceCallItem);
 
-      assert.match(result, new RegExp("\\u001b\\[1m\\u001b\\[32mCALL.*MockContract.*mockMethod"));
-      assert.match(result, new RegExp("param1.*=arg1"));
-      assert.match(result, new RegExp("param2.*=arg2"));
-      assert.include(result, "=> result");
+      assert.equal(
+        result,
+        "[1m[32mCALL[39m[22m MockContract.[34m[3mmockMethod[23m[39m[34m[3m([23m[39m\n" +
+          "[34m[3m[23m[39m  [33mparam1[39m=arg1,\n" +
+          "  [33mparam2[39m=arg2[34m[3m[23m[39m\n" +
+          "[34m[3m)[23m[39m => result",
+      );
     });
 
     it("formats call trace item with unknown contract", () => {
@@ -146,7 +149,12 @@ describe("Transaction traces", function () {
 
       const result = txTrace["formatCallTraceItem"](traceCallItem);
 
-      assert.match(result, new RegExp("\\u001b\\[1m\\u001b\\[32mCALL.*UNKNOWN.*0xunknown"));
+      assert.equal(
+        result,
+        "[1m[32mCALL[39m[22m [35m[1mUNKNOWN[22m[39m[35m[1m[[22m[39m[36m[4m[3m0xunknown[23m[24m[39m[35m[1m][22m[39m.[34m[3m0xmockinpu[23m[39m[34m[3m([23m[39m\n" +
+          "[34m[3m[23m[39m  [33mdata[39m=0xt[34m[3m[23m[39m\n" +
+          "[34m[3m)[23m[39m => 0xmockoutput",
+      );
     });
 
     it("formats call trace item with padding", () => {
@@ -169,7 +177,12 @@ describe("Transaction traces", function () {
 
       const result = txTrace["formatCallTraceItem"](traceCallItem, 2);
 
-      assert.match(result, new RegExp(" {2}\\u001b\\[1m\\u001b\\[32mCALL.*MockContract.*mockMethod"));
+      assert.equal(
+        result,
+        "      [1m[32mCALL[39m[22m MockContract.[34m[3mmockMethod[23m[39m[34m[3m([23m[39m\n" +
+          "[34m[3m[23m[39m        [33mdata[39m=0xt[34m[3m[23m[39m\n" +
+          "[34m[3m      )[23m[39m => result",
+      );
     });
   });
 
