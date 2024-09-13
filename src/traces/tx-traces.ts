@@ -1,18 +1,18 @@
 import format from "../common/format";
 import { HexStrPrefixed } from "../common/bytes";
-import { BaseContract, Network } from "ethers";
-import { ContractInfo } from "../contract-info-resolver/types";
+import { Network } from "ethers";
 import {
   CallEvmOpcodes,
   CreateEvmOpcodes,
-  LogEvmOpcodes,
-  SelfDestructEvmOpcodes,
   isCallOpcode,
   isCreateOpcode,
   isLogOpcode,
   isSelfDestructOpcode,
+  LogEvmOpcodes,
+  SelfDestructEvmOpcodes,
 } from "./evm-opcodes";
 import { Address } from "../common/types";
+import { NamedContract } from "../contracts";
 
 type TxTraceOpcodes = LogEvmOpcodes | CallEvmOpcodes | CreateEvmOpcodes | SelfDestructEvmOpcodes;
 
@@ -42,6 +42,7 @@ export interface TxTraceCreateItem extends TxTraceCtxSpawningItem<CreateEvmOpcod
 
 export interface TxTraceLogItem extends TxTraceItemMeta<LogEvmOpcodes> {
   data: HexStrPrefixed;
+  address?: HexStrPrefixed;
   topic1?: HexStrPrefixed;
   topic2?: HexStrPrefixed;
   topic3?: HexStrPrefixed;
@@ -67,7 +68,7 @@ export class TxTrace {
     public readonly network: Network,
     public readonly from: Address,
     public readonly calls: TxTraceItem[],
-    private readonly contracts: Record<Address, ContractInfo>,
+    private readonly contracts: Record<Address, NamedContract>,
   ) {}
 
   public filter(predicate: (callTrace: TxTraceItem, i: number, collection: TxTraceItem[]) => boolean): TxTrace {
@@ -86,23 +87,22 @@ export class TxTrace {
     return this.calls.map((log) => this.formatOpCode(log, padding)).join("\n");
   }
 
-  public formatOpCode(txTraceItem: TxTraceItem, padding?: number) {
+  public formatOpCode(txTraceItem: TxTraceItem, padding?: number): string {
     if (isCallOpcode(txTraceItem.type)) return this.formatCallTraceItem(txTraceItem as TxTraceCallItem, padding);
-    else if (isCreateOpcode(txTraceItem.type))
-      return this.formatCreateTraceItem(txTraceItem as TxTraceCreateItem, padding);
-    else if (isSelfDestructOpcode(txTraceItem.type))
+    if (isCreateOpcode(txTraceItem.type)) return this.formatCreateTraceItem(txTraceItem as TxTraceCreateItem, padding);
+    if (isSelfDestructOpcode(txTraceItem.type))
       return this.formatSelfDestructTraceItem(txTraceItem as TxTraceSelfDestructItem, padding);
-    else if (isLogOpcode(txTraceItem.type)) return this.formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
-    else return " ".repeat(txTraceItem.depth + (padding ?? 0)) + txTraceItem.type;
+    if (isLogOpcode(txTraceItem.type)) return this.formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
+
+    return " ".repeat(txTraceItem.depth + (padding ?? 0)) + txTraceItem.type;
   }
 
   private formatCallTraceItem(traceCallItem: TxTraceCallItem, padding: number = 0) {
     const paddingLeft = "  ".repeat(traceCallItem.depth + padding);
     const opcode = format.opcode(traceCallItem.type);
     const contract = this.contracts[traceCallItem.address];
-    const methodCallInfo = contract
-      ? this.parseMethodCall(traceCallItem.address, contract, traceCallItem.input, traceCallItem.output)
-      : null;
+
+    const methodCallInfo = contract ? this.parseMethodCall(contract, traceCallItem.input, traceCallItem.output) : null;
 
     const contractLabel = methodCallInfo?.contractLabel || format.contract("UNKNOWN", traceCallItem.address);
     const methodName = methodCallInfo?.fragment.name || traceCallItem.input.slice(0, 10);
@@ -134,17 +134,31 @@ export class TxTrace {
     return " ".repeat(txSelfDestructTraceItem.depth + (padding ?? 0)) + txSelfDestructTraceItem.type;
   }
 
-  private formatLogTraceItem(txTraceLogItem: TxTraceLogItem, padding: number = 0) {
-    // TODO: implement pretty formatting
-    return " ".repeat(txTraceLogItem.depth + (padding ?? 0)) + txTraceLogItem.type;
+  private formatLogTraceItem(txTraceLogItem: TxTraceLogItem, padding: number = 0): string {
+    const contract = this.contracts[txTraceLogItem.address!];
+    if (!contract) {
+      return " ".repeat(txTraceLogItem.depth + (padding ?? 0)) + txTraceLogItem.type;
+    }
+
+    const log = contract.interface.parseLog({
+      topics: [txTraceLogItem.topic1, txTraceLogItem.topic2, txTraceLogItem.topic3, txTraceLogItem.topic4].filter(
+        (topic) => topic !== undefined,
+      ) as string[],
+      data: txTraceLogItem.data,
+    });
+    if (!log) {
+      return " ".repeat(txTraceLogItem.depth + (padding ?? 0)) + txTraceLogItem.type;
+    }
+
+    const paddingLeft = "  ".repeat(txTraceLogItem.depth + (padding ?? 0));
+    return format.log(log, contract!.name, paddingLeft);
   }
 
-  private parseMethodCall(address: Address, { abi, name }: ContractInfo, calldata: string, ret: string) {
-    const contract = new BaseContract(address, abi as any);
+  private parseMethodCall(contract: NamedContract, calldata: string, ret: string) {
     const { fragment } = contract.getFunction(calldata.slice(0, 10));
     return {
       fragment,
-      contractLabel: name,
+      contractLabel: contract.name,
       args: contract.interface.decodeFunctionData(fragment, calldata),
       result: contract.interface.decodeFunctionResult(fragment, ret),
     };

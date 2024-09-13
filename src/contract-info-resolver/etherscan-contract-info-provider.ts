@@ -12,6 +12,15 @@ interface EtherscanResponse<T = unknown> {
   result: T;
 }
 
+export const MAX_ATTEMPTS = 5;
+const DELAY = 100;
+
+class RateLimitError extends Error {
+  constructor(msg: string) {
+    super(`Rate limit reached, tried ${MAX_ATTEMPTS} times:\n${msg}`);
+  }
+}
+
 interface EtherscanGetSourceCodeResult {
   SourceCode: string;
   ABI: string;
@@ -32,13 +41,13 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
   private readonly chains: EtherscanChainConfig[];
   private readonly etherscanToken: string;
 
-  private apiUrl(chainId: ChainId): [url: string | null, err: string | null] {
+  private apiUrl(chainId: ChainId): string {
     for (let config of this.chains) {
       if (config.chainId.toString() === chainId.toString()) {
-        return [config.urls.apiURL, null];
+        return config.urls.apiURL;
       }
     }
-    return [null, `Unsupported chain id "${chainId}"`];
+    throw new Error(`Unsupported chain id "${chainId}"`);
   }
 
   constructor(etherscanToken: string, customChains: EtherscanChainConfig[] = []) {
@@ -46,51 +55,47 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
     this.chains = [...customChains, ...BUILTIN_ETHERSCAN_CHAINS];
   }
 
-  async request(chainId: ChainId, address: Address): Promise<[res: ContractInfo | null, err: null | string]> {
-    const [res, err] = await this.getContractInfo(chainId, address);
-    if (err !== null) {
-      return [null, err];
-    }
-
-    return [
-      {
-        name: res.ContractName,
-        abi: JSON.parse(res.ABI),
-        implementation: res.Implementation === "" ? null : bytes.normalize(res.Implementation),
-        constructorArgs: bytes.normalize(res.ConstructorArguments ?? ""),
-        evmVersion: res.EVMVersion,
-        sourceCode: this.processSourceCode(res),
-        compilerVersion: res.CompilerVersion,
-      },
-      null,
-    ];
+  async request(chainId: ChainId, address: Address): Promise<ContractInfo> {
+    const res = await this.getContractInfo(chainId, address);
+    return {
+      name: res.ContractName,
+      abi: JSON.parse(res.ABI),
+      implementation: res.Implementation === "" ? null : bytes.normalize(res.Implementation),
+      constructorArgs: bytes.normalize(res.ConstructorArguments ?? ""),
+      evmVersion: res.EVMVersion,
+      sourceCode: this.processSourceCode(res),
+      compilerVersion: res.CompilerVersion,
+    };
   }
 
   private async getContractInfo(
     chainId: ChainId,
     address: Address,
-  ): Promise<[res: EtherscanGetSourceCodeResult, error: null]>;
-  private async getContractInfo(chainId: ChainId, address: Address): Promise<[res: null, error: string]>;
-  private async getContractInfo(
-    chainId: ChainId,
-    address: Address,
-  ): Promise<[res: EtherscanGetSourceCodeResult | null, error: string | null]> {
-    const [apiUrl, error] = this.apiUrl(chainId);
-    if (error) return [null, error];
-    const getSourceCodeUrl =
-      apiUrl +
-      "?" +
-      ["module=contract", "action=getsourcecode", `address=${address}`, `apikey=${this.etherscanToken}`].join("&");
+    attempts: number = 0,
+  ): Promise<EtherscanGetSourceCodeResult> {
+    const contractURL = new URL(this.apiUrl(chainId));
+    contractURL.searchParams.append("module", "contract");
+    contractURL.searchParams.append("action", "getsourcecode");
+    contractURL.searchParams.append("address", address);
+    contractURL.searchParams.append("apikey", this.etherscanToken);
 
-    const request = await fetch(getSourceCodeUrl);
+    const request = await fetch(contractURL.toString());
     const response = (await request.json()) as EtherscanResponse<EtherscanGetSourceCodeResult[] | string>;
 
-    if (response.status === "0" && response.result === "Contract source code not verified") {
-      return [null, "Contract is not verified"];
-    } else if (response.status === "1" && Array.isArray(response.result)) {
-      return [response.result[0], null];
+    if (response.message === "OK" && Array.isArray(response.result)) {
+      return response.result[0];
     }
-    return [null, `Unexpected Etherscan Response: ${JSON.stringify(response)}`];
+    if (response.result.toString().includes("rate limit reached")) {
+      if (attempts >= MAX_ATTEMPTS) {
+        throw new RateLimitError(response.result.toString());
+      }
+      await new Promise((resolve) => setTimeout(resolve, DELAY * attempts ** 2));
+      return this.getContractInfo(chainId, address, attempts + 1);
+    }
+    if (response.result.toString().includes("Contract source code not verified")) {
+      throw new Error("Contract is not verified");
+    }
+    throw new Error(`Unexpected Etherscan Response: ${JSON.stringify(response)}`);
   }
 
   private processSourceCode(response: EtherscanGetSourceCodeResult): string {

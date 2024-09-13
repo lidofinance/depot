@@ -21,7 +21,7 @@ interface AbiFragment {
 }
 
 export interface ContractInfoProvider {
-  request(chainId: ChainId, address: Address): Promise<[res: ContractInfo | null, err: null | string]>;
+  request(chainId: ChainId, address: Address): Promise<ContractInfo>;
 }
 
 export interface ContractInfo {

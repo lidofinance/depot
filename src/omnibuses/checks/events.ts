@@ -41,30 +41,15 @@ const checkOmnibusEvents = ({ contracts }: CheckContext, actions: OmnibusAction[
   assert.isEmpty(logs, "Unexpected logs");
 };
 
-// This function is only useful for the subsequence function debugging
-// Usage: const parsedLog = parseLog(log);
-export function parseLog(log: Log) {
-  const { agent, callsScript, voting, finance, curatedStakingModule, ldo, easyTrack } = lido.chainId(1n);
-  let parsedLog = voting.interface.parseLog(log);
-  if (!parsedLog) {
-    parsedLog = curatedStakingModule.interface.parseLog(log);
+// This function is ONLY for the subsequence function debugging
+// Usage: const [contract, parsedLog] = parseLog(log);
+export function parseLog(log: { topics: ReadonlyArray<string>; data: string }) {
+  const contracts = lido.chainId(1n);
+  for (const contract of Object.values(contracts)) {
+    const parsedLog = contract.interface.parseLog(log);
+    if (parsedLog) return [contract, parsedLog];
   }
-  if (!parsedLog) {
-    parsedLog = agent.interface.parseLog(log);
-  }
-  if (!parsedLog) {
-    parsedLog = callsScript.interface.parseLog(log);
-  }
-  if (!parsedLog) {
-    parsedLog = finance.interface.parseLog(log);
-  }
-  if (!parsedLog) {
-    parsedLog = ldo.interface.parseLog(log);
-  }
-  if (!parsedLog) {
-    parsedLog = easyTrack.interface.parseLog(log);
-  }
-  return parsedLog;
+  return [null, null];
 }
 
 function matchLogAndEvent(log: Log, event: EventCheck) {

@@ -1,13 +1,13 @@
-import { ContractTransactionReceipt } from "ethers";
+import { BaseContract, ContractTransactionReceipt } from "ethers";
 
 import bytes from "../common/bytes";
 import providers from "../providers";
 import { TraceStrategy } from "./debug-trace-tx-strategy";
-import { isCallOpcode, isCreateOpcode } from "./evm-opcodes";
-import { ContractInfo } from "../contract-info-resolver/types";
-import { TxTrace, TxTraceCallItem, TxTraceCreateItem } from "./tx-traces";
+import { isCallOpcode, isCreateOpcode, isLogOpcode } from "./evm-opcodes";
+import { TxTrace, TxTraceCallItem, TxTraceCreateItem, TxTraceLogItem } from "./tx-traces";
 import { ContractInfoResolver } from "../contract-info-resolver/contract-info-resolver";
 import { Address } from "../common/types";
+import { NamedContract } from "../contracts";
 
 export class TxTracer {
   constructor(
@@ -19,11 +19,19 @@ export class TxTracer {
     const callTraceItems = await this.traceStrategy.trace(receipt);
 
     const addresses = new Set<Address>();
-    for (let callTraceItem of callTraceItems) {
+    for (const [idx, callTraceItem] of callTraceItems.entries()) {
       if (isCallOpcode(callTraceItem.type)) {
         addresses.add((callTraceItem as TxTraceCallItem).address);
       } else if (isCreateOpcode(callTraceItem.type)) {
         addresses.add((callTraceItem as TxTraceCreateItem).address);
+      } else if (isLogOpcode(callTraceItem.type)) {
+        const cti = callTraceItem as TxTraceLogItem;
+        for (const item of callTraceItems.slice(0, idx).reverse()) {
+          if (isCallOpcode(item.type) && item.depth === cti.depth - 1) {
+            callTraceItems[idx].address = (item as TxTraceCallItem).address;
+            break;
+          }
+        }
       }
     }
     const contracts = await this.resolveContracts(await providers.chainId(receipt), Array.from(addresses));
@@ -31,21 +39,29 @@ export class TxTracer {
     return new TxTrace(network, bytes.normalize(receipt.from), callTraceItems, contracts);
   }
 
-  private async resolveContracts(chainId: bigint, addresses: Address[]): Promise<Record<Address, ContractInfo>> {
-    const res: Record<Address, ContractInfo> = {};
+  private async resolveContracts(chainId: bigint, addresses: Address[]): Promise<Record<Address, NamedContract>> {
+    const res: Record<Address, NamedContract> = {};
     if (!this.contractInfoResolver) return res;
+
     const resolvedContracts = new Set<Address>();
     for (const address of addresses) {
       if (resolvedContracts.has(address)) continue;
       resolvedContracts.add(address);
-      let { res: contract } = await this.contractInfoResolver.resolve(chainId, address);
-      if (contract) {
-        if (contract.implementation) {
-          const { res: implementation } = await this.contractInfoResolver.resolve(chainId, contract.implementation);
-          res[address] = implementation;
-        } else {
-          res[address] = contract;
+
+      try {
+        let contractInfo = await this.contractInfoResolver.resolve(chainId, address);
+        if (contractInfo.implementation) {
+          try {
+            contractInfo = await this.contractInfoResolver.resolve(chainId, contractInfo.implementation);
+          } catch (e) {
+            console.error(e);
+          }
         }
+        const contract = new BaseContract(address, contractInfo.abi as any) as NamedContract;
+        contract.name = contractInfo.name;
+        res[address] = contract;
+      } catch (e) {
+        console.error(e);
       }
     }
     return res;

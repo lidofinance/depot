@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import type { Address, Stringable } from "./types";
+import { LogDescription } from "ethers";
 
 function address(address: Address) {
   return chalk.cyan.underline.italic(address);
@@ -30,8 +31,20 @@ function contract(name: string, addr: Address) {
   return chalk.magenta.bold(name) + chalk.magenta.bold("[") + address(addr) + chalk.magenta.bold("]");
 }
 
+function log(log: LogDescription, contractName: string, padding: string) {
+  let argsString: string;
+  if (log.args.length === 1) {
+    argsString = `(${argument(log.fragment.inputs[0].name, log.args[0])})`;
+  } else {
+    argsString = `(\n${log.args.map((arg, i) => `${padding}  ${argument(log.fragment.inputs[i].name, arg)}`).join(",\n")}\n${padding})`;
+  }
+
+  return `${padding}${opcode("LOG")} ${contractName}.${label(log.name)}${argsString}`;
+}
+
 export default {
   label,
+  log,
   opcode,
   address,
   method,
