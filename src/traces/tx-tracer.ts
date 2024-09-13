@@ -43,15 +43,14 @@ export class TxTracer {
     const res: Record<Address, NamedContract> = {};
     if (!this.contractInfoResolver) return res;
     const resolvedContracts = new Set<Address>();
-    for (let address of addresses) {
+    for (const address of addresses) {
       if (resolvedContracts.has(address)) continue;
       resolvedContracts.add(address);
-      let { res: contractInfo } = await this.contractInfoResolver.resolve(chainId, address);
+      let contractInfo = await this.contractInfoResolver.resolve(chainId, address);
       if (contractInfo) {
         let contract: NamedContract;
         if (contractInfo.implementation) {
-          address = contractInfo.implementation;
-          const { res: implementation } = await this.contractInfoResolver.resolve(chainId, contractInfo.implementation);
+          const implementation = await this.contractInfoResolver.resolve(chainId, contractInfo.implementation);
           if (implementation) {
             contractInfo = implementation;
           }

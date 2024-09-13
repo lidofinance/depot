@@ -26,21 +26,21 @@ describe("TxTracer", () => {
       resolve: sinon
         .stub()
         .onFirstCall()
-        .resolves({ res: { name: "MockContractCall", abi: [], implementation: "0x321" } })
+        .resolves({ name: "MockContractCall", abi: [], implementation: "0x321" })
         .onSecondCall()
-        .resolves({ res: { name: "ImplementationContractCall", abi: [] } })
+        .resolves({ name: "ImplementationContractCall", abi: [] })
         .onThirdCall()
-        .resolves({ res: { name: "MockContractCreate", abi: [], implementation: "0x654" } })
+        .resolves({ name: "MockContractCreate", abi: [], implementation: "0x654" })
         .onCall(3)
-        .resolves({ res: { name: "ImplementationContractCreate", abi: [] } }),
+        .resolves({ name: "ImplementationContractCreate", abi: [] }),
     };
     const mockReceipt = { from: "0x456" } as ContractTransactionReceipt;
     const tracer = new TxTracer(mockTraceStrategy, mockContractInfoResolver as any);
 
     const result = await tracer.trace(mockReceipt);
 
-    assert.equal(result["contracts"]["0x321"].name, "ImplementationContractCall");
-    assert.equal(result["contracts"]["0x654"].name, "ImplementationContractCreate");
+    assert.equal(result["contracts"]["0x123"].name, "ImplementationContractCall");
+    assert.equal(result["contracts"]["0x456"].name, "ImplementationContractCreate");
     assert.lengthOf(result["calls"], 3);
     assert.equal(result["calls"][0].address, "0x123");
     assert.equal(result["calls"][1].address, "0x456");
@@ -52,10 +52,7 @@ describe("TxTracer", () => {
       trace: sinon.stub().resolves([{ type: "CALL", address: "0x123", depth: 0 }]),
     };
     const mockContractInfoResolver = {
-      resolve: sinon
-        .stub()
-        .onFirstCall()
-        .resolves({ res: { name: "MockContract", abi: [] } }),
+      resolve: sinon.stub().onFirstCall().resolves({ name: "MockContract", abi: [] }),
     };
     const mockReceipt = { from: "0x456" } as ContractTransactionReceipt;
     const tracer = new TxTracer(mockTraceStrategy, mockContractInfoResolver as any);
