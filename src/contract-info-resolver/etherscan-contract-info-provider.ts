@@ -12,8 +12,8 @@ interface EtherscanResponse<T = unknown> {
   result: T;
 }
 
-const DELAY = 100;
 export const MAX_ATTEMPTS = 5;
+const DELAY = 100;
 
 class RateLimitError extends Error {
   constructor(msg: string) {
@@ -73,9 +73,7 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
     address: Address,
     attempts: number = 0,
   ): Promise<EtherscanGetSourceCodeResult> {
-    const apiUrl = this.apiUrl(chainId);
-
-    const contractURL = new URL(apiUrl!);
+    const contractURL = new URL(this.apiUrl(chainId));
     contractURL.searchParams.append("module", "contract");
     contractURL.searchParams.append("action", "getsourcecode");
     contractURL.searchParams.append("address", address);

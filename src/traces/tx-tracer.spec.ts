@@ -73,4 +73,39 @@ describe("TxTracer", () => {
 
     assert.deepEqual(result["contracts"], {});
   });
+
+  it("handles contract resolve error", async () => {
+    const mockTraceStrategy = {
+      trace: sinon.stub().resolves([{ type: "CALL", address: "0x123", depth: 0 }]),
+    };
+    const mockContractInfoResolver = {
+      resolve: sinon.stub().onFirstCall().rejects("Resolve error"),
+    };
+    const mockReceipt = { from: "0x456" } as ContractTransactionReceipt;
+    const tracer = new TxTracer(mockTraceStrategy, mockContractInfoResolver as any);
+
+    const result = await tracer.trace(mockReceipt);
+
+    assert.deepEqual(result["contracts"], {});
+  });
+
+  it("handles implementation resolve error", async () => {
+    const mockTraceStrategy = {
+      trace: sinon.stub().resolves([{ type: "CALL", address: "0x123", depth: 0 }]),
+    };
+    const mockContractInfoResolver = {
+      resolve: sinon
+        .stub()
+        .onFirstCall()
+        .resolves({ name: "MockContractCall", abi: [], implementation: "0x321" })
+        .onSecondCall()
+        .rejects("Resolve error"),
+    };
+    const mockReceipt = { from: "0x456" } as ContractTransactionReceipt;
+    const tracer = new TxTracer(mockTraceStrategy, mockContractInfoResolver as any);
+
+    const result = await tracer.trace(mockReceipt);
+
+    assert.equal(result["contracts"]["0x123"].name, "MockContractCall");
+  });
 });

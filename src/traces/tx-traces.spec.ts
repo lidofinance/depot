@@ -218,26 +218,6 @@ describe("Transaction traces", function () {
       assert.equal(result, "LOG4");
     });
 
-    it("formats log trace item with ignored logs", () => {
-      const mockContract = {
-        name: "MockContract",
-        interface: {
-          parseLog: sinon.stub().returns({ name: "LogScriptCall" }),
-        },
-      } as unknown as NamedContract;
-      const traceLogItem = {
-        type: "LOG4",
-        depth: 0,
-        address: "0x123",
-        data: "0xmockdata",
-      } as TxTraceLogItem;
-      const txTrace = new TxTrace({} as Network, "0x456", [traceLogItem], { "0x123": mockContract });
-
-      const result = txTrace["formatLogTraceItem"](traceLogItem);
-
-      assert.equal(result, "");
-    });
-
     it("formats log trace item with padding", () => {
       const mockContract = {
         name: "MockContract",

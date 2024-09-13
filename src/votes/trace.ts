@@ -1,12 +1,13 @@
-import { ContractTransactionReceipt, FunctionFragment } from "ethers";
-import { TxTraceItem } from "../traces/tx-traces";
+import { BaseContract, ContractTransactionReceipt, FunctionFragment } from "ethers";
+import { TxTraceItem, TxTraceLogItem } from "../traces/tx-traces";
 import providers from "../providers";
 import traces from "../traces";
 import bytes from "../common/bytes";
 import lido from "../lido";
 import { Address } from "../common/types";
+import { isLogOpcode } from "../traces/evm-opcodes";
 
-interface MethodCallConfig {
+export interface MethodCallConfig {
   type?: "CALL" | "DELEGATECALL" | "STATICCALL" | "CALLCODE";
   address: Address;
   fragment?: FunctionFragment;
@@ -20,6 +21,7 @@ export async function trace(enactReceipt: ContractTransactionReceipt, options: T
   const provider = providers.provider(enactReceipt);
   const {
     acl,
+    agent,
     kernel,
     callsScript,
     evmScriptRegistry,
@@ -101,16 +103,17 @@ export async function trace(enactReceipt: ContractTransactionReceipt, options: T
       ]),
     )
     .filter(omitProxyDelegateCalls())
-    .filter(omitStaticCalls());
+    .filter(omitStaticCalls())
+    .filter(omitServiceLogs({ agent, callsScript }));
 }
 
-function omitStaticCalls() {
+export function omitStaticCalls() {
   return (opCode: TxTraceItem) => {
     return opCode.type !== "STATICCALL";
   };
 }
 
-function omitProxyDelegateCalls() {
+export function omitProxyDelegateCalls() {
   return (txTraceItem: TxTraceItem, i: number, txTraceItems: TxTraceItem[]) => {
     if (txTraceItem.type !== "DELEGATECALL") return true;
     const prevOpcode = txTraceItems[i - 1]!;
@@ -119,7 +122,7 @@ function omitProxyDelegateCalls() {
   };
 }
 
-function omitMethodCalls(calls: MethodCallConfig[]) {
+export function omitMethodCalls(calls: MethodCallConfig[]) {
   return (txTraceItem: TxTraceItem) =>
     !calls.some(
       (call) =>
@@ -127,4 +130,23 @@ function omitMethodCalls(calls: MethodCallConfig[]) {
         bytes.isEqual(call.address, txTraceItem.address) &&
         (call.fragment ? bytes.isEqual(call.fragment.selector, bytes.slice(txTraceItem.input, 0, 4)) : true),
     );
+}
+
+export function omitServiceLogs({ agent, callsScript }: { agent: BaseContract; callsScript: BaseContract }) {
+  return (txTraceItem: TxTraceItem) => {
+    if (!isLogOpcode(txTraceItem.type)) return true;
+
+    const ti = txTraceItem as TxTraceLogItem;
+    if (ti.address === undefined) return true;
+
+    const topics = [ti.topic1, ti.topic2, ti.topic3, ti.topic4].filter((topic) => topic !== undefined) as string[];
+
+    let log = callsScript.interface.parseLog({ topics, data: ti.data });
+    if (log && log.name === "LogScriptCall") {
+      return false;
+    }
+
+    log = agent.interface.parseLog({ topics, data: ti.data });
+    return !(log && log.name === "ScriptResult");
+  };
 }

@@ -16,8 +16,6 @@ import { NamedContract } from "../contracts";
 
 type TxTraceOpcodes = LogEvmOpcodes | CallEvmOpcodes | CreateEvmOpcodes | SelfDestructEvmOpcodes;
 
-const IGNORED_LOGS = new Set(["LogScriptCall", "ScriptResult"]);
-
 interface TxTraceItemMeta<T extends TxTraceOpcodes> {
   type: T;
   depth: number;
@@ -86,19 +84,17 @@ export class TxTrace {
   }
 
   public format(padding: number = 0): string {
-    return this.calls.map((log) => this.formatOpCode(log, padding)).join("");
+    return this.calls.map((log) => this.formatOpCode(log, padding)).join("\n");
   }
 
   public formatOpCode(txTraceItem: TxTraceItem, padding?: number): string {
-    let logString: string;
-    if (isCallOpcode(txTraceItem.type)) logString = this.formatCallTraceItem(txTraceItem as TxTraceCallItem, padding);
-    else if (isCreateOpcode(txTraceItem.type))
-      logString = this.formatCreateTraceItem(txTraceItem as TxTraceCreateItem, padding);
-    else if (isSelfDestructOpcode(txTraceItem.type))
-      logString = this.formatSelfDestructTraceItem(txTraceItem as TxTraceSelfDestructItem, padding);
-    else if (isLogOpcode(txTraceItem.type)) logString = this.formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
-    else logString = " ".repeat(txTraceItem.depth + (padding ?? 0)) + txTraceItem.type;
-    return logString ? logString + "\n" : "";
+    if (isCallOpcode(txTraceItem.type)) return this.formatCallTraceItem(txTraceItem as TxTraceCallItem, padding);
+    if (isCreateOpcode(txTraceItem.type)) return this.formatCreateTraceItem(txTraceItem as TxTraceCreateItem, padding);
+    if (isSelfDestructOpcode(txTraceItem.type))
+      return this.formatSelfDestructTraceItem(txTraceItem as TxTraceSelfDestructItem, padding);
+    if (isLogOpcode(txTraceItem.type)) return this.formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
+
+    return " ".repeat(txTraceItem.depth + (padding ?? 0)) + txTraceItem.type;
   }
 
   private formatCallTraceItem(traceCallItem: TxTraceCallItem, padding: number = 0) {
@@ -152,10 +148,6 @@ export class TxTrace {
     });
     if (!log) {
       return " ".repeat(txTraceLogItem.depth + (padding ?? 0)) + txTraceLogItem.type;
-    }
-
-    if (IGNORED_LOGS.has(log.name)) {
-      return "";
     }
 
     const paddingLeft = "  ".repeat(txTraceLogItem.depth + (padding ?? 0));
