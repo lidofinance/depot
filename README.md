@@ -168,3 +168,23 @@ Details:
 
 You have to set vote ID in the omnibus file.
 Also, you can add launch date to the comments if it looks relevant.
+
+# Project structure
+
+This project is structured as follows:
+
+- [archive](./archive) - Old omnibuses and tests
+- [configs](./configs) - Lido deployed contracts addresses and related types
+- [interfaces](./interfaces) - ABI's of Lido contracts
+- [omnibuses](./omnibuses) - Actual omnibuses
+- [src](./src) - Source code:
+    - [common](./src/common) - Common utils and helpers
+    - [contract-info-resolver](./src/contract-info-resolver) - Contract info resolver. Used to get contracts info from Etherscan
+    - [contracts](./src/contracts) - Contracts helpers
+    - [hardhat-keystores](./src/hardhat-keystores) - Keystores helpers
+    - [lido](./src/lido) - Lido contracts
+    - [omnibuses](./src/omnibuses) - Collection of omnibus related stuff - predefined actions, checks, tools and structures.
+    - [providers](./src/providers) - Helpers for working with providers
+    - [traces](./src/traces) - Transaction tracing toolset
+    - [votes](./src/votes) - Voting toolset
+- [tasks](./tasks) - Omnibuses Hardhat tasks. Main entrypoint for running omnibuses.
