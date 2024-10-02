@@ -16,6 +16,7 @@ Check should call assertions from the `assert` module imported from `common/asse
 # Example
 
 ```typescript
+// checks/supply.ts
 import { CheckContext } from "./checks";
 import { assert } from "./common/assert";
 
@@ -32,3 +33,25 @@ export default {
 ```
 
 If you're adding a new file, don't forget to reexport your checks in the `checks.ts` file.
+
+```typescript
+import supply from "./supply";
+
+export default {
+  ...supply,
+};
+```
+
+Check written in this way can be used in the tests like this:
+
+```typescript
+import checks from "../src/omnibuses/checks";
+
+const { supply } = checks.mainnet;
+
+describe("Check total supply", () => {
+  it("should be 1000", async () => {
+    await supply.checkTotalSupply(context, 1000);
+  });
+});
+```

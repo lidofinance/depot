@@ -99,9 +99,9 @@ Each omnibus should be thoroughly tested before running on the mainnet.
 
 ### Writing tests
 
-To test it you need to create a new file in the [omnibuses](./src/omnibuses) folder with the same name as the omnibus file with `_spec` suffix.
+To test it you need to create a new file in the [omnibuses](./omnibuses) folder with the same name as the omnibus file with `_spec` suffix.
 
-[Example](./omnibuses/_demo_omnibus.spec.ts).
+[Example](./omnibuses/_demo_omnibus.spec.ts)
 
 Base test structure:
 
