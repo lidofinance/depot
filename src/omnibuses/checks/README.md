@@ -35,10 +35,21 @@ export default {
 If you're adding a new file, don't forget to reexport your checks in the `checks.ts` file.
 
 ```typescript
+import easyTrack from "./easy-track";
+import events from "./events";
+import stakingRouter from "./staking-router";
+import tokens from "./tokens";
 import supply from "./supply";
+
+...
 
 export default {
   // all existing checks
+  easyTrack,
+  events,
+  stakingRouter,
+  tokens,
+  // new checks
   supply,
 };
 ```
