@@ -38,7 +38,8 @@ If you're adding a new file, don't forget to reexport your checks in the `checks
 import supply from "./supply";
 
 export default {
-  ...supply,
+  // all existing checks
+  supply,
 };
 ```
 
