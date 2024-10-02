@@ -2,8 +2,6 @@
 
 The purpose of this repo is to build, test and run omnibuses.
 
----
-
 ## Vocabulary
 
 ### Omnibus
@@ -24,16 +22,12 @@ You can find all available actions in the [actions](./src/omnibuses/actions) fol
 
 Keystores allow you to store your private keys in a secure way.
 
----
-
 ## Installation
 
 1. Clone the repo
 2. Install dependencies via `pnpm install`
 3. types will be generated automatically via postinstall script
 4. Seed the `.env` file from the `.env.example`
-
----
 
 ## Writing omnibuses
 
@@ -98,8 +92,6 @@ export default omnibuses.create({
 The two examples above are equivalent. The first one uses predefined action [transferLDO](./src/omnibuses/actions/tokens.ts) and the second one uses custom action with the same logic.
 
 Detailed example of omnibus you can find in the [file](./omnibuses/_demo_omnibus.ts).
-
----
 
 ## Testing omnibus
 
@@ -191,8 +183,6 @@ pnpm omnibus:test ${OMNIBUS_NAME}
 ```
 
 Where OMNIBUS_NAME is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension.
-
----
 
 ## Keystores
 
