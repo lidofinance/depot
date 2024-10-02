@@ -99,9 +99,92 @@ The two examples above are equivalent. The first one uses predefined action [tra
 
 Detailed example of omnibus you can find in the [file](./omnibuses/_demo_omnibus.ts).
 
-## Test omnibus
+---
 
-To test omnibus you need to run the following command:
+## Testing omnibus
+
+Each omnibus should be thoroughly tested before running on the mainnet.
+
+### Writing tests
+
+To test it you need to create a new file in the [omnibuses](./src/omnibuses) folder with the same name as the omnibus file with `_spec` suffix.
+
+[Example](./omnibuses/_demo_omnibus.spec.ts).
+
+Base test structure:
+
+```typescript
+describe("Testing --OMNIBUS_NAME--", () => {
+  let enactReceipt: Receipt;
+  let snapshotId: string;
+
+  // Take snapshot and revert it after all tests for the local runs.
+  before(async () => {
+    snapshotId = await provider.send("evm_snapshot", []);
+  });
+
+  after(async () => {
+    await provider.send("evm_revert", [snapshotId]);
+  });
+
+  // Test suites
+  // Pre-flight checks
+  describe("Check network state before voting...", () => {
+    it("Do some pre-flight checks", async () => {
+      // Do some pre-flight checks.
+    });
+  });
+
+  // Enact omnibus and check network state after voting
+  describe("Enact omnibus and check network state after voting...", () => {
+    // Set any variables you need to check after the omnibus is enacted.
+    // let someVariable: any;
+
+    before(async () => {
+      // Do some before run requests.
+
+      // Start and enact omnibus. Keep receipt to check events.
+      enactReceipt = await enactOmnibus(omnibus, provider);
+      console.log("    Omnibus enacted successfully. Running checks...");
+    });
+
+    describe("Checks for the first action", () => {
+      it("Do some post-run checks", async () => {
+        // Do some post-run checks.
+      });
+    });
+  });
+
+  // Check fired events
+  describe("Check fired events...", () => {
+    it("All expected events were fired", () => {
+      events.checkOmnibusEvents(omnibus.actions, enactReceipt);
+    });
+  });
+});
+```
+
+To improve readability you can group tests in suites by the actions logic (check the example above).
+
+### Predefined checks
+
+There are some predefined checks that you can use in your tests. You can find them in the [checks](./src/omnibuses/checks) folder.
+You're free to use as predefined checks as the custom ones.
+
+Read more about checks [here](./src/omnibuses/checks/README.md).
+
+### Check fired events
+
+If omnibus actions were written correctly, you shouldn't do anything for the events check, it will be done
+automatically.
+
+> All expected events MUST be defined in the omnibus actions. If there will be any
+> unexpected events, the test will fail. If the event was described in the omnibus actions, but
+> wasn't fired, the test will fail too.
+
+### Running tests
+
+To run omnibus test you should run the following command:
 
 ```bash
 pnpm omnibus:test ${OMNIBUS_NAME}
@@ -109,7 +192,7 @@ pnpm omnibus:test ${OMNIBUS_NAME}
 
 Where OMNIBUS_NAME is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension.
 
-On test run script should output all supposed calls that should be made to the network.
+---
 
 ## Keystores
 
@@ -178,13 +261,13 @@ This project is structured as follows:
 - [interfaces](./interfaces) - ABI's of Lido contracts
 - [omnibuses](./omnibuses) - Actual omnibuses
 - [src](./src) - Source code:
-    - [common](./src/common) - Common utils and helpers
-    - [contract-info-resolver](./src/contract-info-resolver) - Contract info resolver. Used to get contracts info from Etherscan
-    - [contracts](./src/contracts) - Contracts helpers
-    - [hardhat-keystores](./src/hardhat-keystores) - Keystores helpers
-    - [lido](./src/lido) - Lido contracts
-    - [omnibuses](./src/omnibuses) - Collection of omnibus related stuff - predefined actions, checks, tools and structures.
-    - [providers](./src/providers) - Helpers for working with providers
-    - [traces](./src/traces) - Transaction tracing toolset
-    - [votes](./src/votes) - Voting toolset
+  - [common](./src/common) - Common utils and helpers
+  - [contract-info-resolver](./src/contract-info-resolver) - Contract info resolver. Used to get contracts info from Etherscan
+  - [contracts](./src/contracts) - Contracts helpers
+  - [hardhat-keystores](./src/hardhat-keystores) - Keystores helpers
+  - [lido](./src/lido) - Lido contracts
+  - [omnibuses](./src/omnibuses) - Collection of omnibus related stuff - predefined actions, checks, tools and structures.
+  - [providers](./src/providers) - Helpers for working with providers
+  - [traces](./src/traces) - Transaction tracing toolset
+  - [votes](./src/votes) - Voting toolset
 - [tasks](./tasks) - Omnibuses Hardhat tasks. Main entrypoint for running omnibuses.
