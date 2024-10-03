@@ -3,7 +3,7 @@ import { StakingModule } from "../../lido/lido";
 import { call, event, forward } from "../../votes";
 import { Contracts } from "../../contracts/contracts";
 import { Lido } from "../../../configs/types";
-import { OmnibusAction } from "../omnibuses";
+import { OmnibusItem } from "../omnibuses";
 import { Address } from "../../common/types";
 
 interface UpdateStakingModuleInput {
@@ -23,7 +23,7 @@ interface AddNodeOperatorsInput {
   operators: NewNodeOperatorInput[];
 }
 
-function updateStakingModule(contracts: Contracts<Lido>, input: UpdateStakingModuleInput): OmnibusAction {
+function updateStakingModule(contracts: Contracts<Lido>, input: UpdateStakingModuleInput): OmnibusItem {
   const { callsScript, agent, voting, stakingRouter } = contracts;
   const { stakingModuleId, targetShare, stakingModuleFee, treasuryFee } = input;
 
@@ -46,7 +46,7 @@ function updateStakingModule(contracts: Contracts<Lido>, input: UpdateStakingMod
   };
 }
 
-function addNodeOperators(contracts: Contracts<Lido>, input: AddNodeOperatorsInput): OmnibusAction {
+function addNodeOperators(contracts: Contracts<Lido>, input: AddNodeOperatorsInput): OmnibusItem {
   const { callsScript, curatedStakingModule, agent, voting } = contracts;
   const { operators } = input;
 

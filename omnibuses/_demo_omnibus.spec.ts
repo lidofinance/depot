@@ -206,7 +206,7 @@ describe("Testing _demo_omnibus", () => {
 
   describe("Check fired events by action...", () => {
     it("All expected events were fired", () => {
-      events.checkOmnibusEvents(omnibus.actions, enactReceipt);
+      events.checkOmnibusEvents(omnibus.items, enactReceipt);
     });
   });
 });

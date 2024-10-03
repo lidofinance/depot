@@ -5,10 +5,10 @@ import { event, EventCheck } from "../../votes";
 import bytes from "../../common/bytes";
 import lido from "../../lido";
 import contracts from "../../contracts";
-import { OmnibusAction } from "../omnibuses";
+import { OmnibusItem } from "../omnibuses";
 import { CheckContext } from "./checks";
 
-const checkOmnibusEvents = ({ contracts }: CheckContext, actions: OmnibusAction[], receipt: Receipt) => {
+const checkOmnibusEvents = ({ contracts }: CheckContext, actions: OmnibusItem[], receipt: Receipt) => {
   let logs = receipt.logs as Log[];
 
   for (const action of actions) {

@@ -4,7 +4,7 @@ import { call, event } from "../../votes";
 import { AllowedRecipientsRegistry__factory } from "../../../typechain-types";
 import { Contracts } from "../../contracts/contracts";
 import { Lido } from "../../../configs/types";
-import { OmnibusAction } from "../omnibuses";
+import { OmnibusItem } from "../omnibuses";
 
 const iAllowedRecipientsRegistry = AllowedRecipientsRegistry__factory.createInterface();
 
@@ -25,7 +25,7 @@ interface RemovePaymentEvmScriptFactoryInput {
 function removeEvmScriptFactory(
   contracts: Contracts<Lido>,
   { factory, title }: RemovePaymentEvmScriptFactoryInput,
-): OmnibusAction {
+): OmnibusItem {
   const { easyTrack, callsScript, voting } = contracts;
   return {
     title: title,
@@ -37,7 +37,7 @@ function removeEvmScriptFactory(
   };
 }
 
-function addEvmScriptFactory(contracts: Contracts<Lido>, input: AddEvmScriptFactoryInput): OmnibusAction {
+function addEvmScriptFactory(contracts: Contracts<Lido>, input: AddEvmScriptFactoryInput): OmnibusItem {
   const { easyTrack, callsScript, voting } = contracts;
   return {
     title: input.title,
@@ -57,7 +57,7 @@ interface AddNamedEvmScriptFactoryInput {
   registry: Address;
 }
 
-function addTopUpEvmScriptFactory(contracts: Contracts<Lido>, input: AddNamedEvmScriptFactoryInput): OmnibusAction {
+function addTopUpEvmScriptFactory(contracts: Contracts<Lido>, input: AddNamedEvmScriptFactoryInput): OmnibusItem {
   const { finance } = contracts;
   return addEvmScriptFactory(contracts, {
     title: `Add top up EVM Script Factory "${input.name}"`,
@@ -74,7 +74,7 @@ function addTopUpEvmScriptFactory(contracts: Contracts<Lido>, input: AddNamedEvm
 function addAddRecipientEvmScriptFactory(
   contracts: Contracts<Lido>,
   input: AddNamedEvmScriptFactoryInput,
-): OmnibusAction {
+): OmnibusItem {
   return addEvmScriptFactory(contracts, {
     title: `Add add recipient EVM Script Factory "${input.name}"`,
     factory: input.factory,
@@ -88,7 +88,7 @@ function addAddRecipientEvmScriptFactory(
 function addRemoveRecipientEvmScriptFactory(
   contracts: Contracts<Lido>,
   input: AddNamedEvmScriptFactoryInput,
-): OmnibusAction {
+): OmnibusItem {
   return addEvmScriptFactory(contracts, {
     title: `Add remove recipient EVM Script Factory "${input.name}"`,
     factory: input.factory,
@@ -112,11 +112,9 @@ interface AddPaymentEvmScriptFactoriesInput {
 function addPaymentEvmScriptFactories(
   contracts: Contracts<Lido>,
   input: AddPaymentEvmScriptFactoriesInput,
-): OmnibusAction[] {
+): OmnibusItem[] {
   const commonInput = { name: input.name, registry: input.registry };
-  const res: OmnibusAction[] = [
-    addTopUpEvmScriptFactory(contracts, { ...commonInput, factory: input.factories.topUp }),
-  ];
+  const res: OmnibusItem[] = [addTopUpEvmScriptFactory(contracts, { ...commonInput, factory: input.factories.topUp })];
   if (input.factories.addRecipient) {
     res.push(addAddRecipientEvmScriptFactory(contracts, { ...commonInput, factory: input.factories.addRecipient }));
   }
@@ -140,8 +138,8 @@ interface RemovePaymentEvmScriptFactoriesInput {
 function removePaymentEvmScriptFactories(
   contracts: Contracts<Lido>,
   input: RemovePaymentEvmScriptFactoriesInput,
-): OmnibusAction[] {
-  const res: OmnibusAction[] = [
+): OmnibusItem[] {
+  const res: OmnibusItem[] = [
     removeEvmScriptFactory(contracts, {
       title: `Remove Top Up EVM Script Factory "${input.factories.topUp}"`,
       factory: input.factories.topUp,

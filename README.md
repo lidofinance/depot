@@ -2,25 +2,15 @@
 
 The purpose of this repo is to build, test and run omnibuses.
 
-## Vocabulary
+## Omnibus
 
-### Omnibus
+The main purpose of omnibus is to prepare the EVM script that will be executed if the vote is successful.
+During the run, omnibus will call newVote function of the Voting contract with the prepared script and description.
+Voting EVM script will be built from items that are defined in the omnibus.
 
-Omnibus is a collection of actions that are supposed to be executed after the vote.
+## Keystores
 
-### Action
-
-Action is a base brick of each omnibus.
-It is single task like changing protocol settings, granting/revoking access, transferring tokens, etc.
-You can find all available actions in the [actions](./src/omnibuses/actions) folder.
-
-#### Writing actions
-
-[Writing Omnibus Actions 101](./src/omnibuses/actions/README.md)
-
-### Keystores
-
-Keystores allow you to store your private keys in a secure way.
+Keystores allow you to store your private keys in a secure way and use them in the omnibus run process.
 
 ## Installation
 
@@ -31,17 +21,40 @@ Keystores allow you to store your private keys in a secure way.
 
 ## Writing omnibuses
 
-As it was mentioned before, omnibus is a collection of actions, so you need to create a new file in the [omnibuses](./src/omnibuses) folder.
+You need to create a new file in the [omnibuses](./src/omnibuses) folder.
 Naming convention is to name omnibuses `${YYYY_MM_DD}.ts`.
 
-Omnibus example:
+### Omnibus Item
+
+Each omnibus consists of items.
+Omnibus item is an object that contains action title, EVM script call,
+and expected events that should be fired after the vote is executed.
+
+```typescript
+interface OmnibusItem {
+  title: string;
+  evmCall: FormattedEvmCall;
+  expectedEvents: EventCheck[];
+}
+```
+
+Item can be written in two ways:
+
+1. Using predefined blueprints. You can find all available blueprints in the [blueprints](./src/omnibuses/blueprints) folder.
+2. Writing item by scratch following the interface above.
+
+> [Writing Omnibus Blueprints](src/omnibuses/blueprints/README.md)
+
+#### Omnibus example:
+
+Using blueprints:
 
 ```typescript
 export default omnibuses.create({
   network: "mainnet",
   quorumReached: false,
-  items: ({ actions, contracts }) => [
-    actions.tokens.transferLDO({
+  items: ({ blueprints, contracts }) => [
+    blueprints.tokens.transferLDO({
       title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
       to: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
       amount: 180_000n * 10n ** 18n,
@@ -50,7 +63,7 @@ export default omnibuses.create({
 });
 ```
 
-You can use as predefined actions as the custom ones:
+Writing item by scratch:
 
 ```typescript
 export default omnibuses.create({
@@ -89,9 +102,10 @@ export default omnibuses.create({
 });
 ```
 
-The two examples above are equivalent. The first one uses predefined action [transferLDO](./src/omnibuses/actions/tokens.ts) and the second one uses custom action with the same logic.
+The two examples above are equivalent. The first one uses blueprint [transferLDO](src/omnibuses/blueprints/tokens.ts)
+and the second one uses custom item with the same logic.
 
-Detailed example of omnibus you can find in the [file](./omnibuses/_demo_omnibus.ts).
+The detailed example of omnibus you can find in the [example omnibus](./omnibuses/_demo_omnibus.ts)
 
 ## Testing omnibus
 
@@ -256,7 +270,7 @@ This project is structured as follows:
   - [contracts](./src/contracts) - Contracts helpers
   - [hardhat-keystores](./src/hardhat-keystores) - Keystores helpers
   - [lido](./src/lido) - Lido contracts
-  - [omnibuses](./src/omnibuses) - Collection of omnibus related stuff - predefined actions, checks, tools and structures.
+  - [omnibuses](./src/omnibuses) - Collection of omnibus related stuff - blueprints, checks, tools and structures.
   - [providers](./src/providers) - Helpers for working with providers
   - [traces](./src/traces) - Transaction tracing toolset
   - [votes](./src/votes) - Voting toolset
