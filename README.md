@@ -27,7 +27,7 @@ Naming convention is to name omnibuses `${YYYY_MM_DD}.ts`.
 ### Omnibus Item
 
 Each omnibus consists of items.
-Omnibus item is an object that contains action title, EVM script call,
+Omnibus item is an object that contains item title, EVM script call,
 and expected events that should be fired after the vote is executed.
 
 ```typescript
@@ -105,7 +105,7 @@ export default omnibuses.create({
 The two examples above are equivalent. The first one uses blueprint [transferLDO](src/omnibuses/blueprints/tokens.ts)
 and the second one uses custom item with the same logic.
 
-The detailed example of omnibus you can find in the [example omnibus](./omnibuses/_demo_omnibus.ts)
+The detailed example of omnibus you can find in this [file](./omnibuses/_example_omnibus.ts)
 
 ## Testing omnibus
 
@@ -115,7 +115,7 @@ Each omnibus should be thoroughly tested before running on the mainnet.
 
 To test it you need to create a new file in the [omnibuses](./omnibuses) folder with the same name as the omnibus file with `_spec` suffix.
 
-[Example](./omnibuses/_demo_omnibus.spec.ts)
+[Example](./omnibuses/_example_omnibus.spec.ts)
 
 Base test structure:
 
@@ -164,13 +164,13 @@ describe("Testing --OMNIBUS_NAME--", () => {
   // Check fired events
   describe("Check fired events...", () => {
     it("All expected events were fired", () => {
-      events.checkOmnibusEvents(omnibus.actions, enactReceipt);
+      events.checkOmnibusEvents(omnibus.items, enactReceipt);
     });
   });
 });
 ```
 
-To improve readability you can group tests in suites by the actions logic (check the example above).
+To improve readability you can group tests in suites by the logic (check the example above).
 
 ### Predefined checks
 
@@ -181,10 +181,10 @@ Read more about checks [here](./src/omnibuses/checks/README.md).
 
 ### Check fired events
 
-If omnibus actions were written correctly, you shouldn't do anything for the events check, it will be done
-automatically.
+If omnibus items were written correctly, you shouldn't do anything for the events check, it will be done
+automatically. If item is built from the blueprint, all expected events are already listed in the blueprint.
 
-> All expected events MUST be defined in the omnibus actions. If there will be any
+> All expected events MUST be defined in the omnibus items. If there will be any
 > unexpected events, the test will fail. If the event was described in the omnibus actions, but
 > wasn't fired, the test will fail too.
 
@@ -271,6 +271,9 @@ This project is structured as follows:
   - [hardhat-keystores](./src/hardhat-keystores) - Keystores helpers
   - [lido](./src/lido) - Lido contracts
   - [omnibuses](./src/omnibuses) - Collection of omnibus related stuff - blueprints, checks, tools and structures.
+    - [blueprints](./src/omnibuses/blueprints) - Omnibus blueprints
+    - [checks](./src/omnibuses/checks) - Omnibus checks
+    - [tools](./src/omnibuses/tools) - Omnibus tools and helpers
   - [providers](./src/providers) - Helpers for working with providers
   - [traces](./src/traces) - Transaction tracing toolset
   - [votes](./src/votes) - Voting toolset

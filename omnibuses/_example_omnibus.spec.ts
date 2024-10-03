@@ -5,7 +5,7 @@ import networks from "../src/networks";
 import lido from "../src/lido";
 import { Receipt } from "web3-types";
 import { StakingModule } from "../src/lido/lido";
-import omnibus from "./_demo_omnibus";
+import omnibus from "./_example_omnibus";
 import checks from "../src/omnibuses/checks";
 
 const { stakingRouter, tokens, easyTrack, events } = checks.mainnet;

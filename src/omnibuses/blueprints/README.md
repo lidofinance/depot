@@ -22,7 +22,7 @@ interface OmnibusItem {
 #### Example
 
 ```typescript
-// actions/someNameSpace.ts
+// blueprints/someNameSpace.ts
 interface MyInput {
   title: string;
   to: Address;
@@ -30,14 +30,14 @@ interface MyInput {
 }
 
 function myBlueprint(contracts: Contracts<Lido>, input: MyInput): OmnibusItem {
-  const { agent, finance, callsScript, voting } = contracts; // contracts that are used in the action
-  const { to, amount, title } = input; // input that is passed to the action
+  const { agent, finance, callsScript, voting } = contracts; // contracts that are used in the blueprint
+  const { to, amount, title } = input; // input that is passed to the blueprint
 
   return {
-    title: title, // title of the action that will be added in omnbibus description
+    title: title, // title of the item that will be added in omnbibus description
     evmCall: call(someContract.someMethod, [methodArg1, methodArg2]), // call that will be added to the omnibus script
     expectedEvents: [
-      event(callsScript, "LogScriptCall", { emitter: voting }), // callScript event will be fired in the each action
+      event(callsScript, "LogScriptCall", { emitter: voting }), // callScript event will be fired in the each itwm
       event(anotherContract, "anotherMethod", { args: [agent, to, amount] }), // required event with args
       event(anotherContract, "anotherMethod1", undefined), // required event without args
       event(someContract, "someMethod", undefined, { optional: true }), // optional event without args
