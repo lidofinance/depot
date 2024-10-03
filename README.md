@@ -2,29 +2,15 @@
 
 The purpose of this repo is to build, test and run omnibuses.
 
----
+## Omnibus
 
-## Vocabulary
+The main purpose of omnibus is to prepare the EVM script that will be executed if the vote is successful.
+During the run, omnibus will call newVote function of the Voting contract with the prepared script and description.
+Voting EVM script will be built from items that are defined in the omnibus.
 
-### Omnibus
+## Keystores
 
-Omnibus is a collection of actions that are supposed to be executed after the vote.
-
-### Action
-
-Action is a base brick of each omnibus.
-It is single task like changing protocol settings, granting/revoking access, transferring tokens, etc.
-You can find all available actions in the [actions](./src/omnibuses/actions) folder.
-
-#### Writing actions
-
-[Writing Omnibus Actions 101](./src/omnibuses/actions/README.md)
-
-### Keystores
-
-Keystores allow you to store your private keys in a secure way.
-
----
+Keystores allow you to store your private keys in a secure way and use them in the omnibus run process.
 
 ## Installation
 
@@ -33,21 +19,42 @@ Keystores allow you to store your private keys in a secure way.
 3. types will be generated automatically via postinstall script
 4. Seed the `.env` file from the `.env.example`
 
----
-
 ## Writing omnibuses
 
-As it was mentioned before, omnibus is a collection of actions, so you need to create a new file in the [omnibuses](./src/omnibuses) folder.
+You need to create a new file in the [omnibuses](./src/omnibuses) folder.
 Naming convention is to name omnibuses `${YYYY_MM_DD}.ts`.
 
-Omnibus example:
+### Omnibus Item
+
+Each omnibus consists of items.
+Omnibus item is an object that contains item title, EVM script call,
+and expected events that should be fired after the vote is executed.
+
+```typescript
+interface OmnibusItem {
+  title: string;
+  evmCall: FormattedEvmCall;
+  expectedEvents: EventCheck[];
+}
+```
+
+Item can be written in two ways:
+
+1. Using predefined blueprints. You can find all available blueprints in the [blueprints](./src/omnibuses/blueprints) folder.
+2. Writing item by scratch following the interface above.
+
+> [Writing Omnibus Blueprints](src/omnibuses/blueprints/README.md)
+
+#### Omnibus example:
+
+Using blueprints:
 
 ```typescript
 export default omnibuses.create({
   network: "mainnet",
   quorumReached: false,
-  items: ({ actions, contracts }) => [
-    actions.tokens.transferLDO({
+  items: ({ blueprints, contracts }) => [
+    blueprints.tokens.transferLDO({
       title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
       to: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
       amount: 180_000n * 10n ** 18n,
@@ -56,7 +63,7 @@ export default omnibuses.create({
 });
 ```
 
-You can use as predefined actions as the custom ones:
+Writing item by scratch:
 
 ```typescript
 export default omnibuses.create({
@@ -95,21 +102,101 @@ export default omnibuses.create({
 });
 ```
 
-The two examples above are equivalent. The first one uses predefined action [transferLDO](./src/omnibuses/actions/tokens.ts) and the second one uses custom action with the same logic.
+The two examples above are equivalent. The first one uses blueprint [transferLDO](src/omnibuses/blueprints/tokens.ts)
+and the second one uses custom item with the same logic.
 
-Detailed example of omnibus you can find in the [file](./omnibuses/_demo_omnibus.ts).
+The detailed example of omnibus you can find in this [file](./omnibuses/_example_omnibus.ts)
 
-## Test omnibus
+## Testing omnibus
 
-To test omnibus you need to run the following command:
+Each omnibus should be thoroughly tested before running on the mainnet.
+
+### Writing tests
+
+To test it you need to create a new file in the [omnibuses](./omnibuses) folder with the same name as the omnibus file with `_spec` suffix.
+
+[Example](./omnibuses/_example_omnibus.spec.ts)
+
+Base test structure:
+
+```typescript
+describe("Testing --OMNIBUS_NAME--", () => {
+  let enactReceipt: Receipt;
+  let snapshotId: string;
+
+  // Take snapshot and revert it after all tests for the local runs.
+  before(async () => {
+    snapshotId = await provider.send("evm_snapshot", []);
+  });
+
+  after(async () => {
+    await provider.send("evm_revert", [snapshotId]);
+  });
+
+  // Test suites
+  // Pre-flight checks
+  describe("Check network state before voting...", () => {
+    it("Do some pre-flight checks", async () => {
+      // Do some pre-flight checks.
+    });
+  });
+
+  // Enact omnibus and check network state after voting
+  describe("Enact omnibus and check network state after voting...", () => {
+    // Set any variables you need to check after the omnibus is enacted.
+    // let someVariable: any;
+
+    before(async () => {
+      // Do some before run requests.
+
+      // Start and enact omnibus. Keep receipt to check events.
+      enactReceipt = await enactOmnibus(omnibus, provider);
+      console.log("    Omnibus enacted successfully. Running checks...");
+    });
+
+    describe("Checks for the first action", () => {
+      it("Do some post-run checks", async () => {
+        // Do some post-run checks.
+      });
+    });
+  });
+
+  // Check fired events
+  describe("Check fired events...", () => {
+    it("All expected events were fired", () => {
+      events.checkOmnibusEvents(omnibus.items, enactReceipt);
+    });
+  });
+});
+```
+
+To improve readability you can group tests in suites by the logic (check the example above).
+
+### Predefined checks
+
+There are some predefined checks that you can use in your tests. You can find them in the [checks](./src/omnibuses/checks) folder.
+You're free to use as predefined checks as the custom ones.
+
+Read more about checks [here](./src/omnibuses/checks/README.md).
+
+### Check fired events
+
+If omnibus items were written correctly, you shouldn't do anything for the events check, it will be done
+automatically. If item is built from the blueprint, all expected events are already listed in the blueprint.
+
+> All expected events MUST be defined in the omnibus items. If there will be any
+> unexpected events, the test will fail. If the event was described in the omnibus actions, but
+> wasn't fired, the test will fail too.
+
+### Running tests
+
+To run omnibus test you should run the following command:
 
 ```bash
 pnpm omnibus:test ${OMNIBUS_NAME}
 ```
 
 Where OMNIBUS_NAME is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension.
-
-On test run script should output all supposed calls that should be made to the network.
 
 ## Keystores
 
@@ -168,3 +255,26 @@ Details:
 
 You have to set vote ID in the omnibus file.
 Also, you can add launch date to the comments if it looks relevant.
+
+# Project structure
+
+This project is structured as follows:
+
+- [archive](./archive) - Old omnibuses and tests
+- [configs](./configs) - Lido deployed contracts addresses and related types
+- [interfaces](./interfaces) - ABI's of Lido contracts
+- [omnibuses](./omnibuses) - Actual omnibuses
+- [src](./src) - Source code:
+  - [common](./src/common) - Common utils and helpers
+  - [contract-info-resolver](./src/contract-info-resolver) - Contract info resolver. Used to get contracts info from Etherscan
+  - [contracts](./src/contracts) - Contracts helpers
+  - [hardhat-keystores](./src/hardhat-keystores) - Keystores helpers
+  - [lido](./src/lido) - Lido contracts
+  - [omnibuses](./src/omnibuses) - Collection of omnibus related stuff - blueprints, checks, tools and structures.
+    - [blueprints](./src/omnibuses/blueprints) - Omnibus blueprints
+    - [checks](./src/omnibuses/checks) - Omnibus checks
+    - [tools](./src/omnibuses/tools) - Omnibus tools and helpers
+  - [providers](./src/providers) - Helpers for working with providers
+  - [traces](./src/traces) - Transaction tracing toolset
+  - [votes](./src/votes) - Voting toolset
+- [tasks](./tasks) - Omnibuses Hardhat tasks. Main entrypoint for running omnibuses.

@@ -8,15 +8,15 @@ export default omnibuses.create({
   // voteId: 000, // Vote ID should be set only if omnibus is already started.
   // executedOn: 12345678,  // Execution block number should be set only if vote is passed and omnibus was successfully executed.
   quorumReached: false, // Should be set to true if quorum was reached during the vote.
-  items: ({ actions, contracts }) => [
-    actions.stakingRouter.updateStakingModule({
+  items: ({ blueprints, contracts }) => [
+    blueprints.stakingRouter.updateStakingModule({
       title: "Raise Simple DVT target share from 0.5% to 4%",
       stakingModuleId: StakingModule.SimpleDVT,
       targetShare: 4_00,
       treasuryFee: 2_00,
       stakingModuleFee: 8_00,
     }),
-    actions.easyTrack.addPaymentEvmScriptFactories({
+    blueprints.easyTrack.addPaymentEvmScriptFactories({
       name: "reWARDS stETH",
       factories: {
         topUp: "0x85d703B2A4BaD713b596c647badac9A1e95bB03d",
@@ -25,12 +25,12 @@ export default omnibuses.create({
       },
       registry: "0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A",
     }),
-    actions.tokens.transferLDO({
+    blueprints.tokens.transferLDO({
       title: "Transfer 110,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig",
       to: "0x9B1cebF7616f2BC73b47D226f90b01a7c9F86956", // Argo Technology Consulting Ltd. (ATC) multisig
       amount: 110_000n * 10n ** 18n,
     }),
-    actions.easyTrack.removePaymentEvmScriptFactories({
+    blueprints.easyTrack.removePaymentEvmScriptFactories({
       name: "reWARDS LDO",
       factories: {
         topUp: "0x200dA0b6a9905A377CF8D469664C65dB267009d1",
@@ -38,7 +38,7 @@ export default omnibuses.create({
         removeRecipient: "0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7",
       },
     }),
-    actions.stakingRouter.addNodeOperators({
+    blueprints.stakingRouter.addNodeOperators({
       operators: [
         {
           name: "A41",

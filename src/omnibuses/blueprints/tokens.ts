@@ -6,7 +6,7 @@ import { call, event } from "../../votes";
 import { ERC20__factory } from "../../../typechain-types/factories/interfaces";
 import { Contracts } from "../../contracts/contracts";
 import { Lido } from "../../../configs/types";
-import { OmnibusAction } from "../omnibuses";
+import { OmnibusItem } from "../omnibuses";
 
 interface GenericTransferInput {
   title: string;
@@ -18,7 +18,7 @@ interface TransferInput extends GenericTransferInput {
   token: Address | NamedContract<ERC20>;
 }
 
-function transfer(contracts: Contracts<Lido>, input: TransferInput): OmnibusAction {
+function transfer(contracts: Contracts<Lido>, input: TransferInput): OmnibusItem {
   const { agent, finance, callsScript, voting } = contracts;
   const { to, amount, title } = input;
   const token = typeof input.token === "string" ? ERC20__factory.connect(input.token) : input.token;
@@ -36,7 +36,7 @@ function transfer(contracts: Contracts<Lido>, input: TransferInput): OmnibusActi
   };
 }
 
-function transferLDO(contracts: Contracts<Lido>, input: GenericTransferInput): OmnibusAction {
+function transferLDO(contracts: Contracts<Lido>, input: GenericTransferInput): OmnibusItem {
   return transfer(contracts, { ...input, token: contracts.ldo });
 }
 

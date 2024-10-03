@@ -1,6 +1,6 @@
 import { NetworkName } from "../networks";
 import { EventCheck, EvmScriptParser, FormattedEvmCall } from "../votes";
-import actions from "./actions/actions";
+import blueprints from "./blueprints";
 import lido, { LidoEthContracts } from "../lido";
 import { flatten, mapValues, partial } from "lodash";
 
@@ -10,17 +10,17 @@ export type BindFirstParam<R extends Record<string, any>> = {
 type BoundRecord<F extends (...args: any[]) => any> = (...args: OmitFirstParameter<F>) => ReturnType<F>;
 type OmitFirstParameter<F> = F extends (arg0: any, ...rest: infer R) => any ? R : never;
 
-type AppliedActions = {
-  [K in keyof typeof actions]: BindFirstParam<(typeof actions)[K]>;
+type BoundBlueprints = {
+  [K in keyof typeof blueprints]: BindFirstParam<(typeof blueprints)[K]>;
 };
 
 interface Context<N extends NetworkName> {
-  actions: AppliedActions;
+  blueprints: BoundBlueprints;
   contracts: LidoEthContracts<N>;
 }
 
 export interface OmnibusPlan<N extends NetworkName> {
-  items: (ctx: Context<N>) => (OmnibusAction | OmnibusAction[])[];
+  items: (ctx: Context<N>) => (OmnibusItem | OmnibusItem[])[];
   /**
    Network where the omnibus must be launched. Supported networks: "mainnet", "holesky".
    */
@@ -51,10 +51,10 @@ export interface Omnibus {
   voteId?: number;
   isLaunched: boolean;
   isExecuted: boolean;
-  actions: OmnibusAction[]; // for event checking purposes
+  items: OmnibusItem[]; // for event checking purpose
 }
 
-export interface OmnibusAction {
+export interface OmnibusItem {
   title: string;
   evmCall: FormattedEvmCall;
   expectedEvents: EventCheck[];
@@ -62,20 +62,20 @@ export interface OmnibusAction {
 
 function create<N extends NetworkName>(plan: OmnibusPlan<N>): Omnibus {
   const contracts = lido.eth[plan.network]() as LidoEthContracts<N>;
-  const appliedActions = mapValues(actions, (actions) =>
-    mapValues(actions, (value) => partial(value, contracts)),
-  ) as AppliedActions;
-  const items = flatten(plan.items({ actions: appliedActions, contracts }));
+  const boundBlueprints = mapValues(blueprints, (blueprints) =>
+    mapValues(blueprints, (value) => partial(value, contracts)),
+  ) as BoundBlueprints;
+  const items = flatten(plan.items({ blueprints: boundBlueprints, contracts }));
 
   return {
     voteId: plan.voteId,
     network: plan.network,
     isLaunched: plan.voteId !== undefined,
     isExecuted: plan.executedOn !== undefined,
-    actions: items,
-    summary: items.map((action, index) => `${index + 1}. ${action.title}`).join("\n"),
-    calls: items.map((a) => a.evmCall),
-    script: EvmScriptParser.encode(items.map((a) => a.evmCall)),
+    items: items,
+    summary: items.map((item, index) => `${index + 1}. ${item.title}`).join("\n"),
+    calls: items.map((item) => item.evmCall),
+    script: EvmScriptParser.encode(items.map((item) => item.evmCall)),
   };
 }
 
