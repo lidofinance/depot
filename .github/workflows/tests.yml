@@ -7,7 +7,7 @@ jobs:
   tests:
     services:
       hardhat-node:
-        image: feofanov/hardhat-node
+        image: ghcr.io/lidofinance/hardhat-node:2.22.12
         ports:
           - 8545:8545
         env:
