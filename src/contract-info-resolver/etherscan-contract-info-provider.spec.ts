@@ -79,7 +79,7 @@ describe("EtherscanAbiResolver", () => {
     );
   });
 
-it("It retries if Etherscan returns rate limit error", async () => {
+  it("It retries if Etherscan returns rate limit error", async () => {
     let callsCount = 0;
     nock(ETHERSCAN_API_URL!.urls.apiURL)
       .get(new RegExp(".*"))
