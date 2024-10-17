@@ -43,9 +43,12 @@ export const hardhat = {
 export async function trace(receipt: ContractTransactionReceipt): Promise<TxTrace> {
   const etherscanToken = env.ETHERSCAN_TOKEN();
   const contractInfoResolver = etherscanToken
-    ? new ContractInfoResolver({
-        contractInfoProvider: new EtherscanContractInfoProvider(etherscanToken),
-      })
+    ? new ContractInfoResolver(
+        {
+          contractInfoProvider: new EtherscanContractInfoProvider(etherscanToken),
+        },
+        env.ETHERSCAN_CACHE_ENABLED(),
+      )
     : null;
 
   const provider = providers.provider(receipt);

@@ -1,6 +1,5 @@
 import { ContractTransactionReceipt } from "ethers";
 import { TxTracer } from "./tx-tracer";
-import sinon from "sinon";
 import { assert } from "../common/assert";
 import sinon from "sinon";
 import providers from "../providers";

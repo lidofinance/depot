@@ -1,6 +1,6 @@
 {
   "extension": ["ts"],
-  "spec": ["omnibuses/**.spec.ts", "src/**/*.spec.ts"],
+  "spec": ["src/**/*.spec.ts"],
   "require": ["ts-node/register"],
   "recursive": true,
   "timeout": 600000,

@@ -45,7 +45,7 @@ function ETHERSCAN_CACHE_ENABLED() {
   }
 }
 
-function check() {
+function checkEnvVars() {
   if (!ETHERSCAN_TOKEN()) {
     console.warn(
       "ETHERSCAN_TOKEN is not set, therefore parsed trace calls will not include contract names. If you want to see the detailed information about calls, please set the ETHERSCAN_TOKEN environment variable.",
@@ -64,5 +64,5 @@ export default {
   ALCHEMY_TOKEN,
   ETHERSCAN_TOKEN,
   ETHERSCAN_CACHE_ENABLED,
-  check,
+  checkEnvVars,
 };

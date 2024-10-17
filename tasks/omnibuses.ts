@@ -88,7 +88,7 @@ task("omnibus:run", "Runs the omnibus with given name")
     }
 
     // Check environment variables
-    env.check();
+    env.checkEnvVars();
 
     console.log(`Running the omnibus ${name} on "${omnibus.network}" network\n`);
     console.log(`Omnibus items:\n`);

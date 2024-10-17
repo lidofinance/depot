@@ -24,10 +24,6 @@ describe("ContractInfoResolver", () => {
     set: sinon.stub().resolves(),
   };
 
-  before(() => {
-    process.env.ETHERSCAN_CACHE_ENABLED = "true";
-  });
-
   afterEach(() => {
     mockCache.get.resetHistory();
     mockCache.set.resetHistory();
@@ -35,7 +31,7 @@ describe("ContractInfoResolver", () => {
   });
 
   it("resolves contract info and caches the result when cache is enabled", async () => {
-    const resolver = new ContractInfoResolver({ contractInfoProvider: mockProvider, cache: mockCache });
+    const resolver = new ContractInfoResolver({ contractInfoProvider: mockProvider, cache: mockCache }, true);
     const res = await resolver.resolve(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS);
 
     assert.deepEqual(res, mockResponse as any);
@@ -44,7 +40,7 @@ describe("ContractInfoResolver", () => {
 
   it("returns cached contract info if available", async () => {
     mockCache.get = sinon.stub().resolves(mockResponse);
-    const resolver = new ContractInfoResolver({ contractInfoProvider: mockProvider, cache: mockCache });
+    const resolver = new ContractInfoResolver({ contractInfoProvider: mockProvider, cache: mockCache }, true);
 
     const res = await resolver.resolve(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS);
 
@@ -52,13 +48,13 @@ describe("ContractInfoResolver", () => {
     assert.isTrue(mockProvider.request.notCalled);
   });
 
-  it("throws an error if provider returns null", async () => {
+  it("throws an error if provider resolve fails", async () => {
     mockCache.get.resolves(null);
-    mockProvider.request.resolves(null);
+    mockProvider.request.rejects(new Error("Provider error"));
 
     const resolver = new ContractInfoResolver({ contractInfoProvider: mockProvider, cache: mockCache });
 
-    await assert.isRejected(resolver.resolve(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS), "Result is null");
+    await assert.isRejected(resolver.resolve(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS), "Provider error");
   });
 
   it("does not use cache if ETHERSCAN_CACHE_ENABLED is false", async () => {

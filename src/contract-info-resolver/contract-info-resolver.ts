@@ -1,7 +1,6 @@
 import { ContractInfoInMemoryCache } from "./contract-info-cache";
 import type { ChainId, ContractInfo, ContractInfoProvider, ContractInfoCache } from "./types";
 import { Address } from "../common/types";
-import env from "../common/env";
 
 interface AbiResolverOptions {
   contractInfoProvider: ContractInfoProvider;
@@ -12,9 +11,9 @@ export class ContractInfoResolver {
   public readonly cache: ContractInfoCache | undefined;
   public readonly provider: ContractInfoProvider;
 
-  constructor({ contractInfoProvider, cache }: AbiResolverOptions) {
+  constructor({ contractInfoProvider, cache }: AbiResolverOptions, cacheEnabled: boolean = false) {
     this.provider = contractInfoProvider;
-    if (!env.ETHERSCAN_CACHE_ENABLED()) return;
+    if (!cacheEnabled) return;
     if (cache === undefined) {
       this.cache = new ContractInfoInMemoryCache();
     } else {

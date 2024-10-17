@@ -52,7 +52,7 @@ describe("Environment variable functions", () => {
     const consoleWarnStub = sinon.stub(console, "warn");
     delete process.env.ETHERSCAN_TOKEN;
 
-    env.check();
+    env.checkEnvVars();
 
     expect(consoleWarnStub.calledWithMatch(/ETHERSCAN_TOKEN is not set/)).to.be.true;
     consoleWarnStub.restore();
