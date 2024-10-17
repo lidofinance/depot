@@ -20,18 +20,12 @@ export class ContractInfoResolver {
     }
   }
 
-  async resolve(chainId: ChainId, address: Address): Promise<{ res: ContractInfo; err: null }>;
-  async resolve(chainId: ChainId, address: Address): Promise<{ res: null; err: string }>;
-  async resolve(chainId: ChainId, address: Address): Promise<{ res: ContractInfo | null; err: string | null }> {
+  async resolve(chainId: ChainId, address: Address): Promise<ContractInfo> {
     const cacheRes = await this.cache?.get(chainId, address);
-    if (cacheRes) return { res: cacheRes, err: null };
-    const [res, err] = await this.provider.request(chainId, address);
-    if (err !== null) return { res: null, err };
-    if (res === null) {
-      throw new Error(`Result is null`);
-    }
-    await this.cache?.set(chainId, address, res);
+    if (cacheRes) return cacheRes;
 
-    return { res, err: null };
+    const res = await this.provider.request(chainId, address);
+    await this.cache?.set(chainId, address, res);
+    return res;
   }
 }
