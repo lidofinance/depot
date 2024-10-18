@@ -44,8 +44,10 @@ export class TxTracer {
     if (!this.contractInfoResolver) return res;
 
     const resolvedContracts = new Set<Address>();
+
     for (const address of addresses) {
       if (resolvedContracts.has(address)) continue;
+
       resolvedContracts.add(address);
 
       try {

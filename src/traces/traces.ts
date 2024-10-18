@@ -5,7 +5,7 @@ import env from "../common/env";
 import providers from "../providers";
 import { TxTrace } from "./tx-traces";
 import { TxTracer } from "./tx-tracer";
-import { DebugTxTraceStrategy, TraceStrategy } from "./debug-trace-tx-strategy";
+import { DebugTxTraceStrategy } from "./debug-trace-tx-strategy";
 import { HardhatEthersProvider } from "@nomicfoundation/hardhat-ethers/internal/hardhat-ethers-provider";
 import { HardhatVmTraceStrategy } from "./hardhat-vm-trace-strategy";
 import { EtherscanContractInfoProvider } from "../contract-info-resolver/etherscan-contract-info-provider";
@@ -41,16 +41,19 @@ export const hardhat = {
 };
 
 export async function trace(receipt: ContractTransactionReceipt): Promise<TxTrace> {
-  const provider = providers.provider(receipt);
-  let strategy: TraceStrategy | null = null;
-
   const etherscanToken = env.ETHERSCAN_TOKEN();
+  const etherscanCacheEnabled = env.ETHERSCAN_CACHE_ENABLED();
 
   const contractInfoResolver = etherscanToken
-    ? new ContractInfoResolver({
-        contractInfoProvider: new EtherscanContractInfoProvider(etherscanToken),
-      })
+    ? new ContractInfoResolver(
+        {
+          contractInfoProvider: new EtherscanContractInfoProvider(etherscanToken),
+        },
+        etherscanCacheEnabled,
+      )
     : null;
+
+  const provider = providers.provider(receipt);
   if (provider instanceof HardhatEthersProvider || hhTraceStrategy.isSameRootProvider(provider)) {
     if (!hhTraceStrategy.isInitialized) {
       throw new Error(
@@ -60,8 +63,7 @@ export async function trace(receipt: ContractTransactionReceipt): Promise<TxTrac
     return new TxTracer(hhTraceStrategy, contractInfoResolver).trace(receipt);
   }
 
-  const { name } = await providers.cheats(provider).node();
-  strategy = new DebugTxTraceStrategy(provider);
+  const strategy = new DebugTxTraceStrategy(provider);
   const tracer = new TxTracer(strategy, contractInfoResolver);
   return tracer.trace(receipt);
 }

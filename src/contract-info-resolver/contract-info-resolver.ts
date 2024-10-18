@@ -4,15 +4,16 @@ import { Address } from "../common/types";
 
 interface AbiResolverOptions {
   contractInfoProvider: ContractInfoProvider;
-  cache?: ContractInfoCache | null;
+  cache?: ContractInfoCache | undefined;
 }
 
 export class ContractInfoResolver {
-  public readonly cache: ContractInfoCache | null;
+  public readonly cache: ContractInfoCache | undefined;
   public readonly provider: ContractInfoProvider;
 
-  constructor({ contractInfoProvider, cache }: AbiResolverOptions) {
+  constructor({ contractInfoProvider, cache }: AbiResolverOptions, cacheEnabled: boolean = false) {
     this.provider = contractInfoProvider;
+    if (!cacheEnabled) return;
     if (cache === undefined) {
       this.cache = new ContractInfoInMemoryCache();
     } else {

@@ -4,6 +4,7 @@ import { assert } from "chai";
 import bytes from "../common/bytes";
 import { EtherscanContractInfoProvider, MAX_ATTEMPTS } from "./etherscan-contract-info-provider";
 import { BUILTIN_ETHERSCAN_CHAINS } from "./etherscan-chains-config";
+import { randomAddress } from "hardhat/internal/hardhat-network/provider/utils/random";
 
 const CHAIN_ID = 1;
 const ETHERSCAN_API_URL = BUILTIN_ETHERSCAN_CHAINS.find((chain) => chain.chainId === CHAIN_ID);
@@ -127,19 +128,148 @@ describe("EtherscanAbiResolver", () => {
     );
   });
 
-  it.skip("The verified non proxy contract (standard json input)", async () => {
-    const result = await abiProvider.request(CHAIN_ID, "0xD15a672319Cf0352560eE76d9e89eAB0889046D3");
+  it("returns contract info for a verified contract", async () => {
+    const mockResponse = {
+      status: "1",
+      message: "OK",
+      result: [
+        {
+          SourceCode: "contract A {}",
+          ABI: '[{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}]',
+          ContractName: "Flattened",
+          CompilerVersion: "v0.6.12+commit.27d51765",
+          OptimizationUsed: "1",
+          Runs: "200",
+          ConstructorArguments: "000000000000000000000000ae7ab96520de3a18e5e111b5eaab095312d7fe84",
+          EVMVersion: "Default",
+          Library: "",
+          LicenseType: "GNU GPLv3",
+          Proxy: "0",
+          Implementation: randomAddress().toString(),
+          SwarmSource: "ipfs://186e50b7fede392854c0f7a5c7a0ca06364c7a59f763103f5fdc8e825f75be23",
+        },
+      ],
+    };
+    nock(ETHERSCAN_API_URL!.urls.apiURL).get(new RegExp(".*")).reply(200, mockResponse);
+
+    const res = await abiProvider.request(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS);
+
+    assert.isNotNull(res);
+    assert.equal(res.name, mockResponse.result[0].ContractName);
+    assert.deepEqual(res.abi, JSON.parse(mockResponse.result[0].ABI));
+    assert.equal(res.compilerVersion, mockResponse.result[0].CompilerVersion);
+    assert.equal(res.constructorArgs, bytes.normalize(mockResponse.result[0].ConstructorArguments));
+    assert.equal(res.evmVersion, mockResponse.result[0].EVMVersion);
+    assert.equal(res.implementation, bytes.normalize(mockResponse.result[0].Implementation));
+    assert.equal(
+      res.sourceCode,
+      JSON.stringify({
+        language: "Solidity",
+        sources: {
+          [mockResponse.result[0].ContractName + ".sol"]: mockResponse.result[0].SourceCode,
+        },
+        settings: {
+          libraries: {},
+          outputSelection: {
+            "*": {
+              "": ["ast"],
+              "*": ["metadata", "evm.bytecode", "evm.bytecode.sourceMap"],
+            },
+          },
+          evmVersion: mockResponse.result[0].EVMVersion,
+          optimizer: { enabled: mockResponse.result[0].OptimizationUsed === "1", runs: mockResponse.result[0].Runs },
+        },
+      }),
+    );
   });
-  it.skip("The verified non proxy contract (multi part files)", async () => {
-    const result = await abiProvider.request(CHAIN_ID, "0x92a27C4e5e35cFEa112ACaB53851Ec70e2D99a8D");
+
+  it("throws an error for unverified contract", async () => {
+    const mockResponse = {
+      status: "0",
+      message: "NOTOK",
+      result: "Contract source code not verified",
+    };
+    nock(ETHERSCAN_API_URL!.urls.apiURL).get(new RegExp(".*")).reply(200, mockResponse);
+
+    await assert.isRejected(abiProvider.request(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS), "Contract is not verified");
   });
-  it.skip("The verified proxy contract");
-  it.skip("Unverified contract");
-  it.skip("Empty bytecode address");
-  it.skip("Vyper contract", async () => {
-    const result = await abiProvider.request(CHAIN_ID, "0x1aD5cb2955940F998081c1eF5f5F00875431aA90");
+
+  it("throws an error for unsupported chain id", async () => {
+    const unsupportedChainId = 9999;
+    await assert.isRejected(
+      abiProvider.request(unsupportedChainId, FLATTENED_CONTRACT_ADDRESS),
+      `Unsupported chain id "${unsupportedChainId}"`,
+    );
   });
-  it.skip("Yul contract");
+
+  it("throws an error for unexpected Etherscan response", async () => {
+    const mockResponse = {
+      status: "1",
+      message: "OK",
+      result: "Unexpected result format",
+    };
+    nock(ETHERSCAN_API_URL!.urls.apiURL).get(new RegExp(".*")).reply(200, mockResponse);
+
+    await assert.isRejected(
+      abiProvider.request(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS),
+      `Unexpected Etherscan Response: ${JSON.stringify(mockResponse)}`,
+    );
+  });
+
+  it("retries on rate limit error", async () => {
+    const mockResponse = {
+      status: "0",
+      message: "NOTOK",
+      result: "Max rate limit reached",
+    };
+    nock(ETHERSCAN_API_URL!.urls.apiURL).get(new RegExp(".*")).reply(200, mockResponse);
+
+    const secondMockResponse = {
+      status: "1",
+      message: "OK",
+      result: [
+        {
+          SourceCode: "contract A {}",
+          ABI: '[{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"}]',
+          ContractName: "Flattened",
+          CompilerVersion: "v0.6.12+commit.27d51765",
+          OptimizationUsed: "1",
+          Runs: "200",
+          ConstructorArguments: "000000000000000000000000ae7ab96520de3a18e5e111b5eaab095312d7fe84",
+          EVMVersion: "Default",
+          Library: "",
+          LicenseType: "GNU GPLv3",
+          Proxy: "0",
+          Implementation: "0x",
+          SwarmSource: "ipfs://186e50b7fede392854c0f7a5c7a0ca06364c7a59f763103f5fdc8e825f75be23",
+        },
+      ],
+    };
+    nock(ETHERSCAN_API_URL!.urls.apiURL).get(new RegExp(".*")).reply(200, secondMockResponse);
+
+    const res = await abiProvider.request(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS);
+
+    assert.isNotNull(res);
+    assert.equal(res.name, secondMockResponse.result[0].ContractName);
+    assert.deepEqual(res.abi, JSON.parse(secondMockResponse.result[0].ABI));
+    assert.equal(res.compilerVersion, secondMockResponse.result[0].CompilerVersion);
+    assert.equal(res.constructorArgs, bytes.normalize(secondMockResponse.result[0].ConstructorArguments));
+    assert.equal(res.evmVersion, secondMockResponse.result[0].EVMVersion);
+    assert.equal(res.implementation, bytes.normalize(secondMockResponse.result[0].Implementation));
+    assert.equal(
+      res.sourceCode,
+      JSON.stringify({
+        language: "Solidity",
+        sources: { "Flattened.sol": "contract A {}" },
+        settings: {
+          libraries: {},
+          outputSelection: { "*": { "": ["ast"], "*": ["metadata", "evm.bytecode", "evm.bytecode.sourceMap"] } },
+          evmVersion: "Default",
+          optimizer: { enabled: true, runs: "200" },
+        },
+      }),
+    );
+  });
 });
 
 const ETHERSCAN_RESPONSES_MOCK = {

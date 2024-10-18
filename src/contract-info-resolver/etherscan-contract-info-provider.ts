@@ -57,6 +57,7 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
 
   async request(chainId: ChainId, address: Address): Promise<ContractInfo> {
     const res = await this.getContractInfo(chainId, address);
+
     return {
       name: res.ContractName,
       abi: JSON.parse(res.ABI),
@@ -73,13 +74,18 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
     address: Address,
     attempts: number = 0,
   ): Promise<EtherscanGetSourceCodeResult> {
-    const contractURL = new URL(this.apiUrl(chainId));
-    contractURL.searchParams.append("module", "contract");
-    contractURL.searchParams.append("action", "getsourcecode");
-    contractURL.searchParams.append("address", address);
-    contractURL.searchParams.append("apikey", this.etherscanToken);
+    const apiUrl = this.apiUrl(chainId);
 
-    const request = await fetch(contractURL.toString());
+    const getSourceCodeUrl = new URL(apiUrl);
+    const params = new URLSearchParams({
+      module: "contract",
+      action: "getsourcecode",
+      address: address,
+      apikey: this.etherscanToken,
+    });
+    getSourceCodeUrl.search = params.toString();
+
+    const request = await fetch(getSourceCodeUrl);
     const response = (await request.json()) as EtherscanResponse<EtherscanGetSourceCodeResult[] | string>;
 
     if (response.message === "OK" && Array.isArray(response.result)) {
