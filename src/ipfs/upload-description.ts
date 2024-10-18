@@ -1,6 +1,7 @@
 import { Config } from "../common/config";
 import { uploadToPinata } from "./pinata";
 import * as console from "node:console";
+import { saveCID } from "./utils";
 
 export const uploadDescription = async (
   omnibusName: string,
@@ -29,6 +30,8 @@ export const uploadDescription = async (
 │ Link: ${logStr} │
 └${"─".repeat(logStr.length + 8)}┘`,
   );
+
+  await saveCID(omnibusName, cid);
 
   return cid;
 };
