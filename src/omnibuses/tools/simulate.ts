@@ -25,7 +25,7 @@ export const simulateOmnibus = async (
 
   const res: SimulationGroup[] = [];
 
-  const { calls, actions } = omnibus;
+  const { calls, items } = omnibus;
 
   let voteCallIndices: number[] = [];
   for (let i = 0; i < omnibus.calls.length; ++i) {
@@ -44,7 +44,7 @@ export const simulateOmnibus = async (
     const traceEndInd = voteCallIndices[ind + 1];
     const traceSlice = voteTrace.slice(traceStartInd, traceEndInd);
     res.push({
-      title: actions[ind].title,
+      title: items[ind].title,
       trace: traceSlice,
       call: calls[ind],
     });
