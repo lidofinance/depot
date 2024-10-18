@@ -33,11 +33,12 @@ interface OmnibusItem {
 Keystores allow you to securely store your private keys and use them in the process of running omnibuses.
 
 ## Installation
+
 0. Due to proper work of all Depot features like simulating, testing, etc you have to have running [local hardhat node](https://github.com/lidofinance/hardhat-node)
-2. Clone the repo
-3. Install dependencies via `pnpm install`
-4. Types will be generated automatically via postinstall script
-5. Seed the `.env` file from the `.env.example`
+1. Clone the repo
+2. Install dependencies via `pnpm install`
+3. Types will be generated automatically via postinstall script
+4. Seed the `.env` file from the `.env.example`
 
 ## Writing omnibuses
 
