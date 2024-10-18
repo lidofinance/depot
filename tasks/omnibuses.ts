@@ -16,6 +16,9 @@ import { isKnownError } from "../src/common/errors";
 import Mocha from "mocha";
 import fs from "node:fs/promises";
 import { Omnibus } from "../src/omnibuses/omnibuses";
+import { uploadDescription } from "../src/ipfs/upload-description";
+import { getConfigFromEnv } from "../src/common/config";
+import { getDescription } from "../src/omnibuses/tools/description";
 
 traces.hardhat.enableTracing();
 
@@ -73,13 +76,14 @@ task("omnibus:test", "Runs tests for the given omnibus")
 task("omnibus:run", "Runs the omnibus with given name")
   .addPositionalParam<string>("name", "Name of the omnibus to run")
   .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", true, types.boolean)
+  .addOptionalParam<string>("cid", "IPFS description CID", "", types.string)
   .addOptionalParam<RpcNodeName | "local" | "remote">(
     "rpc",
     'The RPC node used to launch omnibus. Possible values: hardhat, anvil, local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
     "hardhat",
     types.string,
   )
-  .setAction(async ({ name, testAccount, rpc }, hre) => {
+  .setAction(async ({ name, testAccount, cid, rpc }, hre) => {
     const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
 
     if (omnibus.isExecuted) {
@@ -94,6 +98,12 @@ task("omnibus:run", "Runs the omnibus with given name")
     console.log(`Omnibus items:\n`);
     console.log(omnibus.summary);
     console.log("\n");
+
+    const [omnibusDescription, abort] = await getDescription(name, omnibus, cid);
+    if (abort) {
+      console.log("The omnibus launch was canceled");
+      return;
+    }
 
     const [provider, node] = await prepareExecEnv(omnibus.network, rpc);
 
@@ -125,7 +135,7 @@ task("omnibus:run", "Runs the omnibus with given name")
 
       // Launch the omnibus
       console.log(`Sending the tx to start the vote...`);
-      const tx = await votes.start(pilot, omnibus.script, omnibus.summary);
+      const tx = await votes.start(pilot, omnibus.script, omnibusDescription);
 
       console.log("Transaction successfully sent:", tx.hash);
 
@@ -144,6 +154,19 @@ task("omnibus:run", "Runs the omnibus with given name")
     } finally {
       await node?.stop();
     }
+  });
+
+task("omnibus:upload-description", "Uploads omnibus description to IPFS")
+  .addPositionalParam<string>("name", "Name of the omnibus to run")
+  .setAction(async ({ name }) => {
+    const config = getConfigFromEnv();
+    const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
+    if (omnibus.isExecuted) {
+      console.log(`Omnibus already was executed. Aborting...`);
+      return;
+    }
+
+    await uploadDescription(name, omnibus.summary, config);
   });
 
 function printOmnibusSimulation([gasUsed, groups]: [bigint, SimulationGroup[]]) {
