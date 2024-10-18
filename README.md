@@ -4,31 +4,21 @@ The purpose of this repo is to build, test and run omnibuses.
 
 ## Omnibus
 
-The main purpose of omnibus is to prepare the EVM script that will be executed if the vote is successful.
-During the run, omnibus will call newVote function of the Voting contract with the prepared script and description.
-Voting EVM script will be built from items that are defined in the omnibus.
+The main purpose of the omnibus is to prepare the EVM script that will be executed if the vote is successful. The voting EVM script is built from the omnibus items defined in the omnibus. During the run, the omnibus will call the
 
-## Keystores
+```
+newVote(bytes executionScript, string metadata, bool castVote, bool executesIfDecided)
+```
 
-Keystores allow you to store your private keys in a secure way and use them in the omnibus run process.
+[function of the voting contract](https://github.com/aragon/aragon-apps/blob/b72da2c6606a361d0160d5d78fb534018ba3ce91/apps/voting/contracts/Voting.sol#L138) with the prepared script and description.
 
-## Installation
+## Omnibus Item
 
-1. Clone the repo
-2. Install dependencies via `pnpm install`
-3. types will be generated automatically via postinstall script
-4. Seed the `.env` file from the `.env.example`
+Each omnibus is made up of items. An omnibus item is the basic building block of each omnibus. It represents a single on-chain action (such as changing protocol settings, granting or revoking access, transferring tokens, etc). In code, it is represented as an object containing
 
-## Writing omnibuses
-
-You need to create a new file in the [omnibuses](./src/omnibuses) folder.
-Naming convention is to name omnibuses `${YYYY_MM_DD}.ts`.
-
-### Omnibus Item
-
-Each omnibus consists of items.
-Omnibus item is an object that contains item title, EVM script call,
-and expected events that should be fired after the vote is executed.
+- `title` - arbitrary name of the current item
+- `evmCall` - EVM call script for this item, which is added to the entire voting script and executed after voting is enacted. Call encoding funtion can be found [here](https://github.com/lidofinance/depot/blob/811b1df686e935e2df71c1ed5168271afc6e6874/src/votes/vote-script.ts#L105)
+- `expectedEvents` - expected on-chain events that should be fired after the vote is executed (used as a means of self-verification procedure)
 
 ```typescript
 interface OmnibusItem {
@@ -38,21 +28,43 @@ interface OmnibusItem {
 }
 ```
 
-Item can be written in two ways:
+## Keystores
 
-1. Using predefined blueprints. You can find all available blueprints in the [blueprints](./src/omnibuses/blueprints) folder.
-2. Writing item by scratch following the interface above.
+Keystores allow you to securely store your private keys and use them in the process of running omnibuses.
 
-> [Writing Omnibus Blueprints](src/omnibuses/blueprints/README.md)
+## Installation
 
-#### Omnibus example:
+0. Due to proper work of all Depot features like simulating, testing, etc you have to have running [local hardhat node](https://github.com/lidofinance/hardhat-node)
+1. Clone the repo
+2. Install dependencies via `pnpm install`
+3. Types will be generated automatically via postinstall script
+4. Seed the `.env` file from the `.env.example`
+
+## Writing omnibuses
+
+You need to create a new file in the [omnibuses](./src/omnibuses) folder.
+Naming convention is to name omnibuses `${YYYY_MM_DD}.ts`.
+
+Writing an omnibus essentially means packing a bunch of omnibus items into an `omnibuses.create` call along with the additional parametres:
+
+- `network` - one of the allowed network names. At the moment it's `mainnet` and `goerly`
+
+and exporting the result as the default export of a module.
+
+### Writing Omnibus Items
+
+Omnibus Item can be written in two ways:
+
+1. Use predefined blueprints. You can find all available blueprints in the [blueprints](./src/omnibuses/blueprints) folder. You can also write your own blueprints: [Writing Omnibus Blueprints](src/omnibuses/blueprints/README.md).
+2. Write the item from scratch following the interface above.
+
+### Omnibus example
 
 Using blueprints:
 
 ```typescript
 export default omnibuses.create({
   network: "mainnet",
-  quorumReached: false,
   items: ({ blueprints, contracts }) => [
     blueprints.tokens.transferLDO({
       title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
@@ -68,7 +80,6 @@ Writing item by scratch:
 ```typescript
 export default omnibuses.create({
   network: "mainnet",
-  quorumReached: false,
   items: ({ contracts }) => [
     {
       title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
@@ -102,22 +113,22 @@ export default omnibuses.create({
 });
 ```
 
+:::info
 The two examples above are equivalent. The first one uses blueprint [transferLDO](src/omnibuses/blueprints/tokens.ts)
 and the second one uses custom item with the same logic.
+:::
 
-The detailed example of omnibus you can find in this [file](./omnibuses/_example_omnibus.ts)
+You can find the detailed example of the omnibus in this [file](./omnibuses/_example_omnibus.ts).
 
 ## Testing omnibus
 
-Each omnibus should be thoroughly tested before running on the mainnet.
+Each omnibus MUST be thoroughly tested before running on the mainnet.
 
 ### Writing tests
 
-To test it you need to create a new file in the [omnibuses](./omnibuses) folder with the same name as the omnibus file with `_spec` suffix.
+To test an omnibus you need to create a new file in the [omnibuses](./omnibuses) folder with the same name as the omnibus file but with the `.spec.ts` extension. You can find the detailed example in this [file](./omnibuses/_example_omnibus.spec.ts).
 
-[Example](./omnibuses/_example_omnibus.spec.ts)
-
-Base test structure:
+Basic test structure:
 
 ```typescript
 describe("Testing --OMNIBUS_NAME--", () => {
@@ -174,19 +185,18 @@ To improve readability you can group tests in suites by the logic (check the exa
 
 ### Predefined checks
 
-There are some predefined checks that you can use in your tests. You can find them in the [checks](./src/omnibuses/checks) folder.
-You're free to use as predefined checks as the custom ones.
+There are some predefined checks that you can use in your tests. You can find them in the [checks](./src/omnibuses/checks) folder. You're free to use the predefined checks as well as the custom ones.
 
 Read more about checks [here](./src/omnibuses/checks/README.md).
 
 ### Check fired events
 
-If omnibus items were written correctly, you shouldn't do anything for the events check, it will be done
-automatically. If item is built from the blueprint, all expected events are already listed in the blueprint.
+If omnibus items were written correctly, you shouldn't do anything for the events check, it will be done automatically. If item is built from the blueprint, all expected events are already listed in the blueprint.
 
-> All expected events MUST be defined in the omnibus items. If there will be any
-> unexpected events, the test will fail. If the event was described in the omnibus actions, but
-> wasn't fired, the test will fail too.
+:::warning
+All expected events MUST be defined in the omnibus items. If there will be any
+unexpected events, the test will fail. If the event was described in the omnibus actions, but wasn't fired, the test will fail too.
+:::
 
 ### Running tests
 
@@ -196,7 +206,7 @@ To run omnibus test you should run the following command:
 pnpm omnibus:test ${OMNIBUS_NAME}
 ```
 
-Where OMNIBUS_NAME is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension.
+Where `${OMNIBUS_NAME}` is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension.
 
 ## Keystores
 
@@ -207,7 +217,7 @@ to run the following command:
 pnpm ks:add ${KEYSTORE_NAME}
 ```
 
-Where keystore name can be anything you're comfortable with.
+Where `${KEYSTORE_NAME}` can be anything you're comfortable with.
 
 To list all available keystores you can run the following command:
 
@@ -241,9 +251,7 @@ To run omnibus you need to run the following command:
 pnpm omnibus:run ${OMNIBUS_NAME}
 ```
 
-Where OMNIBUS_NAME is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension.
-On the run script should output all calls that will be made to the network and ask for your confirmation to continue.
-After deployment, you should see next message:
+Where `${OMNIBUS_NAME}` is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension. While the script is running, it should print all calls made to the network and ask for your confirmation to continue. After deployment, you should see the following message:
 
 ```
 Omnibus successfully launched 🎉!
@@ -253,8 +261,7 @@ Details:
     Launch date: 01 Jan 1970
 ```
 
-You have to set vote ID in the omnibus file.
-Also, you can add launch date to the comments if it looks relevant.
+You have to set vote ID in the omnibus file. Also, you can add launch date to the comments if it looks relevant.
 
 # Project structure
 
