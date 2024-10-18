@@ -42,8 +42,7 @@ You need to create a new file in the [omnibuses](./src/omnibuses) folder.
 Naming convention is to name omnibuses `${YYYY_MM_DD}.ts`.
 
 Writing an omnibus essentially means packing a bunch of omnibus items into an `omnibuses.create` call along with the additional parametres:
-* `network` - one of the allowed network names. At the moment it's `mainnet` and `goerly`.
-* `quorumReached` - ???
+* `network` - one of the allowed network names. At the moment it's `mainnet` and `goerly`
 
 and exporting the result as the default export of a module.
 
@@ -61,7 +60,6 @@ Using blueprints:
 ```typescript
 export default omnibuses.create({
   network: "mainnet",
-  quorumReached: false,
   items: ({ blueprints, contracts }) => [
     blueprints.tokens.transferLDO({
       title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
@@ -77,7 +75,6 @@ Writing item by scratch:
 ```typescript
 export default omnibuses.create({
   network: "mainnet",
-  quorumReached: false,
   items: ({ contracts }) => [
     {
       title: "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
