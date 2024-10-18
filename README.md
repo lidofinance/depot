@@ -6,15 +6,15 @@ The purpose of this repo is to build, test and run omnibuses.
 
 The main purpose of the omnibus is to prepare the EVM script that will be executed if the vote is successful. The voting EVM script is built from the omnibus items defined in the omnibus. During the run, the omnibus will call the
 ```
-newVote(bytes executionScript, string metadata, bool ???, bool ???)
+newVote(bytes executionScript, string metadata, bool castVote, bool executesIfDecided)
 ```
-function of the voting contract with the prepared script and description.
+[function of the voting contract](https://github.com/aragon/aragon-apps/blob/b72da2c6606a361d0160d5d78fb534018ba3ce91/apps/voting/contracts/Voting.sol#L138) with the prepared script and description.
 
 ## Omnibus Item
 
 Each omnibus is made up of items. An omnibus item is the basic building block of each omnibus. It represents a single on-chain action (such as changing protocol settings, granting or revoking access, transferring tokens, etc). In code, it is represented as an object containing
 * `title` - arbitrary name of the current item
-* `evmCall` - ????
+* `evmCall` - EVM call script for this item, which is added to the entire voting script and executed after voting is enacted. Call encoding funtion can be found [here](https://github.com/lidofinance/depot/blob/811b1df686e935e2df71c1ed5168271afc6e6874/src/votes/vote-script.ts#L105)
 * `expectedEvents` - expected on-chain events that should be fired after the vote is executed (used as a means of self-verification procedure)
 
 ```typescript
@@ -42,7 +42,7 @@ You need to create a new file in the [omnibuses](./src/omnibuses) folder.
 Naming convention is to name omnibuses `${YYYY_MM_DD}.ts`.
 
 Writing an omnibus essentially means packing a bunch of omnibus items into an `omnibuses.create` call along with the additional parametres:
-* `network` - ???
+* `network` - one of the allowed network names. At the moment it's `mainnet` and `goerly`.
 * `quorumReached` - ???
 
 and exporting the result as the default export of a module.
