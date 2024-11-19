@@ -1,5 +1,4 @@
 import omnibuses from "../src/omnibuses/omnibuses";
-import { StakingModule } from "../src/lido/lido";
 import { call, event } from "../src/votes";
 
 export default omnibuses.create({
@@ -9,13 +8,6 @@ export default omnibuses.create({
   // executedOn: 12345678,  // Execution block number should be set only if vote is passed and omnibus was successfully executed.
   quorumReached: false, // Should be set to true if quorum was reached during the vote.
   items: ({ blueprints, contracts }) => [
-    blueprints.stakingRouter.updateStakingModule({
-      title: "Raise Simple DVT target share from 0.5% to 4%",
-      stakingModuleId: StakingModule.SimpleDVT,
-      targetShare: 4_00,
-      treasuryFee: 2_00,
-      stakingModuleFee: 8_00,
-    }),
     blueprints.easyTrack.addPaymentEvmScriptFactories({
       name: "reWARDS stETH",
       factories: {

@@ -206,7 +206,7 @@ To run omnibus test you should run the following command:
 pnpm omnibus:test ${OMNIBUS_NAME}
 ```
 
-Where `${OMNIBUS_NAME}` is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension.
+Where `${OMNIBUS_NAME}` is the name of the file in the [omnibuses](./omnibuses) folder without `.ts` extension.
 
 ## Keystores
 
