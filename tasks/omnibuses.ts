@@ -16,6 +16,7 @@ import { isKnownError } from "../src/common/errors";
 import Mocha from "mocha";
 import fs from "node:fs/promises";
 import { Omnibus } from "../src/omnibuses/omnibuses";
+import { uploadDescription } from "../src/omnibuses/sub-actions/upload-description";
 
 traces.hardhat.enableTracing();
 
@@ -95,6 +96,12 @@ task("omnibus:run", "Runs the omnibus with given name")
     console.log(omnibus.summary);
     console.log("\n");
 
+    const [omnibusDescription, abort] = await uploadDescription(name, omnibus);
+    if (abort) {
+      console.log("The omnibus launch was canceled");
+      return;
+    }
+
     const [provider, node] = await prepareExecEnv(omnibus.network, rpc);
 
     try {
@@ -125,7 +132,7 @@ task("omnibus:run", "Runs the omnibus with given name")
 
       // Launch the omnibus
       console.log(`Sending the tx to start the vote...`);
-      const tx = await votes.start(pilot, omnibus.script, omnibus.summary);
+      const tx = await votes.start(pilot, omnibus.script, omnibusDescription);
 
       console.log("Transaction successfully sent:", tx.hash);
 

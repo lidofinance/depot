@@ -26,6 +26,10 @@ export interface OmnibusPlan<N extends NetworkName> {
    */
   network: N;
   /**
+    Description will be uploaded to IPFS and CID (IPFS address) will be added to vote metadata
+   */
+  description: string;
+  /**
    * When the omnibus was launched, contains the id of the vote.
    */
   voteId?: number;
@@ -45,6 +49,7 @@ export interface OmnibusPlan<N extends NetworkName> {
 
 export interface Omnibus {
   network: NetworkName;
+  description: string;
   summary: string;
   calls: FormattedEvmCall[];
   script: string;
@@ -70,6 +75,7 @@ function create<N extends NetworkName>(plan: OmnibusPlan<N>): Omnibus {
   return {
     voteId: plan.voteId,
     network: plan.network,
+    description: plan.description,
     isLaunched: plan.voteId !== undefined,
     isExecuted: plan.executedOn !== undefined,
     items: items,
