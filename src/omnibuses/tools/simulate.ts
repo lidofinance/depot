@@ -4,6 +4,7 @@ import votes, { FormattedEvmCall } from "../../votes";
 import bytes from "../../common/bytes";
 import { TxTrace } from "../../traces/tx-traces";
 import { Omnibus } from "../omnibuses";
+import chalk from "chalk";
 
 export interface SimulationGroup {
   call: FormattedEvmCall;
@@ -15,6 +16,8 @@ export const simulateOmnibus = async (
   omnibus: Omnibus,
   provider: RpcProvider,
 ): Promise<[gasUsed: bigint, SimulationGroup[]]> => {
+  console.log(`Simulating the omnibus using "hardhat" node...`);
+
   const snapshotRestorer = await providers.cheats(provider).snapshot();
 
   const { enactReceipt } = await votes.adopt(provider, omnibus.script, omnibus.summary, {
@@ -50,6 +53,18 @@ export const simulateOmnibus = async (
     });
   }
   await snapshotRestorer.restore();
-
+  printOmnibusSimulationResults(enactReceipt.gasUsed, res);
   return [enactReceipt.gasUsed, res];
+};
+
+export const printOmnibusSimulationResults = (gasUsed: bigint, groups: SimulationGroup[]) => {
+  console.log(`Enactment gas costs: ${gasUsed}`);
+  groups.forEach((group, index) => {
+    console.log(chalk.green(`${index + 1}. ${group.title}`));
+    console.log("  EVM call:");
+    console.log(group.call.format(4));
+    console.log("  Call Trace:");
+    console.log(group.trace.format(2));
+    console.log();
+  });
 };

@@ -34,6 +34,10 @@ function ETHERSCAN_TOKEN() {
   return process.env.ETHERSCAN_TOKEN;
 }
 
+function PINATA_JWT() {
+  return process.env.PINATA_JWT;
+}
+
 function ETHERSCAN_CACHE_ENABLED() {
   switch (process.env.ETHERSCAN_CACHE_ENABLED) {
     case "true":
@@ -65,4 +69,5 @@ export default {
   ETHERSCAN_TOKEN,
   ETHERSCAN_CACHE_ENABLED,
   checkEnvVars,
+  PINATA_JWT,
 };
