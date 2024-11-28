@@ -432,17 +432,13 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "name": "supportRequiredPct", "type": "uint64" }
-    ],
+    "inputs": [{ "indexed": false, "name": "supportRequiredPct", "type": "uint64" }],
     "name": "ChangeSupportRequired",
     "type": "event"
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "name": "minAcceptQuorumPct", "type": "uint64" }
-    ],
+    "inputs": [{ "indexed": false, "name": "minAcceptQuorumPct", "type": "uint64" }],
     "name": "ChangeMinQuorum",
     "type": "event"
   },
@@ -454,9 +450,7 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "name": "objectionPhaseTime", "type": "uint64" }
-    ],
+    "inputs": [{ "indexed": false, "name": "objectionPhaseTime", "type": "uint64" }],
     "name": "ChangeObjectionPhaseTime",
     "type": "event"
   },

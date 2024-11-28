@@ -1,0 +1,32 @@
+name: Checks and Linters
+
+on:
+  pull_request:
+
+jobs:
+  security:
+    uses: lidofinance/linters/.github/workflows/security.yml@master
+    permissions:
+      security-events: write
+      contents: read
+
+  actions:
+    uses: lidofinance/linters/.github/workflows/actions.yml@master
+
+  formatting:
+    name: Check code formatting
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20.x
+
+      - name: Setup prettier
+        run: npm install prettier@^3.2.5
+
+      - name: Check formatting with prettier
+        run: npx prettier --check .

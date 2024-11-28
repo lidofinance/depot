@@ -25,9 +25,7 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "address", "name": "_newAddress", "type": "address" }
-    ],
+    "inputs": [{ "indexed": true, "internalType": "address", "name": "_newAddress", "type": "address" }],
     "name": "BokkyPooBahsDateTimeContractChanged",
     "type": "event"
   },
@@ -69,9 +67,7 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "address", "name": "_recipient", "type": "address" }
-    ],
+    "inputs": [{ "indexed": true, "internalType": "address", "name": "_recipient", "type": "address" }],
     "name": "RecipientRemoved",
     "type": "event"
   },
@@ -143,9 +139,7 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "internalType": "uint256", "name": "_newSpentAmount", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": false, "internalType": "uint256", "name": "_newSpentAmount", "type": "uint256" }],
     "name": "SpentAmountChanged",
     "type": "event"
   },
@@ -204,9 +198,7 @@
   {
     "inputs": [],
     "name": "bokkyPooBahsDateTimeContract",
-    "outputs": [
-      { "internalType": "contract IBokkyPooBahsDateTimeContract", "name": "", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "contract IBokkyPooBahsDateTimeContract", "name": "", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },
@@ -311,9 +303,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      { "internalType": "address", "name": "_bokkyPooBahsDateTimeContract", "type": "address" }
-    ],
+    "inputs": [{ "internalType": "address", "name": "_bokkyPooBahsDateTimeContract", "type": "address" }],
     "name": "setBokkyPooBahsDateTimeContract",
     "outputs": [],
     "stateMutability": "nonpayable",

@@ -746,9 +746,7 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "name": "depositedValidators", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": false, "name": "depositedValidators", "type": "uint256" }],
     "name": "DepositedValidatorsChanged",
     "type": "event"
   },

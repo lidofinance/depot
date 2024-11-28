@@ -39,17 +39,13 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "address", "name": "_evmScriptFactory", "type": "address" }
-    ],
+    "inputs": [{ "indexed": true, "internalType": "address", "name": "_evmScriptFactory", "type": "address" }],
     "name": "EVMScriptFactoryRemoved",
     "type": "event"
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "uint256", "name": "_motionId", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": true, "internalType": "uint256", "name": "_motionId", "type": "uint256" }],
     "name": "MotionCanceled",
     "type": "event"
   },
@@ -72,17 +68,13 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "internalType": "uint256", "name": "_motionDuration", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": false, "internalType": "uint256", "name": "_motionDuration", "type": "uint256" }],
     "name": "MotionDurationChanged",
     "type": "event"
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "uint256", "name": "_motionId", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": true, "internalType": "uint256", "name": "_motionId", "type": "uint256" }],
     "name": "MotionEnacted",
     "type": "event"
   },
@@ -110,9 +102,7 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "uint256", "name": "_motionId", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": true, "internalType": "uint256", "name": "_motionId", "type": "uint256" }],
     "name": "MotionRejected",
     "type": "event"
   },
@@ -131,17 +121,13 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "internalType": "uint256", "name": "_newThreshold", "type": "uint256" }
-    ],
+    "inputs": [{ "indexed": false, "internalType": "uint256", "name": "_newThreshold", "type": "uint256" }],
     "name": "ObjectionsThresholdChanged",
     "type": "event"
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "internalType": "address", "name": "account", "type": "address" }
-    ],
+    "inputs": [{ "indexed": false, "internalType": "address", "name": "account", "type": "address" }],
     "name": "Paused",
     "type": "event"
   },
@@ -182,9 +168,7 @@
   },
   {
     "anonymous": false,
-    "inputs": [
-      { "indexed": false, "internalType": "address", "name": "account", "type": "address" }
-    ],
+    "inputs": [{ "indexed": false, "internalType": "address", "name": "account", "type": "address" }],
     "name": "Unpaused",
     "type": "event"
   },

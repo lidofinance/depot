@@ -1,10 +1,7 @@
-import lidoV2 from "./lido-v2";
+import { NetworkName } from "../networks";
+import lido from "./lido";
 
-const LidoProtocolVersionized = {
-  v2: lidoV2,
-};
+export type LidoContracts = typeof lido;
+export type LidoEthContracts<T extends NetworkName = NetworkName> = ReturnType<LidoContracts["eth"][T]>;
 
-export type LidoVersion = keyof LidoProtocol;
-export type LidoProtocol = typeof LidoProtocolVersionized;
-
-export default LidoProtocolVersionized;
+export default lido;
