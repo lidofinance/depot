@@ -11,15 +11,19 @@ export async function start(
   castVote: boolean = false,
   overrides?: NonPayableOverrides,
 ) {
+  console.log(`Sending the tx to start the vote...`);
   const { voting, tokenManager } = lido.chainId(await providers.chainId(creator), creator);
 
   const startVoteScript = evm(
     call(voting["newVote(bytes,string,bool,bool)"], [evmScript, description, castVote, false]),
   );
-  return tokenManager.connect(creator).forward(startVoteScript, overrides ?? {});
+  const tx = await tokenManager.connect(creator).forward(startVoteScript, overrides ?? {});
+  console.log("Transaction successfully sent:", tx.hash);
+  return tx;
 }
 
 export async function wait(tx: ContractTransactionResponse) {
+  console.log("Waiting transaction will be confirmed...");
   const receipt = await tx.wait();
   if (!receipt) {
     throw new Error("Invalid confirmations value");

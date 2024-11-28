@@ -31,6 +31,19 @@ const DEFAULT_PROMPTS_OPTIONS = {
   },
 };
 
+async function confirmOrAbort(message?: string) {
+  const { isConfirmed } = await prompts({
+    type: "toggle",
+    name: "isConfirmed",
+    message: message ?? "Confirm?",
+    active: "yes",
+    inactive: "no",
+  });
+  if (!isConfirmed) {
+    throw new OperationAbortedError();
+  }
+}
+
 async function confirm(message?: string) {
   const { isConfirmed } = await prompts({
     type: "toggle",
@@ -101,6 +114,7 @@ export default {
   secret,
   select,
   confirm,
+  confirmOrAbort,
   password,
   sigint,
 };

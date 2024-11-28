@@ -149,6 +149,7 @@ async function spawnNode(name: RpcNodeName, options: RpcNodeOptions = {}): Promi
   }
 
   process.on("exit", () => {
+    console.error(`Stop spawn node "${name}", kill main process`);
     treeKill(nodePid);
   });
 
@@ -161,11 +162,13 @@ async function spawnNode(name: RpcNodeName, options: RpcNodeOptions = {}): Promi
     const absoluteLogPath = path.resolve(config.logsDir, `${name}_${port}.log`);
     const logStream = createWriteStream(absoluteLogPath, { encoding: "utf-8" });
     const errorListener = (chunk: any) => {
+      console.error(`An error occurred during the process  to spawn "${name}: ${chunk.toString()}" `);
       logStream.write(chunk.toString());
     };
 
     const stop = () => {
       return new Promise<void>((resolve) => {
+        console.error(`Stop spawn node "${name}", kill main process`);
         node.on("exit", () => resolve());
         treeKill(nodePid);
       });
