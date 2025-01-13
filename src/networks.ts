@@ -9,6 +9,11 @@ export type ChainId = "1" | "5";
 export type ChainName = "eth" | "arb" | "opt";
 export type NetworkName = "mainnet" | "goerli";
 
+export const networkIdByName = {
+  mainnet: 1n,
+  goerli: 5n,
+}
+
 class UnsupportedChainError extends Error {
   constructor(chainName: string) {
     super(`Unsupported chain ${chainName}`);

@@ -38,6 +38,28 @@ function PINATA_JWT() {
   return process.env.PINATA_JWT;
 }
 
+function CLEAN_FORK_PORT() {
+  return process.env.CLEAN_FORK_PORT || "8546";
+}
+
+function DIRTY_FORK_PORT() {
+  return process.env.DIRTY_FORK_PORT || "8545";
+}
+
+function GITHUB_ORG() {
+  return process.env.GITHUB_ORG || "lidofinance";
+}
+function GIT_BRANCH_SCRIPTS() {
+  return process.env.GIT_BRANCH_SCRIPTS || "master";
+}
+function GIT_BRANCH_CORE() {
+  return process.env.GIT_BRANCH_CORE || "master";
+}
+
+function HH_NODE_IMAGE() {
+  return process.env.HH_NODE_IMAGE || 'ghcr.io/lidofinance/hardhat-node:2.22.16';
+}
+
 function ETHERSCAN_CACHE_ENABLED() {
   switch (process.env.ETHERSCAN_CACHE_ENABLED) {
     case "true":
@@ -49,6 +71,7 @@ function ETHERSCAN_CACHE_ENABLED() {
   }
 }
 
+/** Check that require retirement variable was filled */
 function checkEnvVars() {
   if (!ETHERSCAN_TOKEN()) {
     console.warn(
@@ -65,9 +88,15 @@ export default {
   LOCAL_ETH_RPC_URL,
   LOCAL_ARB_RPC_URL,
   LOCAL_OPT_RPC_URL,
+  DIRTY_FORK_PORT,
+  CLEAN_FORK_PORT,
   ALCHEMY_TOKEN,
   ETHERSCAN_TOKEN,
   ETHERSCAN_CACHE_ENABLED,
   checkEnvVars,
   PINATA_JWT,
+  GITHUB_ORG,
+  HH_NODE_IMAGE,
+  GIT_BRANCH_CORE,
+  GIT_BRANCH_SCRIPTS,
 };

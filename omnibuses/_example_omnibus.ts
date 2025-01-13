@@ -28,6 +28,11 @@ export default omnibuses.create({
       to: "0x9B1cebF7616f2BC73b47D226f90b01a7c9F86956", // Argo Technology Consulting Ltd. (ATC) multisig
       amount: 110_000n * 10n ** 18n,
     }),
+    blueprints.tokens.transferLDO({
+      title: "Transfer 10,000 LDO to Lucky Wallet",
+      to: "0x0000000000000000000000000000000000000777", // Random Address
+      amount: 10_000n * 10n ** 18n,
+    }),
     blueprints.easyTrack.removePaymentEvmScriptFactories({
       name: "reWARDS LDO",
       factories: {

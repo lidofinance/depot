@@ -31,7 +31,11 @@ const DEFAULT_PROMPTS_OPTIONS = {
   },
 };
 
-async function confirmOrAbort(message?: string) {
+async function confirmOrAbort(message?: string, autoConfirm = false) {
+  if  (autoConfirm) {
+    return
+  }
+
   const { isConfirmed } = await prompts({
     type: "toggle",
     name: "isConfirmed",

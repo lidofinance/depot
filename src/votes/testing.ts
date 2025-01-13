@@ -12,6 +12,7 @@ import { start, wait } from "./lifecycle";
 import { NonPayableOverrides } from "../../typechain-types/common";
 import lido from "../lido";
 import { ChainId } from "../common/types";
+import { logBlue, logGreen } from "../common/color";
 
 export async function creator(provider: RpcProvider): Promise<Signer> {
   const { unlock, lock } = providers.cheats(provider);
@@ -38,6 +39,7 @@ export async function pass(
   voteId: BigNumberish,
   overrides: NonPayableOverrides = { gasLimit: DEFAULT_GAS_LIMIT },
 ) {
+  logGreen(`Passing vote ${voteId}`);
   const chainId = await providers.chainId(provider);
   const { unlock, lock, increaseTime } = providers.cheats(provider);
 
@@ -66,7 +68,6 @@ export async function pass(
 
     await voting.vote(voteId, true, false, overrides);
   }
-
   await increaseTime(VOTE_DURATION);
 
   const tx = await voting.executeVote(voteId, overrides);
@@ -77,6 +78,7 @@ export async function pass(
   if (!receipt) {
     throw new Error("transaction wait failed");
   }
+  logGreen(`Enacted vote ${voteId}`);
   return receipt;
 }
 

@@ -5,11 +5,12 @@ import { getIpfsProvider, instruction } from "../../src/ipfs/ipfs-provider";
 
 const VOTE_CID_PREFIX = "lidovoteipfs://"; //just template for parsing, not a real protocol
 
-export const uploadDescription = async (omnibusName: string, omnibus: Omnibus): Promise<string> => {
+export const uploadDescription = async (omnibusName: string, omnibus: Omnibus, silent: boolean): Promise<string> => {
   const description = omnibus.description.trim();
-  if (!description) {
+  if (!description && !silent) {
     await prompt.confirmOrAbort(
       `You have not filled the omnibus description field, it means that users only have a basic description of the items. Do you want to continue?`,
+      silent,
     );
     return omnibus.summary; // continue without description
   }
@@ -33,7 +34,10 @@ export const uploadDescription = async (omnibusName: string, omnibus: Omnibus): 
     console.log(
       `You have filled vote's description. In order for it work correctly you need to upload description to IPFS. This can be done in two ways. The first way is automatic - ${instruction}. The second way is manual - upload description to IPFS yourself, CID should be ${calculatedCid}`,
     );
-    await prompt.confirmOrAbort(`You could upload description later. Do you want to continue without uploading? `);
+    await prompt.confirmOrAbort(
+      `You could upload description later. Do you want to continue without uploading? `,
+      silent,
+    );
     return omnibusDescription; // continue without uploading
   }
 
@@ -41,6 +45,7 @@ export const uploadDescription = async (omnibusName: string, omnibus: Omnibus): 
   if (!cid) {
     await prompt.confirmOrAbort(
       `Vote description not uploaded. You could upload description later. Do you want to continue without upload?`,
+      silent,
     );
     return omnibusDescription; // continue after failed uploading
   }
@@ -48,6 +53,7 @@ export const uploadDescription = async (omnibusName: string, omnibus: Omnibus): 
   if (cid !== calculatedCid) {
     await prompt.confirmOrAbort(
       `Vote description uploaded with error, cid doesn't match. You could upload description later. Do you want to continue without upload?`,
+      silent,
     );
     return omnibusDescription; // continue after failed uploading
   }
