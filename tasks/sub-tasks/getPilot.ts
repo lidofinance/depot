@@ -4,8 +4,13 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import votes from "../../src/votes";
 import format from "../../src/common/format";
 import bytes from "../../src/common/bytes";
+import { HardhatEthersProvider } from "@nomicfoundation/hardhat-ethers/internal/hardhat-ethers-provider";
 
-export const getPilot = async (provider: JsonRpcProvider, hre: HardhatRuntimeEnvironment, testAccount?: boolean) => {
+export const getPilot = async (
+  provider: JsonRpcProvider | HardhatEthersProvider,
+  hre: HardhatRuntimeEnvironment,
+  testAccount?: boolean,
+) => {
   const pilot = testAccount
     ? await votes.creator(provider)
     : await hre.keystores.unlock().then((privateKey) => new Wallet(privateKey));

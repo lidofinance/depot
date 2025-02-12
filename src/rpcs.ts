@@ -84,7 +84,7 @@ export const DEFAULT_PORT = 8545;
 export const DEFAULT_HOST = "127.0.0.1";
 
 let config = {
-  logsDir: path.join(__dirname, "..", "..", "rpc-node-logs"),
+  logsDir: `${process.cwd()}/logs`,
 };
 
 function setLogsDir(path: string) {
@@ -156,7 +156,7 @@ async function spawnNode(name: RpcNodeName, options: RpcNodeOptions = {}): Promi
   await files.touchDir(config.logsDir);
 
   return new Promise<SpawnedRpcNode>((resolve) => {
-    const url = `http://${host}:${port}`;
+    const url = `http://${host}:${port}`; // TODO: add HTTPS support if possible
     const provider = new JsonRpcProvider(url);
 
     const absoluteLogPath = path.resolve(config.logsDir, `${name}_${port}.log`);

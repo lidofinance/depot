@@ -11,6 +11,7 @@ import checks from "../src/omnibuses/checks";
 const { stakingRouter, tokens, easyTrack, events } = checks.mainnet;
 
 const url = networks.localRpcUrl("eth");
+console.log(url);
 const provider = new JsonRpcProvider(url);
 const contracts = lido.eth[omnibus.network](provider);
 
@@ -21,11 +22,15 @@ const expectedStakingModuleFee = 800n;
 const tokenTransfers = [
   {
     recipient: "0x17F6b2C738a63a8D3A113a228cfd0b373244633D",
-    amount: 180000n * 10n ** 18n,
+    amount: 180_000n * 10n ** 18n,
+  },
+  {
+    recipient: "0x0000000000000000000000000000000000000777",
+    amount: 10_000n * 10n ** 18n,
   },
   {
     recipient: "0x9B1cebF7616f2BC73b47D226f90b01a7c9F86956",
-    amount: 110000n * 10n ** 18n,
+    amount: 110_000n * 10n ** 18n,
   },
 ];
 const newNopCount = 7;

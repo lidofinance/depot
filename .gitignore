@@ -13,6 +13,7 @@ artifacts
 
 keystores
 rpc-node-logs
+logs
 etherscan-cache
 
 # OS specific

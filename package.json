@@ -6,6 +6,7 @@
     "omnibus:test": "hardhat omnibus:test",
     "omnibus:simulate": "hardhat omnibus:simulate",
     "omnibus:debug": "hardhat omnibus:simulate _example_omnibus",
+    "omnibus:multi-test": "hardhat omnibus:multi-test",
     "ks:add": "hardhat keystore:add",
     "ks:ls": "hardhat keystore:list",
     "ks:del": "hardhat keystore:delete",
@@ -39,10 +40,12 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "5.0.2",
+    "@types/dockerode": "^3.3.32",
     "chai": "^4.3.8",
     "chalk": "^4.1.2",
     "clarinet": "^0.12.6",
     "commander": "^11.1.0",
+    "dockerode": "^4.0.2",
     "dotenv": "^16.3.1",
     "hardhat": "2.22.9",
     "ipfs-only-hash": "^4.0.0",
@@ -54,5 +57,6 @@
     "tree-kill": "^1.2.2",
     "web3-eth-accounts": "^4.1.1",
     "web3-types": "^1.3.1"
-  }
+  },
+  "packageManager": "pnpm@9.15.0+sha512.76e2379760a4328ec4415815bcd6628dee727af3779aaa4c914e3944156c4299921a89f976381ee107d41f12cfa4b66681ca9c718f0668fa0831ed4c6d8ba56c"
 }

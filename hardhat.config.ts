@@ -1,4 +1,3 @@
-import path from "path";
 import "dotenv/config";
 import { HardhatUserConfig } from "hardhat/config";
 import "@typechain/hardhat";
@@ -10,12 +9,10 @@ if (!process.env.SKIP_TYPECHAIN) {
 }
 import "./src/hardhat-keystores";
 
-import rpcs from "./src/rpcs";
 import traces from "./src/traces";
 import networks from "./src/networks";
 
 traces.hardhat.setup();
-rpcs.setLogsDir(path.join(__dirname, "rpc-node-logs"));
 
 const config: HardhatUserConfig = {
   solidity: "0.8.23",

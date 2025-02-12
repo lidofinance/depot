@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import env from "./env";
+import * as env from "./env";
 import sinon from "sinon";
 
 describe("Environment variable functions", () => {
