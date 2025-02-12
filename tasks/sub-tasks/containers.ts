@@ -1,9 +1,8 @@
 import { runImageInBackground, runTestsFromRepo } from "../../src/docker";
-import env from "../../src/common/env";
+import * as env from "../../src/common/env";
 import { logBlue } from "../../src/common/color";
 import Docker from "dockerode";
 import { JsonRpcProvider } from "ethers";
-
 
 export const runDepotTests = async (name: string, hideDebug = false) => {
   const repo = "depot";
@@ -51,7 +50,12 @@ export const runCoreTests = async (pattern?: string, hideDebug = false, shouldMo
   await runTestsFromRepo("core", env.GIT_BRANCH_CORE(), cmd, hideDebug, config);
 };
 
-export const runScriptsTests = async (voteId: number, pattern?: string, hideDebug = false, shouldMountTests = false) => {
+export const runScriptsTests = async (
+  voteId: number,
+  pattern?: string,
+  hideDebug = false,
+  shouldMountTests = false,
+) => {
   const repo = "scripts";
   const cmd = !pattern ? ["poetry", "run", "brownie", "test"] : ["poetry", "run", "brownie", "test", pattern];
   logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);

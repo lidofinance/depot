@@ -6,7 +6,7 @@ import votes from "../src/votes";
 import { RpcNodeName } from "../src/rpcs";
 import traces from "../src/traces";
 import prompt from "../src/common/prompt";
-import env from "../src/common/env";
+import * as env from "../src/common/env";
 import { simulateOmnibus } from "../src/omnibuses/tools/simulate";
 import { isKnownError } from "../src/common/errors";
 import Mocha from "mocha";

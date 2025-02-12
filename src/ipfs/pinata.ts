@@ -1,5 +1,5 @@
 import { PinataSDK } from "pinata-web3";
-import env from "../common/env";
+import * as env from "../common/env";
 
 const getProvider = () => {
   const pinata = new PinataSDK({

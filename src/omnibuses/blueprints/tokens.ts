@@ -41,5 +41,3 @@ function transferLDO(contracts: Contracts<Lido>, input: GenericTransferInput): O
 }
 
 export default { transfer, transferLDO };
-
-

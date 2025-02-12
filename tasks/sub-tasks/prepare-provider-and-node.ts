@@ -9,12 +9,17 @@ export async function prepareProviderAndNode(
   rpc?: RpcNodeName | "local" | "remote",
   blockNumber?: number,
 ) {
-  const { provider } = await prepareProvider(networkName,  hre, rpc, blockNumber);
+  const { provider } = await prepareProvider(networkName, hre, rpc, blockNumber);
   await printNetworkInfo(await provider.getNetwork(), rpc);
   return { provider };
 }
 
-async function prepareProvider(network: NetworkName,  hre: HardhatRuntimeEnvironment, rpc?: RpcNodeName | "local" | "remote", blockNumber?: number) {
+async function prepareProvider(
+  network: NetworkName,
+  hre: HardhatRuntimeEnvironment,
+  rpc?: RpcNodeName | "local" | "remote",
+  blockNumber?: number,
+) {
   if (rpc === "remote") {
     console.log(`Running on the remote RPC node on network "${network}"`);
     return { provider: new JsonRpcProvider(networks.rpcUrl("eth", network)) } as const;

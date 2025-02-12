@@ -1,5 +1,5 @@
 import { Network } from "ethers";
-import env from "./common/env";
+import * as env from "./common/env";
 
 const DEFAULT_LOCAL_ETH_RPC_URL = "http://127.0.0.1:8545";
 const DEFAULT_LOCAL_ARB_RPC_URL = "http://127.0.0.1:8546";
@@ -12,7 +12,7 @@ export type NetworkName = "mainnet" | "goerli";
 export const networkIdByName = {
   mainnet: 1n,
   goerli: 5n,
-}
+};
 
 class UnsupportedChainError extends Error {
   constructor(chainName: string) {

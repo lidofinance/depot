@@ -1,5 +1,5 @@
 import Docker, { Container } from "dockerode";
-import env from "../common/env";
+import * as env from "../common/env";
 import process from "node:process";
 import chalk from "chalk";
 import { createWriteStream } from "node:fs";

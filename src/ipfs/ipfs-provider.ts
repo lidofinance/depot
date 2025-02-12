@@ -1,4 +1,4 @@
-import env from "../common/env";
+import * as env from "../common/env";
 import pinata from "./pinata";
 
 export const getIpfsProvider = async () => {
