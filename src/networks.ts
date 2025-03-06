@@ -5,13 +5,13 @@ const DEFAULT_LOCAL_ETH_RPC_URL = "http://127.0.0.1:8545";
 const DEFAULT_LOCAL_ARB_RPC_URL = "http://127.0.0.1:8546";
 const DEFAULT_LOCAL_OPT_RPC_URL = "http://127.0.0.1:8547";
 
-export type ChainId = "1" | "5";
+export type ChainId = "1" | "17000";
 export type ChainName = "eth" | "arb" | "opt";
-export type NetworkName = "mainnet" | "goerli";
+export type NetworkName = "mainnet" | "holesky";
 
 export const networkIdByName = {
-  mainnet: 1n,
-  goerli: 5n,
+  mainnet: 1,
+  holesky: 17000,
 };
 
 class UnsupportedChainError extends Error {
@@ -20,25 +20,28 @@ class UnsupportedChainError extends Error {
   }
 }
 
-const NETWORKS: Record<ChainName, Record<NetworkName, Network>> = {
+const NETWORKS: Record<ChainName, Record<NetworkName, Network | null>> = {
   eth: {
     mainnet: new Network("mainnet", 1),
-    goerli: new Network("goerli", 5),
+    holesky: new Network("holesky", 17000),
   },
   arb: {
     mainnet: new Network("arbitrum", 42161),
-    goerli: new Network("arbitrum-goerli", 421613),
+    holesky: null,
   },
   opt: {
     mainnet: new Network("optimism", 10),
-    goerli: new Network("optimism-goerli", 420),
+    holesky: null,
   },
 } as const;
 
 function local(chainName: ChainName): string {
-  if (chainName === "eth") return env.LOCAL_ETH_RPC_URL() || DEFAULT_LOCAL_ETH_RPC_URL;
-  if (chainName === "arb") return env.LOCAL_ARB_RPC_URL() || DEFAULT_LOCAL_ARB_RPC_URL;
-  if (chainName === "opt") return env.LOCAL_OPT_RPC_URL() || DEFAULT_LOCAL_OPT_RPC_URL;
+  if (chainName === "eth")
+    return env.LOCAL_ETH_RPC_PORT() ? `http://127.0.0.1:${env.LOCAL_ETH_RPC_PORT()}` : DEFAULT_LOCAL_ETH_RPC_URL;
+  if (chainName === "arb")
+    return env.LOCAL_ARB_RPC_PORT() ? `http://127.0.0.1:${env.LOCAL_ARB_RPC_PORT()}` : DEFAULT_LOCAL_ARB_RPC_URL;
+  if (chainName === "opt")
+    return env.LOCAL_OPT_RPC_PORT() ? `http://127.0.0.1:${env.LOCAL_OPT_RPC_PORT()}` : DEFAULT_LOCAL_OPT_RPC_URL;
   throw new UnsupportedChainError(chainName);
 }
 
@@ -74,7 +77,7 @@ function alchemyUrl(chainName: ChainName, networkName: NetworkName) {
   return alchemyToken ? `https://${chainName}-${networkName}.g.alchemy.com/v2/${alchemyToken}` : undefined;
 }
 
-function get(chainName: ChainName, networkName: NetworkName): Network {
+function get(chainName: ChainName, networkName: NetworkName): Network | null {
   return NETWORKS[chainName][networkName];
 }
 

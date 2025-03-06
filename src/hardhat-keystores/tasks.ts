@@ -18,8 +18,8 @@ task(TASKS.LIST, "List available accounts").setAction(async (_, hre) => {
     console.log("Accounts not found.");
 
     console.log(`You can add or generate account using one of the commands:`);
-    console.log("  ", chalk.bold(`npx hardhat ${TASKS.ADD}`));
-    console.log("  ", chalk.bold(`npx hardhat ${TASKS.GENERATE}`));
+    console.log("  ", chalk.bold(`npx hardhat ${TASKS.ADD} <name>`));
+    console.log("  ", chalk.bold(`npx hardhat ${TASKS.GENERATE} <name>`));
     return;
   }
 

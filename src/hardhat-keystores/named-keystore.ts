@@ -61,7 +61,7 @@ export class NamedKeystore {
 
   format() {
     const prettyName = chalk.magenta.bold(this.name);
-    const prettyAddress = chalk.white.bold("0x" + this.address);
+    const prettyAddress = chalk.white.bold(this.address);
     return `${prettyAddress}: ${prettyName}`;
   }
 }

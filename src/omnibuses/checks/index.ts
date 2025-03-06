@@ -20,4 +20,5 @@ function getChecks(network: NetworkName) {
 
 export default {
   mainnet: getChecks("mainnet"),
+  holesky: getChecks("holesky"),
 };

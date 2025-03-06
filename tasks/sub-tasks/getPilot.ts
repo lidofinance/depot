@@ -13,7 +13,7 @@ export const getPilot = async (
 ) => {
   const pilot = testAccount
     ? await votes.creator(provider)
-    : await hre.keystores.unlock().then((privateKey) => new Wallet(privateKey));
+    : await hre.keystores.unlock().then((privateKey) => new Wallet(privateKey, provider));
 
   console.log(`Deployer ${format.address(bytes.normalize(await pilot.getAddress()))}`);
   console.log(`  - nonce: ${await pilot.getNonce()}`);

@@ -1,9 +1,9 @@
 import chalk from "chalk";
 import { task } from "hardhat/config";
 import * as types from "hardhat/internal/core/params/argumentTypes";
+import providers from "../src/providers";
 
 import votes from "../src/votes";
-import { RpcNodeName } from "../src/rpcs";
 import traces from "../src/traces";
 import prompt from "../src/common/prompt";
 import * as env from "../src/common/env";
@@ -15,15 +15,16 @@ import { Omnibus } from "../src/omnibuses/omnibuses";
 import { uploadDescription } from "./sub-tasks/upload-description";
 import { printVoteDeployInfo } from "./sub-tasks/print-vote-info";
 import { getPilot } from "./sub-tasks/getPilot";
-import { prepareProviderAndNode } from "./sub-tasks/prepare-provider-and-node";
-import { Signer } from "ethers";
+import { getProviderWithInfo } from "./sub-tasks/prepare-provider-and-node";
+import { JsonRpcProvider, Signer } from "ethers";
 
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { CONTAINER_NAMES, stopContainer } from "../src/docker";
-import { runCoreTests, runDepotTests, runRpcNodeBackground, runScriptsTests } from "./sub-tasks/containers";
+import { findContainerByName, RPC_NODE_NAME, stopContainer } from "../src/docker";
+import { runCoreTests, runDepotTests, prepareLocalRpcNode, runScriptsTests } from "./sub-tasks/containers";
 import { logBlue } from "../src/common/color";
 import lido from "../src/lido";
 import { networkIdByName } from "../src/networks";
+import { prepareNodeRevertPoint, rollBackNodeChanges } from "../src/rpc";
 
 traces.hardhat.enableTracing();
 
@@ -53,15 +54,7 @@ omnibus:run
     - aborting
 */
 
-async function loadOmnibus(name: string) {
-  const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
-  if (omnibus.isExecuted) {
-    throw new Error(`The omnibus "${omnibus.voteId}" already executed. Aborting...`);
-  }
-  return omnibus;
-}
-
-type RpcNodes = "hardhat" | "local" | "remote";
+type RpcNodes = "local" | "remote";
 
 async function runOmnibus(
   name: string,
@@ -73,7 +66,7 @@ async function runOmnibus(
 ) {
   logBlue(`Running the omnibus ${name} on "${omnibus.network}" network\n`);
   console.log(`Omnibus items:\n${omnibus.summary}\n`);
-  const { provider } = await prepareProviderAndNode(omnibus.network, hre, rpc);
+  const provider = await getProviderWithInfo(omnibus.network, rpc);
 
   const omnibusDescription = await uploadDescription(name, omnibus, silent);
 
@@ -86,23 +79,34 @@ async function runOmnibus(
   return { voteId, provider };
 }
 
-task("omnibus:test", "Runs tests for the given omnibus")
+async function loadOmnibus(name: string) {
+  const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
+  if (omnibus.isExecuted) {
+    throw new Error(`The omnibus "${omnibus.voteId}" already executed. Aborting...`);
+  }
+  return omnibus;
+}
+
+task("omnibus:test", "Runs tests for the given omnibus at local node")
   .addPositionalParam<string>("name", "Name of the omnibus to test", undefined, types.string, false)
-  .addOptionalParam<RpcNodeName | "local">("rpc", "The dev RPC node type to run tests on", "hardhat", types.string)
   .addOptionalParam<number>("blockNumber", "Block number to spawn rpc node on", undefined, types.int)
   .setAction(async ({ name }) => {
     const omnibus = await loadOmnibus(name);
 
+    logBlue(`Check hardhat-node container`);
+    await prepareLocalRpcNode(RPC_NODE_NAME, omnibus.network);
+
+    const provider = (await providers.getProvider(omnibus.network, "local")) as JsonRpcProvider;
     console.log(`Omnibus items:\n${omnibus.summary}\n`);
     const omnibusTestFile = `omnibuses/${name}.spec.ts`;
     try {
       await fs.stat(omnibusTestFile);
+      await prepareNodeRevertPoint(provider);
       await runTestFile(omnibusTestFile);
-      return;
+      await rollBackNodeChanges(provider);
     } catch (err) {
       console.error(err);
       console.warn(chalk.bold.yellow(`Test file "${omnibusTestFile}" not found. Write tests first!`));
-      return;
     }
   });
 
@@ -117,29 +121,30 @@ task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
     types.boolean,
   )
   .addOptionalParam<boolean>(
-    "restartNode",
+    "skipVoting",
     "Restart hardhat-node container if it was running before task",
-    true,
+    false,
     types.boolean,
   )
   .addOptionalParam<boolean>("hideDebug", "Hide container logs and come extra information", false, types.boolean)
-  .setAction(async ({ name, repo, pattern, mountTests, restartNode, hideDebug }, hre) => {
+  .setAction(async ({ name, repo, pattern, mountTests, skipVoting, hideDebug }, hre) => {
     const omnibus = await loadOmnibus(name);
     env.checkEnvVars();
-
     logBlue(`Run hardhat-node container`);
-    const result = await runRpcNodeBackground(CONTAINER_NAMES.RPC_DIRTY_NODE, env.DIRTY_FORK_PORT(), restartNode);
-    const { container: rpcContainer, provider } = result;
+    await prepareLocalRpcNode(RPC_NODE_NAME, omnibus.network);
+    const provider = (await providers.getProvider(omnibus.network, "local")) as JsonRpcProvider;
 
     const { voting } = lido.chainId(networkIdByName[omnibus.network], provider);
+
+    let voteId = await voting.votesLength();
+
+    await prepareNodeRevertPoint(provider);
 
     if (!repo || repo === "depot") {
       await runDepotTests("_example_omnibus", hideDebug);
     }
 
-    let voteId = await voting.votesLength();
-
-    if (repo !== "depot" && restartNode) {
+    if (repo !== "depot" && !skipVoting) {
       const info = await runOmnibus(name, omnibus, hre, "local", true, true);
       voteId = info.voteId;
       await votes.pass(info.provider, voteId);
@@ -153,10 +158,7 @@ task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
       await runScriptsTests(Number(voteId), pattern, hideDebug, mountTests); // "tests/custom/_example_omnibus_test_for_scripts_repo.py"
     }
 
-    if (rpcContainer) {
-      logBlue(`Stop hardhat-node container`);
-      await stopContainer(rpcContainer, CONTAINER_NAMES.RPC_DIRTY_NODE);
-    }
+    await rollBackNodeChanges(provider);
   });
 
 type OmnibusRunParams = {
@@ -170,8 +172,8 @@ task("omnibus:run", "Runs the omnibus with given name")
   .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", true, types.boolean)
   .addOptionalParam<RpcNodes>(
     "rpc",
-    'The RPC node used to launch omnibus. Possible values: hardhat, anvil, local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
-    "hardhat",
+    'The RPC node used to launch omnibus. Possible values: local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
+    "local",
     types.string,
   )
   .setAction(async ({ name, testAccount, rpc }: OmnibusRunParams, hre) => {
@@ -199,12 +201,12 @@ task("omnibus:simulate", "Simulate the omnibus with given name")
     "hardhat",
     types.string,
   )
-  .setAction(async ({ name, rpc }: OmnibusRunParams, hre) => {
+  .setAction(async ({ name, rpc }: OmnibusRunParams) => {
     const omnibus = await loadOmnibus(name);
 
     env.checkEnvVars();
     console.log(`Simulate the omnibus ${name} on "${omnibus.network}" network\n`);
-    const { provider } = await prepareProviderAndNode(omnibus.network, hre, rpc);
+    const provider = await getProviderWithInfo(omnibus.network, rpc);
 
     try {
       console.log(`Omnibus items:\n${omnibus.summary}\n`);
@@ -219,6 +221,28 @@ task("omnibus:simulate", "Simulate the omnibus with given name")
       console.error(err.message);
     }
   });
+
+task("rpc:stop", "Stop local rpc node container").setAction(async () => {
+  env.checkEnvVars();
+
+  try {
+    const name = RPC_NODE_NAME;
+    chalk.bold.green(`Stopping container ${name} `);
+    const container = await findContainerByName(name);
+
+    if (container) {
+      await stopContainer(container, name, true);
+    }
+    chalk.bold.green(`Stopped container ${name} `);
+    await prompt.sigint();
+  } catch (err) {
+    console.error(err);
+    if (!isKnownError(err)) {
+      throw err;
+    }
+    console.error(err.message);
+  }
+});
 
 async function runTestFile(testFile: string) {
   const mocha = new Mocha({ timeout: 10 * 60 * 1000, bail: true });

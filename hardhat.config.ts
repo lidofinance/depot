@@ -24,6 +24,15 @@ const config: HardhatUserConfig = {
         url: networks.rpcUrl("eth", "mainnet"),
       },
     },
+    "holesky-fork": {
+      hardfork: "merge",
+      chainId: 17000,
+      url: networks.rpcUrl("eth", "holesky"),
+    },
+    holesky: {
+      chainId: 17000,
+      url: networks.rpcUrl("eth", "holesky"),
+    },
   },
   typechain: {
     externalArtifacts: ["interfaces/*.json"],

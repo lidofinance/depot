@@ -2,6 +2,12 @@
 
 The purpose of this repo is to build, test and run omnibuses.
 
+## Install
+
+Install and enable `pnpm` - https://pnpm.io/installation#prerequisites
+
+install docker - https://docs.docker.com/engine/install/
+
 ## Omnibus
 
 The main purpose of the omnibus is to prepare the EVM script that will be executed if the vote is successful. The voting EVM script is built from the omnibus items defined in the omnibus. During the run, the omnibus will call the
@@ -47,7 +53,7 @@ Naming convention is to name omnibuses `${YYYY_MM_DD}.ts`.
 
 Writing an omnibus essentially means packing a bunch of omnibus items into an `omnibuses.create` call along with the additional parametres:
 
-- `network` - one of the allowed network names. At the moment it's `mainnet` and `goerly`
+- `network` - one of the allowed network names. At the moment it's `mainnet` and `holesky`
 
 and exporting the result as the default export of a module.
 
@@ -262,6 +268,26 @@ Details:
 ```
 
 You have to set vote ID in the omnibus file. Also, you can add launch date to the comments if it looks relevant.
+
+# Examples
+
+Test tiny omnibus at mainnet
+
+```
+pnpm omnibus:test _example_tiny_holesky_omnibus
+```
+
+Test tiny omnibus at holesky
+
+```
+pnpm omnibus:test _example_tiny_holesky_omnibus
+```
+
+Run tiny omnibus at holesky (you will need to add keystone first)
+
+```
+pnpm omnibus:run _example_tiny_holesky_omnibus --rpc remote --test-account false --network holesky
+```
 
 # Project structure
 

@@ -5,12 +5,7 @@ import chalk from "chalk";
 import { createWriteStream } from "node:fs";
 import { logGreen } from "../common/color";
 
-export const CONTAINER_NAMES = {
-  /** rpc where vote will be not reverted after enact */
-  RPC_DIRTY_NODE: "rpc-dirty-node",
-  /** rpc where changes will be reverted */
-  RPC_CLEAN_NODE: "rpc-clean-node",
-};
+export const RPC_NODE_NAME = "eth-rpc-node";
 
 type ContainerRunResponse = [{ StatusCode: number }, Container, id: string, Record<string, {}>];
 
@@ -55,12 +50,12 @@ const waitMessage = async (logs: NodeJS.ReadableStream, msg: string) =>
 
 export async function runImageInBackground(
   name: string,
-  image: string,
+  imageName: string,
   cmd: string[],
   forceRestart = true,
   config?: Docker.ContainerCreateOptions,
 ) {
-  logGreen(`Prepare container ${image} for run in background`);
+  logGreen(`Prepare container ${imageName} for run in background`);
 
   const containerOld = await findContainerByName(name);
 
@@ -76,8 +71,26 @@ export async function runImageInBackground(
 
   const stdout = getStdout(name);
 
+  const images = await docker.listImages();
+  const image = images.find(({ RepoTags }) => RepoTags?.includes(imageName));
+
+  if (!image) {
+    logGreen(`Image for hardhat-node not found localy.`);
+    logGreen(`Image pulling...`);
+    const readable = await docker.pull(imageName);
+    readable.setEncoding("utf8");
+    let data = "";
+    for await (const chunk of readable) {
+      // data += chunk;
+      data = "" + chunk;
+    }
+    console.log(data);
+
+    logGreen(`Image pulled...`);
+  }
+
   // not working with await yet
-  /* await */ docker.run(image, cmd, stdout, {
+  /* await */ docker.run(imageName, cmd, stdout, {
     Tty: false,
     name,
     ...config,
@@ -86,7 +99,7 @@ export async function runImageInBackground(
   logGreen(`Wait for hardhat-node container launch`);
 
   // TODO: add background run to hardhat container node instead
-  await delay(1_000);
+  await delay(2_000);
 
   const container = await findContainerByName(name);
   if (!container) {
