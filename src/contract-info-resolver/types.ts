@@ -1,4 +1,4 @@
-import { HexStrPrefixed } from "../common/bytes";
+import { HexStr, HexStrPrefixed } from "../common/bytes";
 import { Address } from "../common/types";
 
 export type ChainId = number | bigint | string;
@@ -8,8 +8,9 @@ type AbiElementStateMutability = "pure" | "view" | "nonpayable" | "payable";
 
 interface AbiFunctionParameter {
   name: string;
-  type: unknown;
-  components: unknown;
+  type: string;
+  internalType: string;
+  components?: string;
 }
 
 interface AbiFragment {
@@ -26,10 +27,10 @@ export interface ContractInfoProvider {
 
 export interface ContractInfo {
   name: string;
-  abi: AbiFragment;
+  abi: AbiFragment[];
   // if the contract is not proxy the address will null
   implementation: Address | null;
-  constructorArgs: HexStrPrefixed;
+  constructorArgs: HexStr;
   sourceCode: string;
   evmVersion: string;
   compilerVersion: string;

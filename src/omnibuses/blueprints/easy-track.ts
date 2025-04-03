@@ -1,6 +1,6 @@
 import { Address } from "web3-types";
 import bytes, { HexStrPrefixed } from "../../common/bytes";
-import { call, event } from "../../votes";
+import { call, event } from "../../aragon-votes-tools";
 import { AllowedRecipientsRegistry__factory } from "../../../typechain-types";
 import { Contracts } from "../../contracts/contracts";
 import { Lido } from "../../../configs/types";

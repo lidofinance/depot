@@ -1,6 +1,6 @@
 import { assert } from "../../common/assert";
 import { JsonRpcProvider } from "ethers";
-import votes from "../../votes";
+import votes from "../../aragon-votes-tools";
 import { Omnibus } from "../omnibuses";
 
 export const enactOmnibus = async (omnibus: Omnibus, provider: JsonRpcProvider) => {

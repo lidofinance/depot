@@ -1,7 +1,7 @@
 import { Wallet } from "ethers";
 import type { JsonRpcProvider } from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import votes from "../../src/votes";
+import votes from "../../src/aragon-votes-tools";
 import format from "../../src/common/format";
 import bytes from "../../src/common/bytes";
 import { HardhatEthersProvider } from "@nomicfoundation/hardhat-ethers/internal/hardhat-ethers-provider";

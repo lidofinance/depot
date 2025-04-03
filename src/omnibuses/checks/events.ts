@@ -1,7 +1,7 @@
 import { BaseContract, EventFragment, EventLog, Interface, Log } from "ethers";
 import { Receipt } from "web3-types";
 import { assert } from "../../common/assert";
-import { event, EventCheck } from "../../votes";
+import { event, EventCheck } from "../../aragon-votes-tools";
 import bytes from "../../common/bytes";
 import lido from "../../lido";
 import contracts from "../../contracts";
@@ -51,6 +51,8 @@ export function matchLogsToEvents(logs: Log[], events: EventCheck[]): [number, E
   const absentEvents: EventCheck[] = [];
   let foundEventsCount = 0;
   let logsIndex = 0;
+
+  // TODO: works but not human-readable
   for (let eventIndex = 0; eventIndex < events.length; ++eventIndex) {
     const event = events[eventIndex]!;
     const log = logs[logsIndex];

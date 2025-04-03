@@ -107,7 +107,7 @@ function implementations<T extends ContractsConfig>(
   for (const key of Object.keys(contractsConfig)) {
     const nestedConfig = contractsConfig[key];
     if (!isContractConfig(nestedConfig)) {
-      res[key] = proxies(nestedConfig || {}, runner);
+      res[key] = implementations(nestedConfig || {}, runner);
     } else if (nestedConfig.proxy) {
       res[key] = NamedContractsBuilder.buildImpl(key, nestedConfig, runner);
     }
@@ -136,7 +136,7 @@ function address(contractOrAddress: Address | BaseContract | NamedContract): Add
     throw new Error("target is not an string instance");
   }
 
-  if (!bytes.isValid(target) && bytes.length(target) === 20) {
+  if (!bytes.isValid(target) || bytes.length(target) !== 20) {
     throw new Error(`target ${target} is invalid bytes string`);
   }
 
