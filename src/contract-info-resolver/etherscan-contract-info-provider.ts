@@ -117,7 +117,7 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
         },
         evmVersion: response.EVMVersion,
         optimizer: { enabled: response.OptimizationUsed === "1", runs: response.Runs },
-      })
+      });
     }
     if (this.isStandardJsonInputSourceCode(response)) {
       return rawSourceCode.substring(1, rawSourceCode.length - 1);

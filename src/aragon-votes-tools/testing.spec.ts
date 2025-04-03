@@ -117,6 +117,5 @@ describe("testing tools", () => {
 
     // @ts-ignore
     events.checkOmnibusEvents(omnibus.items, result.enactReceipt);
-
   });
 });

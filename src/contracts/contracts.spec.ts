@@ -21,7 +21,7 @@ const config = {
     },
     proxy: null,
   },
-  nOR:{
+  nOR: {
     simpleDvt: {
       impl: {
         factory: factories.NodeOperatorsRegistry__factory,
@@ -45,18 +45,16 @@ const config = {
   },
 } as const;
 
-
-const mockSigner = { resolveName: (_) => Promise.resolve('mockSigner') } as Signer;
-const address = '0x1234567890123456789012345678901234567890'
-
+const mockSigner = { resolveName: (_) => Promise.resolve("mockSigner") } as Signer;
+const address = "0x1234567890123456789012345678901234567890";
 
 describe("Contracts", () => {
   it("create contracts from config", async () => {
     const contr = contracts.create(config, mockSigner);
 
-    assert.deepEqual(Object.keys(contr), ['acl', 'ldo', 'nOR', 'proxies', 'implementations']);
-    assert.deepEqual(Object.keys(contr.proxies), ['acl', 'nOR']);
-    assert.deepEqual(Object.keys(contr.implementations), ['acl', 'nOR']);
+    assert.deepEqual(Object.keys(contr), ["acl", "ldo", "nOR", "proxies", "implementations"]);
+    assert.deepEqual(Object.keys(contr.proxies), ["acl", "nOR"]);
+    assert.deepEqual(Object.keys(contr.implementations), ["acl", "nOR"]);
 
     assert.equal(contr.ldo.target, config.ldo.impl.address);
     assert.equal(contr.acl.target, config.acl.proxy.address);
@@ -74,38 +72,40 @@ describe("Contracts", () => {
     assert.isFunction(contr.implementations.nOR.simpleDvt.activateNodeOperator);
     assert.isFunction(contr.implementations.nOR.curatedStakingModule.activateNodeOperator);
 
-    assert.equal(await contr.ldo?.runner?.resolveName?.(''),'mockSigner');
-    const labelLDO = contracts.label(contr.ldo)
-    const labelACL = contracts.label(contr.acl)
+    assert.equal(await contr.ldo?.runner?.resolveName?.(""), "mockSigner");
+    const labelLDO = contracts.label(contr.ldo);
+    const labelACL = contracts.label(contr.acl);
 
-    assert.include(labelACL,'Acl__Proxy')
-    assert.include(labelACL,config.acl.proxy.address)
+    assert.include(labelACL, "Acl__Proxy");
+    assert.include(labelACL, config.acl.proxy.address);
 
-    assert.include(labelLDO, 'Ldo')
-    assert.include(labelLDO, config.ldo.impl.address)
-
+    assert.include(labelLDO, "Ldo");
+    assert.include(labelLDO, config.ldo.impl.address);
   });
   it("get label form non-named contract", async () => {
-    const label = contracts.label({target: address} as any)
-    assert.isTrue(label.includes('Contract'))
-    assert.isTrue(label.includes(address))
+    const label = contracts.label({ target: address } as any);
+    assert.isTrue(label.includes("Contract"));
+    assert.isTrue(label.includes(address));
   });
   it("parse string address", async () => {
-    assert.equal(contracts.address(address), address)
+    assert.equal(contracts.address(address), address);
   });
   it("parse BaseContract target address", async () => {
-    assert.equal(contracts.address({ target: address} as any), address)
+    assert.equal(contracts.address({ target: address } as any), address);
   });
   it("parse BaseContract target address error not a string", async () => {
-    assert.throws(() =>  contracts.address({ target: null} as any), /target is not an string instance/)
+    assert.throws(() => contracts.address({ target: null } as any), /target is not an string instance/);
   });
   it("parse BaseContract target address error invalid address structure", async () => {
-    assert.throws(() =>  contracts.address({ target: '0x0'} as any), /target 0x0 is invalid bytes string/)
+    assert.throws(() => contracts.address({ target: "0x0" } as any), /target 0x0 is invalid bytes string/);
   });
   it("parse BaseContract target address error invalid length", async () => {
-    assert.throws(() =>  contracts.address({ target: '0x00'} as any), /target 0x00 is invalid bytes string/)
+    assert.throws(() => contracts.address({ target: "0x00" } as any), /target 0x00 is invalid bytes string/);
   });
   it("parse contract address error", async () => {
-    assert.throws(() =>  contracts.address({ target: '0xH234567890123456789012345678901234567890'} as any), /is invalid bytes string/)
+    assert.throws(
+      () => contracts.address({ target: "0xH234567890123456789012345678901234567890" } as any),
+      /is invalid bytes string/,
+    );
   });
 });

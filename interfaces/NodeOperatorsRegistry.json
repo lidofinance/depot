@@ -509,7 +509,7 @@
     "inputs": [{ "name": "_nodeOperatorId", "type": "uint256" }],
     "name": "getNodeOperatorSummary",
     "outputs": [
-      {"name": "targetLimitMode", "type": "uint256" },
+      { "name": "targetLimitMode", "type": "uint256" },
       { "name": "targetValidatorsCount", "type": "uint256" },
       { "name": "stuckValidatorsCount", "type": "uint256" },
       { "name": "refundedValidatorsCount", "type": "uint256" },

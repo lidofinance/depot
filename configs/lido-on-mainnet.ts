@@ -159,7 +159,7 @@ export default {
   wStEth: {
     impl: {
       factory: factories.CallsScript__factory,
-        address: "0x5cEb19e1890f677c3676d5ecDF7c501eBA01A054",
+      address: "0x5cEb19e1890f677c3676d5ecDF7c501eBA01A054",
     },
     proxy: null,
   },

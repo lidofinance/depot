@@ -19,7 +19,7 @@ export class ContractInfoInMemoryCache implements ContractInfoCache {
   }
 
   async clearAll(): Promise<void> {
-    this.data = {}
+    this.data = {};
   }
 }
 
@@ -37,7 +37,7 @@ export class ContractInfoPersistentJsonCache implements ContractInfoCache {
   private data: Partial<Record<string, Record<Address, ContractInfo>>> = {};
 
   public clearAll() {
-    this.data = {}
+    this.data = {};
   }
 
   private constructor(dirPath: string) {

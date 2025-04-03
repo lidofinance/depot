@@ -24,9 +24,9 @@ const config = {
 
 describe("Named Contracts", () => {
   it("check proxy contract", async () => {
-    assert.isTrue(NamedContractsBuilder.isProxy(config.acl))
+    assert.isTrue(NamedContractsBuilder.isProxy(config.acl));
   });
   it("check not-proxy contract", async () => {
-    assert.isFalse(NamedContractsBuilder.isProxy(config.ldo))
+    assert.isFalse(NamedContractsBuilder.isProxy(config.ldo));
   });
 });

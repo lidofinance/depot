@@ -45,11 +45,12 @@ describe("NamedKeystores", () => {
 
   it("adds a new invalid keystore", async () => {
     const name = "test";
-    const privateKey = 'invalid keystore';
+    const privateKey = "invalid keystore";
     const password = "password";
 
-    await expect(namedKeystores.add(name, privateKey, password)).to.be.rejectedWith('Private key value is invalid hex string');
-
+    await expect(namedKeystores.add(name, privateKey, password)).to.be.rejectedWith(
+      "Private key value is invalid hex string",
+    );
   });
 
   it("generates a new keystore", async () => {
@@ -109,7 +110,9 @@ describe("NamedKeystores", () => {
     const password = "password";
 
     await namedKeystores.add(name, privateKey, password);
-    await expect(namedKeystores.unlock(name, 'wrong-password')).to.be.rejectedWith('Key derivation failed - possibly wrong password');
+    await expect(namedKeystores.unlock(name, "wrong-password")).to.be.rejectedWith(
+      "Key derivation failed - possibly wrong password",
+    );
   });
 
   it("throws an error when unlocking empty keystores", async () => {

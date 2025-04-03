@@ -8,7 +8,7 @@ export const configExtender: ConfigExtender = (config, userConfig) => {
 
   if (keystorePath === undefined) {
     config.keystores.path = path.join(config.paths.root, "keystores");
-    return
+    return;
   }
 
   if (path.isAbsolute(keystorePath)) {
