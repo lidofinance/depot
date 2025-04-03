@@ -87,7 +87,7 @@ class MockProvider extends JsonRpcProvider {
   }
 
   async sendOne(payload: JsonRpcPayload): Promise<JsonRpcResult> {
-    return this.rpcUrl ? Promise.resolve(this.mockQuery(payload)) : this.makeLocalQuery(payload);
+    return this.rpcUrl ? this.makeLocalQuery(payload) : Promise.resolve(this.mockQuery(payload)) ;
   }
 
   async _send(payload: JsonRpcPayload | Array<JsonRpcPayload>): Promise<Array<JsonRpcResult>> {
@@ -98,7 +98,7 @@ class MockProvider extends JsonRpcProvider {
   }
 }
 
-describe("testing tools", () => {
+describe("testing-tools", () => {
   it("adopt", async () => {
     const provider = new MockProvider();
     provider.setSnapshot(mocks.adopt);
