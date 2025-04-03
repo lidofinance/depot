@@ -3,7 +3,7 @@ import { task } from "hardhat/config";
 import * as types from "hardhat/internal/core/params/argumentTypes";
 import providers from "../src/providers";
 
-import votes from "../src/votes";
+import votes from "../src/aragon-votes-tools";
 import traces from "../src/traces";
 import prompt from "../src/common/prompt";
 import * as env from "../src/common/env";

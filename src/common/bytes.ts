@@ -65,7 +65,7 @@ function isEqual(bytes1: HexStr, bytes2: HexStr): boolean {
 function isValid(bytes: unknown): bytes is HexStr {
   if (typeof bytes !== "string") return false;
   const stripped = strip0x(bytes);
-  return stripped.length % 2 === 0 && /^[a-fA-f0-9]+$/.test(strip0x(bytes));
+  return stripped.length % 2 === 0 && /^[a-fA-F0-9]+$/.test(strip0x(bytes));
 }
 
 function is0xPrefixed(bytes: HexStr): bytes is HexStrPrefixed {

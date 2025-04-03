@@ -8,12 +8,14 @@ export const configExtender: ConfigExtender = (config, userConfig) => {
 
   if (keystorePath === undefined) {
     config.keystores.path = path.join(config.paths.root, "keystores");
-  } else {
-    if (path.isAbsolute(keystorePath)) {
-      config.keystores.path = keystorePath;
-    } else {
-      // We resolve relative paths starting from the project's root.
-      config.keystores.path = path.normalize(path.join(config.paths.root, keystorePath));
-    }
+    return
   }
+
+  if (path.isAbsolute(keystorePath)) {
+    config.keystores.path = keystorePath;
+    return;
+  }
+
+  // We resolve relative paths starting from the project's root.
+  config.keystores.path = path.normalize(path.join(config.paths.root, keystorePath));
 };

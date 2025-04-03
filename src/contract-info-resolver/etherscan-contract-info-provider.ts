@@ -107,7 +107,17 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
   private processSourceCode(response: EtherscanGetSourceCodeResult): string {
     const rawSourceCode = response.SourceCode;
     if (this.isVyperContract(response)) {
-      return response.SourceCode;
+      JSON.stringify({
+        language: "Vyper",
+        sources: response.SourceCode,
+        // TODO: add real settings
+        settings: {
+          libraries: {},
+          outputSelection: {},
+        },
+        evmVersion: response.EVMVersion,
+        optimizer: { enabled: response.OptimizationUsed === "1", runs: response.Runs },
+      })
     }
     if (this.isStandardJsonInputSourceCode(response)) {
       return rawSourceCode.substring(1, rawSourceCode.length - 1);

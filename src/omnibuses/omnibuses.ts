@@ -1,5 +1,5 @@
 import { NetworkName } from "../networks";
-import { EventCheck, EvmScriptParser, FormattedEvmCall } from "../votes";
+import { EventCheck, EvmScriptParser, FormattedEvmCall } from "../aragon-votes-tools";
 import blueprints from "./blueprints";
 import lido, { LidoEthContracts } from "../lido";
 import { flatten, mapValues, partial } from "lodash";

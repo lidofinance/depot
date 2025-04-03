@@ -27,7 +27,7 @@ describe("NamedKeystores", () => {
   });
 
   afterEach(async () => {
-    const accounts = await storage.all();
+    const accounts = await namedKeystores.all();
     await Promise.all(accounts.map((acc) => storage.del(acc.name)));
     selectStub.restore();
   });
@@ -41,6 +41,15 @@ describe("NamedKeystores", () => {
 
     expect(keystore).to.be.instanceOf(NamedKeystore);
     expect(await namedKeystores.has(name)).to.be.true;
+  });
+
+  it("adds a new invalid keystore", async () => {
+    const name = "test";
+    const privateKey = 'invalid keystore';
+    const password = "password";
+
+    await expect(namedKeystores.add(name, privateKey, password)).to.be.rejectedWith('Private key value is invalid hex string');
+
   });
 
   it("generates a new keystore", async () => {
@@ -92,6 +101,15 @@ describe("NamedKeystores", () => {
     const unlockedPrivateKey = await namedKeystores.unlock(name, password);
 
     expect(unlockedPrivateKey).to.equal(privateKey);
+  });
+
+  it("failed unlocks a keystore", async () => {
+    const name = "test";
+    const privateKey = getRandomPrivateKey();
+    const password = "password";
+
+    await namedKeystores.add(name, privateKey, password);
+    await expect(namedKeystores.unlock(name, 'wrong-password')).to.be.rejectedWith('Key derivation failed - possibly wrong password');
   });
 
   it("throws an error when unlocking empty keystores", async () => {

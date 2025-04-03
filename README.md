@@ -309,5 +309,5 @@ This project is structured as follows:
     - [tools](./src/omnibuses/tools) - Omnibus tools and helpers
   - [providers](./src/providers) - Helpers for working with providers
   - [traces](./src/traces) - Transaction tracing toolset
-  - [votes](./src/votes) - Voting toolset
+  - [votes](./src/aragon-votes-tools) - Voting toolset
 - [tasks](./tasks) - Omnibuses Hardhat tasks. Main entrypoint for running omnibuses.

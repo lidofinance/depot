@@ -1,6 +1,6 @@
 import { RpcProvider } from "../../providers";
 import providers from "../../providers/providers";
-import votes, { FormattedEvmCall } from "../../votes";
+import votes, { FormattedEvmCall } from "../../aragon-votes-tools";
 import bytes from "../../common/bytes";
 import { TxTrace } from "../../traces/tx-traces";
 import { Omnibus } from "../omnibuses";
