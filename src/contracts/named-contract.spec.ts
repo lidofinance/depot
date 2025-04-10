@@ -16,7 +16,7 @@ const config = {
   ldo: {
     impl: {
       factory: factories.MiniMeToken__factory,
-      address: "0x14ae7daeecdf57034f3E9db8564e46Dba8D97344",
+      address: "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32",
     },
     proxy: null,
   },

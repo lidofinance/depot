@@ -75,16 +75,16 @@ export async function runImageInBackground(
   const image = images.find(({ RepoTags }) => RepoTags?.includes(imageName));
 
   if (!image) {
-    logGreen(`Image for hardhat-node not found localy.`);
+    logGreen(`Image for hardhat-node not found locally.`);
     logGreen(`Image pulling...`);
     const readable = await docker.pull(imageName);
     readable.setEncoding("utf8");
     let data = "";
     for await (const chunk of readable) {
-      // data += chunk;
-      data = "" + chunk;
+      data += chunk;
     }
-    console.log(data);
+    // TODO: show logs based on settings
+    // console.log(data);
 
     logGreen(`Image pulled...`);
   }

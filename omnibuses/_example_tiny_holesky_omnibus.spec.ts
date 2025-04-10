@@ -6,7 +6,7 @@ import lido from "../src/lido";
 import { Receipt } from "web3-types";
 import omnibus from "./_example_tiny_holesky_omnibus"; /// TODO: weak point for copy-passed
 import checks from "../src/omnibuses/checks";
-console.log("omnibus.network", omnibus.network);
+
 const { tokens, events } = checks[omnibus.network];
 
 const url = networks.localRpcUrl("eth");

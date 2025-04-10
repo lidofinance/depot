@@ -102,7 +102,7 @@ export default {
     },
     proxy: {
       factory: factories.AppProxyUpgradeable__factory,
-      address: "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5",
+      address: "0x595F64Ddc3856a3b5Ff4f4CC1d1fb4B46cFd2bAC",
     },
   },
   burner: {

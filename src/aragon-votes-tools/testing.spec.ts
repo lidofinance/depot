@@ -43,7 +43,7 @@ class MockProvider extends JsonRpcProvider {
       },
     });
     const json = await res.json();
-    console.log(json.result);
+
     this.snapshot[payload.id] = { payload, response: json, used: 0 };
     return json;
   }

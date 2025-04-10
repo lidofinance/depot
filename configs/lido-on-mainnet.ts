@@ -99,7 +99,7 @@ export default {
   lidoLocator: {
     impl: {
       factory: factories.LidoLocator__factory,
-      address: "0x1D920cc5bACf7eE506a271a5259f2417CaDeCE1d",
+      address: "0x3ABc4764f0237923d52056CFba7E9AEBf87113D3",
     },
     proxy: {
       factory: factories.OssifiableProxy__factory,
@@ -129,7 +129,7 @@ export default {
   stakingRouter: {
     impl: {
       factory: factories.StakingRouter__factory,
-      address: "0xD8784e748f59Ba711fB5643191Ec3fAdD50Fb6df",
+      address: "0x89eDa99C0551d4320b56F82DDE8dF2f8D2eF81aA",
     },
     proxy: {
       factory: factories.OssifiableProxy__factory,
@@ -159,7 +159,7 @@ export default {
   wStEth: {
     impl: {
       factory: factories.CallsScript__factory,
-      address: "0x5cEb19e1890f677c3676d5ecDF7c501eBA01A054",
+      address: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
     },
     proxy: null,
   },
