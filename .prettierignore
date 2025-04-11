@@ -1,5 +1,5 @@
 # ignore auto-generated files
-src/votes/overloaded-types-helper.ts
+src/aragon-votes-tools/overloaded-types-helper.ts
 coverage
 public
 dist
