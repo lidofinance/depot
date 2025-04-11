@@ -1,4 +1,4 @@
-import LidoOnMainnet from "./lido-on-mainnet";
-import LidoOnHolesky from "./lido-on-holesky";
+import LidoOnHolesky from './lido-on-holesky'
+import LidoOnMainnet from './lido-on-mainnet'
 
-export type Lido = typeof LidoOnMainnet | typeof LidoOnHolesky;
+export type Lido = typeof LidoOnMainnet | typeof LidoOnHolesky

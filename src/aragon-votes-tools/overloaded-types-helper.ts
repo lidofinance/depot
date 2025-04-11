@@ -55,17 +55,16 @@ This helper methods are required to overcome the current limitations of the Retu
 
 The current version supports only 24 overloads of the method.
 */
-
 interface Overloaded1<O1 extends any[], R1 extends any> {
-  (...args: O1): R1;
+  (...args: O1): R1
 }
-type TuplesToRecord1<A1, R1> = A1 extends [string, ...any] ? { [K in A1[0]]: R1 } : {};
+type TuplesToRecord1<A1, R1> = A1 extends [string, ...any] ? { [K in A1[0]]: R1 } : {}
 interface Overloaded2<O1 extends any[], R1 extends any, O2 extends any[], R2 extends any> {
-  (...args: O1): R1;
-  (...args: O2): R2;
+  (...args: O1): R1
+  (...args: O2): R2
 }
 type TuplesToRecord2<A1, R1, A2, R2> = (A1 extends [string, ...any] ? { [K in A1[0]]: R1 } : {}) &
-  (A2 extends [string, ...any] ? { [K in A2[0]]: R2 } : {});
+  (A2 extends [string, ...any] ? { [K in A2[0]]: R2 } : {})
 interface Overloaded3<
   O1 extends any[],
   R1 extends any,
@@ -74,13 +73,13 @@ interface Overloaded3<
   O3 extends any[],
   R3 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
 }
 type TuplesToRecord3<A1, R1, A2, R2, A3, R3> = (A1 extends [string, ...any] ? { [K in A1[0]]: R1 } : {}) &
   (A2 extends [string, ...any] ? { [K in A2[0]]: R2 } : {}) &
-  (A3 extends [string, ...any] ? { [K in A3[0]]: R3 } : {});
+  (A3 extends [string, ...any] ? { [K in A3[0]]: R3 } : {})
 interface Overloaded4<
   O1 extends any[],
   R1 extends any,
@@ -91,15 +90,15 @@ interface Overloaded4<
   O4 extends any[],
   R4 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
 }
 type TuplesToRecord4<A1, R1, A2, R2, A3, R3, A4, R4> = (A1 extends [string, ...any] ? { [K in A1[0]]: R1 } : {}) &
   (A2 extends [string, ...any] ? { [K in A2[0]]: R2 } : {}) &
   (A3 extends [string, ...any] ? { [K in A3[0]]: R3 } : {}) &
-  (A4 extends [string, ...any] ? { [K in A4[0]]: R4 } : {});
+  (A4 extends [string, ...any] ? { [K in A4[0]]: R4 } : {})
 interface Overloaded5<
   O1 extends any[],
   R1 extends any,
@@ -112,11 +111,11 @@ interface Overloaded5<
   O5 extends any[],
   R5 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
 }
 type TuplesToRecord5<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5> = (A1 extends [string, ...any]
   ? { [K in A1[0]]: R1 }
@@ -124,7 +123,7 @@ type TuplesToRecord5<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5> = (A1 extends [stri
   (A2 extends [string, ...any] ? { [K in A2[0]]: R2 } : {}) &
   (A3 extends [string, ...any] ? { [K in A3[0]]: R3 } : {}) &
   (A4 extends [string, ...any] ? { [K in A4[0]]: R4 } : {}) &
-  (A5 extends [string, ...any] ? { [K in A5[0]]: R5 } : {});
+  (A5 extends [string, ...any] ? { [K in A5[0]]: R5 } : {})
 interface Overloaded6<
   O1 extends any[],
   R1 extends any,
@@ -139,12 +138,12 @@ interface Overloaded6<
   O6 extends any[],
   R6 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
 }
 type TuplesToRecord6<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6> = (A1 extends [string, ...any]
   ? { [K in A1[0]]: R1 }
@@ -153,7 +152,7 @@ type TuplesToRecord6<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6> = (A1 exten
   (A3 extends [string, ...any] ? { [K in A3[0]]: R3 } : {}) &
   (A4 extends [string, ...any] ? { [K in A4[0]]: R4 } : {}) &
   (A5 extends [string, ...any] ? { [K in A5[0]]: R5 } : {}) &
-  (A6 extends [string, ...any] ? { [K in A6[0]]: R6 } : {});
+  (A6 extends [string, ...any] ? { [K in A6[0]]: R6 } : {})
 interface Overloaded7<
   O1 extends any[],
   R1 extends any,
@@ -170,13 +169,13 @@ interface Overloaded7<
   O7 extends any[],
   R7 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
 }
 type TuplesToRecord7<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6, A7, R7> = (A1 extends [string, ...any]
   ? { [K in A1[0]]: R1 }
@@ -186,7 +185,7 @@ type TuplesToRecord7<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6, A7, R7> = (
   (A4 extends [string, ...any] ? { [K in A4[0]]: R4 } : {}) &
   (A5 extends [string, ...any] ? { [K in A5[0]]: R5 } : {}) &
   (A6 extends [string, ...any] ? { [K in A6[0]]: R6 } : {}) &
-  (A7 extends [string, ...any] ? { [K in A7[0]]: R7 } : {});
+  (A7 extends [string, ...any] ? { [K in A7[0]]: R7 } : {})
 interface Overloaded8<
   O1 extends any[],
   R1 extends any,
@@ -205,14 +204,14 @@ interface Overloaded8<
   O8 extends any[],
   R8 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
 }
 type TuplesToRecord8<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6, A7, R7, A8, R8> = (A1 extends [string, ...any]
   ? { [K in A1[0]]: R1 }
@@ -223,7 +222,7 @@ type TuplesToRecord8<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6, A7, R7, A8,
   (A5 extends [string, ...any] ? { [K in A5[0]]: R5 } : {}) &
   (A6 extends [string, ...any] ? { [K in A6[0]]: R6 } : {}) &
   (A7 extends [string, ...any] ? { [K in A7[0]]: R7 } : {}) &
-  (A8 extends [string, ...any] ? { [K in A8[0]]: R8 } : {});
+  (A8 extends [string, ...any] ? { [K in A8[0]]: R8 } : {})
 interface Overloaded9<
   O1 extends any[],
   R1 extends any,
@@ -244,15 +243,15 @@ interface Overloaded9<
   O9 extends any[],
   R9 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
 }
 type TuplesToRecord9<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6, A7, R7, A8, R8, A9, R9> = (A1 extends [
   string,
@@ -267,7 +266,7 @@ type TuplesToRecord9<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6, A7, R7, A8,
   (A6 extends [string, ...any] ? { [K in A6[0]]: R6 } : {}) &
   (A7 extends [string, ...any] ? { [K in A7[0]]: R7 } : {}) &
   (A8 extends [string, ...any] ? { [K in A8[0]]: R8 } : {}) &
-  (A9 extends [string, ...any] ? { [K in A9[0]]: R9 } : {});
+  (A9 extends [string, ...any] ? { [K in A9[0]]: R9 } : {})
 interface Overloaded10<
   O1 extends any[],
   R1 extends any,
@@ -290,16 +289,16 @@ interface Overloaded10<
   O10 extends any[],
   R10 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
 }
 type TuplesToRecord10<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6, A7, R7, A8, R8, A9, R9, A10, R10> = (A1 extends [
   string,
@@ -315,7 +314,7 @@ type TuplesToRecord10<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6, A7, R7, A8
   (A7 extends [string, ...any] ? { [K in A7[0]]: R7 } : {}) &
   (A8 extends [string, ...any] ? { [K in A8[0]]: R8 } : {}) &
   (A9 extends [string, ...any] ? { [K in A9[0]]: R9 } : {}) &
-  (A10 extends [string, ...any] ? { [K in A10[0]]: R10 } : {});
+  (A10 extends [string, ...any] ? { [K in A10[0]]: R10 } : {})
 interface Overloaded11<
   O1 extends any[],
   R1 extends any,
@@ -340,17 +339,17 @@ interface Overloaded11<
   O11 extends any[],
   R11 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
 }
 type TuplesToRecord11<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6, A7, R7, A8, R8, A9, R9, A10, R10, A11, R11> =
   (A1 extends [string, ...any] ? { [K in A1[0]]: R1 } : {}) &
@@ -363,7 +362,7 @@ type TuplesToRecord11<A1, R1, A2, R2, A3, R3, A4, R4, A5, R5, A6, R6, A7, R7, A8
     (A8 extends [string, ...any] ? { [K in A8[0]]: R8 } : {}) &
     (A9 extends [string, ...any] ? { [K in A9[0]]: R9 } : {}) &
     (A10 extends [string, ...any] ? { [K in A10[0]]: R10 } : {}) &
-    (A11 extends [string, ...any] ? { [K in A11[0]]: R11 } : {});
+    (A11 extends [string, ...any] ? { [K in A11[0]]: R11 } : {})
 interface Overloaded12<
   O1 extends any[],
   R1 extends any,
@@ -390,18 +389,18 @@ interface Overloaded12<
   O12 extends any[],
   R12 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
 }
 type TuplesToRecord12<
   A1,
@@ -439,7 +438,7 @@ type TuplesToRecord12<
   (A9 extends [string, ...any] ? { [K in A9[0]]: R9 } : {}) &
   (A10 extends [string, ...any] ? { [K in A10[0]]: R10 } : {}) &
   (A11 extends [string, ...any] ? { [K in A11[0]]: R11 } : {}) &
-  (A12 extends [string, ...any] ? { [K in A12[0]]: R12 } : {});
+  (A12 extends [string, ...any] ? { [K in A12[0]]: R12 } : {})
 interface Overloaded13<
   O1 extends any[],
   R1 extends any,
@@ -468,19 +467,19 @@ interface Overloaded13<
   O13 extends any[],
   R13 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
 }
 type TuplesToRecord13<
   A1,
@@ -521,7 +520,7 @@ type TuplesToRecord13<
   (A10 extends [string, ...any] ? { [K in A10[0]]: R10 } : {}) &
   (A11 extends [string, ...any] ? { [K in A11[0]]: R11 } : {}) &
   (A12 extends [string, ...any] ? { [K in A12[0]]: R12 } : {}) &
-  (A13 extends [string, ...any] ? { [K in A13[0]]: R13 } : {});
+  (A13 extends [string, ...any] ? { [K in A13[0]]: R13 } : {})
 interface Overloaded14<
   O1 extends any[],
   R1 extends any,
@@ -552,20 +551,20 @@ interface Overloaded14<
   O14 extends any[],
   R14 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
-  (...args: O14): R14;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
+  (...args: O14): R14
 }
 type TuplesToRecord14<
   A1,
@@ -609,7 +608,7 @@ type TuplesToRecord14<
   (A11 extends [string, ...any] ? { [K in A11[0]]: R11 } : {}) &
   (A12 extends [string, ...any] ? { [K in A12[0]]: R12 } : {}) &
   (A13 extends [string, ...any] ? { [K in A13[0]]: R13 } : {}) &
-  (A14 extends [string, ...any] ? { [K in A14[0]]: R14 } : {});
+  (A14 extends [string, ...any] ? { [K in A14[0]]: R14 } : {})
 interface Overloaded15<
   O1 extends any[],
   R1 extends any,
@@ -642,21 +641,21 @@ interface Overloaded15<
   O15 extends any[],
   R15 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
-  (...args: O14): R14;
-  (...args: O15): R15;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
+  (...args: O14): R14
+  (...args: O15): R15
 }
 type TuplesToRecord15<
   A1,
@@ -703,7 +702,7 @@ type TuplesToRecord15<
   (A12 extends [string, ...any] ? { [K in A12[0]]: R12 } : {}) &
   (A13 extends [string, ...any] ? { [K in A13[0]]: R13 } : {}) &
   (A14 extends [string, ...any] ? { [K in A14[0]]: R14 } : {}) &
-  (A15 extends [string, ...any] ? { [K in A15[0]]: R15 } : {});
+  (A15 extends [string, ...any] ? { [K in A15[0]]: R15 } : {})
 interface Overloaded16<
   O1 extends any[],
   R1 extends any,
@@ -738,22 +737,22 @@ interface Overloaded16<
   O16 extends any[],
   R16 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
-  (...args: O14): R14;
-  (...args: O15): R15;
-  (...args: O16): R16;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
+  (...args: O14): R14
+  (...args: O15): R15
+  (...args: O16): R16
 }
 type TuplesToRecord16<
   A1,
@@ -803,7 +802,7 @@ type TuplesToRecord16<
   (A13 extends [string, ...any] ? { [K in A13[0]]: R13 } : {}) &
   (A14 extends [string, ...any] ? { [K in A14[0]]: R14 } : {}) &
   (A15 extends [string, ...any] ? { [K in A15[0]]: R15 } : {}) &
-  (A16 extends [string, ...any] ? { [K in A16[0]]: R16 } : {});
+  (A16 extends [string, ...any] ? { [K in A16[0]]: R16 } : {})
 interface Overloaded17<
   O1 extends any[],
   R1 extends any,
@@ -840,23 +839,23 @@ interface Overloaded17<
   O17 extends any[],
   R17 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
-  (...args: O14): R14;
-  (...args: O15): R15;
-  (...args: O16): R16;
-  (...args: O17): R17;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
+  (...args: O14): R14
+  (...args: O15): R15
+  (...args: O16): R16
+  (...args: O17): R17
 }
 type TuplesToRecord17<
   A1,
@@ -909,7 +908,7 @@ type TuplesToRecord17<
   (A14 extends [string, ...any] ? { [K in A14[0]]: R14 } : {}) &
   (A15 extends [string, ...any] ? { [K in A15[0]]: R15 } : {}) &
   (A16 extends [string, ...any] ? { [K in A16[0]]: R16 } : {}) &
-  (A17 extends [string, ...any] ? { [K in A17[0]]: R17 } : {});
+  (A17 extends [string, ...any] ? { [K in A17[0]]: R17 } : {})
 interface Overloaded18<
   O1 extends any[],
   R1 extends any,
@@ -948,24 +947,24 @@ interface Overloaded18<
   O18 extends any[],
   R18 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
-  (...args: O14): R14;
-  (...args: O15): R15;
-  (...args: O16): R16;
-  (...args: O17): R17;
-  (...args: O18): R18;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
+  (...args: O14): R14
+  (...args: O15): R15
+  (...args: O16): R16
+  (...args: O17): R17
+  (...args: O18): R18
 }
 type TuplesToRecord18<
   A1,
@@ -1021,7 +1020,7 @@ type TuplesToRecord18<
   (A15 extends [string, ...any] ? { [K in A15[0]]: R15 } : {}) &
   (A16 extends [string, ...any] ? { [K in A16[0]]: R16 } : {}) &
   (A17 extends [string, ...any] ? { [K in A17[0]]: R17 } : {}) &
-  (A18 extends [string, ...any] ? { [K in A18[0]]: R18 } : {});
+  (A18 extends [string, ...any] ? { [K in A18[0]]: R18 } : {})
 interface Overloaded19<
   O1 extends any[],
   R1 extends any,
@@ -1062,25 +1061,25 @@ interface Overloaded19<
   O19 extends any[],
   R19 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
-  (...args: O14): R14;
-  (...args: O15): R15;
-  (...args: O16): R16;
-  (...args: O17): R17;
-  (...args: O18): R18;
-  (...args: O19): R19;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
+  (...args: O14): R14
+  (...args: O15): R15
+  (...args: O16): R16
+  (...args: O17): R17
+  (...args: O18): R18
+  (...args: O19): R19
 }
 type TuplesToRecord19<
   A1,
@@ -1139,7 +1138,7 @@ type TuplesToRecord19<
   (A16 extends [string, ...any] ? { [K in A16[0]]: R16 } : {}) &
   (A17 extends [string, ...any] ? { [K in A17[0]]: R17 } : {}) &
   (A18 extends [string, ...any] ? { [K in A18[0]]: R18 } : {}) &
-  (A19 extends [string, ...any] ? { [K in A19[0]]: R19 } : {});
+  (A19 extends [string, ...any] ? { [K in A19[0]]: R19 } : {})
 interface Overloaded20<
   O1 extends any[],
   R1 extends any,
@@ -1182,26 +1181,26 @@ interface Overloaded20<
   O20 extends any[],
   R20 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
-  (...args: O14): R14;
-  (...args: O15): R15;
-  (...args: O16): R16;
-  (...args: O17): R17;
-  (...args: O18): R18;
-  (...args: O19): R19;
-  (...args: O20): R20;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
+  (...args: O14): R14
+  (...args: O15): R15
+  (...args: O16): R16
+  (...args: O17): R17
+  (...args: O18): R18
+  (...args: O19): R19
+  (...args: O20): R20
 }
 type TuplesToRecord20<
   A1,
@@ -1263,7 +1262,7 @@ type TuplesToRecord20<
   (A17 extends [string, ...any] ? { [K in A17[0]]: R17 } : {}) &
   (A18 extends [string, ...any] ? { [K in A18[0]]: R18 } : {}) &
   (A19 extends [string, ...any] ? { [K in A19[0]]: R19 } : {}) &
-  (A20 extends [string, ...any] ? { [K in A20[0]]: R20 } : {});
+  (A20 extends [string, ...any] ? { [K in A20[0]]: R20 } : {})
 interface Overloaded21<
   O1 extends any[],
   R1 extends any,
@@ -1308,27 +1307,27 @@ interface Overloaded21<
   O21 extends any[],
   R21 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
-  (...args: O14): R14;
-  (...args: O15): R15;
-  (...args: O16): R16;
-  (...args: O17): R17;
-  (...args: O18): R18;
-  (...args: O19): R19;
-  (...args: O20): R20;
-  (...args: O21): R21;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
+  (...args: O14): R14
+  (...args: O15): R15
+  (...args: O16): R16
+  (...args: O17): R17
+  (...args: O18): R18
+  (...args: O19): R19
+  (...args: O20): R20
+  (...args: O21): R21
 }
 type TuplesToRecord21<
   A1,
@@ -1393,7 +1392,7 @@ type TuplesToRecord21<
   (A18 extends [string, ...any] ? { [K in A18[0]]: R18 } : {}) &
   (A19 extends [string, ...any] ? { [K in A19[0]]: R19 } : {}) &
   (A20 extends [string, ...any] ? { [K in A20[0]]: R20 } : {}) &
-  (A21 extends [string, ...any] ? { [K in A21[0]]: R21 } : {});
+  (A21 extends [string, ...any] ? { [K in A21[0]]: R21 } : {})
 interface Overloaded22<
   O1 extends any[],
   R1 extends any,
@@ -1440,28 +1439,28 @@ interface Overloaded22<
   O22 extends any[],
   R22 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
-  (...args: O14): R14;
-  (...args: O15): R15;
-  (...args: O16): R16;
-  (...args: O17): R17;
-  (...args: O18): R18;
-  (...args: O19): R19;
-  (...args: O20): R20;
-  (...args: O21): R21;
-  (...args: O22): R22;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
+  (...args: O14): R14
+  (...args: O15): R15
+  (...args: O16): R16
+  (...args: O17): R17
+  (...args: O18): R18
+  (...args: O19): R19
+  (...args: O20): R20
+  (...args: O21): R21
+  (...args: O22): R22
 }
 type TuplesToRecord22<
   A1,
@@ -1529,7 +1528,7 @@ type TuplesToRecord22<
   (A19 extends [string, ...any] ? { [K in A19[0]]: R19 } : {}) &
   (A20 extends [string, ...any] ? { [K in A20[0]]: R20 } : {}) &
   (A21 extends [string, ...any] ? { [K in A21[0]]: R21 } : {}) &
-  (A22 extends [string, ...any] ? { [K in A22[0]]: R22 } : {});
+  (A22 extends [string, ...any] ? { [K in A22[0]]: R22 } : {})
 interface Overloaded23<
   O1 extends any[],
   R1 extends any,
@@ -1578,29 +1577,29 @@ interface Overloaded23<
   O23 extends any[],
   R23 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
-  (...args: O14): R14;
-  (...args: O15): R15;
-  (...args: O16): R16;
-  (...args: O17): R17;
-  (...args: O18): R18;
-  (...args: O19): R19;
-  (...args: O20): R20;
-  (...args: O21): R21;
-  (...args: O22): R22;
-  (...args: O23): R23;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
+  (...args: O14): R14
+  (...args: O15): R15
+  (...args: O16): R16
+  (...args: O17): R17
+  (...args: O18): R18
+  (...args: O19): R19
+  (...args: O20): R20
+  (...args: O21): R21
+  (...args: O22): R22
+  (...args: O23): R23
 }
 type TuplesToRecord23<
   A1,
@@ -1671,7 +1670,7 @@ type TuplesToRecord23<
   (A20 extends [string, ...any] ? { [K in A20[0]]: R20 } : {}) &
   (A21 extends [string, ...any] ? { [K in A21[0]]: R21 } : {}) &
   (A22 extends [string, ...any] ? { [K in A22[0]]: R22 } : {}) &
-  (A23 extends [string, ...any] ? { [K in A23[0]]: R23 } : {});
+  (A23 extends [string, ...any] ? { [K in A23[0]]: R23 } : {})
 interface Overloaded24<
   O1 extends any[],
   R1 extends any,
@@ -1722,30 +1721,30 @@ interface Overloaded24<
   O24 extends any[],
   R24 extends any,
 > {
-  (...args: O1): R1;
-  (...args: O2): R2;
-  (...args: O3): R3;
-  (...args: O4): R4;
-  (...args: O5): R5;
-  (...args: O6): R6;
-  (...args: O7): R7;
-  (...args: O8): R8;
-  (...args: O9): R9;
-  (...args: O10): R10;
-  (...args: O11): R11;
-  (...args: O12): R12;
-  (...args: O13): R13;
-  (...args: O14): R14;
-  (...args: O15): R15;
-  (...args: O16): R16;
-  (...args: O17): R17;
-  (...args: O18): R18;
-  (...args: O19): R19;
-  (...args: O20): R20;
-  (...args: O21): R21;
-  (...args: O22): R22;
-  (...args: O23): R23;
-  (...args: O24): R24;
+  (...args: O1): R1
+  (...args: O2): R2
+  (...args: O3): R3
+  (...args: O4): R4
+  (...args: O5): R5
+  (...args: O6): R6
+  (...args: O7): R7
+  (...args: O8): R8
+  (...args: O9): R9
+  (...args: O10): R10
+  (...args: O11): R11
+  (...args: O12): R12
+  (...args: O13): R13
+  (...args: O14): R14
+  (...args: O15): R15
+  (...args: O16): R16
+  (...args: O17): R17
+  (...args: O18): R18
+  (...args: O19): R19
+  (...args: O20): R20
+  (...args: O21): R21
+  (...args: O22): R22
+  (...args: O23): R23
+  (...args: O24): R24
 }
 type TuplesToRecord24<
   A1,
@@ -1819,7 +1818,7 @@ type TuplesToRecord24<
   (A21 extends [string, ...any] ? { [K in A21[0]]: R21 } : {}) &
   (A22 extends [string, ...any] ? { [K in A22[0]]: R22 } : {}) &
   (A23 extends [string, ...any] ? { [K in A23[0]]: R23 } : {}) &
-  (A24 extends [string, ...any] ? { [K in A24[0]]: R24 } : {});
+  (A24 extends [string, ...any] ? { [K in A24[0]]: R24 } : {})
 export type OverloadedInputResultMap<T> =
   T extends Overloaded24<
     infer A1,
@@ -3029,4 +3028,4 @@ export type OverloadedInputResultMap<T> =
                                                 ? TuplesToRecord2<A1, R1, A2, R2>
                                                 : T extends Overloaded1<infer A1, infer R1>
                                                   ? TuplesToRecord1<A1, R1>
-                                                  : never;
+                                                  : never
