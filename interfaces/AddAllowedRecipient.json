@@ -10,9 +10,7 @@
   {
     "inputs": [],
     "name": "allowedRecipientsRegistry",
-    "outputs": [
-      { "internalType": "contract AllowedRecipientsRegistry", "name": "", "type": "address" }
-    ],
+    "outputs": [{ "internalType": "contract AllowedRecipientsRegistry", "name": "", "type": "address" }],
     "stateMutability": "view",
     "type": "function"
   },

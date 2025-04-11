@@ -2,15 +2,23 @@ node_modules
 .env
 coverage
 coverage.json
+.nyc_output
 typechain
 typechain-types
+.vscode
 
 # Hardhat files
 cache
 artifacts
 
-accounts
-abi-cache
+keystores
+rpc-node-logs
+logs
+etherscan-cache
 
 # OS specific
 .DS_store
+# IDE
+.idea
+# config files
+.envrc

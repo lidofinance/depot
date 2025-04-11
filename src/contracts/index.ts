@@ -1,4 +1,3 @@
-export { LabeledContract, ContractsResolver } from "./types";
-export { CachedContractsResolver } from "./contracts-resolver";
+export { NamedContract } from "./types";
 
-export { default } from "./contracts-service";
+export { default } from "./contracts";

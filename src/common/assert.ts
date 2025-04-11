@@ -4,12 +4,7 @@ import { BigNumberish } from "ethers";
 chai.util.addMethod(
   chai.assert,
   "approximately",
-  function approximately(
-    act: BigNumberish,
-    exp: BigNumberish,
-    delta: BigNumberish,
-    message?: string | undefined,
-  ) {
+  function approximately(act: BigNumberish, exp: BigNumberish, delta: BigNumberish, message?: string | undefined) {
     act = BigInt(act);
     exp = BigInt(exp);
     delta = BigInt(delta);
@@ -31,3 +26,15 @@ chai.util.addMethod(chai.assert, "contains", function contains<
 });
 
 export { assert } from "chai";
+
+chai.util.addMethod(chai.assert, "reverts", reverts);
+
+async function reverts(promise: Promise<unknown>, error?: string, args?: any[]): Promise<void> {
+  await promise
+    .then(() => chai.assert.fail("Transaction hasn't reverted"))
+    .catch((err: Error) => {
+      if (error) {
+        chai.assert.include(err.message, error, `Error "${error}" was not fired`);
+      }
+    });
+}
