@@ -8,13 +8,14 @@ import { NamedKeystore } from './named-keystore'
 import { getRandomPrivateKey } from './test_helpers'
 
 describe('NamedKeystore', () => {
-  it('creates a NamedKeystore from a private key', async () => {
-    const name = 'test'
-    const privateKey = getRandomPrivateKey()
-    const password = 'password'
-    const ks = await encrypt(privateKey, password)
+  const name = 'test'
+  const mainPass = 'pass_word'
 
-    const namedKeystore = await NamedKeystore.fromPrivateKey(name, privateKey, password)
+  it('creates a NamedKeystore from a private key', async () => {
+    const privateKey = getRandomPrivateKey()
+    const ks = await encrypt(privateKey, mainPass)
+
+    const namedKeystore = await NamedKeystore.fromPrivateKey(name, privateKey, mainPass)
 
     expect(namedKeystore).to.be.instanceOf(NamedKeystore)
     expect(namedKeystore.name).to.equal(name)
@@ -22,30 +23,24 @@ describe('NamedKeystore', () => {
   })
 
   it('generates a NamedKeystore', async () => {
-    const name = 'test'
-    const password = 'password'
-
-    const namedKeystore = await NamedKeystore.generate(name, password)
+    const namedKeystore = await NamedKeystore.generate(name, mainPass)
 
     expect(namedKeystore).to.be.instanceOf(NamedKeystore)
   })
 
   it('decrypts the NamedKeystore', async () => {
-    const name = 'test'
     const privateKey = getRandomPrivateKey()
-    const keystore = await encrypt(privateKey, 'password')
-    const password = 'password'
+    const keystore = await encrypt(privateKey, 'pass_word')
     const namedKeystore = new NamedKeystore(name, keystore)
 
-    const decryptedPrivateKey = await namedKeystore.decrypt(password)
+    const decryptedPrivateKey = await namedKeystore.decrypt(mainPass)
 
     expect(decryptedPrivateKey).to.equal(privateKey)
   })
 
   it('converts NamedKeystore to JSON excluding name', async () => {
-    const name = 'test'
     const privateKey = getRandomPrivateKey()
-    const keystore = await encrypt(privateKey, 'password')
+    const keystore = await encrypt(privateKey, 'pass_word')
     const namedKeystore = new NamedKeystore(name, keystore)
 
     const json = namedKeystore.toJson()
@@ -60,36 +55,29 @@ describe('NamedKeystore', () => {
   it('throws an error for an empty name', async () => {
     const name = ''
     const privateKey = getRandomPrivateKey()
-    const password = 'password'
 
-    await expect(NamedKeystore.fromPrivateKey(name, privateKey, password)).to.be.rejectedWith('Name is empty')
+    await expect(NamedKeystore.fromPrivateKey(name, privateKey, mainPass)).to.be.rejectedWith('Name is empty')
   })
 
   it('throws an error for an invalid private key', async () => {
-    const name = 'test'
     const privateKey = '0xinvalid'
-    const password = 'password'
 
-    await expect(NamedKeystore.fromPrivateKey(name, privateKey, password)).to.be.rejectedWith(
+    await expect(NamedKeystore.fromPrivateKey(name, privateKey, mainPass)).to.be.rejectedWith(
       'Private key is not a valid hex string',
     )
   })
 
   it('throws an error for private key with a wrong length', async () => {
-    const name = 'test'
     const privateKey = getRandomPrivateKey().slice(2, -2) as PrivateKey
-    const password = 'password'
 
-    await expect(NamedKeystore.fromPrivateKey(name, privateKey, password)).to.be.rejectedWith(
+    await expect(NamedKeystore.fromPrivateKey(name, privateKey, mainPass)).to.be.rejectedWith(
       'Invalid private key length',
     )
   })
 
   it('throws an error for an empty password', async () => {
-    const name = 'test'
     const privateKey = getRandomPrivateKey()
-    const password = ''
 
-    await expect(NamedKeystore.fromPrivateKey(name, privateKey, password)).to.be.rejectedWith('Password is empty')
+    await expect(NamedKeystore.fromPrivateKey(name, privateKey, '')).to.be.rejectedWith('Password is empty')
   })
 })
