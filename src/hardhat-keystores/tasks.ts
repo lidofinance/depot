@@ -3,7 +3,7 @@ import { task } from "hardhat/config";
 
 import prompt from "../common/prompt";
 
-const TASKS = {
+const KEYSTORE_TASKS = {
   ADD: "keystore:add",
   LIST: "keystore:list",
   DELETE: "keystore:delete",
@@ -11,15 +11,15 @@ const TASKS = {
   PASSWORD: "keystore:password",
 };
 
-task(TASKS.LIST, "List available accounts").setAction(async (_, hre) => {
+task(KEYSTORE_TASKS.LIST, "List available accounts").setAction(async (_, hre) => {
   const keystores = await hre.keystores.all();
 
   if (keystores.length === 0) {
     console.log("Accounts not found.");
 
     console.log(`You can add or generate account using one of the commands:`);
-    console.log("  ", chalk.bold(`npx hardhat ${TASKS.ADD}`));
-    console.log("  ", chalk.bold(`npx hardhat ${TASKS.GENERATE}`));
+    console.log("  ", chalk.bold(`npx hardhat ${KEYSTORE_TASKS.ADD} <name>`));
+    console.log("  ", chalk.bold(`npx hardhat ${KEYSTORE_TASKS.GENERATE} <name>`));
     return;
   }
 
@@ -29,7 +29,7 @@ task(TASKS.LIST, "List available accounts").setAction(async (_, hre) => {
   }
 });
 
-task(TASKS.ADD, "Add a new account by entering a private key")
+task(KEYSTORE_TASKS.ADD, "Add a new account by entering a private key")
   .addPositionalParam("name", "Name of the new account")
   .setAction(async ({ name }, hre) => {
     const existedKeystore = await hre.keystores.get(name);
@@ -41,7 +41,7 @@ task(TASKS.ADD, "Add a new account by entering a private key")
     console.log(`A new account ${newAccount.format()} has been added`);
   });
 
-task(TASKS.GENERATE, "Add a new account with a random private key")
+task(KEYSTORE_TASKS.GENERATE, "Add a new account with a random private key")
   .addPositionalParam("name", "Name of the new account")
   .setAction(async ({ name }, hre) => {
     const existedKeystore = await hre.keystores.get(name);
@@ -53,7 +53,7 @@ task(TASKS.GENERATE, "Add a new account with a random private key")
     console.log(`A new account ${account.format()} has been generated`);
   });
 
-task(TASKS.DELETE, "Delete an existing account")
+task(KEYSTORE_TASKS.DELETE, "Delete an existing account")
   .addPositionalParam("name", "Name of the account to delete")
   .setAction(async ({ name }, hre) => {
     const keystore = await hre.keystores.get(name);
@@ -77,7 +77,7 @@ task(TASKS.DELETE, "Delete an existing account")
     }
   });
 
-task(TASKS.PASSWORD, "Change the password of an existing account")
+task(KEYSTORE_TASKS.PASSWORD, "Change the password of an existing account")
   .addPositionalParam("name", "Name of the account to change password for")
   .setAction(async ({ name }, hre) => {
     const account = await hre.keystores.password(name);

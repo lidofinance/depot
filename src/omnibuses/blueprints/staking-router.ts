@@ -1,6 +1,6 @@
 import { BigNumberish } from "ethers";
 import { StakingModule } from "../../lido/lido";
-import { call, event, forward } from "../../votes";
+import { call, event, forward } from "../../aragon-votes-tools";
 import { Contracts } from "../../contracts/contracts";
 import { Lido } from "../../../configs/types";
 import { OmnibusItem } from "../omnibuses";

@@ -3,8 +3,8 @@ import { Contracts } from "../../contracts/contracts";
 import { Lido } from "../../../configs/types";
 import { assert } from "../../common/assert";
 import sinon from "sinon";
-import * as voteScripts from "../../votes/vote-script";
-import * as voteEvents from "../../votes/events";
+import * as voteScripts from "../../aragon-votes-tools/vote-script";
+import * as voteEvents from "../../aragon-votes-tools/events";
 import { ERC20__factory } from "../../../typechain-types/factories/interfaces";
 
 describe("Tokens actions tests", () => {

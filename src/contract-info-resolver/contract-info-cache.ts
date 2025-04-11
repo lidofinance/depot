@@ -17,6 +17,10 @@ export class ContractInfoInMemoryCache implements ContractInfoCache {
     }
     this.data[chainId.toString()]![address] = contractInfo;
   }
+
+  async clearAll(): Promise<void> {
+    this.data = {};
+  }
 }
 
 export class ContractInfoPersistentJsonCache implements ContractInfoCache {
@@ -31,6 +35,10 @@ export class ContractInfoPersistentJsonCache implements ContractInfoCache {
 
   private dirPath: string;
   private data: Partial<Record<string, Record<Address, ContractInfo>>> = {};
+
+  public clearAll() {
+    this.data = {};
+  }
 
   private constructor(dirPath: string) {
     this.dirPath = dirPath;

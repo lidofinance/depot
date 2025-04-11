@@ -2,8 +2,8 @@ import { runImageInBackground, runTestsFromRepo } from "../../src/docker";
 import * as env from "../../src/common/env";
 import { logBlue } from "../../src/common/color";
 import Docker from "dockerode";
-import { JsonRpcProvider } from "ethers";
-
+import { NetworkName } from "../../src/networks";
+import { revertCurrentNode } from "../../src/rpc";
 export const runDepotTests = async (name: string, hideDebug = false) => {
   const repo = "depot";
   const cmd = ["pnpm", "omnibus:test", name, "--rpc", "local"];
@@ -16,22 +16,21 @@ export const runDepotTests = async (name: string, hideDebug = false) => {
   logBlue("Reset node state");
 };
 
-export const runRpcNodeBackground = async (name: string, port: string, forceRestart = false) => {
-  const image = env.HH_NODE_IMAGE();
+export const prepareLocalRpcNode = async (name: string, network: NetworkName) => {
+  const canUseCurrentNode = await revertCurrentNode(network);
+  if (canUseCurrentNode) {
+    console.log(`Local node works on network "${network}" and not modified by other tasks`);
+    return;
+  }
+  const port = env.LOCAL_ETH_RPC_PORT();
+  const networkSuffix = network === "holesky" ? "-holesky-fork" : "";
+  const image = `${env.HH_NODE_IMAGE()}${networkSuffix}`;
   const cmd = ["pnpm", "start"];
 
-  const container = await runImageInBackground(name, image, cmd, forceRestart, {
+  await runImageInBackground(name, image, cmd, true, {
     Env: [`ALCHEMY_TOKEN=${env.ALCHEMY_TOKEN()}`],
     HostConfig: { PortBindings: { "8545/tcp": [{ HostPort: port }] } },
   });
-
-  const url = `http:/localhost:${port}`;
-  const provider = new JsonRpcProvider(url);
-
-  return {
-    container,
-    provider,
-  };
 };
 
 export const runCoreTests = async (pattern?: string, hideDebug = false, shouldMountTests = false) => {

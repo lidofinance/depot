@@ -3,19 +3,19 @@ import * as env from "./env";
 import sinon from "sinon";
 
 describe("Environment variable functions", () => {
-  it("returns the value of LOCAL_ETH_RPC_URL", () => {
-    process.env.LOCAL_ETH_RPC_URL = "http://localhost:8545";
-    expect(env.LOCAL_ETH_RPC_URL()).to.equal("http://localhost:8545");
+  it("returns the value of LOCAL_ETH_RPC_PORT", () => {
+    process.env.LOCAL_ETH_RPC_PORT = "9545";
+    expect(env.LOCAL_ETH_RPC_PORT()).to.equal("9545");
   });
 
-  it("returns the value of LOCAL_ARB_RPC_URL", () => {
-    process.env.LOCAL_ARB_RPC_URL = "http://localhost:8546";
-    expect(env.LOCAL_ARB_RPC_URL()).to.equal("http://localhost:8546");
+  it("returns the value of LOCAL_ARB_RPC_PORT", () => {
+    process.env.LOCAL_ARB_RPC_PORT = "9546";
+    expect(env.LOCAL_ARB_RPC_PORT()).to.equal("9546");
   });
 
-  it("returns the value of LOCAL_OPT_RPC_URL", () => {
-    process.env.LOCAL_OPT_RPC_URL = "http://localhost:8547";
-    expect(env.LOCAL_OPT_RPC_URL()).to.equal("http://localhost:8547");
+  it("returns the value of LOCAL_OPT_RPC_PORT", () => {
+    process.env.LOCAL_OPT_RPC_PORT = "9547";
+    expect(env.LOCAL_OPT_RPC_PORT()).to.equal("9547");
   });
 
   it("returns the value of ETH_RPC_URL", () => {

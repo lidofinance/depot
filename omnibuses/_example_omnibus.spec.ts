@@ -11,7 +11,6 @@ import checks from "../src/omnibuses/checks";
 const { stakingRouter, tokens, easyTrack, events } = checks.mainnet;
 
 const url = networks.localRpcUrl("eth");
-console.log(url);
 const provider = new JsonRpcProvider(url);
 const contracts = lido.eth[omnibus.network](provider);
 

@@ -1,7 +1,8 @@
 import { cheats } from "./cheats";
-import { Block, ContractRunner } from "ethers";
+import { Block, ContractRunner, JsonRpcProvider } from "ethers";
 import { RpcProvider } from "./types";
 import { isHardhatEthersProvider, isJsonRpcProvider, UnsupportedProviderError } from "./utils";
+import networks, { NetworkName } from "../networks";
 
 function provider(runner: ContractRunner): RpcProvider {
   const { provider } = runner;
@@ -45,4 +46,21 @@ async function seek(provider: RpcProvider, timestamp: number): Promise<Block> {
   return block;
 }
 
-export default { cheats, provider, chainId };
+async function getProvider(network: NetworkName, rpc: "local" | "remote", blockNumber?: number) {
+  if (rpc === "remote") {
+    return new JsonRpcProvider(networks.rpcUrl("eth", network));
+  }
+  const url = networks.localRpcUrl("eth");
+  const provider = new JsonRpcProvider(url);
+  if (blockNumber !== undefined) {
+    const currentBlockNumber = await provider.getBlockNumber();
+    if (currentBlockNumber !== blockNumber) {
+      throw new Error(
+        `Local RPC node set on the wrong block number. Expected ${blockNumber}, actual: ${currentBlockNumber}`,
+      );
+    }
+  }
+  return provider;
+}
+
+export default { cheats, provider, chainId, getProvider };

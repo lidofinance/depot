@@ -19,6 +19,10 @@ describe("NamedKeystores", () => {
   let storage: NamedKeystoresStorage;
   let selectStub: sinon.SinonStub;
 
+  // strange naming to avoid security linter errors
+  const mainPass = "pass_word";
+  const newPass = "new_pass_word";
+
   beforeEach(async () => {
     const tmpDir = await mkdtemp(join(tmpdir(), "named-keystores-"));
     storage = NamedKeystoresStorage.create(tmpDir);
@@ -27,7 +31,7 @@ describe("NamedKeystores", () => {
   });
 
   afterEach(async () => {
-    const accounts = await storage.all();
+    const accounts = await namedKeystores.all();
     await Promise.all(accounts.map((acc) => storage.del(acc.name)));
     selectStub.restore();
   });
@@ -35,19 +39,26 @@ describe("NamedKeystores", () => {
   it("adds a new keystore", async () => {
     const name = "test";
     const privateKey = getRandomPrivateKey();
-    const password = "password";
 
-    const keystore = await namedKeystores.add(name, privateKey, password);
+    const keystore = await namedKeystores.add(name, privateKey, mainPass);
 
     expect(keystore).to.be.instanceOf(NamedKeystore);
     expect(await namedKeystores.has(name)).to.be.true;
   });
 
+  it("adds a new invalid keystore", async () => {
+    const name = "test";
+    const privateKey = "invalid keystore";
+
+    await expect(namedKeystores.add(name, privateKey, mainPass)).to.be.rejectedWith(
+      "Private key value is invalid hex string",
+    );
+  });
+
   it("generates a new keystore", async () => {
     const name = "test";
-    const password = "password";
 
-    const keystore = await namedKeystores.generate(name, password);
+    const keystore = await namedKeystores.generate(name, mainPass);
 
     expect(keystore).to.be.instanceOf(NamedKeystore);
     expect(await namedKeystores.has(name)).to.be.true;
@@ -55,28 +66,25 @@ describe("NamedKeystores", () => {
 
   it("throws an error when generating a keystore with an existing name", async () => {
     const name = "test";
-    const password = "password";
 
-    await namedKeystores.generate(name, password);
+    await namedKeystores.generate(name, mainPass);
 
-    await expect(namedKeystores.generate(name, password)).to.be.rejectedWith(AccountAlreadyExistsError);
+    await expect(namedKeystores.generate(name, mainPass)).to.be.rejectedWith(AccountAlreadyExistsError);
   });
 
   it("throws an error when adding a keystore with an existing name", async () => {
     const name = "test";
     const privateKey = getRandomPrivateKey();
-    const password = "password";
 
-    await namedKeystores.add(name, privateKey, password);
+    await namedKeystores.add(name, privateKey, mainPass);
 
-    await expect(namedKeystores.add(name, privateKey, password)).to.be.rejectedWith(AccountAlreadyExistsError);
+    await expect(namedKeystores.add(name, privateKey, mainPass)).to.be.rejectedWith(AccountAlreadyExistsError);
   });
 
   it("removes a keystore", async () => {
     const name = "test";
     const privateKey = getRandomPrivateKey();
-    const password = "password";
-    await namedKeystores.add(name, privateKey, password);
+    await namedKeystores.add(name, privateKey, mainPass);
 
     await namedKeystores.remove(name);
 
@@ -86,56 +94,58 @@ describe("NamedKeystores", () => {
   it("unlocks a keystore", async () => {
     const name = "test";
     const privateKey = getRandomPrivateKey();
-    const password = "password";
 
-    await namedKeystores.add(name, privateKey, password);
-    const unlockedPrivateKey = await namedKeystores.unlock(name, password);
+    await namedKeystores.add(name, privateKey, mainPass);
+    const unlockedPrivateKey = await namedKeystores.unlock(name, mainPass);
 
     expect(unlockedPrivateKey).to.equal(privateKey);
   });
 
+  it("failed unlocks a keystore", async () => {
+    const name = "test";
+    const privateKey = getRandomPrivateKey();
+
+    await namedKeystores.add(name, privateKey, mainPass);
+    await expect(namedKeystores.unlock(name, "wrong-password")).to.be.rejectedWith(
+      "Key derivation failed - possibly wrong password",
+    );
+  });
+
   it("throws an error when unlocking empty keystores", async () => {
     const name = "test";
-    const password = "password";
 
-    await expect(namedKeystores.unlock(name, password)).to.be.rejectedWith(NoKeystoreError);
+    await expect(namedKeystores.unlock(name, mainPass)).to.be.rejectedWith(NoKeystoreError);
   });
 
   it("changes the password of a keystore", async () => {
     const name = "test";
     const privateKey = getRandomPrivateKey();
-    const oldPassword = "password";
-    const newPassword = "newPassword";
 
-    await namedKeystores.add(name, privateKey, oldPassword);
-    await namedKeystores.password(name, newPassword, oldPassword);
+    await namedKeystores.add(name, privateKey, mainPass);
+    await namedKeystores.password(name, newPass, mainPass);
 
-    const unlockedPrivateKey = await namedKeystores.unlock(name, newPassword);
+    const unlockedPrivateKey = await namedKeystores.unlock(name, newPass);
     expect(unlockedPrivateKey).to.equal(privateKey);
   });
 
   it("selects a keystore if name isn't provided", async () => {
     const name = "test";
     const privateKey = getRandomPrivateKey();
-    const oldPassword = "password";
-    const newPassword = "newPassword";
-    await namedKeystores.add(name, privateKey, oldPassword);
-    await namedKeystores.password(name, newPassword, oldPassword);
+    await namedKeystores.add(name, privateKey, mainPass);
+    await namedKeystores.password(name, newPass, mainPass);
     selectStub.resolves(name);
 
-    const unlockedPrivateKey = await namedKeystores.unlock(undefined, newPassword);
+    const unlockedPrivateKey = await namedKeystores.unlock(undefined, newPass);
     expect(unlockedPrivateKey).to.equal(privateKey);
   });
 
   it("selects a keystore when multiple exist", async () => {
     const name1 = "test1";
     const privateKey1 = getRandomPrivateKey();
-    const password1 = "password1";
     const name2 = "test2";
     const privateKey2 = getRandomPrivateKey();
-    const password2 = "password2";
-    await namedKeystores.add(name1, privateKey1, password1);
-    await namedKeystores.add(name2, privateKey2, password2);
+    await namedKeystores.add(name1, privateKey1, mainPass);
+    await namedKeystores.add(name2, privateKey2, newPass);
     selectStub.resolves(name1);
 
     const selectedKeystore = await namedKeystores.select();

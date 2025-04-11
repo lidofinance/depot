@@ -2,7 +2,7 @@ import { Address } from "web3-types";
 import { NamedContract } from "../../contracts";
 import { ERC20 } from "../../../typechain-types";
 import { BigNumberish } from "ethers";
-import { call, event } from "../../votes";
+import { call, event } from "../../aragon-votes-tools";
 import { ERC20__factory } from "../../../typechain-types/factories/interfaces";
 import { Contracts } from "../../contracts/contracts";
 import { Lido } from "../../../configs/types";

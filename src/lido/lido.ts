@@ -3,17 +3,17 @@ import { ContractRunner } from "ethers";
 import contracts from "../contracts";
 import { ChainId } from "../common/types";
 import LIDO_ON_MAINNET from "../../configs/lido-on-mainnet";
-import LIDO_ON_GOERLI from "../../configs/lido-on-goerli";
+import LIDO_ON_HOLESKY from "../../configs/lido-on-holesky";
 
 export default {
   chainId(chainId: ChainId, runner?: ContractRunner) {
-    if (chainId === 1n) return contracts.create(LIDO_ON_MAINNET, runner);
-    if (chainId === 5n) return contracts.create(LIDO_ON_GOERLI, runner);
+    if (Number(chainId) === 1) return contracts.create(LIDO_ON_MAINNET, runner);
+    if (Number(chainId) === 17000) return contracts.create(LIDO_ON_HOLESKY, runner);
     throw new Error(`Unsupported chain id "${chainId}"`);
   },
   eth: {
-    goerli(runner?: ContractRunner) {
-      return contracts.create(LIDO_ON_GOERLI, runner);
+    holesky(runner?: ContractRunner) {
+      return contracts.create(LIDO_ON_HOLESKY, runner);
     },
     mainnet(runner?: ContractRunner) {
       return contracts.create(LIDO_ON_MAINNET, runner);

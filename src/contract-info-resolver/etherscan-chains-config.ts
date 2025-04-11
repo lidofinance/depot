@@ -17,11 +17,11 @@ export const BUILTIN_ETHERSCAN_CHAINS = [
     },
   },
   {
-    network: "goerli",
-    chainId: 5,
+    network: "holesky",
+    chainId: 17000,
     urls: {
-      apiURL: "https://api-goerli.etherscan.io/api",
-      browserURL: "https://goerli.etherscan.io",
+      apiURL: "https://api-holesky.etherscan.io/api",
+      browserURL: "https://holesky.etherscan.io",
     },
   },
   {

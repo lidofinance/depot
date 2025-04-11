@@ -12,7 +12,8 @@ import { start, wait } from "./lifecycle";
 import { NonPayableOverrides } from "../../typechain-types/common";
 import lido from "../lido";
 import { ChainId } from "../common/types";
-import { logBlue, logGreen } from "../common/color";
+import { logGreen } from "../common/color";
+import { networkIdByName } from "../networks";
 
 export async function creator(provider: RpcProvider): Promise<Signer> {
   const { unlock, lock } = providers.cheats(provider);
@@ -102,9 +103,9 @@ export async function adopt(
 }
 
 function getLdoWhale(chainId: ChainId) {
-  const chainIdString = chainId.toString();
-  if (chainIdString !== "1" && chainIdString !== "5") {
+  const chainNumber = Number(chainId);
+  if (![networkIdByName.mainnet, networkIdByName.holesky].includes(chainNumber)) {
     throw new Error("Unsupported");
   }
-  return LDO_WHALES[chainIdString];
+  return LDO_WHALES[chainNumber];
 }
