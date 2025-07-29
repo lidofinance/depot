@@ -4,6 +4,10 @@ export const LOCAL_ETH_RPC_PORT = () => process.env.LOCAL_ETH_RPC_PORT || "8545"
 export const LOCAL_ARB_RPC_PORT = () => process.env.LOCAL_ARB_RPC_PORT || "8546";
 export const LOCAL_OPT_RPC_PORT = () => process.env.LOCAL_OPT_RPC_PORT || "8547";
 
+export const ETH_MAINNET_RPC_URL = () => getRequiredEnvVar("ETH_MAINNET_RPC_URL");
+export const ETH_HOLESKY_RPC_URL = () => getRequiredEnvVar("ETH_HOLESKY_RPC_URL");
+export const ETH_HOODI_RPC_URL = () => getRequiredEnvVar("ETH_HOODI_RPC_URL");
+
 export const ETH_RPC_URL = () => process.env.ETH_RPC_URL;
 export const ARB_RPC_URL = () => process.env.ARB_RPC_URL;
 export const OPT_RPC_URL = () => process.env.OPT_RPC_URL;
@@ -40,4 +44,16 @@ export function checkEnvVars() {
       "ETHERSCAN_TOKEN is not set, therefore parsed trace calls will not include contract names. If you want to see the detailed information about calls, please set the ETHERSCAN_TOKEN environment variable.",
     );
   }
+}
+
+export function getRequiredEnvVar(name: string) {
+  const value = process.env[name];
+  if (value === undefined || value === null) {
+    throw new Error(`required ENV variable "${name}" is not set`);
+  }
+  return value;
+}
+
+export function getOptionalEnvVar(name: string, defaultValue?: any) {
+  return process.env[name] ?? defaultValue;
 }

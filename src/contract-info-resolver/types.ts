@@ -1,33 +1,17 @@
-import { HexStr, HexStrPrefixed } from "../common/bytes";
+import { Abi } from "abitype";
+
+import { HexStr } from "../common/bytes";
 import { Address } from "../common/types";
 
-export type ChainId = number | bigint | string;
-
-type AbiElementType = "function" | "constructor" | "receive" | "fallback";
-type AbiElementStateMutability = "pure" | "view" | "nonpayable" | "payable";
-
-interface AbiFunctionParameter {
-  name: string;
-  type: string;
-  internalType: string;
-  components?: string;
-}
-
-interface AbiFragment {
-  type: AbiElementType;
-  name?: string;
-  inputs?: AbiFunctionParameter[];
-  outputs?: AbiFunctionParameter[];
-  stateMutability: AbiElementStateMutability;
-}
+import { ChainId, NetworkName } from "../network";
 
 export interface ContractInfoProvider {
-  request(chainId: ChainId, address: Address): Promise<ContractInfo>;
+  request(networkName: NetworkName, address: Address): Promise<ContractInfo>;
 }
 
 export interface ContractInfo {
   name: string;
-  abi: AbiFragment[];
+  abi: Abi;
   // if the contract is not proxy the address will null
   implementation: Address | null;
   constructorArgs: HexStr;
@@ -37,6 +21,6 @@ export interface ContractInfo {
 }
 
 export interface ContractInfoCache {
-  get(chainId: ChainId, address: Address): Promise<ContractInfo | null>;
-  set(chainId: ChainId, address: Address, abi: ContractInfo): Promise<void>;
+  get(networkName: NetworkName, address: Address): Promise<ContractInfo | null>;
+  set(networkName: NetworkName, address: Address, abi: ContractInfo): Promise<void>;
 }

@@ -1,22 +1,16 @@
-import { BaseContract, ContractTransactionReceipt } from "ethers";
-
-import bytes from "../common/bytes";
-import providers from "../providers";
-import { TraceStrategy } from "./debug-trace-tx-strategy";
+import bytes, { HexStrPrefixed } from "../common/bytes";
 import { isCallOpcode, isCreateOpcode, isLogOpcode } from "./evm-opcodes";
-import { TxTrace, TxTraceCallItem, TxTraceCreateItem, TxTraceLogItem } from "./tx-traces";
-import { ContractInfoResolver } from "../contract-info-resolver/contract-info-resolver";
+import { TxTrace, TxTraceCallItem, TxTraceCreateItem } from "./tx-traces";
 import { Address } from "../common/types";
-import { NamedContract } from "../contracts";
+import { TraceStrategy } from "./types";
+import { NetworkName } from "../network";
+import { Contract, resolveContract } from "../contracts/contracts";
 
 export class TxTracer {
-  constructor(
-    private readonly traceStrategy: TraceStrategy,
-    private readonly contractInfoResolver?: ContractInfoResolver | null,
-  ) {}
+  constructor(private readonly traceStrategy: TraceStrategy) {}
 
-  async trace(receipt: ContractTransactionReceipt) {
-    const callTraceItems = await this.traceStrategy.trace(receipt);
+  async trace(network: NetworkName, txHash: HexStrPrefixed, prePopulatedContracts: Contract[] = []) {
+    const callTraceItems = await this.traceStrategy.trace(txHash);
 
     const addresses = new Set<Address>();
     for (const [idx, callTraceItem] of callTraceItems.entries()) {
@@ -25,46 +19,32 @@ export class TxTracer {
       } else if (isCreateOpcode(callTraceItem.type)) {
         addresses.add((callTraceItem as TxTraceCreateItem).address);
       } else if (isLogOpcode(callTraceItem.type)) {
-        const cti = callTraceItem as TxTraceLogItem;
-        for (const item of callTraceItems.slice(0, idx).reverse()) {
-          if (isCallOpcode(item.type) && item.depth === cti.depth - 1) {
-            callTraceItems[idx].address = (item as TxTraceCallItem).address;
-            break;
-          }
-        }
+        addresses.add(callTraceItem.address!);
       }
     }
-    const contracts = await this.resolveContracts(await providers.chainId(receipt), Array.from(addresses));
-    const network = await providers.provider(receipt).getNetwork();
-    return new TxTrace(network, bytes.normalize(receipt.from), callTraceItems, contracts);
+    const resolvedContracts = await this.resolveContracts(network, Array.from(addresses));
+    return new TxTrace(
+      network,
+      bytes.normalize(callTraceItems[0].address || "0x"),
+      callTraceItems,
+      resolvedContracts,
+      prePopulatedContracts,
+    );
   }
 
-  private async resolveContracts(chainId: bigint, addresses: Address[]): Promise<Record<Address, NamedContract>> {
-    const res: Record<Address, NamedContract> = {};
-    if (!this.contractInfoResolver) return res;
+  private async resolveContracts(networkName: NetworkName, addresses: Address[]): Promise<Record<Address, Contract[]>> {
+    const res: Record<Address, Contract[]> = {};
 
-    const resolvedContracts = new Set<Address>();
+    const allResolvedContracts = new Set<Address>();
 
     for (const address of addresses) {
-      if (resolvedContracts.has(address)) continue;
+      const normalizedAddress = bytes.normalize(address);
+      if (allResolvedContracts.has(normalizedAddress)) continue;
 
-      resolvedContracts.add(address);
+      let resolvedContracts = await resolveContract(networkName, normalizedAddress);
 
-      try {
-        let contractInfo = await this.contractInfoResolver.resolve(chainId, address);
-        if (contractInfo.implementation) {
-          try {
-            contractInfo = await this.contractInfoResolver.resolve(chainId, contractInfo.implementation);
-          } catch (e) {
-            console.error(e);
-          }
-        }
-        const contract = new BaseContract(address, contractInfo.abi as any) as NamedContract;
-        contract.name = contractInfo.name;
-        res[address] = contract;
-      } catch (e) {
-        console.error(e);
-      }
+      allResolvedContracts.add(normalizedAddress);
+      res[normalizedAddress] = resolvedContracts;
     }
     return res;
   }

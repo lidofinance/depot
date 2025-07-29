@@ -1,70 +1,93 @@
-import { AbiCoder } from "ethers";
-import providers from "../../providers/providers";
+import { encodeAbiParameters, parseAbiParameters } from "viem";
+
 import { Address } from "../../common/types";
-import { AllowedRecipientsRegistry__factory, ERC20__factory } from "../../../typechain-types/factories/interfaces";
 import { assert } from "../../common/assert";
 import { CheckContext } from "./checks";
+import { ERC20_ABI } from "../../../abi/ERC20.abi";
+import { AllowedRecipientsRegistry_ABI } from "../../../abi/AllowedRecipientsRegistry.abi";
+import { Contract } from "../../contracts/contracts";
+import bytes from "../../common/bytes";
 
 const DEFAULT_ENACTOR: Address = "0xEE00eE11EE22ee33eE44ee55ee66Ee77EE88ee99";
-const TEST_RECIPIENT = "0x0102030405060708091011121314151617181920";
+const TEST_RECIPIENT: Address = "0x0102030405060708091011121314151617181920";
 
-const checkFactoryExists = async ({ contracts }: CheckContext, factory: Address) => {
-  assert.includeMembers(await contracts.easyTrack.getEVMScriptFactories(), [factory]);
+const checkFactoriesExists = async ({ contracts: { easyTrack }, client }: CheckContext, factories: Address[]) => {
+  const currentFactories = await client.read(easyTrack, "getEVMScriptFactories", []);
+  assert.includeMembers(
+    currentFactories.map((address) => bytes.normalize(address)) as Address[],
+    factories.map((address) => bytes.normalize(address)),
+  );
 };
 
-const checkFactoryNotExists = async ({ contracts }: CheckContext, factory: Address) => {
-  assert.notIncludeMembers(await contracts.easyTrack.getEVMScriptFactories(), [factory]);
+const checkFactoriesNotExists = async ({ contracts: { easyTrack }, client }: CheckContext, factories: Address[]) => {
+  const currentFactories = await client.read(easyTrack, "getEVMScriptFactories", []);
+  assert.notIncludeMembers(
+    currentFactories.map((address) => bytes.normalize(address)) as Address[],
+    factories.map((address) => bytes.normalize(address)),
+  );
+};
+
+const checkFactoryExists = async ({ contracts: { easyTrack }, client }: CheckContext, factory: Address) => {
+  const factories = await client.read(easyTrack, "getEVMScriptFactories", []);
+  assert.includeMembers(factories as Address[], [factory]);
+};
+
+const checkFactoryNotExists = async ({ contracts: { easyTrack }, client }: CheckContext, factory: Address) => {
+  const factories = (await client.read(easyTrack, "getEVMScriptFactories", [])) as Address[];
+  assert.notIncludeMembers(factories, [factory]);
 };
 
 const checkTopUpFactory = async (
-  { contracts, provider }: CheckContext,
+  { contracts, client }: CheckContext,
   token: Address,
   factory: Address,
   registry: Address,
   trustedCaller: Address,
 ) => {
-  const { agent, easyTrack, stETH } = contracts;
+  const { easyTrack, agent, stETH } = contracts;
+  const erc20Token: Contract<typeof ERC20_ABI> = { abi: ERC20_ABI, address: token, label: "ERC20" };
+  const recipientsRegistry: Contract<typeof AllowedRecipientsRegistry_ABI> = {
+    abi: AllowedRecipientsRegistry_ABI,
+    address: registry,
+    label: "AllowedRecipientsRegistry",
+  };
 
-  const motionsBefore = await easyTrack.getMotions();
+  const [motionsBefore, agentTokenBalanceBefore, recipients] = await Promise.all([
+    client.read(easyTrack, "getMotions", []),
+    client.read(erc20Token, "balanceOf", [agent.address]),
+    client.read(recipientsRegistry, "getAllowedRecipients", []),
+  ]);
 
-  const erc20Token = ERC20__factory.connect(token, provider);
-
-  const agentTokenBalanceBefore = await erc20Token.balanceOf(agent);
-
-  const recipientsRegistry = await AllowedRecipientsRegistry__factory.connect(registry, provider);
-  const recipients = await recipientsRegistry.getAllowedRecipients();
-
-  const recipientsTokenBalancesBefore = await Promise.all(
-    recipients.map((recipient) => erc20Token.balanceOf(recipient)),
+  const recipientBalancesBefore = await Promise.all(
+    recipients.map((recipient) => client.read(erc20Token, "balanceOf", [recipient])),
   );
 
-  const transferAmounts: bigint[] = new Array(recipients.length).fill(1n ** 18n);
+  const transferAmounts: bigint[] = new Array(recipients.length).fill(10n ** 18n);
 
-  const calldata = AbiCoder.defaultAbiCoder().encode(["address[]", "uint256[]"], [recipients, transferAmounts]);
+  const calldata = encodeAbiParameters(parseAbiParameters("address[], uint256[]"), [recipients, transferAmounts]);
 
-  const { unlock, mine, increaseTime } = providers.cheats(provider);
+  await client.impersonate(trustedCaller, 10n ** 18n);
+  await client.write(easyTrack, "createMotion", [factory, calldata], { from: trustedCaller });
 
-  const trustedCallerSigner = await unlock(trustedCaller, 10n ** 18n);
-  const createTx = await easyTrack
-    .connect(trustedCallerSigner)
-    .createMotion(factory, calldata, { gasLimit: 3_000_000 });
-  await createTx.wait();
-
-  const motionsAfter = await easyTrack.getMotions();
+  const motionsAfter = await client.read(easyTrack, "getMotions", []);
 
   assert.equal(motionsAfter.length, motionsBefore.length + 1);
 
-  const newMotion = await motionsAfter[motionsAfter.length - 1];
+  const newMotion = motionsAfter[motionsAfter.length - 1];
 
-  await increaseTime(newMotion.duration + 1n);
-  await mine();
+  await client.increaseTime(newMotion.duration + 1n);
+  await client.impersonate(DEFAULT_ENACTOR, 10n ** 18n);
 
-  const enactor = await unlock(DEFAULT_ENACTOR, 10n ** 18n);
-  const enactTx = await easyTrack.connect(enactor).enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
-  await enactTx.wait();
+  const receipt = await client.write(easyTrack, "enactMotion", [newMotion.id, calldata], {
+    from: DEFAULT_ENACTOR,
+  });
 
-  const agentTokenBalanceAfter = await erc20Token.balanceOf(agent);
-  const recipientBalancesAfter = await Promise.all(recipients.map((recipient) => erc20Token.balanceOf(recipient)));
+  await client.mine(10);
+
+  const agentTokenBalanceAfter = await client.read(erc20Token, "balanceOf", [agent.address]);
+  const recipientBalancesAfter = await Promise.all(
+    recipients.map((recipient) => client.read(erc20Token, "balanceOf", [recipient])),
+  );
 
   const epsilon = token === stETH.address ? 2 : 0;
 
@@ -75,89 +98,97 @@ const checkTopUpFactory = async (
   );
 
   for (let i = 0; i < recipients.length; ++i) {
-    assert.approximately(recipientBalancesAfter[i], recipientsTokenBalancesBefore[i] + transferAmounts[i], epsilon);
+    assert.approximately(recipientBalancesAfter[i], recipientBalancesBefore[i] + transferAmounts[i], epsilon);
   }
 };
 
 const checkAddRecipientFactory = async (
-  { contracts, provider }: CheckContext,
+  { contracts, client }: CheckContext,
   factory: Address,
   registry: Address,
   trustedCaller: Address,
 ) => {
   const { easyTrack } = contracts;
+  const recipientsRegistry: Contract<typeof AllowedRecipientsRegistry_ABI> = {
+    abi: AllowedRecipientsRegistry_ABI,
+    address: registry,
+    label: "AllowedRecipientsRegistry",
+  };
 
-  const registryContract = AllowedRecipientsRegistry__factory.connect(registry, provider);
-  assert.equal(await registryContract.isRecipientAllowed(TEST_RECIPIENT), false);
+  const [isRecipientAllowed, recipientsBefore, motionsBefore] = await Promise.all([
+    client.read(recipientsRegistry, "isRecipientAllowed", [TEST_RECIPIENT]),
+    client.read(recipientsRegistry, "getAllowedRecipients", []),
+    client.read(easyTrack, "getMotions", []),
+  ]);
 
-  const recipientsBefore = await registryContract.getAllowedRecipients();
-  const motionsBefore = await easyTrack.getMotions();
+  assert.isFalse(isRecipientAllowed);
 
-  const calldata = AbiCoder.defaultAbiCoder().encode(["address", "string"], [TEST_RECIPIENT, "Test Recipient"]);
+  const calldata = encodeAbiParameters(parseAbiParameters("address, string"), [TEST_RECIPIENT, "Test Recipient"]);
 
-  const { mine, unlock, increaseTime } = providers.cheats(provider);
+  await client.impersonate(trustedCaller, 10n ** 18n);
 
-  const trustedSigner = await unlock(trustedCaller, 10n ** 18n);
+  await client.write(easyTrack, "createMotion", [factory, calldata], { from: trustedCaller });
 
-  const createTx = await easyTrack.connect(trustedSigner).createMotion(factory, calldata, { gasLimit: 3_000_000 });
-
-  await createTx.wait();
-
-  const motionsAfter = await easyTrack.getMotions();
+  const motionsAfter = await client.read(easyTrack, "getMotions", []);
   assert.equal(motionsAfter.length, motionsBefore.length + 1);
 
   const newMotion = motionsAfter[motionsAfter.length - 1];
 
-  await increaseTime(newMotion.duration + 1n);
-  await mine();
+  await client.increaseTime(newMotion.duration + 1n);
 
-  const enactorSigner = await unlock(DEFAULT_ENACTOR, 10n ** 18n);
+  await client.impersonate(DEFAULT_ENACTOR, 10n ** 18n);
 
-  await easyTrack.connect(enactorSigner).enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
+  await client.write(easyTrack, "enactMotion", [newMotion.id, calldata], { from: DEFAULT_ENACTOR });
 
-  const recipientsAfter = await registryContract.getAllowedRecipients();
+  const recipientsAfter = await client.read(recipientsRegistry, "getAllowedRecipients", []);
 
   assert.equal(recipientsAfter.length, recipientsBefore.length + 1);
-  assert.equal(await registryContract.isRecipientAllowed(TEST_RECIPIENT), true);
+  assert.equal(await client.read(recipientsRegistry, "isRecipientAllowed", [TEST_RECIPIENT]), true);
 };
 
 const checkRemoveRecipientFactory = async (
-  { contracts, provider }: CheckContext,
+  { contracts, client }: CheckContext,
   factory: Address,
   registry: Address,
   trustedCaller: Address,
 ) => {
   const { easyTrack } = contracts;
+  const registryContract: Contract<typeof AllowedRecipientsRegistry_ABI> = {
+    address: registry,
+    abi: AllowedRecipientsRegistry_ABI,
+    label: "AllowedRecipientsRegistry",
+  };
 
-  const registryContract = AllowedRecipientsRegistry__factory.connect(registry, provider);
+  assert.equal(await client.read(registryContract, "isRecipientAllowed", [TEST_RECIPIENT]), true);
 
-  assert.equal(await registryContract.isRecipientAllowed(TEST_RECIPIENT), true);
-  const recipientsBefore = await registryContract.getAllowedRecipients();
-  const motionsBefore = await easyTrack.getMotions();
-  const calldata = AbiCoder.defaultAbiCoder().encode(["address"], [TEST_RECIPIENT]);
+  const recipientsBefore = await client.read(registryContract, "getAllowedRecipients", []);
+  const motionsBefore = await client.read(easyTrack, "getMotions", []);
 
-  const { mine, unlock, increaseTime, setBalance } = providers.cheats(provider);
+  const calldata = encodeAbiParameters(parseAbiParameters("address"), [TEST_RECIPIENT]);
 
-  await setBalance(TEST_RECIPIENT, 10n ** 18n);
-  const trustedSigner = await unlock(trustedCaller);
-  const createTx = await easyTrack.connect(trustedSigner).createMotion(factory, calldata, { gasLimit: 3_000_000 });
-  await createTx.wait();
-  const motionsAfter = await easyTrack.getMotions();
+  await client.impersonate(trustedCaller, 10n ** 18n);
+  await client.write(easyTrack, "createMotion", [factory, calldata], { from: trustedCaller });
+
+  const motionsAfter = await client.read(easyTrack, "getMotions", []);
   assert.equal(motionsAfter.length, motionsBefore.length + 1);
   const newMotion = motionsAfter[motionsAfter.length - 1];
-  await increaseTime(newMotion.duration + 1n);
-  await mine();
-  const enactorSigner = await unlock(TEST_RECIPIENT);
-  await setBalance(TEST_RECIPIENT, 10n ** 18n);
-  await easyTrack.connect(enactorSigner).enactMotion(newMotion.id, calldata, { gasLimit: 3_000_000 });
-  const recipientsAfter = await registryContract.getAllowedRecipients();
+
+  await client.increaseTime(newMotion.duration + 1n);
+
+  await client.impersonate(DEFAULT_ENACTOR, 10n ** 18n);
+
+  await client.write(easyTrack, "enactMotion", [newMotion.id, calldata], { from: DEFAULT_ENACTOR });
+  const recipientsAfter = await client.read(registryContract, "getAllowedRecipients", []);
+
   assert.equal(recipientsAfter.length, recipientsBefore.length - 1);
-  assert.equal(await registryContract.isRecipientAllowed(TEST_RECIPIENT), false);
+  assert.equal(await client.read(registryContract, "isRecipientAllowed", [TEST_RECIPIENT]), false);
 };
 
 export default {
   checkFactoryExists,
+  checkFactoriesExists,
   checkFactoryNotExists,
+  checkFactoriesNotExists,
   checkAddRecipientFactory,
   checkRemoveRecipientFactory,
   checkTopUpFactory,

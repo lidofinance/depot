@@ -1,10 +1,8 @@
 declare module "chai" {
-  import { BigNumberish } from "./global";
-
   global {
     export namespace Chai {
       interface AssertStatic {
-        approximately(act: BigNumberish, exp: BigNumberish, delta: BigNumberish, message?: string | undefined): void;
+        approximately(act: bigint | number, exp: bigint | number, delta: bigint | number, message?: string | undefined): void;
 
         contains<T = any>(collection: Iterable<T>, item: T, comparator?: (a: T, b: T) => boolean): void;
 

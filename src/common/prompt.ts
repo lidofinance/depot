@@ -114,7 +114,17 @@ async function sigint() {
   await sigintPromise;
 }
 
+async function text(message: string): Promise<string> {
+  const { value } = await prompts({
+    name: "value",
+    type: "text",
+    message,
+  });
+  return value;
+}
+
 export default {
+  text,
   secret,
   select,
   confirm,

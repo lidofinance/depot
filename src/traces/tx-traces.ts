@@ -1,6 +1,4 @@
-import format from "../common/format";
-import { HexStrPrefixed } from "../common/bytes";
-import { Network } from "ethers";
+import bytes, { HexStrPrefixed } from "../common/bytes";
 import {
   CallEvmOpcodes,
   CreateEvmOpcodes,
@@ -12,7 +10,10 @@ import {
   SelfDestructEvmOpcodes,
 } from "./evm-opcodes";
 import { Address } from "../common/types";
-import { NamedContract } from "../contracts";
+import { NetworkName } from "../network";
+import { Contract, getEventAbi, getFunctionAbi } from "../contracts/contracts";
+import { AbiEvent, decodeErrorResult, decodeEventLog, decodeFunctionData, decodeFunctionResult } from "viem";
+import fmt from "../common/format";
 
 type TxTraceOpcodes = LogEvmOpcodes | CallEvmOpcodes | CreateEvmOpcodes | SelfDestructEvmOpcodes;
 
@@ -40,14 +41,20 @@ export interface TxTraceCreateItem extends TxTraceCtxSpawningItem<CreateEvmOpcod
   salt?: HexStrPrefixed;
 }
 
-export interface TxTraceLogItem extends TxTraceItemMeta<LogEvmOpcodes> {
+interface TxTraceLogItemBase<_Type extends LogEvmOpcodes, _Topics extends HexStrPrefixed[]>
+  extends TxTraceItemMeta<_Type> {
   data: HexStrPrefixed;
-  address?: HexStrPrefixed;
-  topic1?: HexStrPrefixed;
-  topic2?: HexStrPrefixed;
-  topic3?: HexStrPrefixed;
-  topic4?: HexStrPrefixed;
+  address: HexStrPrefixed;
+  topics: _Topics;
 }
+
+type TxTraceLog0Item = TxTraceLogItemBase<"LOG0", []>;
+type TxTraceLog1Item = TxTraceLogItemBase<"LOG0", [HexStrPrefixed]>;
+type TxTraceLog2Item = TxTraceLogItemBase<"LOG0", [HexStrPrefixed, HexStrPrefixed]>;
+type TxTraceLog3Item = TxTraceLogItemBase<"LOG0", [HexStrPrefixed, HexStrPrefixed, HexStrPrefixed]>;
+type TxTraceLog4Item = TxTraceLogItemBase<"LOG0", [HexStrPrefixed, HexStrPrefixed, HexStrPrefixed, HexStrPrefixed]>;
+
+export type TxTraceLogItem = TxTraceLog0Item | TxTraceLog1Item | TxTraceLog2Item | TxTraceLog3Item | TxTraceLog4Item;
 
 export interface TxTraceSelfDestructItem extends TxTraceItemMeta<SelfDestructEvmOpcodes> {
   address: Address;
@@ -63,65 +70,99 @@ export interface TxTraceInput {
   gasLimit?: number | bigint;
 }
 
+const PADDING_SPACER = "   ";
+
 export class TxTrace {
   constructor(
-    public readonly network: Network,
+    public readonly network: NetworkName,
     public readonly from: Address,
     public readonly calls: TxTraceItem[],
-    private readonly contracts: Record<Address, NamedContract>,
+    public readonly contracts: Record<Address, Contract[]>,
+    public readonly prePopulatedContracts: Contract[],
   ) {}
 
   public filter(predicate: (callTrace: TxTraceItem, i: number, collection: TxTraceItem[]) => boolean): TxTrace {
     const calls = this.calls.filter(predicate);
     this.updateDepths(calls);
-    return new TxTrace(this.network, this.from, calls, this.contracts);
+    return new TxTrace(this.network, this.from, calls, this.contracts, this.prePopulatedContracts);
   }
 
   public slice(start?: number, end?: number): TxTrace {
     const calls = this.calls.slice(start, end);
     this.updateDepths(calls);
-    return new TxTrace(this.network, this.from, calls, this.contracts);
+    return new TxTrace(this.network, this.from, calls, this.contracts, this.prePopulatedContracts);
   }
 
   public format(padding: number = 0): string {
-    return this.calls.map((log) => this.formatOpCode(log, padding)).join("\n");
+    return this.calls.map((log) => this.formatOpCode(log, log.depth + padding)).join("\n");
   }
 
-  public formatOpCode(txTraceItem: TxTraceItem, padding?: number): string {
-    if (isCallOpcode(txTraceItem.type)) return this.formatCallTraceItem(txTraceItem as TxTraceCallItem, padding);
+  public formatOpCode(txTraceItem: TxTraceItem, padding: number = 0): string {
+    if (isCallOpcode(txTraceItem.type)) return this.#formatCallTraceItem(txTraceItem as TxTraceCallItem, padding);
     if (isCreateOpcode(txTraceItem.type)) return this.formatCreateTraceItem(txTraceItem as TxTraceCreateItem, padding);
     if (isSelfDestructOpcode(txTraceItem.type))
       return this.formatSelfDestructTraceItem(txTraceItem as TxTraceSelfDestructItem, padding);
-    if (isLogOpcode(txTraceItem.type)) return this.formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
+    if (isLogOpcode(txTraceItem.type)) return this.#formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
 
     return " ".repeat(txTraceItem.depth + (padding ?? 0)) + txTraceItem.type;
   }
 
-  private formatCallTraceItem(traceCallItem: TxTraceCallItem, padding: number = 0) {
-    const paddingLeft = "  ".repeat(traceCallItem.depth + padding);
-    const opcode = format.opcode(traceCallItem.type);
-    const contract = this.contracts[traceCallItem.address];
+  #formatCallTraceItem(traceCallItem: TxTraceCallItem, padLength: number) {
+    const contracts = [...this.contracts[bytes.normalize(traceCallItem.address)], ...this.prePopulatedContracts];
 
-    const methodCallInfo = contract ? this.parseMethodCall(contract, traceCallItem.input, traceCallItem.output) : null;
+    let decodeResult: {
+      functionName: string;
+      contract: Contract;
+      args: unknown[];
+      inputNames: string[];
+      inputTypes: string[];
+      result: unknown;
+    } | null = null;
+    for (const c of contracts) {
+      try {
+        const decoded = decodeFunctionData({ abi: c.abi, data: traceCallItem.input });
+        const abiItem = getFunctionAbi(c, decoded.functionName, decoded.args);
+        // console.log("items:", abiItem.inputs.length, decoded.args?.length);
+        if (abiItem.inputs.length !== (decoded.args?.length ?? 0)) {
+          // console.log("mismatch: ", abiItem.inputs, decoded.args);
+          continue;
+        }
+        const result = traceCallItem.success
+          ? decodeFunctionResult({
+              abi: c.abi,
+              data: traceCallItem.output,
+              functionName: decoded.functionName,
+            })
+          : decodeErrorResult({ abi: c.abi, data: traceCallItem.output });
 
-    const contractLabel = methodCallInfo?.contractLabel || format.contract("UNKNOWN", traceCallItem.address);
-    const methodName = methodCallInfo?.fragment.name || traceCallItem.input.slice(0, 10);
-    const methodArgs =
-      methodCallInfo?.fragment.inputs
-        .map((input, i) => "  " + paddingLeft + format.argument(input.name, methodCallInfo.args[i]))
-        .join(",\n") || "  " + paddingLeft + format.argument("data", "0x" + traceCallItem.input.slice(10));
-    const methodResult = methodCallInfo?.result || traceCallItem.output;
+        decodeResult = {
+          args: (decoded.args ?? []) as unknown[],
+          functionName: decoded.functionName,
+          result,
+          inputNames: abiItem.inputs.map((input) => input.name ?? "_"),
+          inputTypes: abiItem.inputs.map((input) => input.internalType ?? input.type),
+          contract: c,
+        };
+        break;
+      } catch {}
+    }
 
-    return (
-      paddingLeft +
-      opcode +
-      " " +
-      contractLabel +
-      "." +
-      format.method(methodName, methodArgs, paddingLeft) +
-      " => " +
-      (methodResult.toString() || "void")
-    );
+    return decodeResult
+      ? fmt.decodedFuncCall({
+          contract: decodeResult.contract,
+          args: decodeResult.args,
+          functionName: decodeResult.functionName,
+          callType: traceCallItem.type,
+          result: decodeResult.result as unknown[],
+          padLength: padLength,
+        })
+      : fmt.rawFuncCall({
+          address: traceCallItem.address,
+          input: traceCallItem.input,
+          output: traceCallItem.output,
+          callType: traceCallItem.type,
+          padLength,
+        });
   }
 
   private formatCreateTraceItem(txCreateTraceItem: TxTraceCreateItem, padding: number = 0) {
@@ -134,67 +175,60 @@ export class TxTrace {
     return " ".repeat(txSelfDestructTraceItem.depth + (padding ?? 0)) + txSelfDestructTraceItem.type;
   }
 
-  private formatLogTraceItem(txTraceLogItem: TxTraceLogItem, padding: number = 0): string {
-    const contract = this.contracts[txTraceLogItem.address!];
-    if (!contract) {
-      return " ".repeat(txTraceLogItem.depth + (padding ?? 0)) + txTraceLogItem.type;
+  #formatLogTraceItem(traceLogItem: TxTraceLogItem, padding: number): string {
+    const contracts = [...this.contracts[bytes.normalize(traceLogItem.address)], ...this.prePopulatedContracts];
+
+    let decoded: { abi: AbiEvent; args: Record<string, any> } | null = null;
+    for (let i = 0; i < contracts.length; ++i) {
+      try {
+        const { eventName, args } = decodeEventLog({
+          abi: contracts[i].abi,
+          data: traceLogItem.data,
+          topics: traceLogItem.topics as [HexStrPrefixed, ...HexStrPrefixed[]],
+        }) as { eventName: string; args: Record<string, any> };
+
+        const abi = getEventAbi(contracts[i], eventName);
+        decoded = { abi, args };
+        break;
+      } catch {}
     }
 
-    const log = contract.interface.parseLog({
-      topics: [txTraceLogItem.topic1, txTraceLogItem.topic2, txTraceLogItem.topic3, txTraceLogItem.topic4].filter(
-        (topic) => topic !== undefined,
-      ) as string[],
-      data: txTraceLogItem.data,
-    });
-    if (!log) {
-      return " ".repeat(txTraceLogItem.depth + (padding ?? 0)) + txTraceLogItem.type;
-    }
-
-    const paddingLeft = "  ".repeat(txTraceLogItem.depth + (padding ?? 0));
-    return format.log(log, contract!.name, paddingLeft);
-  }
-
-  private parseMethodCall(contract: NamedContract, calldata: string, ret: string) {
-    const { fragment } = contract.getFunction(calldata.slice(0, 10));
-    return {
-      fragment,
-      contractLabel: contract.name,
-      args: contract.interface.decodeFunctionData(fragment, calldata),
-      result: contract.interface.decodeFunctionResult(fragment, ret),
-    };
+    return decoded
+      ? fmt.decodedLog({ ...decoded, type: traceLogItem.type, padLength: padding })
+      : fmt.rawLog({ ...traceLogItem, padLength: padding });
   }
 
   private updateDepths(calls: TxTraceItem[]) {
-    const paddingsRemapping: Record<number, number> = {};
+    if (calls.length === 0) return;
 
-    const paddings = new Set<number>();
+    const depths = calls.map((call) => call.depth);
+
+    const minDepth = Math.min(...depths);
+    const maxDepth = Math.max(...depths);
+
+    const depthsUsage = Object.fromEntries(
+      Array(maxDepth - minDepth + 1)
+        .fill(0)
+        .map((_, i) => [minDepth + i, false]),
+    );
 
     for (const call of calls) {
-      paddings.add(call.depth);
+      call.depth -= minDepth;
+      depthsUsage[call.depth] = true;
     }
 
-    const paddingsSorted = Array.from(paddings).sort((a, b) => a - b);
+    const depthsRewrites: Record<string, number> = {};
 
-    for (let i = 0; i < paddingsSorted.length; ++i) {
-      paddingsRemapping[paddingsSorted[i]!] = i;
-    }
-    const depths: number[] = [];
-
-    for (let i = 0; i < calls.length; ++i) {
-      const call = calls[i]!;
-      depths[i] = paddingsRemapping[call.depth]!;
-      while (i < calls.length - 1 && call.depth <= calls[i + 1]!.depth) {
-        if (call.depth < calls[i + 1]!.depth) {
-          depths[i + 1] = depths[i]! + 1;
-        } else {
-          depths[i + 1] = depths[i]!;
-        }
-        i += 1;
+    let newDepth = 0;
+    for (const [depth, isUsed] of Object.entries(depthsUsage)) {
+      if (isUsed) {
+        depthsRewrites[depth] = newDepth;
+        newDepth++;
       }
     }
 
-    for (let i = 0; i < calls.length; ++i) {
-      calls[i]!.depth = depths[i]!;
+    for (const call of calls) {
+      call.depth = depthsRewrites[call.depth];
     }
   }
 }

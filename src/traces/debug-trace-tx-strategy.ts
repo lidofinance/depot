@@ -1,30 +1,27 @@
-import { ContractTransactionReceipt, JsonRpcProvider } from "ethers";
-
-import bytes from "../common/bytes";
+import bytes, { HexStrPrefixed } from "../common/bytes";
 import { TxTraceItem } from "./tx-traces";
 import { DebugTraceTxStreamed } from "./debug-trace-tx-streamed";
 import { StructLogsTracingVisitor } from "./struct-log-tracing-visitor";
-
-export interface TraceStrategy {
-  trace(receipt: ContractTransactionReceipt): Promise<TxTraceItem[]>;
-}
+import { TraceStrategy } from "./types";
+import { RpcClient } from "../network";
 
 export class DebugTxTraceStrategy implements TraceStrategy {
-  private readonly provider: JsonRpcProvider;
+  #client: RpcClient;
 
-  constructor(provider: JsonRpcProvider) {
-    this.provider = provider;
+  constructor(client: RpcClient) {
+    this.#client = client;
   }
 
-  async trace(receipt: ContractTransactionReceipt): Promise<TxTraceItem[]> {
-    const tx = await receipt.getTransaction();
+  async trace(txHash: HexStrPrefixed): Promise<TxTraceItem[]> {
+    const receipt = await this.#client.viemClient.getTransaction({ hash: txHash });
     const structLogVisitor = new StructLogsTracingVisitor({
       address: bytes.normalize(receipt.to ?? "0x"),
-      gasLimit: Number(tx.gasLimit),
-      data: bytes.normalize(tx.data),
-      value: tx.value,
+      gasLimit: Number(receipt.gas),
+      data: bytes.normalize(receipt.input),
+      value: receipt.value,
     });
     const tracer = new DebugTraceTxStreamed(
+      this.#client,
       {
         structLog: (log) => structLogVisitor.visit(log),
         error: (error) => {
@@ -35,7 +32,8 @@ export class DebugTxTraceStrategy implements TraceStrategy {
       },
       { enableMemory: true, disableStack: false, disableStorage: true, enableReturnData: false },
     );
-    await tracer.trace(this.provider._getConnection().url, receipt.hash);
+
+    await tracer.trace(receipt.hash);
     return structLogVisitor.finalize();
   }
 }

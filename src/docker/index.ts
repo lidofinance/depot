@@ -12,6 +12,7 @@ type ContainerRunResponse = [{ StatusCode: number }, Container, id: string, Reco
 const docker = new Docker();
 
 export function getStdout(name: string) {
+  // FIXME: Fails when the logs folder does not exist
   const logFilePath = `${process.cwd()}/logs/${name}.log`;
   logGreen(`You will able to see container log here: \n${logFilePath}`);
   return createWriteStream(logFilePath);

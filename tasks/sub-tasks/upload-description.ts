@@ -1,4 +1,4 @@
-import { Omnibus } from "../../src/omnibuses/omnibuses";
+import { Omnibus } from "../../src/omnibuses";
 import prompt from "../../src/common/prompt";
 import { calculateCid, getUrlByCidV1, isCidUploaded } from "../../src/ipfs/utils";
 import { getIpfsProvider, instruction } from "../../src/ipfs/ipfs-provider";
@@ -12,11 +12,12 @@ export const uploadDescription = async (omnibusName: string, omnibus: Omnibus, s
       `You have not filled the omnibus description field, it means that users only have a basic description of the items. Do you want to continue?`,
       silent,
     );
-    return omnibus.summary; // continue without description
+    return omnibus.formatSummary(); // continue without description
   }
 
   const calculatedCid = await calculateCid(description);
-  const omnibusDescription = `${omnibus.summary}\n${VOTE_CID_PREFIX}${calculatedCid}`;
+
+  const omnibusDescription = omnibus.formatSummary(`${VOTE_CID_PREFIX}${calculatedCid}`);
 
   console.log(`Fetching description from IPFS...`);
   const isUploaded = await isCidUploaded(calculatedCid);

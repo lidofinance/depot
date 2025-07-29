@@ -83,7 +83,7 @@ export type EvmOpcode =
   | "SELFDESTRUCT";
 
 const LOG_EVM_OPCODES = {
-  LOG0: "LOG1",
+  LOG0: "LOG0",
   LOG1: "LOG1",
   LOG2: "LOG2",
   LOG3: "LOG3",

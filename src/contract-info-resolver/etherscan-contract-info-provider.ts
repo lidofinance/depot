@@ -3,8 +3,9 @@ import fetch from "node-fetch";
 import { ContractInfoProvider, ContractInfo } from "./types";
 
 import bytes from "../common/bytes";
-import { Address, ChainId } from "../common/types";
+import { Address } from "../common/types";
 import { BUILTIN_ETHERSCAN_CHAINS, EtherscanChainConfig } from "./etherscan-chains-config";
+import { NetworkName } from "../network";
 
 interface EtherscanResponse<T = unknown> {
   status: "0" | "1";
@@ -41,13 +42,13 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
   private readonly chains: EtherscanChainConfig[];
   private readonly etherscanToken: string;
 
-  private apiUrl(chainId: ChainId): string {
+  private apiUrl(networkName: NetworkName): string {
     for (let config of this.chains) {
-      if (config.chainId.toString() === chainId.toString()) {
+      if (config.network === networkName) {
         return config.urls.apiURL;
       }
     }
-    throw new Error(`Unsupported chain id "${chainId}"`);
+    throw new Error(`Unsupported network "${networkName}"`);
   }
 
   constructor(etherscanToken: string, customChains: EtherscanChainConfig[] = []) {
@@ -55,8 +56,8 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
     this.chains = [...customChains, ...BUILTIN_ETHERSCAN_CHAINS];
   }
 
-  async request(chainId: ChainId, address: Address): Promise<ContractInfo> {
-    const res = await this.getContractInfo(chainId, address);
+  async request(network: NetworkName, address: Address): Promise<ContractInfo> {
+    const res = await this.getContractInfo(network, address);
 
     return {
       name: res.ContractName,
@@ -70,11 +71,11 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
   }
 
   private async getContractInfo(
-    chainId: ChainId,
+    networkName: NetworkName,
     address: Address,
     attempts: number = 0,
   ): Promise<EtherscanGetSourceCodeResult> {
-    const apiUrl = this.apiUrl(chainId);
+    const apiUrl = this.apiUrl(networkName);
 
     const getSourceCodeUrl = new URL(apiUrl);
     const params = new URLSearchParams({
@@ -96,7 +97,7 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
         throw new RateLimitError(response.result.toString());
       }
       await new Promise((resolve) => setTimeout(resolve, DELAY * attempts ** 2));
-      return this.getContractInfo(chainId, address, attempts + 1);
+      return this.getContractInfo(networkName, address, attempts + 1);
     }
     if (response.result.toString().includes("Contract source code not verified")) {
       throw new Error("Contract is not verified");

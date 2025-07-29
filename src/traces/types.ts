@@ -1,6 +1,4 @@
-import type { ContractTransactionReceipt } from "ethers";
-
-import type { HexStr } from "../common/bytes";
+import type { HexStr, HexStrNonPrefixed } from "../common/bytes";
 import type { EvmOpcode } from "./evm-opcodes";
 import type { TxTraceItem } from "./tx-traces";
 
@@ -34,5 +32,5 @@ export interface RawStructLog<T extends EvmOpcode = EvmOpcode> {
 }
 
 export interface TraceStrategy {
-  trace(receipt: ContractTransactionReceipt): Promise<TxTraceItem[]>;
+  trace(txHash: HexStrNonPrefixed): Promise<TxTraceItem[]>;
 }

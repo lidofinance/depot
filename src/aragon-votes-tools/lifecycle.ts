@@ -1,62 +1,59 @@
-import lido from "../lido";
-import providers from "../providers";
-import { call, evm } from "./vote-script";
-import { ContractTransactionResponse, Signer } from "ethers";
-import { NonPayableOverrides } from "../../typechain-types/common";
+import { decodeEventLog, encodeEventTopics, encodeFunctionData } from "viem";
+import { RpcClient, WriteContractOptions } from "../network";
+import { EvmScriptParser } from "./evm-script-parser";
+import { HexStrPrefixed } from "../common/bytes";
+import { getLidoContracts } from "../contracts/contracts";
+import { Voting_ABI } from "../../abi/Voting.abi";
+import { createTimedSpinner } from "../common/spinner";
 
-export async function start(
-  creator: Signer,
-  evmScript: string,
+export async function startAragonVote(
+  client: RpcClient,
+  evmScript: HexStrPrefixed,
   description: string,
-  castVote: boolean = false,
-  overrides?: NonPayableOverrides,
+  txOptions: WriteContractOptions,
 ) {
-  console.log(`Sending the tx to start the vote...`);
-  const { voting, tokenManager } = lido.chainId(await providers.chainId(creator), creator);
+  const networkName = client.getNetworkName();
+  const { voting, tokenManager } = getLidoContracts(networkName);
 
-  const startVoteScript = evm(
-    call(voting["newVote(bytes,string,bool,bool)"], [evmScript, description, castVote, false]),
-  );
-  const tx = await tokenManager.connect(creator).forward(startVoteScript, overrides ?? {});
-  console.log("Transaction successfully sent:", tx.hash);
-  return tx;
-}
+  const startVoteScript = EvmScriptParser.encode([
+    {
+      address: voting.address,
+      calldata: encodeFunctionData({
+        abi: voting.abi,
+        functionName: "newVote",
+        args: [evmScript, description, false, false],
+      }),
+    },
+  ]);
 
-export async function wait(tx: ContractTransactionResponse) {
-  console.log("Waiting transaction will be confirmed...");
-  const receipt = await tx.wait();
-  if (!receipt) {
-    throw new Error("Invalid confirmations value");
-  }
+  const spinner = createTimedSpinner(`Sending tx to create the vote...`);
+  const receipt = await client.write(tokenManager, "forward", [startVoteScript], txOptions);
 
-  const { voting } = lido.chainId(await providers.chainId(tx));
+  const [startVoteTopic] = encodeEventTopics({
+    abi: Voting_ABI,
+    eventName: "StartVote",
+  });
+  const startVoteLog = receipt.logs.find((log) => log.topics[0] === startVoteTopic);
 
-  const startVoteLog = receipt.logs.find((log) => log.topics[0] === voting.interface.getEvent("StartVote")!.topicHash);
   if (!startVoteLog) {
+    spinner.error(`Transaction failed`);
     throw new Error("StartVote log not found");
   }
 
-  const startVoteEvent = voting.interface.parseLog({
-    data: startVoteLog?.data,
-    topics: [...startVoteLog?.topics],
-  })!;
+  const startVoteEvent = decodeEventLog({
+    abi: Voting_ABI,
+    eventName: "StartVote",
+    topics: startVoteLog.topics,
+    data: startVoteLog.data,
+  });
 
-  const voteId: bigint = startVoteEvent.args[0];
+  const voteId: bigint = startVoteEvent.args.voteId;
+  spinner.succeed(`Vote with id ${voteId} successfully created`);
 
   return { voteId, receipt };
 }
 
-export async function execute<T extends Signer>(
-  executor: T,
-  voteId: number | bigint | string,
-  overrides?: NonPayableOverrides,
-) {
-  const { voting } = lido.chainId(await providers.chainId(executor), executor);
-
-  const tx = await voting.executeVote(voteId, overrides ?? {});
-  const receipt = await tx.wait();
-  if (!receipt) {
-    throw new Error("transaction wait failed");
-  }
-  return receipt;
+export async function executeAragonVote(client: RpcClient, voteId: bigint, txOptions: WriteContractOptions) {
+  const { voting } = getLidoContracts(client.getNetworkName());
+  return client.write(voting, "executeVote", [voteId], txOptions);
 }

@@ -1,41 +1,96 @@
-import { BigNumberish } from "ethers";
-import { assert } from "../../common/assert";
+import { Address } from "abitype";
 import { CheckContext } from "./checks";
+import { assert } from "../../common/assert";
+import { LidoContracts } from "../../contracts/contracts";
 
 export interface StakingModuleParams {
-  targetShare: bigint;
-  treasuryFee: bigint;
-  stakingModuleFee: bigint;
+  treasuryFee: number;
+  stakingModuleFee: number;
 }
 
+type StakingModuleName = "curated" | "sdvt" | "csm";
+const STAKING_MODULE_IDS = {
+  curated: 1n,
+  sdvt: 2n,
+  csm: 3n,
+};
+
 const checkStakingModule = async (
-  { contracts }: CheckContext,
-  stakingModuleID: BigNumberish,
+  { contracts, client }: CheckContext,
+  stakingModuleName: StakingModuleName,
   params: StakingModuleParams,
 ) => {
-  const stakingModule = await contracts.stakingRouter.getStakingModule(stakingModuleID);
+  const { stakingRouter } = contracts;
 
-  assert.equal(stakingModule.targetShare, params.targetShare);
-  assert.equal(stakingModule.treasuryFee, params.treasuryFee);
-  assert.equal(stakingModule.stakingModuleFee, params.stakingModuleFee);
+  const stakingModuleId = getStakingModuleId(stakingModuleName);
+  const stakingModuleInfo = await client.read(stakingRouter, "getStakingModule", [stakingModuleId]);
+
+  assert.equal(stakingModuleInfo.treasuryFee, params.treasuryFee);
+  assert.equal(stakingModuleInfo.stakingModuleFee, params.stakingModuleFee);
 };
+
+interface CheckNodeOperatorParams {
+  active?: boolean;
+  name?: string;
+  rewardAddress?: Address;
+}
 
 const checkNodeOperator = async (
-  { contracts }: CheckContext,
-  nopID: BigNumberish,
-  name: string,
-  rewardAddress: `0x${string}`,
+  { contracts, client }: CheckContext,
+  stakingModuleName: StakingModuleName,
+  operatorId: bigint,
+  expected: CheckNodeOperatorParams,
 ) => {
-  const nopInfo = await contracts.curatedStakingModule.getNodeOperator(nopID, false);
+  const stakingModule =
+    stakingModuleName === "curated"
+      ? contracts.curatedStakingModule
+      : stakingModuleName === "sdvt"
+        ? contracts.simpleDvt
+        : null;
 
-  assert.equal(nopInfo.rewardAddress, rewardAddress, `Operator ${name} not found`);
+  if (!stakingModule) {
+    throw new Error(`Unsupported staking module type "${stakingModuleName}"`);
+  }
+
+  const [active, name, rewardAddress] = await client.read(stakingModule, "getNodeOperator", [operatorId, true]);
+
+  if (expected.active !== undefined) {
+    assert.equal(active, expected.active);
+  }
+  if (expected.name !== undefined) {
+    assert.equal(name, expected.name);
+  }
+  if (expected.rewardAddress !== rewardAddress) {
+    assert.equal(expected.rewardAddress, rewardAddress);
+  }
 };
 
-const checkNodeOperatorsCount = async ({ contracts }: CheckContext, expectedCount: BigNumberish) => {
-  const nodeOperatorsCount = await contracts.curatedStakingModule.getNodeOperatorsCount();
+async function checkNodeOperatorsCount(ctx: CheckContext, stakingModuleName: StakingModuleName, expectedCount: bigint) {
+  const stakingModule = getStakingModuleContract(ctx.contracts, stakingModuleName);
+
+  const nodeOperatorsCount = await ctx.client.read(stakingModule, "getNodeOperatorsCount", []);
 
   assert.equal(nodeOperatorsCount, expectedCount);
-};
+}
+
+function getStakingModuleId(stakingModuleName: StakingModuleName) {
+  const stakingModuleId = STAKING_MODULE_IDS[stakingModuleName];
+  if (!stakingModuleId) {
+    throw new Error(`Unsupported staking module type "${stakingModuleName}"`);
+  }
+  return stakingModuleId;
+}
+
+function getStakingModuleContract(contracts: LidoContracts, stakingModuleName: StakingModuleName) {
+  if (stakingModuleName === "curated") {
+    return contracts.curatedStakingModule;
+  } else if (stakingModuleName === "sdvt") {
+    return contracts.simpleDvt;
+  } else if (stakingModuleName === "csm") {
+    return contracts.csModule;
+  }
+  throw new Error(`Unsupported staking module type "${stakingModuleName}"`);
+}
 
 export default {
   checkStakingModule,

@@ -1,12 +1,9 @@
-import { Address } from "web3-types";
 import bytes, { HexStrPrefixed } from "../../common/bytes";
-import { call, event } from "../../aragon-votes-tools";
-import { AllowedRecipientsRegistry__factory } from "../../../typechain-types";
-import { Contracts } from "../../contracts/contracts";
-import { Lido } from "../../../configs/types";
-import { OmnibusItem } from "../omnibuses";
-
-const iAllowedRecipientsRegistry = AllowedRecipientsRegistry__factory.createInterface();
+import { Address, toFunctionSelector } from "viem";
+import { AllowedRecipientsRegistry_ABI } from "../../../abi/AllowedRecipientsRegistry.abi";
+import { getFunctionAbi } from "../../contracts/contracts";
+import { OmnibusDirectCall } from "../calls/omnibus-direct-call";
+import { BlueprintCtx } from "../tools/create-omnibus";
 
 interface CommonManageEvmScriptFactoryInput {
   title: string;
@@ -23,32 +20,22 @@ interface RemovePaymentEvmScriptFactoryInput {
 }
 
 function removeEvmScriptFactory(
-  contracts: Contracts<Lido>,
+  ctx: BlueprintCtx,
   { factory, title }: RemovePaymentEvmScriptFactoryInput,
-): OmnibusItem {
-  const { easyTrack, callsScript, voting } = contracts;
-  return {
+): OmnibusDirectCall {
+  const { easyTrack } = ctx.contracts;
+  return ctx.call(easyTrack, "removeEVMScriptFactory", [factory], {
     title: title,
-    evmCall: call(easyTrack.removeEVMScriptFactory, [factory]),
-    expectedEvents: [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
-      event(easyTrack, "EVMScriptFactoryRemoved", { args: [factory] }),
-    ],
-  };
+    events: [ctx.event(easyTrack, "EVMScriptFactoryRemoved", [factory])],
+  });
 }
 
-function addEvmScriptFactory(contracts: Contracts<Lido>, input: AddEvmScriptFactoryInput): OmnibusItem {
-  const { easyTrack, callsScript, voting } = contracts;
-  return {
+function addEvmScriptFactory(ctx: BlueprintCtx, input: AddEvmScriptFactoryInput): OmnibusDirectCall {
+  const { easyTrack } = ctx.contracts;
+  return ctx.call(easyTrack, "addEVMScriptFactory", [input.factory, input.permission], {
     title: input.title,
-    evmCall: call(easyTrack.addEVMScriptFactory, [input.factory, input.permission]),
-    expectedEvents: [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
-      event(easyTrack, "EVMScriptFactoryAdded", {
-        args: [input.factory, input.permission],
-      }),
-    ],
-  };
+    events: [ctx.event(easyTrack, "EVMScriptFactoryAdded", [input.factory, input.permission])],
+  });
 }
 
 interface AddNamedEvmScriptFactoryInput {
@@ -57,44 +44,47 @@ interface AddNamedEvmScriptFactoryInput {
   registry: Address;
 }
 
-function addTopUpEvmScriptFactory(contracts: Contracts<Lido>, input: AddNamedEvmScriptFactoryInput): OmnibusItem {
-  const { finance } = contracts;
-  return addEvmScriptFactory(contracts, {
+function addTopUpEvmScriptFactory(ctx: BlueprintCtx, input: AddNamedEvmScriptFactoryInput): OmnibusDirectCall {
+  const { finance } = ctx.contracts;
+  return addEvmScriptFactory(ctx, {
     title: `Add top up EVM Script Factory "${input.name}"`,
     factory: input.factory,
     permission: bytes.join(
       // allow to call finance.newImmediatePayment()
-      ...[finance.address, finance.newImmediatePayment.fragment.selector],
+      ...[finance.address, toFunctionSelector(getFunctionAbi(finance, "newImmediatePayment"))],
       // allow to call allowedRecipientsRegistry.updateSpentAmount()
-      ...[input.registry, iAllowedRecipientsRegistry.getFunction("updateSpentAmount").selector],
+      ...[
+        input.registry,
+        toFunctionSelector(getFunctionAbi({ abi: AllowedRecipientsRegistry_ABI }, "updateSpentAmount")),
+      ],
     ),
   });
 }
 
-function addAddRecipientEvmScriptFactory(
-  contracts: Contracts<Lido>,
-  input: AddNamedEvmScriptFactoryInput,
-): OmnibusItem {
-  return addEvmScriptFactory(contracts, {
+function addAddRecipientEvmScriptFactory(ctx: BlueprintCtx, input: AddNamedEvmScriptFactoryInput): OmnibusDirectCall {
+  return addEvmScriptFactory(ctx, {
     title: `Add add recipient EVM Script Factory "${input.name}"`,
     factory: input.factory,
     permission: bytes.join(
       // allow to call allowedRecipientsRegistry.addRecipient()
-      ...[input.registry, iAllowedRecipientsRegistry.getFunction("addRecipient").selector],
+      ...[input.registry, toFunctionSelector(getFunctionAbi({ abi: AllowedRecipientsRegistry_ABI }, "addRecipient"))],
     ),
   });
 }
 
 function addRemoveRecipientEvmScriptFactory(
-  contracts: Contracts<Lido>,
+  ctx: BlueprintCtx,
   input: AddNamedEvmScriptFactoryInput,
-): OmnibusItem {
-  return addEvmScriptFactory(contracts, {
+): OmnibusDirectCall {
+  return addEvmScriptFactory(ctx, {
     title: `Add remove recipient EVM Script Factory "${input.name}"`,
     factory: input.factory,
     permission: bytes.join(
       // allow to call allowedRecipientsRegistry.removeRecipient()
-      ...[input.registry, iAllowedRecipientsRegistry.getFunction("removeRecipient").selector],
+      ...[
+        input.registry,
+        toFunctionSelector(getFunctionAbi({ abi: AllowedRecipientsRegistry_ABI }, "removeRecipient")),
+      ],
     ),
   });
 }
@@ -110,18 +100,16 @@ interface AddPaymentEvmScriptFactoriesInput {
 }
 
 function addPaymentEvmScriptFactories(
-  contracts: Contracts<Lido>,
+  ctx: BlueprintCtx,
   input: AddPaymentEvmScriptFactoriesInput,
-): OmnibusItem[] {
+): OmnibusDirectCall[] {
   const commonInput = { name: input.name, registry: input.registry };
-  const res: OmnibusItem[] = [addTopUpEvmScriptFactory(contracts, { ...commonInput, factory: input.factories.topUp })];
+  const res: OmnibusDirectCall[] = [addTopUpEvmScriptFactory(ctx, { ...commonInput, factory: input.factories.topUp })];
   if (input.factories.addRecipient) {
-    res.push(addAddRecipientEvmScriptFactory(contracts, { ...commonInput, factory: input.factories.addRecipient }));
+    res.push(addAddRecipientEvmScriptFactory(ctx, { ...commonInput, factory: input.factories.addRecipient }));
   }
   if (input.factories.removeRecipient) {
-    res.push(
-      addRemoveRecipientEvmScriptFactory(contracts, { ...commonInput, factory: input.factories.removeRecipient }),
-    );
+    res.push(addRemoveRecipientEvmScriptFactory(ctx, { ...commonInput, factory: input.factories.removeRecipient }));
   }
   return res;
 }
@@ -136,18 +124,18 @@ interface RemovePaymentEvmScriptFactoriesInput {
 }
 
 function removePaymentEvmScriptFactories(
-  contracts: Contracts<Lido>,
+  ctx: BlueprintCtx,
   input: RemovePaymentEvmScriptFactoriesInput,
-): OmnibusItem[] {
-  const res: OmnibusItem[] = [
-    removeEvmScriptFactory(contracts, {
+): OmnibusDirectCall[] {
+  const res: OmnibusDirectCall[] = [
+    removeEvmScriptFactory(ctx, {
       title: `Remove Top Up EVM Script Factory "${input.factories.topUp}"`,
       factory: input.factories.topUp,
     }),
   ];
   if (input.factories.addRecipient) {
     res.push(
-      removeEvmScriptFactory(contracts, {
+      removeEvmScriptFactory(ctx, {
         title: `Remove Add Recipient EVM Script Factory "${input.factories.addRecipient}"`,
         factory: input.factories.addRecipient,
       }),
@@ -155,7 +143,7 @@ function removePaymentEvmScriptFactories(
   }
   if (input.factories.removeRecipient) {
     res.push(
-      removeEvmScriptFactory(contracts, {
+      removeEvmScriptFactory(ctx, {
         title: `Remove Remove Recipient EVM Script Factory "${input.factories.addRecipient}"`,
         factory: input.factories.removeRecipient,
       }),

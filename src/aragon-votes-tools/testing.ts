@@ -1,111 +1,97 @@
-import type { BigNumberish, ContractTransactionReceipt, Signer } from "ethers";
-import providers, { RpcProvider } from "../providers";
-import {
-  CREATOR,
-  CREATOR_ETH_BALANCE,
-  CREATOR_LDO_BALANCE,
-  DEFAULT_GAS_LIMIT,
-  LDO_WHALES,
-  VOTE_DURATION,
-} from "./constants";
-import { start, wait } from "./lifecycle";
-import { NonPayableOverrides } from "../../typechain-types/common";
-import lido from "../lido";
-import { ChainId } from "../common/types";
-import { logGreen } from "../common/color";
-import { networkIdByName } from "../networks";
+import { CREATOR, CREATOR_ETH_BALANCE, CREATOR_LDO_BALANCE, LDO_WHALES_BY_NETWORK_NAME } from "./constants";
+import { startAragonVote } from "./lifecycle";
+import { NetworkName, DevRpcClient } from "../network";
+import { Address, TransactionReceipt } from "viem";
+import { HexStrPrefixed } from "../common/bytes";
+import { getLidoContracts } from "../contracts/contracts";
+import { createTimedSpinner } from "../common/spinner";
 
-export async function creator(provider: RpcProvider): Promise<Signer> {
-  const { unlock, lock } = providers.cheats(provider);
+export async function setupLdoHolder(client: DevRpcClient, account: Address = CREATOR) {
+  const network = client.getNetworkName();
 
-  const { ldo } = lido.chainId(await providers.chainId(provider), provider);
+  const { ldo } = getLidoContracts(network);
 
-  const [creator, creatorLdoBalance] = await Promise.all([
-    unlock(CREATOR, CREATOR_ETH_BALANCE),
-    ldo.balanceOf(CREATOR),
-  ]);
-
-  if (creatorLdoBalance === 0n) {
-    const whaleAddress = getLdoWhale(await providers.chainId(provider));
-    const whaleBalanceBefore = await provider.getBalance(whaleAddress);
-    const whale = await unlock(whaleAddress, 10n * 10n ** 18n);
-    await ldo.connect(whale).transfer(CREATOR, CREATOR_LDO_BALANCE);
-    await lock(whaleAddress, whaleBalanceBefore);
+  if ((await client.read(ldo, "balanceOf", [account])) === CREATOR_ETH_BALANCE) {
+    return account;
   }
-  return creator;
+
+  const creatorLdoBalance = await client.read(ldo, "balanceOf", [account]);
+  if (creatorLdoBalance === 0n) {
+    const whaleAddress = getLdoWhale(network);
+    const whaleBalanceBefore = await client.getBalance(whaleAddress);
+    await client.impersonate(whaleAddress, 10n ** 18n);
+    await client.write(ldo, "transfer", [account, CREATOR_LDO_BALANCE], { from: whaleAddress });
+    await client.stopImpersonating(whaleAddress, whaleBalanceBefore);
+  }
+
+  await client.impersonate(account, CREATOR_ETH_BALANCE);
+  return account;
 }
 
-export async function pass(
-  provider: RpcProvider,
-  voteId: BigNumberish,
-  overrides: NonPayableOverrides = { gasLimit: DEFAULT_GAS_LIMIT },
-) {
-  logGreen(`Passing vote ${voteId}`);
-  const chainId = await providers.chainId(provider);
-  const { unlock, lock, increaseTime } = providers.cheats(provider);
+export async function passAragonVote(client: DevRpcClient, voteId: bigint) {
+  const spinner = createTimedSpinner(`Passing vote with id ${voteId}`);
+  const network = client.getNetworkName();
 
-  const whaleAddress = getLdoWhale(chainId);
+  const { voting } = getLidoContracts(network);
 
-  const whaleBalanceBefore = await provider.getBalance(whaleAddress);
-  const whale = await unlock(whaleAddress, 10n * 10n ** 18n);
+  const [, executed] = await client.read(voting, "getVote", [voteId]);
 
-  const { ldo, voting } = lido.chainId(await providers.chainId(provider), whale);
-
-  const vote = await voting.getVote(voteId);
-  if (vote.executed) {
-    const [log] = await voting.queryFilter(voting.filters["ExecuteVote(uint256)"](voteId));
+  if (executed) {
+    spinner.succeed(`Vote with id ${voteId} already executed`);
+    const [log] = await client.viemClient.getContractEvents({ ...voting, eventName: "ExecuteVote", args: { voteId } });
     if (log === undefined) {
       throw new Error(`ExecuteVote event for voteId "${voteId}" not found`);
     }
-    const receipt = await log.getTransactionReceipt();
-    if (!receipt) {
-      throw new Error(`Receipt for tx ${log.transactionHash} not found`);
-    }
-    return receipt;
+    return client.viemClient.getTransactionReceipt({ hash: log.transactionHash });
   }
 
-  if (await voting.canVote(voteId, whaleAddress)) {
-    await ldo.transfer(CREATOR, CREATOR_LDO_BALANCE);
+  const whaleAddress = getLdoWhale(network);
 
-    await voting.vote(voteId, true, false, overrides);
+  const whaleBalanceBefore = await client.getBalance(whaleAddress);
+  await client.impersonate(whaleAddress, 10n * 10n ** 18n);
+
+  if (await client.read(voting, "canVote", [voteId, whaleAddress])) {
+    await client.write(voting, "vote", [voteId, true, false], { from: whaleAddress });
+  } else {
+    throw new Error("Can not vote");
   }
-  await increaseTime(VOTE_DURATION);
+  const voteDuration = await client.read(voting, "voteTime", []);
+  await client.increaseTime(voteDuration);
 
-  const tx = await voting.executeVote(voteId, overrides);
+  const receipt = await client.write(voting, "executeVote", [voteId], { from: whaleAddress });
 
-  await lock(whaleAddress, whaleBalanceBefore);
+  await client.stopImpersonating(whaleAddress, whaleBalanceBefore);
 
-  const receipt = await tx.wait();
-  if (!receipt) {
-    throw new Error("transaction wait failed");
-  }
-  logGreen(`Enacted vote ${voteId}`);
+  spinner.succeed(`Vote with id ${voteId} successfully executed`);
   return receipt;
 }
 
 interface AdoptResult {
   voteId: bigint;
-  createReceipt: ContractTransactionReceipt;
-  enactReceipt: ContractTransactionReceipt;
+  createVoteReceipt: TransactionReceipt;
+  executeVoteReceipt: TransactionReceipt;
 }
 
-export async function adopt(
-  provider: RpcProvider,
-  voteScript: string,
+export async function adoptAragonVoting(
+  client: DevRpcClient,
+  evmScript: HexStrPrefixed,
   description: string,
-  overrides: NonPayableOverrides = { gasLimit: DEFAULT_GAS_LIMIT },
 ): Promise<AdoptResult> {
-  const { voteId, receipt: createReceipt } = await wait(
-    await start(await creator(provider), voteScript, description, false, overrides),
-  );
-  const enactReceipt = await pass(provider, voteId, overrides);
-  return { voteId, createReceipt, enactReceipt: enactReceipt as ContractTransactionReceipt };
+  const ldoHolderAddress = await setupLdoHolder(client);
+
+  const { voteId, receipt: createVoteReceipt } = await startAragonVote(client, evmScript, description, {
+    from: ldoHolderAddress,
+  });
+
+  const executeVoteReceipt = await passAragonVote(client, voteId);
+
+  return { voteId, createVoteReceipt, executeVoteReceipt };
 }
 
-function getLdoWhale(chainId: ChainId) {
-  const chainNumber = Number(chainId);
-  if (![networkIdByName.mainnet, networkIdByName.holesky].includes(chainNumber)) {
-    throw new Error("Unsupported");
+function getLdoWhale(networkName: NetworkName) {
+  const whale = LDO_WHALES_BY_NETWORK_NAME[networkName];
+  if (!whale) {
+    throw new Error("Unsupported chain");
   }
-  return LDO_WHALES[chainNumber];
+  return whale;
 }

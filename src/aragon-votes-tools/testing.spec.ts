@@ -6,7 +6,7 @@ import type { JsonRpcPayload, JsonRpcResult } from "ethers";
 import { assert } from "../common/assert";
 import omnibuses from "../omnibuses/omnibuses";
 import checks from "../omnibuses/checks";
-import { adopt } from "./testing";
+import { adoptAragonVoting } from "./testing";
 import * as mocks from "./testing.mock.json";
 
 const omnibus = omnibuses.create({
@@ -103,7 +103,7 @@ describe("testing-tools", () => {
     const provider = new MockProvider();
     provider.setSnapshot(mocks.adopt);
     const overrides = { gasLimit: 30_000_000 };
-    const result = await adopt(provider, omnibus.script, omnibus.summary, overrides);
+    const result = await adoptAragonVoting(provider, omnibus.script, omnibus.summary, overrides);
 
     const unUsedMockIds = Object.values(provider.snapshot)
       .filter((item) => !item.used && !["eth_blockNumber", "eth_chainId"].includes(item.payload.method))

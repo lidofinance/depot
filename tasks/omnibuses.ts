@@ -1,113 +1,75 @@
 import chalk from "chalk";
 import { task } from "hardhat/config";
 import * as types from "hardhat/internal/core/params/argumentTypes";
-import providers from "../src/providers";
 
-import votes from "../src/aragon-votes-tools";
-import traces from "../src/traces";
+import { adoptAragonVoting } from "../src/aragon-votes-tools";
 import prompt from "../src/common/prompt";
 import * as env from "../src/common/env";
-import { simulateOmnibus } from "../src/omnibuses/tools/simulate";
 import { isKnownError } from "../src/common/errors";
-import Mocha from "mocha";
 import fs from "node:fs/promises";
-import { Omnibus } from "../src/omnibuses/omnibuses";
-import { uploadDescription } from "./sub-tasks/upload-description";
-import { printVoteDeployInfo } from "./sub-tasks/print-vote-info";
-import { getPilot } from "./sub-tasks/getPilot";
-import { getProviderWithInfo } from "./sub-tasks/prepare-provider-and-node";
-import { JsonRpcProvider, Signer } from "ethers";
 
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { findContainerByName, RPC_NODE_NAME, stopContainer } from "../src/docker";
-import { runCoreTests, runDepotTests, prepareLocalRpcNode, runScriptsTests } from "./sub-tasks/containers";
-import { logBlue } from "../src/common/color";
-import lido from "../src/lido";
-import { networkIdByName } from "../src/networks";
-import { prepareNodeRevertPoint, rollBackNodeChanges } from "../src/rpc";
+import { runCoreTests, prepareLocalRpcNode } from "./sub-tasks/containers";
+import { formatEther } from "viem";
+import { createDevRpcClient, createRpcClient, getChainIdByNetworkName, NetworkName } from "../src/network/network";
+import { privateKeyToAccount } from "viem/accounts";
+import format from "../src/common/format";
+import { getLidoContracts } from "../src/contracts/contracts";
+import { dryRunOmnibus } from "../src/omnibuses/tools/dry-run-omnibus";
+import { Omnibus } from "../src/omnibuses/omnibus";
+import path from "node:path";
+import { getRpcUrl } from "../src/network/network";
 
-traces.hardhat.enableTracing();
+task("omnibus:scaffold", "Create omnibus and spec filed from template").setAction(async ({}) => {
+  const network: NetworkName = await prompt.select("Choose the network:", [
+    { title: "Mainnet", value: "mainnet" },
+    { title: "Holesky", value: "holesky" },
+  ]);
+  const omnibusName = await prompt.text("Enter the name of the omnibus");
 
-/*
-Omnibus states:
-- not launched:
-  - only estimated launching date is known
-- launched & not executed:
-  - we know voteId, launching date & launching block
-- executed:
-  - everything is known
-
-omnibus:test
-  - not launched:
-    - start & exec & test
-  - launched:
-    - exec & test
-  - executed:
-    - aborting testing
-
-omnibus:run
-  - not launched
-    - simulate & launch
-  - launched
-    - simulate & launch
-  - executed
-    - aborting
-*/
-
-type RpcNodes = "local" | "remote";
-
-async function runOmnibus(
-  name: string,
-  omnibus: Omnibus,
-  hre: HardhatRuntimeEnvironment,
-  rpc: RpcNodes,
-  testAccount = true,
-  silent = false,
-) {
-  logBlue(`Running the omnibus ${name} on "${omnibus.network}" network\n`);
-  console.log(`Omnibus items:\n${omnibus.summary}\n`);
-  const provider = await getProviderWithInfo(omnibus.network, rpc);
-
-  const omnibusDescription = await uploadDescription(name, omnibus, silent);
-
-  const pilot: Signer = await getPilot(provider, hre, testAccount);
-
-  // Launch the omnibus
-  const tx = await votes.start(pilot, omnibus.script, omnibusDescription);
-  const { voteId, receipt } = await votes.wait(tx);
-  await printVoteDeployInfo(voteId, receipt);
-  return { voteId, provider };
-}
-
-async function loadOmnibus(name: string) {
-  const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
-  if (omnibus.isExecuted) {
-    throw new Error(`The omnibus "${omnibus.voteId}" already executed. Aborting...`);
+  if (omnibusName.length === 0) {
+    throw new Error("Name can't be empty");
   }
-  return omnibus;
-}
+
+  if (!/^[a-zA-Z0-9_]+$/.test(omnibusName)) {
+    throw new Error("Invalid name. Omnibus name may contain only letters, digits and _");
+  }
+  const omnibusesDir = path.join(__dirname, "..", "omnibuses");
+
+  const omnibusFilePath = path.join(omnibusesDir, `${omnibusName}.ts`);
+
+  await fs.writeFile(omnibusFilePath, omnibusTemplate(network).trimStart(), { encoding: "utf-8" });
+
+  console.log(`Omnibus file was successfully created: ${omnibusFilePath}`);
+});
 
 task("omnibus:test", "Runs tests for the given omnibus at local node")
   .addPositionalParam<string>("name", "Name of the omnibus to test", undefined, types.string, false)
   .addOptionalParam<number>("blockNumber", "Block number to spawn rpc node on", undefined, types.int)
-  .setAction(async ({ name }) => {
-    const omnibus = await loadOmnibus(name);
+  .setAction(async ({ name }, hre) => {
+    const omnibus = loadOmnibus(name);
 
-    logBlue(`Check hardhat-node container`);
-    await prepareLocalRpcNode(RPC_NODE_NAME, omnibus.network);
-
-    const provider = (await providers.getProvider(omnibus.network, "local")) as JsonRpcProvider;
-    console.log(`Omnibus items:\n${omnibus.summary}\n`);
-    const omnibusTestFile = `omnibuses/${name}.spec.ts`;
+    const client = await prepareDevRpcClient(omnibus.network, hre);
     try {
-      await fs.stat(omnibusTestFile);
-      await prepareNodeRevertPoint(provider);
-      await runTestFile(omnibusTestFile);
-      await rollBackNodeChanges(provider);
+      const omni = await loadOmnibus(name);
+      await omni.test(client);
     } catch (err) {
       console.error(err);
-      console.warn(chalk.bold.yellow(`Test file "${omnibusTestFile}" not found. Write tests first!`));
     }
+  });
+
+task("omnibus:inspect", "Dry run the omnibus with given name and shows the execution trace")
+  .addPositionalParam<string>("name", "Name of the omnibus to run")
+  .setAction(async ({ name }: OmnibusRunParams, hre) => {
+    env.checkEnvVars();
+
+    const omnibus = loadOmnibus(name);
+    const client = await prepareDevRpcClient(omnibus.network, hre);
+
+    console.log(`Dry-run the omnibus ${name} on "${omnibus.network}" network\n`);
+
+    await dryRunOmnibus(client, omnibus);
   });
 
 task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
@@ -128,93 +90,93 @@ task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
   )
   .addOptionalParam<boolean>("hideDebug", "Hide container logs and come extra information", false, types.boolean)
   .setAction(async ({ name, repo, pattern, mountTests, skipVoting, hideDebug }, hre) => {
-    const omnibus = await loadOmnibus(name);
+    const omnibus = loadOmnibus(name);
     env.checkEnvVars();
-    logBlue(`Run hardhat-node container`);
+
+    // logBlue(`Run hardhat-node container`);
     await prepareLocalRpcNode(RPC_NODE_NAME, omnibus.network);
-    const provider = (await providers.getProvider(omnibus.network, "local")) as JsonRpcProvider;
+    const client = await createDevRpcClient(omnibus.network, "http://localhost:8545");
 
-    const { voting } = lido.chainId(networkIdByName[omnibus.network], provider);
+    const { voting } = getLidoContracts(omnibus.network);
 
-    let voteId = await voting.votesLength();
+    const snapshotId = await client.snapshot();
+    try {
+      if (repo !== "depot" && !skipVoting) {
+        await adoptAragonVoting(client, omnibus.script, omnibus.formatSummary());
+        // const info = await runOmnibus(name, omnibus, hre, "local", true, true);
+        // voteId = info.voteId;
+        // await votes.pass(info.provider, voteId);
+      }
 
-    await prepareNodeRevertPoint(provider);
-
-    if (!repo || repo === "depot") {
-      await runDepotTests("_example_omnibus", hideDebug);
+      if (!repo || repo === "core") {
+        await runCoreTests(pattern, hideDebug, mountTests); // "test/custom/_example_omnibus_test_for_core_repo.ts"
+      }
+    } finally {
+      client.revert(snapshotId);
     }
+    // await prepareNodeRevertPoint(client);
 
-    if (repo !== "depot" && !skipVoting) {
-      const info = await runOmnibus(name, omnibus, hre, "local", true, true);
-      voteId = info.voteId;
-      await votes.pass(info.provider, voteId);
-    }
+    // if (!repo || repo === "depot") {
+    //   await runDepotTests("_example_omnibus", hideDebug);
+    // }
 
-    if (!repo || repo === "core") {
-      await runCoreTests(pattern, hideDebug, mountTests); // "test/custom/_example_omnibus_test_for_core_repo.ts"
-    }
+    // if (!repo || repo === "scripts") {
+    //   await runScriptsTests(Number(voteId), pattern, hideDebug, mountTests); // "tests/custom/_example_omnibus_test_for_scripts_repo.py"
+    // }
 
-    if (!repo || repo === "scripts") {
-      await runScriptsTests(Number(voteId), pattern, hideDebug, mountTests); // "tests/custom/_example_omnibus_test_for_scripts_repo.py"
-    }
-
-    await rollBackNodeChanges(provider);
+    // await rollBackNodeChanges(provider);
   });
 
 type OmnibusRunParams = {
   name: string;
-  testAccount: boolean;
-  rpc: RpcNodes;
 };
 
 task("omnibus:run", "Runs the omnibus with given name")
   .addPositionalParam<string>("name", "Name of the omnibus to run")
-  .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", true, types.boolean)
-  .addOptionalParam<RpcNodes>(
-    "rpc",
-    'The RPC node used to launch omnibus. Possible values: local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
-    "local",
-    types.string,
-  )
-  .setAction(async ({ name, testAccount, rpc }: OmnibusRunParams, hre) => {
+  .setAction(async ({ name }: OmnibusRunParams, hre) => {
     try {
       const omnibus = await loadOmnibus(name);
 
       env.checkEnvVars();
-      await runOmnibus(name, omnibus, hre, rpc, testAccount);
 
-      await prompt.sigint();
+      const pilot = privateKeyToAccount(await hre.keystores.unlock());
+
+      const { ldo } = getLidoContracts(omnibus.network);
+      const client = await createRpcClient(omnibus.network);
+      const [nonce, ethBalance, ldoBalance] = await Promise.all([
+        client.viemClient.getTransactionCount({ address: pilot.address }),
+        client.viemClient.getBalance({ address: pilot.address }),
+        client.read(ldo, "balanceOf", [pilot.address]),
+      ]);
+      console.log(`Pilot: ${format.address(pilot.address)}`);
+      console.log(`    - nonce: ${nonce}`);
+      console.log(`    - ETH balance: ${formatEther(ethBalance)}`);
+      console.log(`    - LDO balance: ${formatEther(ldoBalance)}`);
+      console.log();
+
+      // if (ldoBalance === 0n) {
+      //   throw new Error("Launch is not possible. Pilot address has 0 LDO.");
+      // }
+
+      // const testClient = await createDevRpcClient(omnibus.network, hre.network.provider);
+      // await simulateOmnibus(testClient, omnibus);
+      console.log("Omnibus summary:");
+      console.log(omnibus.formatSummary("", 1));
+      console.log();
+
+      console.log("Omnibus EVM script:");
+      console.log(omnibus.script);
+      console.log();
+
+      console.log("Omnibus details:");
+      console.log(omnibus.format({ padLength: 1 }));
+
+      await prompt.confirm(`Submit tx to start vote with given actions?`);
+
+      // await runOmnibus(name, omnibus, hre, rpc, testAccount);
+
+      // await prompt.sigint();
     } catch (err) {
-      if (!isKnownError(err)) {
-        throw err;
-      }
-      console.error(err.message);
-    }
-  });
-
-task("omnibus:simulate", "Simulate the omnibus with given name")
-  .addPositionalParam<string>("name", "Name of the omnibus to run")
-  .addOptionalParam<boolean>("testAccount", "Is the omnibus run using the test account", true, types.boolean)
-  .addOptionalParam<"hardhat" | "local" | "remote">(
-    "rpc",
-    'The RPC node used to launch omnibus. Possible values: hardhat, anvil, local, remote. When "remote" is passed - run using origin RPC url, without forked dev node',
-    "hardhat",
-    types.string,
-  )
-  .setAction(async ({ name, rpc }: OmnibusRunParams) => {
-    const omnibus = await loadOmnibus(name);
-
-    env.checkEnvVars();
-    console.log(`Simulate the omnibus ${name} on "${omnibus.network}" network\n`);
-    const provider = await getProviderWithInfo(omnibus.network, rpc);
-
-    try {
-      console.log(`Omnibus items:\n${omnibus.summary}\n`);
-      await simulateOmnibus(omnibus, provider);
-
-      await prompt.sigint();
-    } catch (err) {
-      console.error(err);
       if (!isKnownError(err)) {
         throw err;
       }
@@ -244,8 +206,63 @@ task("rpc:stop", "Stop local rpc node container").setAction(async () => {
   }
 });
 
-async function runTestFile(testFile: string) {
-  const mocha = new Mocha({ timeout: 10 * 60 * 1000, bail: true });
-  mocha.addFile(testFile);
-  await new Promise((resolve) => mocha.run(resolve));
+function loadOmnibus(name: string) {
+  const omnibus: Omnibus = require(`../omnibuses/${name}.ts`).default;
+
+  if (omnibus.executedOn) {
+    throw new Error(`The omnibus "${omnibus.voteId}" already executed. Aborting...`);
+  }
+  return omnibus;
 }
+
+async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntimeEnvironment) {
+  try {
+    const rpcUrl = "http://localhost:8545";
+    const standaloneClient = await createDevRpcClient(networkName, rpcUrl);
+    console.log(`Connected to the RPC node at ${rpcUrl}\n`);
+    return standaloneClient;
+  } catch {}
+
+  hre.network.config.chainId = getChainIdByNetworkName(networkName);
+  const builtinHardhatClient = await createDevRpcClient(networkName, hre.network.provider);
+
+  await builtinHardhatClient.reset({
+    jsonRpcUrl: getRpcUrl(networkName),
+  });
+
+  console.log(`Successfully connected to the Hardhat RPC node\n`);
+
+  return builtinHardhatClient;
+}
+
+const omnibusTemplate = (network: NetworkName) => `
+import { assert } from "chai";
+import { Omnibus } from "../src/omnibuses/omnibus";
+
+const description = \`
+Omnibus description to upload to IPFS
+\`
+
+export default Omnibus.create({
+  network: "${network}",
+  description,
+  calls: ({ contracts, blueprints }) => [
+    // Put omnibus calls here
+  ],
+  test: async ({ passOmnibus, passProposals, checks }) => {
+    // 1. Collect required data before omnibus executed
+    
+    const { submittedProposalIds } = await passOmnibus();
+
+    // 2. Check state after Aragon vote is executed
+
+    // 3. Collect required data before DG proposals executed (if needed) 
+
+    // 4. Execute DG proposal submitted by the Aragon voting
+    
+    await passProposals(submittedProposalIds);
+
+    // 5. Validate state after proposals executed
+  }
+})
+`;

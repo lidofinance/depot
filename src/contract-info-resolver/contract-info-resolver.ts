@@ -1,6 +1,7 @@
 import { ContractInfoInMemoryCache } from "./contract-info-cache";
-import type { ChainId, ContractInfo, ContractInfoProvider, ContractInfoCache } from "./types";
+import type { ContractInfo, ContractInfoProvider, ContractInfoCache } from "./types";
 import { Address } from "../common/types";
+import { NetworkName } from "../network";
 
 interface AbiResolverOptions {
   contractInfoProvider: ContractInfoProvider;
@@ -21,12 +22,12 @@ export class ContractInfoResolver {
     }
   }
 
-  async resolve(chainId: ChainId, address: Address): Promise<ContractInfo> {
-    const cacheRes = await this.cache?.get(chainId, address);
+  async resolve(networkName: NetworkName, address: Address): Promise<ContractInfo> {
+    const cacheRes = await this.cache?.get(networkName, address);
     if (cacheRes) return cacheRes;
 
-    const res = await this.provider.request(chainId, address);
-    await this.cache?.set(chainId, address, res);
+    const res = await this.provider.request(networkName, address);
+    await this.cache?.set(networkName, address, res);
     return res;
   }
 }

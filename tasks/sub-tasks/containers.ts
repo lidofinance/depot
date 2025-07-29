@@ -2,8 +2,9 @@ import { runImageInBackground, runTestsFromRepo } from "../../src/docker";
 import * as env from "../../src/common/env";
 import { logBlue } from "../../src/common/color";
 import Docker from "dockerode";
-import { NetworkName } from "../../src/networks";
+import { NetworkName } from "../../src/network";
 import { revertCurrentNode } from "../../src/rpc";
+
 export const runDepotTests = async (name: string, hideDebug = false) => {
   const repo = "depot";
   const cmd = ["pnpm", "omnibus:test", name, "--rpc", "local"];

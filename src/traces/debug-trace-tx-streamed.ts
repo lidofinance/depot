@@ -2,11 +2,20 @@ import fetch from "node-fetch";
 import clarinet from "clarinet";
 import { JsonBuilder } from "./json-builder";
 import { RawStructLog } from "./types";
+import { RpcClient } from "../network";
+import { Readable } from "stream";
 
 interface JsonRpcError {
   code: number;
   message: string;
   data?: any;
+}
+
+interface DebugStructLogResponse {
+  failed: boolean;
+  gas: number;
+  returnValue: string;
+  structLogs: RawStructLog[];
 }
 
 interface StructLogTracerHandlers {
@@ -30,21 +39,21 @@ const DEFAULT_PARAMS: TraceParameters = {
   enableReturnData: false,
 };
 
-type RpcNodeName = "hardhat" | "anvil" | "geth" | "erigon" | "other";
 
 export class DebugTraceTxStreamed {
   private requestId: number = 1;
   public params: TraceParameters;
 
   constructor(
+    private readonly client: RpcClient,
     private readonly handlers: StructLogTracerHandlers,
     params?: TraceParameters,
   ) {
     this.params = params ?? { ...DEFAULT_PARAMS };
   }
 
-  async trace(url: string, hash: string, params?: TraceParameters) {
-    const response = await this.requestTrace(url, hash, params ?? this.params);
+  async trace(hash: string, params?: TraceParameters) {
+    const readable = await this.requestTrace(hash, params ?? this.params);
 
     const cparser = clarinet.parser();
     const jsonBuilder = new JsonBuilder();
@@ -72,11 +81,11 @@ export class DebugTraceTxStreamed {
     cparser.onkey = (key: string) => jsonBuilder.key(key);
     cparser.onvalue = (value: string | boolean | null) => jsonBuilder.value(value);
 
-    if (!response.body) {
-      throw new Error(`The response body is null ${response}`);
+    if (!readable) {
+      throw new Error(`The response body is null ${readable}`);
     }
 
-    for await (const chunk of response.body) {
+    for await (const chunk of readable) {
       cparser.write(chunk.toString());
     }
     const { result, error } = obj;
@@ -103,7 +112,7 @@ export class DebugTraceTxStreamed {
     );
   }
 
-  private mapTraceParameters(rpcName: RpcNodeName, params: TraceParameters) {
+  private mapTraceParameters(rpcName: string, params: TraceParameters) {
     if (rpcName === "hardhat" || rpcName === "erigon") {
       return {
         disableStack: params.disableStack ?? false,
@@ -120,48 +129,45 @@ export class DebugTraceTxStreamed {
     };
   }
 
-  private async requestTrace(url: string, hash: string, params: TraceParameters) {
-    const rpcName = await this.requestNodeType(url);
+  private async requestTrace(hash: string, params: TraceParameters) {
+    const nodeInfo = await this.client.getNodeInfo();
+    const reqParams = [hash, this.mapTraceParameters(nodeInfo.name, params)];
+    const rpcUrl = this.client.getRpcUrl();
 
-    // TODO: handle failed requests, for example when tx wasn't found
-    return fetch(url, {
-      method: "post",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: this.requestId++,
-        jsonrpc: "2.0",
-        method: "debug_traceTransaction",
-        params: [hash, this.mapTraceParameters(rpcName, params)],
-      }),
-    });
+    if (rpcUrl) {
+      // TODO: handle failed requests, for example when tx wasn't found
+      return fetch(rpcUrl, {
+        method: "post",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: this.requestId++,
+          jsonrpc: "2.0",
+          method: "debug_traceTransaction",
+          params: reqParams,
+        }),
+      }).then((res) => res.body);
+    }
+
+    // If used default hardhat provider and not a standalone dev RPC node, make regular call
+    // Note: this call may fail if the trace is too large
+    const res: DebugStructLogResponse = await this.client.send("debug_traceTransaction", reqParams);
+
+    return Readable.from(this.#streamifyResponse(res));
   }
 
-  private async requestNodeType(url: string): Promise<RpcNodeName> {
-    const response = await fetch(url, {
-      method: "post",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: this.requestId++,
-        jsonrpc: "2.0",
-        method: "web3_clientVersion",
-        params: [],
-      }),
-    });
-    const data = await response.json();
-    if (data.error) {
-      throw new Error(`JsonRpcError: ${JSON.stringify(data.error)}`);
+  *#streamifyResponse(response: DebugStructLogResponse) {
+    if (response.failed) {
+      yield JSON.stringify(response);
+      return;
+    }
+    // As the result of the tracing may be very huge, stream it by chunks
+    yield `{"failed":false,"gas":${response.gas},"returnValue":"${response.returnValue}","structLogs":[`;
+
+    for (let i = 0; i < response.structLogs.length; i++) {
+      yield JSON.stringify(response.structLogs[i]);
+      if (i < response.structLogs.length - 1) yield ",";
     }
 
-    if (typeof data.result !== "string") {
-      throw new Error(`JsonRpcError: Unexpected result type`);
-    }
-
-    const [name = "other"] = data.result.toLowerCase().split("/");
-
-    if (name.startsWith("geth")) return "geth";
-    else if (name.startsWith("anvil")) return "anvil";
-    else if (name.startsWith("hardhat")) return "hardhat";
-    else if (name.startsWith("erigon")) return "erigon";
-    return "other";
+    yield "]}";
   }
 }
