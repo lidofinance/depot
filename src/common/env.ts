@@ -22,9 +22,10 @@ export const PINATA_JWT = () => process.env.PINATA_JWT;
 
 export const GITHUB_ORG = () => process.env.GITHUB_ORG || "lidofinance";
 export const GIT_BRANCH_SCRIPTS = () => process.env.GIT_BRANCH_SCRIPTS || "master";
+export const GIT_BRANCH_DG = () => process.env.GIT_BRANCH_DG || "main";
 export const GIT_BRANCH_CORE = () => process.env.GIT_BRANCH_CORE || "master";
 
-export const HH_NODE_IMAGE = () => process.env.HH_NODE_IMAGE || "ghcr.io/lidofinance/hardhat-node:2.22.19";
+export const HH_NODE_IMAGE = () => process.env.HH_NODE_IMAGE || "ghcr.io/lidofinance/hardhat-node:2.26.0";
 
 export function ETHERSCAN_CACHE_ENABLED() {
   switch (process.env.ETHERSCAN_CACHE_ENABLED) {

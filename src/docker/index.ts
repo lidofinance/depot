@@ -115,7 +115,7 @@ export async function runImageInBackground(
   return result ? container : null;
 }
 
-type Repos = "core" | "depot" | "scripts";
+type Repos = "core" | "depot" | "scripts" | "dual-governance";
 
 async function getLastCommitSha(org: string, repo: string, branch: string) {
   const url = `https://api.github.com/repos/${org}/${repo}/commits/${branch}`;

@@ -51,7 +51,6 @@ export const runCoreTests = async (pattern?: string, hideDebug = false, shouldMo
 };
 
 export const runScriptsTests = async (
-  voteId: number,
   pattern?: string,
   hideDebug = false,
   shouldMountTests = false,
@@ -60,7 +59,7 @@ export const runScriptsTests = async (
   const cmd = !pattern ? ["poetry", "run", "brownie", "test"] : ["poetry", "run", "brownie", "test", pattern];
   logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
   const config: Docker.ContainerCreateOptions = {
-    Env: [`PINATA_CLOUD_TOKEN=${env.PINATA_JWT()}`, `OMNIBUS_VOTE_IDS=${voteId}`],
+    Env: [`PINATA_CLOUD_TOKEN=${env.PINATA_JWT()}`],
   };
   if (shouldMountTests) {
     config.HostConfig = {
@@ -69,4 +68,24 @@ export const runScriptsTests = async (
   }
 
   await runTestsFromRepo(repo, env.GIT_BRANCH_SCRIPTS(), cmd, hideDebug, config);
+};
+
+export const runDgTests = async (
+  pattern?: string,
+  hideDebug = false,
+  shouldMountTests = false,
+) => {
+  const repo = "dual-governance";
+  const cmd = !pattern ? ["npm", "run", "test"] : ["npm", "run", "test", "--match-path", pattern];
+  logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
+  const config: Docker.ContainerCreateOptions = {
+    Env: [`MAINNET_RPC_URL=http://localhost:8545`],
+  };
+  if (shouldMountTests) {
+    config.HostConfig = {
+      Mounts: [{ Source: `${process.cwd()}/mount/dual-governance`, Target: "/root/dual-governance/test/custom", Type: "bind" }],
+    };
+  }
+
+  await runTestsFromRepo(repo, env.GIT_BRANCH_DG(), cmd, hideDebug, config);
 };
