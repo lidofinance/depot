@@ -1,4 +1,4 @@
-import { runImageInBackground, runTestsFromRepo } from "../../src/docker";
+import { Repos, runImageInBackground, runTestsFromRepo } from "../../src/docker";
 import * as env from "../../src/common/env";
 import { logBlue } from "../../src/common/color";
 import Docker from "dockerode";
@@ -13,6 +13,7 @@ export const runDepotTests = async (name: string, hideDebug = false) => {
     HostConfig: {
       Mounts: [{ Source: process.cwd(), Target: "/usr/src/app", Type: "bind" }],
     },
+
   });
   logBlue("Reset node state");
 };
@@ -35,7 +36,8 @@ export const prepareLocalRpcNode = async (name: string, network: NetworkName) =>
 };
 
 export const runCoreTests = async (pattern?: string, hideDebug = false, shouldMountTests = false) => {
-  const repo = "core";
+  const repo:Repos = "core";
+
   const cmd = !pattern
     ? ["yarn", "run", "test:integration:fork:mainnet"]
     : ["yarn", "run", `test:integration:fork:mainnet:custom`, pattern];
@@ -55,7 +57,7 @@ export const runScriptsTests = async (
   hideDebug = false,
   shouldMountTests = false,
 ) => {
-  const repo = "scripts";
+  const repo:Repos = "scripts";
   const cmd = !pattern ? ["poetry", "run", "brownie", "test"] : ["poetry", "run", "brownie", "test", pattern];
   logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
   const config: Docker.ContainerCreateOptions = {
@@ -75,7 +77,7 @@ export const runDgTests = async (
   hideDebug = false,
   shouldMountTests = false,
 ) => {
-  const repo = "dual-governance";
+  const repo:Repos = "dual-governance";
   const cmd = !pattern ? ["npm", "run", "test"] : ["npm", "run", "test", "--match-path", pattern];
   logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
   const config: Docker.ContainerCreateOptions = {
