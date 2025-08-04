@@ -56,7 +56,7 @@ export const prepareRpcNodeWithVoting = async (repo: string, omnibus: Omnibus) =
 export const runCoreTests = async (omnibus: Omnibus, pattern?: string, hideDebug = false, shouldMountTests = false) => {
   const repo: Repos = "core";
   const revertRpc = await prepareRpcNodeWithVoting(repo, omnibus);
-  if (pattern === 'default') {
+  if (pattern === "default") {
     // TODO: remove default option before prod
     pattern = "test/custom/_example_omnibus_test_for_core_repo.ts";
   }
@@ -90,7 +90,7 @@ export const runScriptsTests = async (
   const repo: Repos = "scripts";
 
   const revertRpc = await prepareRpcNodeWithVoting(repo, omnibus);
-  if (pattern === 'default') {
+  if (pattern === "default") {
     // TODO: remove default option before prod
     pattern = "tests/custom/_example_omnibus_test_for_scripts_repo.py";
   }
@@ -120,7 +120,7 @@ export const runDgTests = async (omnibus: Omnibus, pattern?: string, hideDebug =
   const repo: Repos = "dual-governance";
 
   const revertRpc = await prepareRpcNodeWithVoting(repo, omnibus);
-  if (pattern === 'default') {
+  if (pattern === "default") {
     // TODO: remove default option before prod
     pattern = "test/custom/_example_omnibus_test_for_dual_governance_repo.t.sol";
   }

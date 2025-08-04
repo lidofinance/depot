@@ -50,7 +50,7 @@ export function getRpcUrl(network: NetworkName, ind = 0): string {
     urls = env.ETH_HOLESKY_RPC_URL();
   }
   if (urls) {
-    return urls.split(",")[ind % urls.split(",").length] // always in range
+    return urls.split(",")[ind % urls.split(",").length]; // always in range
   }
   throw new UnsupportedNetwork(network);
 }

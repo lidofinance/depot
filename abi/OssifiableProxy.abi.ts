@@ -93,9 +93,7 @@ export const OssifiableProxy_ABI = [
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "address", name: "newImplementation_", type: "address" },
-    ],
+    inputs: [{ internalType: "address", name: "newImplementation_", type: "address" }],
     name: "proxy__upgradeTo",
     outputs: [],
     stateMutability: "nonpayable",
