@@ -5,7 +5,28 @@ import chalk from "chalk";
 import { createWriteStream } from "node:fs";
 import { logGreen } from "../common/color";
 
-export const RPC_NODE_NAME = "eth-rpc-node";
+export const RPC_NODE_SETTING: Record<string, { name: string; port: string; idx: number }> = {
+  core: {
+    name: "rpc-node-core",
+    port: "18545",
+    idx: 0,
+  },
+  depot: {
+    name: "rpc-node-depot",
+    port: "28545",
+    idx: 1,
+  },
+  "dual-governance": {
+    name: "rpc-node-dual-governance",
+    port: "28545",
+    idx: 2,
+  },
+  scripts: {
+    name: "rpc-node-scripts",
+    port: "38545",
+    idx: 3,
+  },
+};
 
 type ContainerRunResponse = [{ StatusCode: number }, Container, id: string, Record<string, {}>];
 
@@ -91,13 +112,13 @@ export async function runImageInBackground(
   }
 
   // not working with await yet
-  /* await */ docker.run(imageName, cmd, stdout, {
+  void docker.run(imageName, cmd, stdout, {
     Tty: false,
     name,
     ...config,
     HostConfig: { AutoRemove: true, ...config?.HostConfig },
   });
-  logGreen(`Wait for hardhat-node container launch`);
+  logGreen(`Wait for ${name} container launch`);
 
   // TODO: add background run to hardhat container node instead
   await delay(2_000);
@@ -108,10 +129,10 @@ export async function runImageInBackground(
   }
   const logs = await container.logs({ follow: true, stdout: true });
 
-  logGreen(`Wait for hardhat-node container initiated`);
+  logGreen(`Wait for ${name} container initiated`);
   const result = await Promise.race([delay(10_000), waitMessage(logs, "Started HTTP and WebSocket JSON-RPC server")]);
 
-  console.log(result ? chalk.bold.green(result) : chalk.bold.red("hardhat-node container initiated timeout"));
+  console.log(result ? chalk.bold.green(result) : chalk.bold.red(`${name} container initiated timeout`));
   return result ? container : null;
 }
 
@@ -173,28 +194,30 @@ export async function runTestsFromRepo(
     });
   }
 
-  const container = await findContainerByName(repo);
+  const name = `repo-${repo}`;
+
+  const container = await findContainerByName(name);
 
   if (container) {
-    await stopContainer(container, repo, true);
+    await stopContainer(container, name, true);
   }
 
-  logGreen(`Running command on image ${repo}: \n"${cmd.join(" ")}"`);
+  logGreen(`Running command on image ${imageTag}: \n"${cmd.join(" ")}"`);
   const data: ContainerRunResponse = await docker.run(imageTag, cmd, stdout, {
     Tty: false,
-    name: repo,
+    name,
     ...config,
-    HostConfig: { AutoRemove: true, NetworkMode: "host", ...config?.HostConfig },
+    HostConfig: { AutoRemove: true, NetworkMode: `container:${RPC_NODE_SETTING[repo].name}`, ...config?.HostConfig },
   });
 
   const [statusInfo] = data;
 
   if (!statusInfo.hasOwnProperty?.("StatusCode")) {
-    throw new Error(`Container ${imageTag} stop working, but status code not found`);
+    throw new Error(`Container ${name} stop working, but status code not found`);
   }
 
   if (statusInfo?.StatusCode) {
-    throw new Error(`Container ${imageTag} stop working, with status code ${statusInfo.StatusCode}`);
+    throw new Error(`Container ${name} stop working, with status code ${statusInfo.StatusCode}`);
   }
 
   return data;
