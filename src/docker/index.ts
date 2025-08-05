@@ -153,8 +153,8 @@ export async function runTestsFromRepo(
   repo: Repos,
   branch: string,
   cmd: string[],
+  config: Docker.ContainerCreateOptions,
   hideDebug = false,
-  config?: Docker.ContainerCreateOptions,
 ) {
   const docker = new Docker();
   let buildVersion;
