@@ -6,7 +6,9 @@ The purpose of this repo is to build, test and run omnibuses.
 
 Install and enable `pnpm` - https://pnpm.io/installation#prerequisites
 
-install docker - https://docs.docker.com/engine/install/
+Install docker - https://docs.docker.com/engine/install/
+
+Install NodeJS - https://nodejs.org/en/download
 
 ## Omnibus
 
@@ -40,11 +42,37 @@ Keystores allow you to securely store your private keys and use them in the proc
 
 ## Installation
 
-0. Due to proper work of all Depot features like simulating, testing, etc you have to have running [local hardhat node](https://github.com/lidofinance/hardhat-node)
-1. Clone the repo
-2. Install dependencies via `pnpm install`
-3. Types will be generated automatically via postinstall script
-4. Seed the `.env` file from the `.env.example`
+1. Due to proper work of all Depot features like simulating, testing, etc you have to have running [local hardhat node](https://github.com/lidofinance/hardhat-node)
+2. Clone the repo 
+    ```shell
+    git clone git@github.com:lidofinance/depot.git
+    ```
+3. Change dir 
+    ```shell
+    cd depot
+    ```
+4. Install dependencies via 
+    ```shell
+    pnpm install
+    ```
+5. Types will be generated automatically via postinstall script
+6. Seed the `.env` file from the `.env.example`
+    ```shell
+    cp .env.example .env1
+    ```
+7. Fill variables in
+
+
+Useful commands for onboarding:
+1. List of available tasks
+    ```shell
+    hardhat --help
+    ```
+2. Task info
+    ```shell
+    hardhat <task-name> --help
+    ```
+3. Other short calls in file `paskage.json` in `scripts` -> `example:....`
 
 ## Writing omnibuses
 
@@ -273,20 +301,39 @@ You have to set vote ID in the omnibus file. Also, you can add launch date to th
 
 Test tiny omnibus at mainnet
 
-```
-pnpm omnibus:test _example_tiny_holesky_omnibus
+```shell
+  pnpm omnibus:test _example_tiny_holesky_omnibus
 ```
 
 Test tiny omnibus at holesky
 
-```
-pnpm omnibus:test _example_tiny_holesky_omnibus
+```shell
+  pnpm omnibus:test _example_tiny_holesky_omnibus
 ```
 
 Run tiny omnibus at holesky (you will need to add keystone first)
 
+```shell
+  pnpm omnibus:run _example_tiny_holesky_omnibus --rpc remote --test-account false --network holesky
 ```
-pnpm omnibus:run _example_tiny_holesky_omnibus --rpc remote --test-account false --network holesky
+
+### Run tests from other repos at mainnet
+Logs in log directory - [logs](./logs)
+
+Multitest params description: 
+```shell
+  hardhat omnibus:multi-test -- help
+```
+
+
+Run tiny omnibus and test form `mount` folder in other repos env
+```shell
+  hardhat omnibus:multi-test _example_tiny_omnibus --mount-tests true --pattern default --hide-debug true```
+```
+
+Run tiny omnibus and regression tests in other repos env
+```shell
+  hardhat omnibus:multi-test _example_tiny_omnibus --hide-debug true
 ```
 
 # Project structure
