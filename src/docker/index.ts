@@ -5,7 +5,33 @@ import chalk from "chalk";
 import { createWriteStream } from "node:fs";
 import { logGreen } from "../common/color";
 
-export const RPC_NODE_NAME = "eth-rpc-node";
+export const RPC_NODE_SETTING: Record<string, { name: string; port: string; idx: number }> = {
+  core: {
+    name: "rpc-node-core",
+    port: "18545",
+    idx: 0,
+  },
+  depot: {
+    name: "rpc-node-depot",
+    port: "28545",
+    idx: 1,
+  },
+  "dual-governance": {
+    name: "rpc-node-dual-governance",
+    port: "28545",
+    idx: 2,
+  },
+  scripts: {
+    name: "rpc-node-scripts",
+    port: "38545",
+    idx: 3,
+  },
+  "scripts-1": {
+    name: "rpc-node-scripts-1",
+    port: "48545",
+    idx: 4,
+  },
+};
 
 type ContainerRunResponse = [{ StatusCode: number }, Container, id: string, Record<string, {}>];
 
@@ -13,7 +39,7 @@ const docker = new Docker();
 
 export function getStdout(name: string) {
   // FIXME: Fails when the logs folder does not exist
-  const logFilePath = `${process.cwd()}/logs/${name}.log`;
+  const logFilePath = `${process.cwd()}/logs/${name.replace(/\W/g, "-")}.log`;
   logGreen(`You will able to see container log here: \n${logFilePath}`);
   return createWriteStream(logFilePath);
 }
@@ -53,19 +79,19 @@ export async function runImageInBackground(
   name: string,
   imageName: string,
   cmd: string[],
-  forceRestart = true,
+  useOld = false,
   config?: Docker.ContainerCreateOptions,
 ) {
   logGreen(`Prepare container ${imageName} for run in background`);
 
   const containerOld = await findContainerByName(name);
 
-  if (!forceRestart && containerOld) {
+  if (useOld && containerOld) {
     logGreen(`Previous hardhat-node container found and will be used`);
     return containerOld;
   }
 
-  if (forceRestart && containerOld) {
+  if (!useOld && containerOld) {
     logGreen(`Previous hardhat-node container found`);
     await stopContainer(containerOld, name, true);
   }
@@ -91,13 +117,13 @@ export async function runImageInBackground(
   }
 
   // not working with await yet
-  /* await */ docker.run(imageName, cmd, stdout, {
+  void docker.run(imageName, cmd, stdout, {
     Tty: false,
     name,
     ...config,
     HostConfig: { AutoRemove: true, ...config?.HostConfig },
   });
-  logGreen(`Wait for hardhat-node container launch`);
+  logGreen(`Wait for ${name} container launch`);
 
   // TODO: add background run to hardhat container node instead
   await delay(2_000);
@@ -108,14 +134,14 @@ export async function runImageInBackground(
   }
   const logs = await container.logs({ follow: true, stdout: true });
 
-  logGreen(`Wait for hardhat-node container initiated`);
+  logGreen(`Wait for ${name} container initiated`);
   const result = await Promise.race([delay(10_000), waitMessage(logs, "Started HTTP and WebSocket JSON-RPC server")]);
 
-  console.log(result ? chalk.bold.green(result) : chalk.bold.red("hardhat-node container initiated timeout"));
+  console.log(result ? chalk.bold.green(result) : chalk.bold.red(`${name} container initiated timeout`));
   return result ? container : null;
 }
 
-type Repos = "core" | "depot" | "scripts";
+export type Repos = "core" | "depot" | "scripts" | "dual-governance";
 
 async function getLastCommitSha(org: string, repo: string, branch: string) {
   const url = `https://api.github.com/repos/${org}/${repo}/commits/${branch}`;
@@ -128,33 +154,32 @@ async function getLastCommitSha(org: string, repo: string, branch: string) {
   return item.sha as string;
 }
 
-export async function runTestsFromRepo(
-  repo: Repos,
-  branch: string,
-  cmd: string[],
-  hideDebug = false,
-  config?: Docker.ContainerCreateOptions,
-) {
-  const docker = new Docker();
+export async function getImageTag(org: string, repo: string, branch: string) {
   let buildVersion;
-  const org = env.GITHUB_ORG();
   if (branch) {
     const sha = await getLastCommitSha(org, repo, branch);
-    buildVersion = sha?.slice(0, 6);
+    buildVersion = sha?.slice(0, 7);
   } else {
-    // TODO: ask about rebuild or verify changes somehow
+    // TODO: ask about rebuild or verify changes somehow or mount local dir
     buildVersion = "latest";
   }
-  const imageTag = `lido-${repo}:${buildVersion}`;
+
+  return { imageTag: `depot/${repo}:${buildVersion}`, buildVersion };
+}
+
+export async function buildRepo(repo: string, branch: string, hideDebug: boolean) {
+  const org = env.GITHUB_ORG();
+
+  const { imageTag, buildVersion } = await getImageTag(org, repo, branch);
 
   const images = await docker.listImages();
   const image = images.find(({ RepoTags }) => RepoTags?.includes(imageTag));
 
-  const stdout = hideDebug ? getStdout(repo) : process.stdout;
-
   if (!image) {
+    const stdout = hideDebug ? getStdout(imageTag) : process.stdout;
+
     console.log(`Image for ${repo} not found.`);
-    console.log(`Creating image to run fast next time`);
+    console.log(`Creating image ${imageTag} to run fast next time`);
     const stream = await docker.buildImage(
       {
         context: process.cwd(),
@@ -172,29 +197,47 @@ export async function runTestsFromRepo(
       docker.modem.followProgress(stream, (err, res) => (err ? reject(err) : resolve(res)));
     });
   }
+}
 
-  const container = await findContainerByName(repo);
+export async function runTestsFromRepo(
+  repo: Repos,
+  branch: string,
+  cmd: string[],
+  config: Docker.ContainerCreateOptions,
+  hideDebug = false,
+  instance = 0,
+) {
+  const docker = new Docker();
+  const org = env.GITHUB_ORG();
+  const { imageTag } = await getImageTag(org, repo, branch);
+
+  const key = !instance ? repo : `${repo}-${instance}`;
+  const name = `lido-${key}`;
+
+  const stdout = hideDebug ? getStdout(name) : process.stdout;
+
+  const container = await findContainerByName(name);
 
   if (container) {
-    await stopContainer(container, repo, true);
+    await stopContainer(container, name, true);
   }
 
-  logGreen(`Running command on image ${repo}: \n"${cmd.join(" ")}"`);
+  logGreen(`Running command on image ${imageTag} \n"${cmd.join(" ")}"`);
   const data: ContainerRunResponse = await docker.run(imageTag, cmd, stdout, {
     Tty: false,
-    name: repo,
+    name,
     ...config,
-    HostConfig: { AutoRemove: true, NetworkMode: "host", ...config?.HostConfig },
+    HostConfig: { AutoRemove: true, NetworkMode: `container:${RPC_NODE_SETTING[key].name}`, ...config?.HostConfig },
   });
 
   const [statusInfo] = data;
 
   if (!statusInfo.hasOwnProperty?.("StatusCode")) {
-    throw new Error(`Container ${imageTag} stop working, but status code not found`);
+    throw new Error(`Container ${name} stop working, but status code not found`);
   }
 
   if (statusInfo?.StatusCode) {
-    throw new Error(`Container ${imageTag} stop working, with status code ${statusInfo.StatusCode}`);
+    throw new Error(`Container ${name} stop working, with status code ${statusInfo.StatusCode}`);
   }
 
   return data;

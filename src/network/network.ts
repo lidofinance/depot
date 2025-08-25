@@ -41,12 +41,16 @@ export function getNetworkNameByChainId(chainId: number): NetworkName {
   throw new UnsupportedChainId(chainId);
 }
 
-export function getRpcUrl(network: NetworkName): string {
+export function getRpcUrl(network: NetworkName, ind = 0): string {
+  let urls = "";
   if (network === "mainnet") {
-    return env.ETH_MAINNET_RPC_URL();
+    urls = env.ETH_MAINNET_RPC_URL();
   }
   if (network === "holesky") {
-    return env.ETH_HOLESKY_RPC_URL();
+    urls = env.ETH_HOLESKY_RPC_URL();
+  }
+  if (urls) {
+    return urls.split(",")[ind % urls.split(",").length]; // always in range
   }
   throw new UnsupportedNetwork(network);
 }

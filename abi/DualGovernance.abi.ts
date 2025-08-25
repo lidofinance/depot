@@ -137,9 +137,7 @@ export const DualGovernance_ABI = [
     type: "error",
   },
   {
-    inputs: [
-      { internalType: "address", name: "proposerAccount", type: "address" },
-    ],
+    inputs: [{ internalType: "address", name: "proposerAccount", type: "address" }],
     name: "InvalidProposerAccount",
     type: "error",
   },
@@ -176,9 +174,7 @@ export const DualGovernance_ABI = [
     type: "error",
   },
   {
-    inputs: [
-      { internalType: "address", name: "resealCommittee", type: "address" },
-    ],
+    inputs: [{ internalType: "address", name: "resealCommittee", type: "address" }],
     name: "InvalidResealCommittee",
     type: "error",
   },
@@ -260,16 +256,12 @@ export const DualGovernance_ABI = [
   },
   { inputs: [], name: "ProposalSubmissionBlocked", type: "error" },
   {
-    inputs: [
-      { internalType: "address", name: "proposerAccount", type: "address" },
-    ],
+    inputs: [{ internalType: "address", name: "proposerAccount", type: "address" }],
     name: "ProposerAlreadyRegistered",
     type: "error",
   },
   {
-    inputs: [
-      { internalType: "address", name: "proposerAccount", type: "address" },
-    ],
+    inputs: [{ internalType: "address", name: "proposerAccount", type: "address" }],
     name: "ProposerNotRegistered",
     type: "error",
   },
@@ -590,9 +582,7 @@ export const DualGovernance_ABI = [
   {
     inputs: [],
     name: "TIMELOCK",
-    outputs: [
-      { internalType: "contract ITimelock", name: "", type: "address" },
-    ],
+    outputs: [{ internalType: "contract ITimelock", name: "", type: "address" }],
     stateMutability: "view",
     type: "function",
   },
@@ -660,18 +650,14 @@ export const DualGovernance_ABI = [
   {
     inputs: [],
     name: "getEffectiveState",
-    outputs: [
-      { internalType: "enum State", name: "effectiveState", type: "uint8" },
-    ],
+    outputs: [{ internalType: "enum State", name: "effectiveState", type: "uint8" }],
     stateMutability: "view",
     type: "function",
   },
   {
     inputs: [],
     name: "getPersistedState",
-    outputs: [
-      { internalType: "enum State", name: "persistedState", type: "uint8" },
-    ],
+    outputs: [{ internalType: "enum State", name: "persistedState", type: "uint8" }],
     stateMutability: "view",
     type: "function",
   },
@@ -683,9 +669,7 @@ export const DualGovernance_ABI = [
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "address", name: "proposerAccount", type: "address" },
-    ],
+    inputs: [{ internalType: "address", name: "proposerAccount", type: "address" }],
     name: "getProposer",
     outputs: [
       {
@@ -735,9 +719,7 @@ export const DualGovernance_ABI = [
   {
     inputs: [],
     name: "getResealManager",
-    outputs: [
-      { internalType: "contract IResealManager", name: "", type: "address" },
-    ],
+    outputs: [{ internalType: "contract IResealManager", name: "", type: "address" }],
     stateMutability: "view",
     type: "function",
   },
@@ -830,9 +812,7 @@ export const DualGovernance_ABI = [
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "address", name: "proposerAccount", type: "address" },
-    ],
+    inputs: [{ internalType: "address", name: "proposerAccount", type: "address" }],
     name: "isProposer",
     outputs: [{ internalType: "bool", name: "", type: "bool" }],
     stateMutability: "view",
@@ -912,9 +892,7 @@ export const DualGovernance_ABI = [
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "address", name: "newResealCommittee", type: "address" },
-    ],
+    inputs: [{ internalType: "address", name: "newResealCommittee", type: "address" }],
     name: "setResealCommittee",
     outputs: [],
     stateMutability: "nonpayable",
@@ -993,9 +971,7 @@ export const DualGovernance_ABI = [
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "address", name: "proposerAccount", type: "address" },
-    ],
+    inputs: [{ internalType: "address", name: "proposerAccount", type: "address" }],
     name: "unregisterProposer",
     outputs: [],
     stateMutability: "nonpayable",

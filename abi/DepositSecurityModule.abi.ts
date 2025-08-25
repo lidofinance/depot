@@ -171,9 +171,7 @@ export const DepositSecurityModule_ABI = [
   {
     inputs: [],
     name: "DEPOSIT_CONTRACT",
-    outputs: [
-      { internalType: "contract IDepositContract", name: "", type: "address" },
-    ],
+    outputs: [{ internalType: "contract IDepositContract", name: "", type: "address" }],
     stateMutability: "view",
     type: "function",
   },
@@ -194,9 +192,7 @@ export const DepositSecurityModule_ABI = [
   {
     inputs: [],
     name: "STAKING_ROUTER",
-    outputs: [
-      { internalType: "contract IStakingRouter", name: "", type: "address" },
-    ],
+    outputs: [{ internalType: "contract IStakingRouter", name: "", type: "address" }],
     stateMutability: "view",
     type: "function",
   },
@@ -235,9 +231,7 @@ export const DepositSecurityModule_ABI = [
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "uint256", name: "stakingModuleId", type: "uint256" },
-    ],
+    inputs: [{ internalType: "uint256", name: "stakingModuleId", type: "uint256" }],
     name: "canDeposit",
     outputs: [{ internalType: "bool", name: "", type: "bool" }],
     stateMutability: "view",
@@ -330,9 +324,7 @@ export const DepositSecurityModule_ABI = [
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "uint256", name: "stakingModuleId", type: "uint256" },
-    ],
+    inputs: [{ internalType: "uint256", name: "stakingModuleId", type: "uint256" }],
     name: "isMinDepositDistancePassed",
     outputs: [{ internalType: "bool", name: "", type: "bool" }],
     stateMutability: "view",

@@ -18,11 +18,6 @@ describe("Environment variable functions", () => {
     expect(env.LOCAL_OPT_RPC_PORT()).to.equal("9547");
   });
 
-  it("returns the value of ETH_RPC_URL", () => {
-    process.env.ETH_RPC_URL = "https://mainnet.infura.io/v3/YOUR-PROJECT-ID";
-    expect(env.ETH_RPC_URL()).to.equal("https://mainnet.infura.io/v3/YOUR-PROJECT-ID");
-  });
-
   it("returns the value of ARB_RPC_URL", () => {
     process.env.ARB_RPC_URL = "https://arb1.arbitrum.io/rpc";
     expect(env.ARB_RPC_URL()).to.equal("https://arb1.arbitrum.io/rpc");
@@ -31,16 +26,6 @@ describe("Environment variable functions", () => {
   it("returns the value of OPT_RPC_URL", () => {
     process.env.OPT_RPC_URL = "https://mainnet.optimism.io";
     expect(env.OPT_RPC_URL()).to.equal("https://mainnet.optimism.io");
-  });
-
-  it("returns the value of INFURA_TOKEN", () => {
-    process.env.INFURA_TOKEN = "your-infura-token";
-    expect(env.INFURA_TOKEN()).to.equal("your-infura-token");
-  });
-
-  it("returns the value of ALCHEMY_TOKEN", () => {
-    process.env.ALCHEMY_TOKEN = "your-alchemy-token";
-    expect(env.ALCHEMY_TOKEN()).to.equal("your-alchemy-token");
   });
 
   it("returns the value of ETHERSCAN_TOKEN", () => {

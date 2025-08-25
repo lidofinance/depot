@@ -2,15 +2,14 @@ import chalk from "chalk";
 import { task } from "hardhat/config";
 import * as types from "hardhat/internal/core/params/argumentTypes";
 
-import { adoptAragonVoting } from "../src/aragon-votes-tools";
 import prompt from "../src/common/prompt";
 import * as env from "../src/common/env";
 import { isKnownError } from "../src/common/errors";
 import fs from "node:fs/promises";
 
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { findContainerByName, RPC_NODE_NAME, stopContainer } from "../src/docker";
-import { runCoreTests, prepareLocalRpcNode } from "./sub-tasks/containers";
+import { findContainerByName, RPC_NODE_SETTING, stopContainer } from "../src/docker";
+import { runCoreTests, runScriptsTests, runDgTests } from "./sub-tasks/containers";
 import { formatEther } from "viem";
 import { createDevRpcClient, createRpcClient, getChainIdByNetworkName, NetworkName } from "../src/network/network";
 import { privateKeyToAccount } from "viem/accounts";
@@ -93,38 +92,15 @@ task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
     const omnibus = loadOmnibus(name);
     env.checkEnvVars();
 
-    // logBlue(`Run hardhat-node container`);
-    await prepareLocalRpcNode(RPC_NODE_NAME, omnibus.network);
-    const client = await createDevRpcClient(omnibus.network, "http://localhost:8545");
-
-    const { voting } = getLidoContracts(omnibus.network);
-
-    const snapshotId = await client.snapshot();
-    try {
-      if (repo !== "depot" && !skipVoting) {
-        await adoptAragonVoting(client, omnibus.script, omnibus.formatSummary());
-        // const info = await runOmnibus(name, omnibus, hre, "local", true, true);
-        // voteId = info.voteId;
-        // await votes.pass(info.provider, voteId);
-      }
-
-      if (!repo || repo === "core") {
-        await runCoreTests(pattern, hideDebug, mountTests); // "test/custom/_example_omnibus_test_for_core_repo.ts"
-      }
-    } finally {
-      client.revert(snapshotId);
-    }
-    // await prepareNodeRevertPoint(client);
-
     // if (!repo || repo === "depot") {
     //   await runDepotTests("_example_omnibus", hideDebug);
     // }
 
-    // if (!repo || repo === "scripts") {
-    //   await runScriptsTests(Number(voteId), pattern, hideDebug, mountTests); // "tests/custom/_example_omnibus_test_for_scripts_repo.py"
-    // }
-
-    // await rollBackNodeChanges(provider);
+    await Promise.all([
+      (!repo || repo === "core") && runCoreTests(omnibus, pattern, hideDebug, mountTests),
+      (!repo || repo === "scripts") && runScriptsTests(omnibus, pattern, hideDebug, mountTests),
+      (!repo || repo === "dual-governance") && runDgTests(omnibus, pattern, hideDebug, mountTests),
+    ]);
   });
 
 type OmnibusRunParams = {
@@ -188,14 +164,15 @@ task("rpc:stop", "Stop local rpc node container").setAction(async () => {
   env.checkEnvVars();
 
   try {
-    const name = RPC_NODE_NAME;
-    chalk.bold.green(`Stopping container ${name} `);
-    const container = await findContainerByName(name);
+    const settings = Object.values(RPC_NODE_SETTING);
+    chalk.bold.green(`Stopping container ${settings.map(({ name }) => name).join(",")} `);
+    const container = await Promise.all(settings.map(async ({ name }) => await findContainerByName(name)));
 
-    if (container) {
-      await stopContainer(container, name, true);
-    }
-    chalk.bold.green(`Stopped container ${name} `);
+    const activeContainers = container.filter((container) => container !== null);
+    const activeNames = settings.filter((_, ind) => activeContainers[ind] !== null);
+
+    await Promise.all(activeContainers.map((container, ind) => stopContainer(container, activeNames[ind].name, true)));
+    chalk.bold.green(`Stopped all active containers: ${activeContainers.join(",")} `);
     await prompt.sigint();
   } catch (err) {
     console.error(err);

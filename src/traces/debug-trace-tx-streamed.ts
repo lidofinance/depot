@@ -39,7 +39,6 @@ const DEFAULT_PARAMS: TraceParameters = {
   enableReturnData: false,
 };
 
-
 export class DebugTraceTxStreamed {
   private requestId: number = 1;
   public params: TraceParameters;

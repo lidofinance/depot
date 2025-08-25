@@ -16,6 +16,13 @@
     "example:test:mainnet": "hardhat omnibus:test _example_tiny_omnibus",
     "example:test:holesky": "hardhat omnibus:test _example_tiny_holesky_omnibus",
     "example:run:holesky": "hardhat omnibus:run _example_tiny_holesky_omnibus --rpc remote --test-account false --network holesky",
+    "example:multi-test:mainnet": "hardhat omnibus:multi-test _example_tiny_omnibus",
+    "example:multi-test:scripts:mainnet": "hardhat omnibus:multi-test _example_tiny_omnibus --mount-tests true --repo scripts --hide-debug true",
+    "example:multi-test:dg:mainnet": "hardhat omnibus:multi-test _example_tiny_omnibus --mount-tests true --repo dual-governance --hide-debug true",
+    "example:multi-test:core:mainnet:custom": "hardhat omnibus:multi-test _example_tiny_omnibus --mount-tests true --repo core --pattern test/custom/_example_omnibus_test_for_core_repo.ts",
+    "example:multi-test:scripts:mainnet:custom": "hardhat omnibus:multi-test _example_tiny_omnibus --mount-tests true --repo scripts --pattern tests/custom/_example_omnibus_test_for_scripts_repo.py",
+    "example:multi-test:dg:mainnet:custom": "hardhat omnibus:multi-test _example_tiny_omnibus --mount-tests true --repo dual-governance --pattern test/custom/*",
+    "example:multi-test:all:mainnet:custom": "hardhat omnibus:multi-test _example_tiny_omnibus --mount-tests true --pattern default --hide-debug true",
     "style": "prettier --write .",
     "test": "nyc --reporter text-summary mocha"
   },
