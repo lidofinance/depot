@@ -1,0 +1,70 @@
+name: Core tests CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-tests:
+    name: Core repo tests in docker
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 120
+
+    services:
+      hardhat-node:
+        image: ghcr.io/lidofinance/hardhat-node:2.26.0
+        ports:
+          - 8545:8545
+        env:
+          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
+
+    steps:
+      ################################################################
+      # Prepare depot repository
+      ################################################################
+
+      - name: Checkout depot repository
+        uses: actions/checkout@v4
+        with:
+          path: depot
+
+      - name: Setup depot
+        uses: ./depot/.github/actions/prepare_depot
+
+      ################################################################
+      # Prepare core repository
+      ################################################################
+
+      - name: Checkout core repository
+        uses: actions/checkout@v4
+        with:
+          repository: lidofinance/core
+          path: core
+
+      - name: Enable corepack
+        shell: bash
+        run: corepack enable
+
+      - name: Set env
+        run: cp .env.example .env
+        working-directory: core
+
+      - name: Install dependencies
+        shell: bash
+        run: yarn install --frozen-lockfile
+        working-directory: core
+
+      ################################################################
+      # Run vote
+      ################################################################
+
+      - name: Run vote
+        uses: ./depot/.github/actions/run_depot_vote
+
+      ################################################################
+      # Run tests
+      ################################################################
+      - name: Run integration tests
+        run: yarn test:integration
+        working-directory: core
+        env:
+          FORK_RPC_URL: http://127.0.0.1:8545

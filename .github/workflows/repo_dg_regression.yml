@@ -1,0 +1,97 @@
+name: Dual Governance tests CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  dual-governance-regression:
+    name: "Regression tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+
+    concurrency:
+      group: dual-governance-regression-depo-${{ github.ref }}
+      cancel-in-progress: true
+
+    env:
+      HARDHAT_NODE_URL: 'http://127.0.0.1:8545'
+      ANVIL_NODE_URL: 'http://127.0.0.1:8555'
+
+    services:
+      hardhat-node:
+        image: ghcr.io/lidofinance/hardhat-node:2.26.0
+        ports:
+          - 8545:8545
+        env:
+          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
+
+    steps:
+
+      - name: Checkout depot repository
+        uses: actions/checkout@v4
+        with:
+          path: depot
+
+      - name: Setup depot
+        uses: ./depot/.github/actions/prepare_depot
+
+      ################################################################
+      # Clone dual-governance repository
+      ################################################################
+
+      - name: Checkout dual-governance repository
+        uses: actions/checkout@v4
+        with:
+          repository: lidofinance/dual-governance
+          path: dual-governance
+          persist-credentials: false
+
+      ################################################################
+      # Set up Foundry
+      ################################################################
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: "v1.0.0"
+
+      ################################################################
+      # Setup cache for dependencies
+      ################################################################
+
+      - name: Cache Forge dependencies
+        uses: actions/cache@v4
+        with:
+          path: dual-governance/lib
+          key: forge-${{ hashFiles('dual-governance/foundry.toml') }}
+          restore-keys: forge-
+
+      ################################################################
+      # Install dependencies
+      ################################################################
+
+      - name: Install Node.js dependencies for dual-governance
+        run: npm ci
+        working-directory: dual-governance
+
+      - name: Install Forge dependencies
+        run: forge install
+        working-directory: dual-governance
+
+      ################################################################
+      # Run vote
+      ################################################################
+
+      - name: Run vote
+        uses: ./depot/.github/actions/run_depot_vote
+
+      ################################################################
+      # Run test
+      ################################################################
+
+      - name: Run regression tests
+        run: npm run test:regressions -- --load-accounts
+        env:
+          MAINNET_RPC_URL: ${{ env.HARDHAT_NODE_URL }}
+          DEPLOY_ARTIFACT_FILE_NAME: deploy-artifact-mainnet.toml
+        working-directory: dual-governance
