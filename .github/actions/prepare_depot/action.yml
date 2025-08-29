@@ -1,0 +1,16 @@
+name: "Tests"
+description: "Prepare depot"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install dependencies
+      shell: bash
+      run: npm install
+      working-directory: depot
+

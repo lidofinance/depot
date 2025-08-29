@@ -1,13 +1,13 @@
----
 name: Tests runner
 on:
+  workflow_dispatch:
   pull_request:
 
 jobs:
   tests:
     services:
       hardhat-node:
-        image: ghcr.io/lidofinance/hardhat-node:2.22.12
+        image: ghcr.io/lidofinance/hardhat-node:2.26.0
         ports:
           - 8545:8545
         env:
@@ -19,27 +19,14 @@ jobs:
       ALCHEMY_TOKEN: not-so-secret-token
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout depot repository
+        uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          path: depot
 
-      - name: Install node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Generate typechain
-        env:
-          SKIP_TYPECHAIN: true
-        run: pnpm run typechain
+      - name: Setup depot
+        uses: ./depot/.github/actions/prepare_depot
 
       - name: Run unit tests
-        run: pnpm run test
+        run: npm run test
+        working-directory: depot
