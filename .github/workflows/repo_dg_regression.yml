@@ -14,8 +14,8 @@ jobs:
       cancel-in-progress: true
 
     env:
-      HARDHAT_NODE_URL: 'http://127.0.0.1:8545'
-      ANVIL_NODE_URL: 'http://127.0.0.1:8555'
+      HARDHAT_NODE_URL: "http://127.0.0.1:8545"
+      ANVIL_NODE_URL: "http://127.0.0.1:8555"
 
     services:
       hardhat-node:
@@ -26,7 +26,6 @@ jobs:
           INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
 
     steps:
-
       - name: Checkout depot repository
         uses: actions/checkout@v4
         with:

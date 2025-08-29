@@ -21,9 +21,9 @@ export const GIT_BRANCH_SCRIPTS = () => process.env.GIT_BRANCH_SCRIPTS || "maste
 export const GIT_BRANCH_DG = () => process.env.GIT_BRANCH_DG || "main";
 export const GIT_BRANCH_CORE = () => process.env.GIT_BRANCH_CORE || "master";
 
-export const GIT_SHA_SCRIPTS = () => process.env.GIT_SHA_SCRIPTS || '';
-export const GIT_SHA_DG = () => process.env.GIT_SHA_DG || '';
-export const GIT_SHA_CORE = () => process.env.GIT_SHA_CORE || '';
+export const GIT_SHA_SCRIPTS = () => process.env.GIT_SHA_SCRIPTS || "";
+export const GIT_SHA_DG = () => process.env.GIT_SHA_DG || "";
+export const GIT_SHA_CORE = () => process.env.GIT_SHA_CORE || "";
 
 export const HH_NODE_IMAGE = () => process.env.HH_NODE_IMAGE || "ghcr.io/lidofinance/hardhat-node:2.26.0";
 

@@ -13,4 +13,3 @@ runs:
       shell: bash
       run: npm install
       working-directory: depot
-

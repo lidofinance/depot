@@ -4,7 +4,6 @@ description: "Prepare scripts"
 runs:
   using: "composite"
   steps:
-
     - name: Install poetry
       shell: bash
       run: |
@@ -47,5 +46,3 @@ runs:
         echo "CPU units"
         nproc --all
         echo "Vote type normal"
-
-

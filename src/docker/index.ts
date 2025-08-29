@@ -144,16 +144,15 @@ export async function runImageInBackground(
 export type Repos = "core" | "depot" | "scripts" | "dual-governance";
 
 async function getLastCommitSha(org: string, repo: Repos, branch: string) {
-
   const override: Record<Repos, string> = {
     scripts: env.GIT_SHA_SCRIPTS(),
     core: env.GIT_SHA_CORE(),
     "dual-governance": env.GIT_SHA_DG(),
-    depot: 'latest',
+    depot: "latest",
   };
 
   if (override[repo]) {
-    return override[repo]
+    return override[repo];
   }
 
   const url = `https://api.github.com/repos/${org}/${repo}/commits/${branch}`;
