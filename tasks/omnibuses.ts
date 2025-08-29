@@ -19,6 +19,7 @@ import { dryRunOmnibus } from "../src/omnibuses/tools/dry-run-omnibus";
 import { Omnibus } from "../src/omnibuses/omnibus";
 import path from "node:path";
 import { getRpcUrl } from "../src/network/network";
+import { adoptAragonVoting } from "../src/aragon-votes-tools";
 
 task("omnibus:scaffold", "Create omnibus and spec filed from template").setAction(async ({}) => {
   const network: NetworkName = await prompt.select("Choose the network:", [
@@ -101,6 +102,19 @@ task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
       (!repo || repo === "scripts") && runScriptsTests(omnibus, pattern, hideDebug, mountTests),
       (!repo || repo === "dual-governance") && runDgTests(omnibus, pattern, hideDebug, mountTests),
     ]);
+  });
+
+task("omnibus:ci-prepare", "Runs tests for the given omnibus cross repo")
+  .addPositionalParam<string>("name", "Name of the omnibus to run")
+  .setAction(async ({ name }, hre) => {
+    const omnibus = loadOmnibus(name);
+
+    const client = await createDevRpcClient(omnibus.network, `http://localhost:${env.LOCAL_ETH_RPC_PORT()}`);
+    try {
+      await adoptAragonVoting(client, omnibus.script, omnibus.formatSummary());
+    } catch (err) {
+      throw err;
+    }
   });
 
 type OmnibusRunParams = {

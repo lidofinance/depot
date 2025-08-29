@@ -9,7 +9,7 @@ import { adoptAragonVoting } from "../../src/aragon-votes-tools";
 
 export const runDepotTests = async (name: string, hideDebug = false) => {
   const repo = "depot";
-  const cmd = ["pnpm", "omnibus:test", name, "--rpc", "local"];
+  const cmd = ["npm", "run", "omnibus:test", name, "--rpc", "local"];
   logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
   const config: Docker.ContainerCreateOptions = {
     HostConfig: {
@@ -29,7 +29,7 @@ export const getRpcUrlByRepoKey = (network: NetworkName, key: string) => {
 export const prepareLocalRpcNode = async (key: string, network: NetworkName, useOld: boolean) => {
   const networkSuffix = network === "holesky" ? "-holesky-fork" : "";
   const image = `${env.HH_NODE_IMAGE()}${networkSuffix}`;
-  const cmd = ["pnpm", "start"];
+  const cmd = ["npm", "start"];
   const { port, name } = RPC_NODE_SETTING[key];
 
   logBlue(`Run ${name} container`);
@@ -93,7 +93,9 @@ export const runCoreTests = async (omnibus: Omnibus, pattern?: string, hideDebug
     ? ["yarn", "run", "test:integration:fork:mainnet"]
     : ["yarn", "run", `test:integration:fork:mainnet:custom`, extraPattern];
 
-  const config: Docker.ContainerCreateOptions = {};
+  const config: Docker.ContainerCreateOptions = {
+    Env: [`RPC_URL=${getRpcUrlByRepoKey("mainnet", repo)}`],
+  };
   if (shouldMountTests) {
     config.HostConfig = {
       Mounts: [{ Source: `${process.cwd()}/mount/core`, Target: "/usr/src/app/test/custom", Type: "bind" }],

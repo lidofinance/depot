@@ -143,7 +143,19 @@ export async function runImageInBackground(
 
 export type Repos = "core" | "depot" | "scripts" | "dual-governance";
 
-async function getLastCommitSha(org: string, repo: string, branch: string) {
+async function getLastCommitSha(org: string, repo: Repos, branch: string) {
+
+  const override: Record<Repos, string> = {
+    scripts: env.GIT_SHA_SCRIPTS(),
+    core: env.GIT_SHA_CORE(),
+    "dual-governance": env.GIT_SHA_DG(),
+    depot: 'latest',
+  };
+
+  if (override[repo]) {
+    return override[repo]
+  }
+
   const url = `https://api.github.com/repos/${org}/${repo}/commits/${branch}`;
   const response = await fetch(url);
   console.log(url);
@@ -154,7 +166,7 @@ async function getLastCommitSha(org: string, repo: string, branch: string) {
   return item.sha as string;
 }
 
-export async function getImageTag(org: string, repo: string, branch: string) {
+export async function getImageTag(org: string, repo: Repos, branch: string) {
   let buildVersion;
   if (branch) {
     const sha = await getLastCommitSha(org, repo, branch);
@@ -167,7 +179,7 @@ export async function getImageTag(org: string, repo: string, branch: string) {
   return { imageTag: `depot/${repo}:${buildVersion}`, buildVersion };
 }
 
-export async function buildRepo(repo: string, branch: string, hideDebug: boolean) {
+export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean) {
   const org = env.GITHUB_ORG();
 
   const { imageTag, buildVersion } = await getImageTag(org, repo, branch);
