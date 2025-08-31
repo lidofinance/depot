@@ -1,103 +1,118 @@
 import { encodeFunctionData } from "viem";
-import { EvmScriptParser } from "../../aragon-votes-tools";
-import { Contract, getEventAbi } from "../../contracts/contracts";
-import { CallsScript_ABI } from "../../../abi/CallsScript.abi";
+import { AgentContract, CallsScriptContract, Contract, VotingContract } from "../../contracts/contracts";
 import fmt from "../../common/format";
-import { TxTrace } from "../../traces/tx-traces";
-import chalk from "chalk";
 import { OmnibusDirectCall } from "./omnibus-direct-call";
-import { ContractEvent, groupOmnibusTraceCalls } from "../omnibus";
+import { BaseOmnibusCall, DEFAULT_FORMAT_OPTIONS, event, OmnibusCallEvent } from "../omnibus";
+import { EvmScriptParser } from "../../aragon-votes-tools";
+import { ExtractAbiFunctionNames } from "abitype";
+import { FindFunctionAbiParams } from "../../types/abi.types";
+import chalk from "chalk";
 
-export class OmnibusForwardCall {
-  public readonly value: bigint = 0n;
-  public readonly forwarder: Contract;
-  public readonly calls: OmnibusDirectCall[];
+interface OmnibusForwardCallContracts {
+  voting: VotingContract;
+  callsScript: CallsScriptContract;
+}
 
-  constructor(forwarder: Contract, calls: OmnibusDirectCall[]) {
-    this.calls = calls;
-    this.forwarder = forwarder;
+interface OmnibusForwardCallInput<
+  $Contract extends Contract = Contract,
+  $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]> = string,
+> {
+  on: $Contract;
+  fn: $FunctionName;
+  args: FindFunctionAbiParams<$Contract["abi"], $FunctionName>;
+  events: OmnibusCallEvent[];
+}
+
+export class OmnibusForwardCall implements BaseOmnibusCall {
+  public readonly forwarder: AgentContract;
+  public readonly call: OmnibusDirectCall;
+
+  readonly #callsScript: CallsScriptContract;
+
+  public static createCallBuilder(contracts: OmnibusForwardCallContracts) {
+    return function forwardCall<
+      $Contract extends Contract,
+      $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]>,
+    >(
+      title: string,
+      forwarder: AgentContract,
+      input: OmnibusForwardCallInput<$Contract, $FunctionName>,
+    ): OmnibusForwardCall {
+      return new OmnibusForwardCall(contracts, forwarder, title, input);
+    };
   }
 
-  get target() {
+  constructor(
+    contracts: OmnibusForwardCallContracts,
+    forwarder: AgentContract,
+    title: string,
+    input: OmnibusForwardCallInput,
+  ) {
+    this.call = new OmnibusDirectCall(contracts, title, input);
+    this.forwarder = forwarder;
+    this.#callsScript = contracts.callsScript;
+  }
+
+  getTarget() {
     return this.forwarder.address;
   }
 
-  get calldata() {
+  getCalldata() {
     return encodeFunctionData({
       abi: this.forwarder.abi,
       functionName: "forward",
-      args: [this.forwardingCallsScript],
+      args: [this.getForwardingCallsScript()],
     });
   }
 
-  get forwardingCallsScript() {
-    return EvmScriptParser.encode(
-      this.calls.map((call) => ({ address: call.contract.address, calldata: call.calldata })),
-    );
+  getForwardingCallsScript() {
+    return EvmScriptParser.encode([{ address: this.call.getTarget(), calldata: this.call.getCalldata() }]);
   }
 
-  get events(): ContractEvent[] {
-    const logScriptCallAbi = getEventAbi({ abi: CallsScript_ABI }, "LogScriptCall");
-    const scriptResultAbi = getEventAbi({ abi: this.forwarder.abi }, "ScriptResult");
+  getEventsFor(target: "omnibus" | "proposal") {
     return [
-      ...this.calls
-        .map((call) => [
-          {
-            abi: logScriptCallAbi,
-            emitter: this.forwarder.address,
-            args: [/* sender: */ null, /* src: */ this.forwarder.address, /* dst: */ call.contract.address],
-            isOptional: false,
-          },
-          ...call.callEvents,
-        ])
-        .flat(),
-      {
-        abi: scriptResultAbi,
-        emitter: this.forwarder.address,
-        args: [
-          /* executor: */ null,
-          /* script: */ this.forwardingCallsScript,
-          /* input: */ "0x",
-          /* returnData: */ "0x",
-        ],
-        isOptional: false,
-      },
+      event(
+        this.#callsScript,
+        "LogScriptCall",
+        [/* sender: */ null, /* src: */ this.forwarder.address, /* dst: */ this.call.getTarget()],
+        { emitter: this.forwarder.address },
+      ),
+      ...this.call.getEventsFor(target),
+      event(this.forwarder, "ScriptResult", [
+        /* executor: */ null,
+        /* script: */ this.getForwardingCallsScript(),
+        /* input: */ "0x",
+        /* returnData: */ "0x",
+      ]),
     ];
   }
 
-  formatCall(padLength: number = 0) {
+  formatCall({ padLength } = DEFAULT_FORMAT_OPTIONS) {
     return fmt.decodedFuncCall({
       contract: this.forwarder,
-      args: [this.forwardingCallsScript],
+      args: [this.getForwardingCallsScript()],
       functionName: "forward",
       padLength: padLength,
     });
   }
 
-  formatTitle(id?: string, padLength: number = 0) {
-    const strBuilder: string[] = [
-      fmt.padded(`${id}. Forward call(s) via ${this.forwarder.label} (${this.forwarder.address}):`, padLength),
-    ];
-
-    return [...strBuilder, ...this.calls.map((call, ind) => call.formatTitle(`${id}.${ind + 1}`, padLength + 1))].join(
-      "\n",
-    );
+  formatTitle({ padLength = 0 } = DEFAULT_FORMAT_OPTIONS) {
+    return this.call.formatTitle({ padLength });
   }
 
-  format(id?: string, trace?: TxTrace, padLength: number = 0) {
+  format({ trace, padLength = 0 } = DEFAULT_FORMAT_OPTIONS) {
     const strBuilder: string[] = [
-      fmt.padded(
-        chalk.green.bold(`${id}. Forward call(s) via ${this.forwarder.label} (${this.forwarder.address}):`),
-        padLength,
-      ),
+      chalk.green.bold(this.call.formatTitle({ padLength })),
+      this.formatCall({ padLength: padLength + 1 }),
+      fmt.padded(chalk.bold.underline(`Forwarded Call:`), padLength + 1),
+      this.call.formatCall({ padLength: padLength + 3 }),
     ];
-    strBuilder.push(this.formatCall(padLength + 1));
 
-    const nestedCallTraces = trace ? groupOmnibusTraceCalls(this.calls, trace) : [];
+    if (trace) {
+      strBuilder.push(fmt.padded(chalk.bold.underline("Trace:"), padLength + 2));
+      strBuilder.push(trace.format(padLength + 3));
+    }
 
-    strBuilder.push(
-      ...this.calls.map((call, ind) => call.format(`${id}.${ind + 1}`, nestedCallTraces[ind], padLength + 1) + "\n"),
-    );
     return strBuilder.join("\n");
   }
 }

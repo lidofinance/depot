@@ -73,8 +73,8 @@ function formatRawFunctionCall(params: FormatUndecodedFunctionCallParams) {
 interface FormatDecodedFunctionCallParams {
   contract: Contract;
   functionName: string;
-  args: unknown[];
-  result?: unknown[];
+  args?: unknown[] | readonly unknown[];
+  result?: unknown[] | readonly unknown[];
   callType?: CallEvmOpcodes;
   padLength?: number;
 }
@@ -84,7 +84,7 @@ function formatDecodedFunctionCall(params: FormatDecodedFunctionCallParams) {
   const functionAbi = getFunctionAbi(contract, functionName, args);
   const contractAddressAndLabel = label(contract.label) + label("[") + address(contract.address) + label("]");
 
-  const formattedArgs = formatArgs(functionAbi.inputs, args, padLength + 1);
+  const formattedArgs = args ? formatArgs(functionAbi.inputs, args, padLength + 1) : "";
   const functionSignature = [
     chalk.blue.italic(functionAbi.name + `(${functionAbi.inputs.map((input) => input.type).join(",")})`),
   ];
@@ -161,7 +161,7 @@ export function formatDecodedLogItem(params: FormatDecodedLogItemParams) {
 
 function formatArgs(
   inputs: { name: string }[] | readonly AbiParameter[],
-  args: unknown[],
+  args: unknown[] | readonly unknown[],
   padLength: number = 0,
 ): string {
   if (inputs.length !== args.length) {
@@ -204,8 +204,18 @@ function formatValue(arg: unknown) {
   return String(arg);
 }
 
+function success(text: string) {
+  return `${chalk.greenBright("✔")} ${text}`;
+}
+
+function error(text: string) {
+  return `${chalk.redBright("✗")} ${text}`;
+}
+
 export default {
   ok,
+  success,
+  error,
   padLeft,
   label,
   opcode,
@@ -218,4 +228,5 @@ export default {
   decodedLog: formatDecodedLogItem,
   rawFuncCall: formatRawFunctionCall,
   decodedFuncCall: formatDecodedFunctionCall,
+  formatArgs
 };

@@ -1,7 +1,7 @@
 import { Address } from "abitype";
 import { HashConsensus_ABI } from "../../../abi/HashConsensus.abi";
 import { Contract } from "../../contracts";
-import { BlueprintCtx } from "../tools/create-omnibus";
+import { BlueprintCtx } from "../omnibus";
 
 interface RemoveMemberInput {
   title: string;
@@ -20,15 +20,19 @@ interface AddMemberInput {
 }
 
 function removeMemberCall(ctx: BlueprintCtx, input: RemoveMemberInput) {
-  return ctx.call(input.contract, "removeMember", [input.member, input.quorum], {
-    title: input.title,
+  return ctx.directCall(input.title, {
+    on: input.contract,
+    fn: "removeMember",
+    args: [input.member, input.quorum],
     events: [ctx.event(input.contract, "MemberRemoved", [null, input.newMembersCount, input.quorum])],
   });
 }
 
 function addMemberCall(ctx: BlueprintCtx, input: AddMemberInput) {
-  return ctx.call(input.contract, "addMember", [input.member, input.quorum], {
-    title: input.title,
+  return ctx.directCall(input.title, {
+    on: input.contract,
+    fn: "addMember",
+    args: [input.member, input.quorum],
     events: [ctx.event(input.contract, "MemberAdded", [null, input.newMembersCount, input.quorum])],
   });
 }

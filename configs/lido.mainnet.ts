@@ -27,6 +27,7 @@ import { Executor_ABI } from "../abi/Executor.abi";
 import { CSModule_ABI } from "../abi/CSModule.abi";
 import { CSVerifier_ABI } from "../abi/CSVerifier.abi";
 import { CSVerifier_Proposed_ABI } from "../abi/CSVerifier_Proposed.abi";
+import { Escrow_ABI } from "../abi/Escrow.abi";
 
 export type LidoMainnetConfig = typeof LIDO_ON_MAINNET;
 
@@ -56,6 +57,10 @@ export const LIDO_ON_MAINNET = {
   emergencyProtectedTimelock: {
     abi: EmergencyProtectedTimelock_ABI,
     address: "0xCE0425301C85c5Ea2A0873A2dEe44d78E02D2316",
+  },
+  vetoSignallingEscrow: {
+    abi: Escrow_ABI,
+    address: "0xA8F14D033f377779274Ae016584a05bF14Dccaf8",
   },
   adminExecutor: {
     abi: Executor_ABI,
@@ -175,6 +180,11 @@ export const LIDO_ON_MAINNET = {
     abi: HashConsensus_ABI,
     address: "0x7FaDB6358950c5fAA66Cb5EB8eE5147De3df355a",
   },
+
+  // ---
+  // CSM
+  // ---
+
   csHashConsensus: {
     abi: HashConsensus_ABI,
     address: "0x71093efF8D8599b5fA340D665Ad60fA7C80688e4",

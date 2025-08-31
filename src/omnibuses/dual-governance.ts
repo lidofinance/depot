@@ -1,6 +1,6 @@
 import { TransactionReceipt } from "viem";
 import bytes from "../common/bytes";
-import { getLidoContracts } from "../contracts";
+import { getEventAbi, getLidoContracts } from "../contracts";
 import { DevRpcClient } from "../network";
 
 enum DgState {
@@ -12,7 +12,7 @@ enum DgState {
   RageQuit = 5,
 }
 
-enum ProposalStatus {
+export enum ProposalStatus {
   NotExist = 0,
   Submitted = 1,
   Scheduled = 2,
@@ -91,6 +91,25 @@ export async function processPendingProposals(client: DevRpcClient, proposalIds:
 
   const executeProposalReceipts: TransactionReceipt[] = [];
   for (const proposalId of proposalIds) {
+    const proposal = await client.read(emergencyProtectedTimelock, "getProposalDetails", [proposalId]);
+    if (proposal.status === ProposalStatus.Executed) {
+      const proposalExecutedFilter = await client.viemClient.createEventFilter({
+        address: emergencyProtectedTimelock.address,
+        event: getEventAbi(emergencyProtectedTimelock, "ProposalExecuted"),
+        args: [proposalId],
+        fromBlock: (await client.viemClient.getBlockNumber()) - 500n, // TODO: handle it better
+      });
+      const proposalExecutedLogs = await client.viemClient.getFilterLogs({ filter: proposalExecutedFilter });
+      if (proposalExecutedLogs.length === 0) {
+        throw new Error(`"ProposalExecuted" log for proposal with id ${proposalId} not found`);
+      }
+
+      executeProposalReceipts.push(
+        await client.viemClient.getTransactionReceipt({ hash: proposalExecutedLogs[0].transactionHash }),
+      );
+
+      continue;
+    }
     const canExecuteProposal = await client.read(emergencyProtectedTimelock, "canExecute", [proposalId]);
     if (!canExecuteProposal) {
       throw new Error(`Proposal ${proposalId} can not be executed`);

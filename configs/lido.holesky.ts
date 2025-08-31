@@ -10,6 +10,7 @@ import { DualGovernance_ABI } from "../abi/DualGovernance.abi";
 import { DualGovernanceConfigProvider_ABI } from "../abi/DualGovernanceConfigProvider.abi";
 import { EasyTrack_ABI } from "../abi/EasyTrack.abi";
 import { EmergencyProtectedTimelock_ABI } from "../abi/EmergencyProtectedTimelock.abi";
+import { Escrow_ABI } from "../abi/Escrow.abi";
 import { EVMScriptRegistry_ABI } from "../abi/EVMScriptRegistry.abi";
 import { Executor_ABI } from "../abi/Executor.abi";
 import { Finance_ABI } from "../abi/Finance.abi";
@@ -78,6 +79,10 @@ export const LIDO_ON_HOLESKY = {
   emergencyProtectedTimelock: {
     abi: EmergencyProtectedTimelock_ABI,
     address: "0xe9c5FfEAd0668AFdBB9aac16163840d649DB76DD",
+  },
+  vetoSignallingEscrow: {
+    abi: Escrow_ABI,
+    address: "0x35F0745a45De9B83A37826f91Ba5A7bB8162888F ",
   },
   adminExecutor: {
     abi: Executor_ABI,

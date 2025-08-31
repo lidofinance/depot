@@ -1,5 +1,5 @@
 import { CREATOR, CREATOR_ETH_BALANCE, CREATOR_LDO_BALANCE, LDO_WHALES_BY_NETWORK_NAME } from "./constants";
-import { startAragonVote } from "./lifecycle";
+import { getExecuteReceipt, startAragonVote } from "./lifecycle";
 import { NetworkName, DevRpcClient } from "../network";
 import { Address, TransactionReceipt } from "viem";
 import { HexStrPrefixed } from "../common/bytes";
@@ -37,12 +37,8 @@ export async function passAragonVote(client: DevRpcClient, voteId: bigint) {
   const [, executed] = await client.read(voting, "getVote", [voteId]);
 
   if (executed) {
-    spinner.succeed(`Vote with id ${voteId} already executed`);
-    const [log] = await client.viemClient.getContractEvents({ ...voting, eventName: "ExecuteVote", args: { voteId } });
-    if (log === undefined) {
-      throw new Error(`ExecuteVote event for voteId "${voteId}" not found`);
-    }
-    return client.viemClient.getTransactionReceipt({ hash: log.transactionHash });
+    spinner.succeed(`Vote with id ${voteId} already executed. Retrieving execution receipt...`);
+    return getExecuteReceipt(client, voteId);
   }
 
   const whaleAddress = getLdoWhale(network);

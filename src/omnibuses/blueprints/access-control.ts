@@ -2,9 +2,9 @@ import { Address } from "abitype";
 import { keccak256, toHex } from "viem";
 
 import { Contract } from "../../contracts";
-import { BlueprintCtx } from "../tools/create-omnibus";
 import { OmnibusDirectCall } from "../calls/omnibus-direct-call";
 import { AccessControl_ABI } from "../../../abi/AccessControl.abi";
+import { BlueprintCtx } from "../omnibus";
 
 interface GrantRoleInput {
   title: string;
@@ -27,13 +27,11 @@ function grantRole(ctx: BlueprintCtx, input: GrantRoleInput): OmnibusDirectCall 
     address: input.on.address,
   };
   const roleDigest = keccak256(toHex(input.role));
-  return ctx.call(accessControl, "grantRole", [roleDigest, input.to], {
-    title: input.title,
-    events: [
-      ctx.event(accessControl, "RoleGranted", [roleDigest, input.to, null], {
-        isOptional: false,
-      }),
-    ],
+  return ctx.directCall(input.title, {
+    on: accessControl,
+    fn: "grantRole",
+    args: [roleDigest, input.to],
+    events: [ctx.event(accessControl, "RoleGranted", [roleDigest, input.to, null])],
   });
 }
 
@@ -44,13 +42,11 @@ function revokeRole(ctx: BlueprintCtx, input: RevokeRoleInput): OmnibusDirectCal
     address: input.on.address,
   };
   const roleDigest = keccak256(toHex(input.role));
-  return ctx.call(accessControl, "revokeRole", [roleDigest, input.from], {
-    title: input.title,
-    events: [
-      ctx.event(accessControl, "RoleRevoked", [roleDigest, input.from, null], {
-        isOptional: false,
-      }),
-    ],
+  return ctx.directCall(input.title, {
+    on: accessControl,
+    fn: "revokeRole",
+    args: [roleDigest, input.from],
+    events: [ctx.event(accessControl, "RoleRevoked", [roleDigest, input.from, null])],
   });
 }
 

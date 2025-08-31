@@ -1,81 +1,118 @@
 import { encodeFunctionData } from "viem";
-import { Contract, getEventAbi } from "../../contracts/contracts";
 import fmt from "../../common/format";
-import { TxTrace } from "../../traces/tx-traces";
-import chalk from "chalk";
-import { Agent_ABI } from "../../../abi/Agent.abi";
+import { AgentContract, CallsScriptContract, Contract, VotingContract } from "../../contracts/contracts";
 import { OmnibusDirectCall } from "./omnibus-direct-call";
-import { ContractEvent, groupOmnibusTraceCalls } from "../omnibus";
+import { BaseOmnibusCall, DEFAULT_FORMAT_OPTIONS, event, OmnibusCallEvent } from "../omnibus";
+import { ExtractAbiFunctionNames } from "abitype";
+import { FindFunctionAbiParams } from "../../types/abi.types";
+import chalk from "chalk";
 
-type ExecutorContract = Contract<typeof Agent_ABI>;
+interface OmnibusExecuteCallContracts {
+  voting: VotingContract;
+  callsScript: CallsScriptContract;
+}
 
-export class OmnibusExecuteCall {
-  public readonly value: bigint = 0n;
-  public readonly executor: ExecutorContract;
+interface OmnibusForwardCallInput<
+  $Contract extends Contract = Contract,
+  $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]> = string,
+> {
+  on: $Contract;
+  value?: bigint;
+  fn: $FunctionName;
+  args: FindFunctionAbiParams<$Contract["abi"], $FunctionName>;
+  events: OmnibusCallEvent[];
+}
+
+export class OmnibusExecuteCall implements BaseOmnibusCall {
+  public readonly executor: AgentContract;
+
   public readonly call: OmnibusDirectCall;
 
-  constructor(executor: ExecutorContract, call: OmnibusDirectCall) {
-    this.call = call;
+  public static createCallBuilder(contracts: OmnibusExecuteCallContracts) {
+    return function executeCall<
+      $Contract extends Contract,
+      $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]>,
+    >(
+      title: string,
+      executor: AgentContract,
+      input: OmnibusForwardCallInput<$Contract, $FunctionName>,
+    ): OmnibusExecuteCall {
+      return new OmnibusExecuteCall(contracts, title, executor, input);
+    };
+  }
+
+  constructor(
+    contracts: OmnibusExecuteCallContracts,
+    title: string,
+    executor: AgentContract,
+    input: OmnibusForwardCallInput,
+  ) {
+    this.call = new OmnibusDirectCall(contracts, title, input);
     this.executor = executor;
   }
 
-  get target() {
+  get title() {
+    return this.call.title;
+  }
+
+  getValue() {
+    return this.call.getValue();
+  }
+
+  getTarget() {
     return this.executor.address;
   }
 
-  get calldata() {
+  getCalldata() {
     return encodeFunctionData({
       abi: this.executor.abi,
       functionName: "execute",
-      args: [this.call.target, this.call.value, this.call.calldata],
+      args: [
+        /* _target */ this.call.getTarget(),
+        /* _ethValue */ this.call.getValue(),
+        /* _data */ this.call.getCalldata(),
+      ],
     });
   }
 
-  get events(): ContractEvent[] {
-    const executeAbi = getEventAbi({ abi: Agent_ABI }, "Execute");
+  getEventsFor(target: "omnibus" | "proposal") {
     return [
-      ...this.call.events,
-      {
-        abi: executeAbi,
-        emitter: this.executor.address,
-        args: [
-          /* sender */ null,
-          /* target */ this.call.contract.address,
-          /* ethValue */ this.call.value,
-          /* data */ this.call.calldata,
-        ],
-        isOptional: false,
-      },
+      ...this.call.getEventsFor(target),
+      event(this.executor, "Execute", [
+        /* sender */ null,
+        /* target */ this.call.getTarget(),
+        /* ethValue */ this.call.getValue(),
+        /* data */ this.call.getCalldata(),
+      ]),
     ];
   }
 
-  formatCall(padLength: number = 0) {
+  formatCall({ padLength } = DEFAULT_FORMAT_OPTIONS) {
     return fmt.decodedFuncCall({
       contract: this.executor,
-      args: [this.call.target, this.call.value, this.call.calldata],
+      args: [this.call.getTarget(), this.call.getValue(), this.call.getCalldata()],
       functionName: "execute",
       padLength: padLength,
     });
   }
 
-  formatTitle(id?: string, padLength: number = 0) {
-    return [
-      fmt.padded(`${id}. Execute call via ${this.executor.label} (${this.executor.address}):`, padLength),
-      this.call.formatTitle(`${id}`, padLength + 1),
-    ].join("\n");
+  formatTitle(fmtOptions = DEFAULT_FORMAT_OPTIONS) {
+    return this.call.formatTitle(fmtOptions);
   }
 
-  format(id?: string, trace?: TxTrace, padLength: number = 0) {
+  format({ trace, padLength = 0 } = DEFAULT_FORMAT_OPTIONS) {
     const strBuilder: string[] = [
-      fmt.padded(
-        chalk.green.bold(`${id}. Execute call via ${this.executor.label} (${this.executor.address}):`),
-        padLength,
-      ),
+      chalk.green.bold(this.call.formatTitle({ padLength })),
+      this.formatCall({ padLength: padLength + 1 }),
+      fmt.padded(chalk.bold.underline(`Executed Call:`), padLength + 1),
+      this.call.formatCall({ padLength: padLength + 3 }),
     ];
-    strBuilder.push(this.formatCall(padLength + 1));
 
-    const nestedCallTraces = trace ? groupOmnibusTraceCalls([this.call], trace) : [];
-    strBuilder.push(this.call.format(`${id}`, nestedCallTraces[0], padLength + 1));
+    if (trace) {
+      strBuilder.push(fmt.padded(chalk.bold.underline("Trace:"), padLength + 2));
+      strBuilder.push(trace.format(padLength + 3));
+    }
+
     return strBuilder.join("\n");
   }
 }

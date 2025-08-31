@@ -1,6 +1,5 @@
-import { Address } from "viem";
-import { OmniScriptCtx } from "../tools/create-omnibus";
 import { OmnibusDirectCall } from "../calls/omnibus-direct-call";
+import { BlueprintCtx } from "../omnibus";
 
 export enum StakingModule {
   CuratedStakingModule = 1,
@@ -19,17 +18,7 @@ interface UpdateStakingModuleInput {
   minDepositBlockDistance: bigint;
 }
 
-interface NewNodeOperatorInput {
-  name: string;
-  rewardAddress: Address;
-}
-
-interface AddNodeOperatorsInput {
-  module: "curated" | "sdvt";
-  operators: NewNodeOperatorInput[] | readonly NewNodeOperatorInput[];
-}
-
-function updateStakingModule(ctx: OmniScriptCtx, input: UpdateStakingModuleInput): OmnibusDirectCall {
+function updateStakingModule(ctx: BlueprintCtx, input: UpdateStakingModuleInput): OmnibusDirectCall {
   const { stakingRouter } = ctx.contracts;
   const {
     stakingModuleId,
@@ -41,10 +30,10 @@ function updateStakingModule(ctx: OmniScriptCtx, input: UpdateStakingModuleInput
     minDepositBlockDistance,
   } = input;
 
-  return ctx.call(
-    stakingRouter,
-    "updateStakingModule",
-    [
+  return ctx.directCall(input.title, {
+    on: stakingRouter,
+    fn: "updateStakingModule",
+    args: [
       stakingModuleId,
       stakeShareLimit,
       priorityExitShareThreshold,
@@ -53,44 +42,24 @@ function updateStakingModule(ctx: OmniScriptCtx, input: UpdateStakingModuleInput
       maxDepositsPerBlock,
       minDepositBlockDistance,
     ],
-    {
-      title: `Update "${StakingModule[Number(stakingModuleId)]}" staking module`,
-      events: [
-        ctx.event(stakingRouter, "StakingModuleShareLimitSet", [
-          stakingModuleId,
-          stakeShareLimit,
-          priorityExitShareThreshold,
-          null,
-        ]),
-        ctx.event(stakingRouter, "StakingModuleFeesSet", [stakingModuleId, stakingModuleFee, treasuryFee, null]),
-        ctx.event(stakingRouter, "StakingModuleMaxDepositsPerBlockSet", [stakingModuleId, maxDepositsPerBlock, null]),
-        ctx.event(stakingRouter, "StakingModuleMinDepositBlockDistanceSet", [
-          stakingModuleId,
-          minDepositBlockDistance,
-          null,
-        ]),
-      ],
-    },
-  );
-}
-
-function addNodeOperators(ctx: OmniScriptCtx, input: AddNodeOperatorsInput): OmnibusDirectCall[] {
-  const { curatedStakingModule, simpleDvt } = ctx.contracts;
-  const { module, operators } = input;
-
-  const stakingModule = module === "curated" ? curatedStakingModule : module === "sdvt" ? simpleDvt : null;
-  if (!stakingModule) {
-    throw new Error(`Unsupported staking module type "${input.module}"`);
-  }
-  return operators.map(({ name, rewardAddress }) => {
-    return ctx.call(stakingModule, "addNodeOperator", [name, rewardAddress], {
-      title: `Add node operator ${name} with reward address ${rewardAddress}`,
-      events: [ctx.event(stakingModule, "NodeOperatorAdded", [null, name, rewardAddress, 0n])],
-    });
+    events: [
+      ctx.event(stakingRouter, "StakingModuleShareLimitSet", [
+        stakingModuleId,
+        stakeShareLimit,
+        priorityExitShareThreshold,
+        null,
+      ]),
+      ctx.event(stakingRouter, "StakingModuleFeesSet", [stakingModuleId, stakingModuleFee, treasuryFee, null]),
+      ctx.event(stakingRouter, "StakingModuleMaxDepositsPerBlockSet", [stakingModuleId, maxDepositsPerBlock, null]),
+      ctx.event(stakingRouter, "StakingModuleMinDepositBlockDistanceSet", [
+        stakingModuleId,
+        minDepositBlockDistance,
+        null,
+      ]),
+    ],
   });
 }
 
 export default {
-  addNodeOperators,
   updateStakingModule,
 };
