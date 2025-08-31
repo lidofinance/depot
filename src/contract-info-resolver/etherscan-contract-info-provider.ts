@@ -4,8 +4,7 @@ import { ContractInfoProvider, ContractInfo } from "./types";
 
 import bytes from "../common/bytes";
 import { Address } from "../common/types";
-import { BUILTIN_ETHERSCAN_CHAINS, EtherscanChainConfig } from "./etherscan-chains-config";
-import { NetworkName } from "../network";
+import { getChainIdByNetworkName, NetworkName } from "../network";
 
 interface EtherscanResponse<T = unknown> {
   status: "0" | "1";
@@ -39,21 +38,10 @@ interface EtherscanGetSourceCodeResult {
 }
 
 export class EtherscanContractInfoProvider implements ContractInfoProvider {
-  private readonly chains: EtherscanChainConfig[];
   private readonly etherscanToken: string;
 
-  private apiUrl(networkName: NetworkName): string {
-    for (let config of this.chains) {
-      if (config.network === networkName) {
-        return config.urls.apiURL;
-      }
-    }
-    throw new Error(`Unsupported network "${networkName}"`);
-  }
-
-  constructor(etherscanToken: string, customChains: EtherscanChainConfig[] = []) {
+  constructor(etherscanToken: string) {
     this.etherscanToken = etherscanToken;
-    this.chains = [...customChains, ...BUILTIN_ETHERSCAN_CHAINS];
   }
 
   async request(network: NetworkName, address: Address): Promise<ContractInfo> {
@@ -75,16 +63,13 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
     address: Address,
     attempts: number = 0,
   ): Promise<EtherscanGetSourceCodeResult> {
-    const apiUrl = this.apiUrl(networkName);
-
-    const getSourceCodeUrl = new URL(apiUrl);
-    const params = new URLSearchParams({
-      module: "contract",
+    const getSourceCodeUrl = `https://api.etherscan.io/v2/api?${new URLSearchParams({
+      chainid: getChainIdByNetworkName(networkName).toString(),
       action: "getsourcecode",
+      module: "contract",
       address: address,
       apikey: this.etherscanToken,
-    });
-    getSourceCodeUrl.search = params.toString();
+    }).toString()}`;
 
     const request = await fetch(getSourceCodeUrl);
     const response = (await request.json()) as EtherscanResponse<EtherscanGetSourceCodeResult[] | string>;

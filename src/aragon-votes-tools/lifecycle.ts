@@ -2,7 +2,7 @@ import { decodeEventLog, encodeEventTopics, encodeFunctionData } from "viem";
 import { RpcClient, WriteContractOptions } from "../network";
 import { EvmScriptParser } from "./evm-script-parser";
 import { HexStrPrefixed } from "../common/bytes";
-import { getLidoContracts } from "../contracts/contracts";
+import { getEventAbi, getLidoContracts } from "../contracts/contracts";
 import { Voting_ABI } from "../../abi/Voting.abi";
 import { createTimedSpinner } from "../common/spinner";
 
@@ -56,4 +56,21 @@ export async function startAragonVote(
 export async function executeAragonVote(client: RpcClient, voteId: bigint, txOptions: WriteContractOptions) {
   const { voting } = getLidoContracts(client.getNetworkName());
   return client.write(voting, "executeVote", [voteId], txOptions);
+}
+
+export async function getExecuteReceipt(client: RpcClient, voteId: bigint, fromBlock?: number | bigint) {
+  const { voting } = getLidoContracts(client.getNetworkName());
+  const executeVoteFilter = await client.viemClient.createEventFilter({
+    address: voting.address,
+    event: getEventAbi(voting, "ExecuteVote"),
+    args: [voteId],
+    fromBlock: fromBlock ? BigInt(fromBlock) : undefined,
+  });
+  const executeLogs = await client.viemClient.getFilterLogs({ filter: executeVoteFilter });
+  if (executeLogs.length === 0) {
+    throw new Error(`ExecuteVote event with id ${voteId} is not found at block ${fromBlock}`);
+  }
+  return client.viemClient.getTransactionReceipt({
+    hash: executeLogs[0].transactionHash,
+  });
 }

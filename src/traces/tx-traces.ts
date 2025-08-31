@@ -188,7 +188,7 @@ export class TxTrace {
         }) as { eventName: string; args: Record<string, any> };
 
         const abi = getEventAbi(contracts[i], eventName);
-        decoded = { abi, args };
+        decoded = { abi, args: args ?? [] };
         break;
       } catch {}
     }

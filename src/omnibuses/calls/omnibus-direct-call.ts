@@ -1,88 +1,116 @@
 import chalk from "chalk";
-import fmt from "../../common/format";
-import { TxTrace } from "../../traces/tx-traces";
 import { encodeFunctionData } from "viem";
-import { Contract, getEventAbi } from "../../contracts/contracts";
-import { CallsScript_ABI } from "../../../abi/CallsScript.abi";
-import { Voting_ABI } from "../../../abi/Voting.abi";
-import { ContractEvent } from "../omnibus";
 
-interface OmnibusDirectCallArgs {
-  title: string;
-  voting: Contract<typeof Voting_ABI>;
-  contract: Contract;
-  functionName: string;
-  args: unknown[];
-  callEvents: ContractEvent[];
+import fmt from "../../common/format";
+import { CallsScriptContract, Contract, LidoContracts, VotingContract } from "../../contracts/contracts";
+import { BaseOmnibusCall, OmnibusCallEvent, DEFAULT_FORMAT_OPTIONS, event } from "../omnibus";
+import { ExtractAbiFunctionNames } from "abitype";
+import { FindFunctionAbiParams } from "../../types/abi.types";
+
+interface OmnibusDirectCallContracts {
+  voting: VotingContract;
+  callsScript: CallsScriptContract;
+}
+
+interface OmnibusDirectCallInput<
+  $Contract extends Contract = Contract,
+  $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]> = string,
+> {
+  on: $Contract;
+  fn: $FunctionName;
+  args: FindFunctionAbiParams<$Contract["abi"], $FunctionName>;
+  events: OmnibusCallEvent[];
   value?: bigint;
 }
 
-export class OmnibusDirectCall {
-  public readonly voting: Contract<typeof Voting_ABI>;
-  public readonly contract: Contract;
-
+export class OmnibusDirectCall implements BaseOmnibusCall {
   public readonly title: string;
   public readonly functionName: string;
-  public readonly args: unknown[];
-  public readonly callEvents: ContractEvent[];
-  public readonly value: bigint;
+  public readonly args: readonly unknown[];
 
-  constructor({ voting, title, args, contract, functionName, callEvents: events, value = 0n }: OmnibusDirectCallArgs) {
-    this.voting = voting;
-    this.contract = contract;
-    this.args = args;
+  readonly #value: bigint;
+  readonly #target: Contract;
+  readonly #events: OmnibusCallEvent[];
+
+  readonly #voting: VotingContract;
+  readonly #callsScript: CallsScriptContract;
+
+  static createCallBuilder({ voting, callsScript }: OmnibusDirectCallContracts) {
+    return function directCall<
+      $Contract extends Contract,
+      $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]>,
+    >(title: string, input: OmnibusDirectCallInput<$Contract, $FunctionName>): OmnibusDirectCall {
+      return new OmnibusDirectCall({ voting, callsScript }, title, input);
+    };
+  }
+
+  constructor(contracts: OmnibusDirectCallContracts, title: string, input: OmnibusDirectCallInput) {
     this.title = title;
-    this.callEvents = events;
-    this.functionName = functionName;
-    this.value = value;
+    this.args = input.args;
+    this.functionName = input.fn;
+
+    this.#voting = contracts.voting;
+    this.#callsScript = contracts.callsScript;
+
+    this.#events = input.events;
+    this.#value = input.value ?? 0n;
+    this.#target = input.on;
   }
 
-  get events() {
-    return [
-      {
-        abi: getEventAbi({ abi: CallsScript_ABI }, "LogScriptCall"),
-        emitter: this.voting.address,
-        args: [null, null, null],
-        isOptional: false,
-      },
-      ...this.callEvents,
-    ];
+  getValue() {
+    return this.#value;
   }
 
-  get target() {
-    return this.contract.address;
+  getTarget() {
+    return this.#target.address;
   }
 
-  get calldata() {
+  getCalldata() {
     return encodeFunctionData({
-      abi: this.contract.abi,
+      abi: this.#target.abi,
       args: this.args,
       functionName: this.functionName,
     });
   }
 
-  formatCall(padLength: number = 0) {
+  getEventsFor(target: "omnibus" | "proposal") {
+    if (target === "omnibus") {
+      return [
+        event(
+          this.#callsScript,
+          "LogScriptCall",
+          [/* sender */ null, /* src */ this.#voting.address, /* dst */ this.#target.address],
+          { emitter: this.#voting.address },
+        ),
+        ...this.#events,
+      ];
+    } else if (target === "proposal") {
+      return this.#events;
+    }
+    throw new Error("Unexpected target type");
+  }
+
+  formatCall({ padLength } = DEFAULT_FORMAT_OPTIONS) {
     return fmt.decodedFuncCall({
       args: this.args,
-      contract: this.contract,
+      contract: this.#target,
       functionName: this.functionName,
       padLength: padLength,
     });
   }
 
-  format(id?: string, trace?: TxTrace, padLength: number = 0) {
+  format({ trace, padLength = 0 } = DEFAULT_FORMAT_OPTIONS) {
     const strBuilder: string[] = [
-      fmt.padded(chalk.green.bold(`${id}. ${this.title}`), padLength),
-
-      this.formatCall(padLength + 1),
+      fmt.padded(chalk.green.bold(this.title), padLength),
+      this.formatCall({ padLength: padLength + 1 }),
     ];
     if (trace) {
-      strBuilder.push(fmt.padded("Trace:", padLength + 1), trace.format(padLength + 2));
+      strBuilder.push(fmt.padded(chalk.bold.underline("Trace:"), padLength + 1), trace.format(padLength + 2));
     }
     return strBuilder.join("\n");
   }
 
-  formatTitle(id?: string, padLength: number = 0) {
-    return fmt.padded(`${id}. ${this.title}`, padLength);
+  formatTitle({ padLength } = DEFAULT_FORMAT_OPTIONS) {
+    return fmt.padded(this.title, padLength);
   }
 }

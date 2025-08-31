@@ -1,5 +1,7 @@
 import "dotenv/config";
 
+export const LOCAL_ETH_RPC_URL = () => getOptionalEnvVar("LOCAL_ETH_RPC_URL", "http://localhost:8545");
+
 export const LOCAL_ETH_RPC_PORT = () => process.env.LOCAL_ETH_RPC_PORT || "8545";
 export const LOCAL_ARB_RPC_PORT = () => process.env.LOCAL_ARB_RPC_PORT || "8546";
 export const LOCAL_OPT_RPC_PORT = () => process.env.LOCAL_OPT_RPC_PORT || "8547";

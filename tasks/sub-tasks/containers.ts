@@ -57,7 +57,7 @@ export const prepareRpcNodeWithVoting = async (repo: string, omnibus: Omnibus, i
   const client = await createDevRpcClient(omnibus.network, rpcUrl);
   await cleanUpNode(client);
   try {
-    await adoptAragonVoting(client, omnibus.script, omnibus.formatSummary());
+    await adoptAragonVoting(client, omnibus.getEvmScript(), omnibus.formatDescription());
   } catch (err) {
     throw err;
   }

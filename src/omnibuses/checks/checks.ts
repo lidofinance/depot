@@ -1,5 +1,4 @@
 import easyTrack from "./easy-track";
-import events from "./events";
 import stakingRouter from "./staking-router";
 import tokens from "./tokens";
 import { LidoContracts, LidoImpls, LidoProxies } from "../../contracts/contracts";
@@ -14,7 +13,6 @@ export interface CheckContext {
 
 export default {
   easyTrack,
-  events,
   stakingRouter,
   tokens,
 };

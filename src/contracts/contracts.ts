@@ -1,13 +1,27 @@
-import { Abi, AbiEvent, AbiFunction, Address, getAbiItem } from "viem";
 import bytes from "../common/bytes";
-import { FilterAbiEvents, FilterAbiFunctions } from "../types/abi.types";
 import { NetworkName } from "../network";
-import * as env from "../common/env";
+import { Abi, AbiEvent, AbiFunction, Address, getAbiItem } from "viem";
+import { FilterAbiEvents, FilterAbiFunctions } from "../types/abi.types";
 import { ContractInfoResolver } from "../contract-info-resolver/contract-info-resolver";
-import { EtherscanContractInfoProvider } from "../contract-info-resolver/etherscan-contract-info-provider";
 
 import { LidoMainnetConfig, LIDO_ON_MAINNET } from "../../configs/lido.mainnet";
 import { LidoHoleskyConfig, LIDO_ON_HOLESKY } from "../../configs/lido.holesky";
+import { LIDO_ON_HOODI, LidoHoodiConfig } from "../../configs/lido.hoodi";
+import { Executor_ABI } from "../../abi/Executor.abi";
+import { Voting_ABI } from "../../abi/Voting.abi";
+import { EmergencyProtectedTimelock_ABI } from "../../abi/EmergencyProtectedTimelock.abi";
+import { CallsScript_ABI } from "../../abi/CallsScript.abi";
+import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
+import { TimelockedGovernance_ABI } from "../../abi/TimelockedGovernance.abi";
+import { Agent_ABI } from "../../abi/Agent.abi";
+
+export type AgentContract = Contract<typeof Agent_ABI>;
+export type VotingContract = Contract<typeof Voting_ABI>;
+export type ExecutorContract = Contract<typeof Executor_ABI>;
+export type TimelockContract = Contract<typeof EmergencyProtectedTimelock_ABI>;
+export type CallsScriptContract = Contract<typeof CallsScript_ABI>;
+export type DualGovernanceContract = Contract<typeof DualGovernance_ABI>;
+export type TimelockedGovernanceContract = Contract<typeof TimelockedGovernance_ABI>;
 
 export interface Contract<T extends Abi = Abi, A extends Address = Address> {
   abi: T;
@@ -19,19 +33,25 @@ export type LidoImpls<N extends NetworkName = NetworkName> = N extends "mainnet"
   ? ContractImpls<LidoMainnetConfig>
   : N extends "holesky"
     ? ContractImpls<LidoHoleskyConfig>
-    : never;
+    : N extends "hoodi"
+      ? ContractImpls<LidoHoodiConfig>
+      : never;
 
 export type LidoProxies<N extends NetworkName = NetworkName> = N extends "mainnet"
   ? ContractProxies<LidoMainnetConfig>
   : N extends "holesky"
     ? ContractProxies<LidoHoleskyConfig>
-    : never;
+    : N extends "hoodi"
+      ? ContractProxies<LidoHoodiConfig>
+      : never;
 
 export type LidoContracts<N extends NetworkName = NetworkName> = N extends "mainnet"
   ? ContractInstances<LidoMainnetConfig>
   : N extends "holesky"
     ? ContractInstances<LidoHoleskyConfig>
-    : never;
+    : N extends "hoodi"
+      ? ContractInstances<LidoHoodiConfig>
+      : never;
 
 type ContractInstances<T extends ContractsMap> = {
   [K in keyof T]: T[K] extends ContractConfig
@@ -79,12 +99,19 @@ interface ContractsMap {
 // Public Methods
 // ---
 
+export function contract<T extends Abi>(abi: T, address: Address, label = `Contract[${address}]`): Contract<T> {
+  return { abi, address, label };
+}
+
 export function getLidoContracts<N extends NetworkName>(network: N) {
   if (network === "mainnet") {
     return buildInstances(LIDO_ON_MAINNET) as LidoContracts<N>;
   }
   if (network === "holesky") {
     return buildInstances(LIDO_ON_HOLESKY) as LidoContracts<N>;
+  }
+  if (network === "hoodi") {
+    return buildInstances(LIDO_ON_HOODI) as LidoContracts<N>;
   }
   throw new Error("Unsupported network");
 }
@@ -96,6 +123,9 @@ export function getLidoProxies<N extends NetworkName>(network: N) {
   if (network === "holesky") {
     return buildProxies(LIDO_ON_HOLESKY) as LidoProxies<N>;
   }
+  if (network === "hoodi") {
+    return buildProxies(LIDO_ON_HOODI) as LidoProxies<N>;
+  }
   throw new Error("Unsupported network");
 }
 
@@ -105,6 +135,9 @@ export function getLidoImpls<N extends NetworkName>(network: N) {
   }
   if (network === "holesky") {
     return buildImpls(LIDO_ON_HOLESKY) as LidoImpls<N>;
+  }
+  if (network === "hoodi") {
+    return buildImpls(LIDO_ON_HOODI) as LidoImpls<N>;
   }
   throw new Error("Unsupported network");
 }
@@ -144,28 +177,14 @@ export async function resolveContract(network: NetworkName, address: Address): P
     return locallyResolved;
   }
 
-  const etherscanToken = env.ETHERSCAN_TOKEN();
-  const etherscanCacheEnabled = env.ETHERSCAN_CACHE_ENABLED();
-
-  if (!etherscanToken) {
-    throw new Error("ETHERSCAN_TOKEN env variable not set");
-  }
-
-  const contractInfoResolver = new ContractInfoResolver(
-    {
-      contractInfoProvider: new EtherscanContractInfoProvider(etherscanToken),
-    },
-    etherscanCacheEnabled,
-  );
-
-  const resolvedContract = await contractInfoResolver.resolve(network, address);
+  const resolvedContract = await ContractInfoResolver.resolve(network, address);
   const implAddress = resolvedContract.implementation;
 
   if (!implAddress) {
     return [{ address, abi: resolvedContract.abi, label: getInstanceLabel(resolvedContract.name) }];
   }
 
-  const resolvedContractImpl = await contractInfoResolver.resolve(network, implAddress);
+  const resolvedContractImpl = await ContractInfoResolver.resolve(network, implAddress);
 
   return [
     { address, abi: resolvedContractImpl.abi, label: getProxyLabel(resolvedContractImpl.name) },

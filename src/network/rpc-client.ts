@@ -1,4 +1,5 @@
 import {
+  Abi,
   Account,
   Address,
   Chain,
@@ -12,10 +13,17 @@ import {
 } from "viem";
 import { Contract } from "../contracts";
 import { NetworkName } from "./network";
+import { HexStrPrefixed } from "../common/bytes";
 
 interface NodeInfo {
   name: string;
   version: string;
+}
+
+interface DeployContractInput {
+  abi: Abi;
+  bytecode: HexStrPrefixed;
+  args?: unknown[];
 }
 
 type PublicWalletClient = PublicClient<HttpTransport | CustomTransport, Chain, undefined> &
@@ -89,6 +97,22 @@ export class RpcClient {
     params: P,
   ): Promise<R> {
     return this.viemClient.transport.request({ method, params });
+  }
+
+  async deployContract(input: DeployContractInput, options: WriteContractOptions) {
+    const hash = await this.viemClient.deployContract({
+      abi: input.abi,
+      args: input.args,
+      bytecode: input.bytecode,
+      account: options.from,
+      maxFeePerGas: options.maxFeePerGas,
+      maxPriorityFeePerGas: options.maxPriorityFeePerGas,
+    });
+    const receipt = await this.viemClient.waitForTransactionReceipt({ hash });
+    if (!receipt.contractAddress) {
+      throw new Error(`Contract deploy failed`);
+    }
+    return receipt.contractAddress;
   }
 
   getNetworkName() {
