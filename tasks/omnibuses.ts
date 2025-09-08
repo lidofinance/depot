@@ -5,15 +5,20 @@ import * as types from "hardhat/internal/core/params/argumentTypes";
 import { passAragonVote, setupLdoHolder, startAragonVote } from "../src/aragon-votes-tools";
 import prompt from "../src/common/prompt";
 import * as env from "../src/common/env";
-import { isKnownError } from "../src/common/errors";
 import fs from "node:fs/promises";
 import fmt from "../src/common/format";
 
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { findContainerByName, RPC_NODE_SETTING, stopContainer } from "../src/docker";
-import { runCoreTests, runScriptsTests, runDgTests } from "./sub-tasks/containers";
+import { Repos, runImageInBackground } from "../src/docker";
+import { runRepoTests } from "./sub-tasks/containers";
 import { formatEther } from "viem";
-import { createDevRpcClient, createRpcClient, getChainIdByNetworkName, NetworkName } from "../src/network/network";
+import {
+  createDevRpcClient,
+  createRpcClient,
+  getChainIdByNetworkName,
+  getLocalRpcUrl,
+  NetworkName,
+} from "../src/network/network";
 import { privateKeyToAccount } from "viem/accounts";
 import format from "../src/common/format";
 import { getLidoContracts } from "../src/contracts/contracts";
@@ -26,6 +31,7 @@ import { uploadDescription } from "./sub-tasks/upload-description";
 import { DevRpcClient, RpcClient } from "../src/network";
 import { createTimedSpinner } from "../src/common/spinner";
 import { ProposalStatus } from "../src/omnibuses/dual-governance";
+import { logBlue } from "../src/common/color";
 
 task("omnibus:scaffold", "Create new empty omnibus from the template").setAction(async ({}) => {
   const network: NetworkName = await prompt.select("Choose the network:", [
@@ -35,7 +41,7 @@ task("omnibus:scaffold", "Create new empty omnibus from the template").setAction
   ]);
 
   const omnibusName = await prompt.text(
-    `Enter the name of the omnibus in the format "yyyy_dd_mm_some_optional_info" (for example 2025_12_31_happy_new_year_omni):`,
+    `Enter the name of the omnibus in the format "yyyy_dd_mm_some_optional_info" (for example: 2025_12_31 or 2025_12_31_happy_new_year_omni):`,
   );
 
   if (omnibusName.length === 0) {
@@ -124,34 +130,49 @@ function omnibusNameToDescriptionHeader(omnibusName: string) {
     .replace(/(\d{4}) (\d{2}) (\d{2})/g, "$1-$2-$3");
 }
 
-task("omnibus:deploy", "Deploy onchain omnibus contract")
+task("omnibus:deploy", "Run deploy method on omnibus contract")
   .addPositionalParam<string>("name", "Name of the onchain omnibus to deploy", undefined, types.string, false)
-  .setAction(async ({ name }, hre) => {
+  .addFlag("broadcast", "broadcast the transaction to the network")
+  .setAction(async ({ name, broadcast = false }, hre) => {
     const omnibus = loadOmnibus(name);
 
-    const omnibusContractInfo = omnibus.getOmnibusContractInfo();
-
-    if (!omnibusContractInfo) {
-      throw new Error(`Omnibus doesn't contain contract to deploy`);
+    if (!omnibus.hasDeployMethod()) {
+      throw new Error(`Omnibus "${name}" doesn't have deploy method`);
     }
 
-    if (omnibusContractInfo.address) {
-      throw new Error(
-        `Omnibus contract ${omnibusContractInfo.name} already deployed at address ${omnibusContractInfo.address}`,
+    const deployment = omnibus.getDeployment();
+
+    if (deployment) {
+      const deployedAddresses = Object.fromEntries(
+        Object.entries(deployment).map(([name, contract]) => [name, contract.address]),
       );
+      throw new Error(`Omnibus contracts already deployed at ${JSON.stringify(deployedAddresses)}`);
     }
 
     await hre.run(TASK_COMPILE);
 
-    const client = await createRpcClient(omnibus.network);
+    const client = broadcast ? await createRpcClient(omnibus.network) : await prepareDevRpcClient(omnibus.network, hre);
+
+    if (broadcast) {
+      console.log(
+        chalk.bold.yellowBright(
+          `⚠️  "--broadcast" flag is set. Transaction will be sent to "${omnibus.network}" network\n`,
+        ),
+      );
+    } else {
+      console.log(
+        chalk.bold.yellowBright(`⚠️  "--broadcast" flag is not set. Transaction will be run on a local dev RPC node\n`),
+      );
+    }
+
     const deployer = privateKeyToAccount(await hre.keystores.unlock());
 
     console.log(`Network: ${client.getNetworkName()}`);
     console.log(`Deployer: ${deployer.address}`);
     console.log(`Balance: ${await client.getBalance(deployer.address)}`);
 
-    await prompt.confirm(`Deploy omnibus contract?`);
-    const deployedOmnibusContract = await omnibus.deployOmnibusContract(hre.artifacts, client, { from: deployer });
+    await prompt.confirm(`Deploy omnibus contract(s)?`);
+    const deployedOmnibusContract = await omnibus.deployOmnibusContracts(hre.artifacts, client, { from: deployer });
 
     console.log(`Omnibus contract ${deployedOmnibusContract.label} was deployed at ${deployedOmnibusContract.address}`);
   });
@@ -179,8 +200,13 @@ task("omnibus:trace", "Trace the omnibus with given name and shows the execution
   });
 
 task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
-  .addPositionalParam<string>("name", "Name of the omnibus to run")
-  .addOptionalParam<string>("repo", "Name of the repo for test: depot|core|scripts", undefined, types.string)
+  .addOptionalParam<string>("name", "Name of the omnibus to run")
+  .addOptionalParam<string>(
+    "repo",
+    "Name of the repo for test: depot|core|scripts|dual-governance",
+    undefined,
+    types.string,
+  )
   .addOptionalParam<string>("pattern", "Pattern for test run", undefined, types.string)
   .addOptionalParam<boolean>(
     "mountTests",
@@ -188,27 +214,68 @@ task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
     false,
     types.boolean,
   )
-  .addOptionalParam<boolean>(
-    "skipVoting",
-    "Restart hardhat-node container if it was running before task",
-    false,
-    types.boolean,
-  )
-  .addOptionalParam<boolean>("hideDebug", "Hide container logs and come extra information", false, types.boolean)
-  .setAction(async ({ name, repo, pattern, mountTests, skipVoting, hideDebug }, hre) => {
-    const omnibus = loadOmnibus(name);
+  .setAction(async ({ name, repo, pattern, mountTests }, hre) => {
+    let client: DevRpcClient;
+    let network: NetworkName;
 
-    env.checkEnvVars();
+    let snapshotId;
+    if (name) {
+      const omnibus = loadOmnibus(name);
 
-    // if (!repo || repo === "depot") {
-    //   await runDepotTests("_example_omnibus", hideDebug);
-    // }
+      network = omnibus.network;
+      client = await prepareLocalRpcNode(omnibus.network);
+      snapshotId = await client.snapshot();
 
-    await Promise.all([
-      (!repo || repo === "core") && runCoreTests(omnibus, pattern, hideDebug, mountTests),
-      (!repo || repo === "scripts") && runScriptsTests(omnibus, pattern, hideDebug, mountTests),
-      (!repo || repo === "dual-governance") && runDgTests(omnibus, pattern, hideDebug, mountTests),
-    ]);
+      await prepareOmnibus(hre, client, omnibus);
+      await omnibus.passOmnibus(client);
+    } else {
+      console.log("Omnibus name doesn't pass. Run tests without passing any omnibuses");
+      network = "mainnet";
+      client = await prepareLocalRpcNode("mainnet");
+      snapshotId = await client.snapshot();
+    }
+
+    try {
+      const repoNamesToTest: Exclude<Repos, "depot">[] = [];
+      if (!repo || repo === "core") {
+        repoNamesToTest.push("core");
+      }
+      if (!repo || repo === "dual-governance") {
+        repoNamesToTest.push("dual-governance");
+      }
+      if (!repo || repo === "scripts") {
+        repoNamesToTest.push("scripts");
+      }
+
+      const hideDebug = repoNamesToTest.length > 1;
+
+      const testRunResults = await Promise.all(
+        repoNamesToTest.map(
+          (repo) =>
+            new Promise<{ status: "fulfilled"; result: any } | { status: "rejected"; error: any }>(async (resolve) => {
+              try {
+                const res = await runRepoTests(repo, pattern, hideDebug, mountTests);
+                resolve({ status: "fulfilled", result: res });
+              } catch (error) {
+                console.error(`Tests run for repo "${repo}" has failed with error: ${error}`);
+                resolve({ status: "rejected", error: error });
+              }
+            }),
+        ),
+      );
+
+      for (let i = 0; i < repoNamesToTest.length; ++i) {
+        const repoName = repoNamesToTest[i];
+        const testRunResult = testRunResults[i];
+        if (testRunResult.status === "rejected") {
+          console.log(`Tests run for repo "${repoName}" has finished with error: ${testRunResult.error}`);
+        } else {
+          console.log(`Tests run for repo "${repoName} has finished successfully"`);
+        }
+      }
+    } finally {
+      await client.revert(snapshotId);
+    }
   });
 
 type OmnibusLaunchParams = {
@@ -222,8 +289,8 @@ task("omnibus:launch", "Launch the omnibus with given name")
   .setAction(async ({ name, broadcast }: OmnibusLaunchParams, hre) => {
     const omnibus = loadOmnibus(name);
 
-    if (omnibus.executedAt) {
-      throw new Error(`The omnibus "${omnibus.voteId}" already executed. Aborting...`);
+    if (omnibus.voteId || omnibus.launchedAt || omnibus.executedAt) {
+      throw new Error(`The omnibus "${omnibus.voteId}" already lunched. Aborting...`);
     }
 
     const client = broadcast ? await createRpcClient(omnibus.network) : await prepareDevRpcClient(omnibus.network, hre);
@@ -362,38 +429,40 @@ task("omnibus:execute-proposal", "Executes proposal with a given id")
     console.log(`Proposal with id ${proposalId} successfully executed`);
   });
 
-task("rpc:stop", "Stop local rpc node container").setAction(async () => {
-  env.checkEnvVars();
-
-  try {
-    const settings = Object.values(RPC_NODE_SETTING);
-    chalk.bold.green(`Stopping container ${settings.map(({ name }) => name).join(",")} `);
-    const container = await Promise.all(settings.map(async ({ name }) => await findContainerByName(name)));
-
-    const activeContainers = container.filter((container) => container !== null);
-    const activeNames = settings.filter((_, ind) => activeContainers[ind] !== null);
-
-    await Promise.all(activeContainers.map((container, ind) => stopContainer(container, activeNames[ind].name, true)));
-    chalk.bold.green(`Stopped all active containers: ${activeContainers.join(",")} `);
-    await prompt.sigint();
-  } catch (err) {
-    console.error(err);
-    if (!isKnownError(err)) {
-      throw err;
-    }
-    console.error(err.message);
-  }
-});
-
 function loadOmnibus(name: string) {
   const omnibus: Omnibus = require(`../omnibuses/${name}/${name}.ts`).default;
   omnibus.setName(name);
   return omnibus;
 }
 
+async function prepareLocalRpcNode(network: NetworkName) {
+  const name = "hh-rpc-node";
+  const cmd = ["pnpm", "start"];
+  const image = `ghcr.io/lidofinance/hardhat-node:2.26.0`;
+
+  const port = env.ETH_LOCAL_RPC_PORT();
+
+  try {
+    console.log(fmt.padded(`Trying to connect to the local RPC node at: ${port}...`, 2));
+    const client = await createDevRpcClient(network, port);
+    console.log(fmt.success(`Successfully connected to the RPC node at ${port}\n`));
+    return client;
+  } catch (error) {
+    console.log(fmt.padded(`Failed to connect to local RPC: "${(error as Error).message.split("\n")[0]}"`, 4));
+  }
+
+  logBlue(`Run ${name} container`);
+  await runImageInBackground(name, image, cmd, false, {
+    Env: [`ETH_RPC_URL=${getRpcUrl(network)}`],
+    HostConfig: { PortBindings: { "8545/tcp": [{ HostPort: port }] } },
+  });
+
+  return createDevRpcClient(network, getLocalRpcUrl(port));
+}
+
 async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntimeEnvironment) {
   console.log("⏳Preparing local dev RPC client...");
-  const localDevRpcUrl = env.LOCAL_ETH_RPC_URL();
+  const localDevRpcUrl = getLocalRpcUrl(env.ETH_LOCAL_RPC_PORT());
 
   try {
     console.log(fmt.padded(`Trying to connect to the local RPC node at: ${localDevRpcUrl}...`, 2));
@@ -417,44 +486,44 @@ async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntime
   return builtinHardhatClient;
 }
 
-async function prepareOmnibus(hre: HardhatRuntimeEnvironment, client: DevRpcClient | RpcClient, omnibus: Omnibus) {
-  const omnibusContractInfo = omnibus.getOmnibusContractInfo();
+export async function prepareOmnibus(
+  hre: HardhatRuntimeEnvironment,
+  client: DevRpcClient | RpcClient,
+  omnibus: Omnibus,
+) {
   console.log(`⏳Preparing omnibus "${omnibus.name}"...`);
-  if (omnibusContractInfo) {
-    console.log(fmt.padded(`Preparing contract "${omnibusContractInfo.name}"...`, 1));
-    if (omnibusContractInfo.address) {
-      console.log(
-        fmt.padded(
-          fmt.success(
-            `Omnibus contract "${omnibusContractInfo.name}" already deployed on ${omnibus.network} at address ${omnibusContractInfo.address}`,
-          ),
-          1,
-        ),
-      );
+
+  if (omnibus.hasDeployMethod()) {
+    console.log(`Omnibus "${omnibus.name}" has deploy() method, preparing contracts required for omnibus launch...`);
+    let deployment = omnibus.getDeployment();
+    if (deployment) {
+      console.log(`Contracts already deployed:`);
+      for (const [name, contract] of Object.entries(deployment)) {
+        console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
+      }
     } else if (client instanceof DevRpcClient) {
-      console.log(
-        fmt.padded(
-          `Omnibus contract "${omnibusContractInfo.name}" hasn't deployed. Deploying on the dev RPC node...`,
-          2,
-        ),
-      );
       console.log(fmt.padded("Compiling contracts before deploy...", 3));
-      const res = await hre.run(TASK_COMPILE, { quiet: true });
+      await hre.run(TASK_COMPILE, { quiet: true });
       console.log(fmt.padded(fmt.success("Contracts compiled successfully"), 3));
 
       const [deployer] = await client.getAccounts();
       console.log(fmt.padded(`Deploying omnibus contracts using test account ${deployer}`, 3));
-      await omnibus.deployOmnibusContract(hre.artifacts, client, { from: deployer }, { padLength: 4 });
-      console.log(fmt.padded(fmt.success(`All contracts successfully deployed `), 3));
+      deployment = await omnibus.deployOmnibusContracts(hre.artifacts, client, { from: deployer }, { padLength: 4 });
+      console.log(fmt.padded(fmt.success(`All contracts successfully deployed:`), 3));
+      for (const [name, contract] of Object.entries(deployment)) {
+        console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
+      }
     } else {
       throw new Error(
-        `Omnibus contract ${omnibusContractInfo.name} was not deployed. Use "omnibus:deploy <omnibus_name> --broadcast" command to deploy it before omnibus launch`,
+        `Omnibus contracts was not deployed. Use "omnibus:deploy <omnibus_name> --broadcast" command to deploy contracts`,
       );
     }
 
-    console.log(fmt.padded(`Loading and validating omnibus calls from the contract...`, 2));
-    await omnibus.loadAndValidateOmnibusContractCalls(client);
-    console.log(fmt.padded(fmt.success(`Omnibus calls successfully validated`), 2));
+    if (deployment.omnibus) {
+      console.log(fmt.padded(`Loading and validating omnibus calls from the contract...`, 2));
+      await omnibus.loadAndValidateOmnibusContractCalls(client);
+      console.log(fmt.padded(fmt.success(`Omnibus calls successfully validated`), 2));
+    }
   }
   console.log(fmt.success("Omnibus prepared\n"));
 

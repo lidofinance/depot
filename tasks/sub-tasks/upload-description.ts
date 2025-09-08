@@ -1,4 +1,3 @@
-import { Omnibus } from "../../src/omnibuses";
 import prompt from "../../src/common/prompt";
 import { calculateCid, getUrlByCidV1, isCidUploaded } from "../../src/ipfs/utils";
 import { getIpfsProvider, instruction } from "../../src/ipfs/ipfs-provider";

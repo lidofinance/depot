@@ -17,7 +17,7 @@ interface OmnibusForwardCallInput<
   $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]> = string,
 > {
   on: $Contract;
-  value?: bigint;
+  value: bigint;
   fn: $FunctionName;
   args: FindFunctionAbiParams<$Contract["abi"], $FunctionName>;
   events: OmnibusCallEvent[];

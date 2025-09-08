@@ -25,6 +25,7 @@ import { StakingRouter_ABI } from "../abi/StakingRouter.abi";
 import { StETH_ABI } from "../abi/StETH.abi";
 import { TokenManager_ABI } from "../abi/TokenManager.abi";
 import { Voting_ABI } from "../abi/Voting.abi";
+import { WithdrawalQueue_ABI } from "../abi/WithdrawalQueue.abi";
 import { WstETH_ABI } from "../abi/WstETH.abi";
 
 export type LidoHoleskyConfig = typeof LIDO_ON_HOLESKY;
@@ -197,6 +198,16 @@ export const LIDO_ON_HOLESKY = {
   veboHashConsensus: {
     abi: HashConsensus_ABI,
     address: "0xe77Cf1A027d7C10Ee6bb7Ede5E922a181FF40E8f",
+  },
+  withdrawalQueue: {
+    proxy: {
+      abi: OssifiableProxy_ABI,
+      address: "0xc7cc160b58F8Bb0baC94b80847E2CF2800565C50",
+    },
+    impl: {
+      abi: WithdrawalQueue_ABI,
+      address: "0xFF72B5cdc701E9eE677966B2702c766c38F412a4",
+    },
   },
   csHashConsensus: {
     abi: HashConsensus_ABI,

@@ -4,34 +4,9 @@ import process from "node:process";
 import chalk from "chalk";
 import { createWriteStream } from "node:fs";
 import { logGreen } from "../common/color";
-
-export const RPC_NODE_SETTING: Record<string, { name: string; port: string; idx: number }> = {
-  core: {
-    name: "rpc-node-core",
-    port: "18545",
-    idx: 0,
-  },
-  depot: {
-    name: "rpc-node-depot",
-    port: "28545",
-    idx: 1,
-  },
-  "dual-governance": {
-    name: "rpc-node-dual-governance",
-    port: "28545",
-    idx: 2,
-  },
-  scripts: {
-    name: "rpc-node-scripts",
-    port: "38545",
-    idx: 3,
-  },
-  "scripts-1": {
-    name: "rpc-node-scripts-1",
-    port: "48545",
-    idx: 4,
-  },
-};
+import util from "node:util";
+import { Transform } from "node:stream";
+import os from "os";
 
 type ContainerRunResponse = [{ StatusCode: number }, Container, id: string, Record<string, {}>];
 
@@ -143,19 +118,35 @@ export async function runImageInBackground(
 
 export type Repos = "core" | "depot" | "scripts" | "dual-governance";
 
-async function getLastCommitSha(org: string, repo: string, branch: string) {
-  const url = `https://api.github.com/repos/${org}/${repo}/commits/${branch}`;
-  const response = await fetch(url);
-  console.log(url);
-  const item = await response.json();
-  if (!item?.sha) {
-    throw new Error(`Could not received a commit information for "${repo}"`);
-  }
-  return item.sha as string;
+interface GitRefsResponse {
+  ref: string;
+  node_id: string;
+  url: string;
+  object: {
+    sha: string;
+    type: string;
+    url: string;
+  };
 }
 
-export async function getImageTag(org: string, repo: string, branch: string) {
-  let buildVersion;
+function isGitRefsResponse(obj: any): obj is GitRefsResponse {
+  return "ref" in obj && "node_id" in obj && "url" in obj && "object" in obj;
+}
+
+async function getLastCommitSha(org: string, repo: string, branch: string) {
+  const url = `https://api.github.com/repos/${org}/${repo}/git/refs/heads/${branch}`;
+  const response = await fetch(url);
+  const item = await response.json();
+
+  if (!isGitRefsResponse(item)) {
+    throw new Error(`Could not received a commit information for "${repo}": ${JSON.stringify(item)}`);
+  }
+
+  return item.object.sha;
+}
+
+async function getBuildVersion(org: string, repo: string, branch: string) {
+  let buildVersion = "";
   if (branch) {
     const sha = await getLastCommitSha(org, repo, branch);
     buildVersion = sha?.slice(0, 7);
@@ -163,20 +154,65 @@ export async function getImageTag(org: string, repo: string, branch: string) {
     // TODO: ask about rebuild or verify changes somehow or mount local dir
     buildVersion = "latest";
   }
-
-  return { imageTag: `depot/${repo}:${buildVersion}`, buildVersion };
+  return buildVersion;
 }
 
-export async function buildRepo(repo: string, branch: string, hideDebug: boolean) {
+function getTargetPlatformArgs() {
+  const arch = os.arch();
+
+  // Convert Node.js arch to Docker arch
+  const dockerArch =
+    {
+      x64: "amd64",
+      arm64: "arm64",
+      arm: "arm",
+      ia32: "386",
+    }[arch] || arch;
+
+  return {
+    TARGETARCH: dockerArch,
+    TARGETPLATFORM: `linux/${dockerArch}`,
+    BUILDPLATFORM: `linux/${dockerArch}`,
+  };
+}
+
+export async function buildRepo(repo: string, branch: string, hideDebug: boolean): Promise<string> {
   const org = env.GITHUB_ORG();
 
-  const { imageTag, buildVersion } = await getImageTag(org, repo, branch);
+  let buildVersion = "";
 
-  const images = await docker.listImages();
-  const image = images.find(({ RepoTags }) => RepoTags?.includes(imageTag));
+  try {
+    buildVersion = await getBuildVersion(org, repo, branch);
+  } catch (error) {
+    console.error(`Error on retrieving build version: ${(error as Error).message}`);
+  }
 
-  if (!image) {
+  let imageTag = `depot/${repo}:${buildVersion}`;
+
+  const image = await docker.listImages().then(
+    (images) =>
+      images
+        // when the tag can't be received, take the latest one
+        .filter(({ RepoTags }) => RepoTags?.some((tag) => tag.startsWith(imageTag)))
+        // the last at the top
+        .sort((i1, i2) => i2.Created - i1.Created)[0],
+  );
+
+  if (!buildVersion && !image.RepoTags?.includes(imageTag)) {
+    const actualRepoTag = image.RepoTags?.find((rt) => rt.startsWith(imageTag));
+    console.log(
+      chalk.yellow.bold(
+        `IMPORTANT: The build version for the repo "${repo}" is not set. Will be used tag ${actualRepoTag} `,
+      ),
+    );
+    return actualRepoTag!;
+  }
+
+  // the buildVersion was resolved but there is not image with such tag => it should be built
+  if (!!buildVersion && !image) {
     const stdout = hideDebug ? getStdout(imageTag) : process.stdout;
+
+    const targetPlatformArgs = getTargetPlatformArgs();
 
     console.log(`Image for ${repo} not found.`);
     console.log(`Creating image ${imageTag} to run fast next time`);
@@ -188,33 +224,96 @@ export async function buildRepo(repo: string, branch: string, hideDebug: boolean
       {
         t: imageTag,
         dockerfile: `tests@${repo}.Dockerfile`,
-        buildargs: { GIT_BRANCH: branch, BUILD_VERSION: buildVersion, GITHUB_ORG: org },
+        buildargs: {
+          ...targetPlatformArgs,
+          GIT_BRANCH: branch,
+          BUILD_VERSION: buildVersion,
+          GITHUB_ORG: org,
+        },
+        platform: "linux/arm64",
       },
     );
-    stream.pipe(stdout);
+
+    const cleanStream = new Transform({
+      transform(chunk, encoding, callback) {
+        try {
+          const streamLogRegExp = /{"stream":"(.*?)"}/i;
+          const text = chunk.toString("utf8");
+          const match = streamLogRegExp.exec(text) || [];
+
+          if (!match) {
+            throw new Error(`Unexpected format`);
+          }
+
+          let streamValue = match[1];
+
+          streamValue = streamValue
+            .replace(/\\n/g, "\n")
+            .replace(/\\r/g, "\r")
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, "\\");
+
+          streamValue = streamValue.replace(/\\u([0-9a-fA-F]{4})/g, (match, hex) => {
+            return String.fromCharCode(parseInt(hex, 16));
+          });
+
+          // Skip Docker headers if present
+          if (streamValue.charCodeAt(0) <= 8) {
+            streamValue = streamValue.slice(8); // Skip 8-byte Docker header
+          }
+          const cleaned = util.stripVTControlCharacters(streamValue);
+          callback(null, cleaned);
+        } catch (error) {
+          callback(null, chunk);
+        }
+      },
+    });
+
+    stream.pipe(cleanStream).pipe(stdout);
 
     await new Promise((resolve, reject) => {
       docker.modem.followProgress(stream, (err, res) => (err ? reject(err) : resolve(res)));
     });
   }
+
+  return imageTag;
+}
+
+export function createCleanOutputStream(targetStream: NodeJS.WritableStream) {
+  return new Transform({
+    transform(chunk, encoding, callback) {
+      let text = chunk.toString("utf8");
+
+      // Skip Docker headers if present
+      if (text.charCodeAt(0) <= 8) {
+        text = text.slice(8); // Skip 8-byte Docker header
+      }
+
+      const cleaned = util.stripVTControlCharacters(text);
+
+      if (cleaned) {
+        targetStream.write(cleaned);
+      }
+
+      callback();
+    },
+  });
 }
 
 export async function runTestsFromRepo(
   repo: Repos,
-  branch: string,
+  imageTag: string,
   cmd: string[],
   config: Docker.ContainerCreateOptions,
   hideDebug = false,
   instance = 0,
 ) {
   const docker = new Docker();
-  const org = env.GITHUB_ORG();
-  const { imageTag } = await getImageTag(org, repo, branch);
 
   const key = !instance ? repo : `${repo}-${instance}`;
   const name = `lido-${key}`;
 
-  const stdout = hideDebug ? getStdout(name) : process.stdout;
+  const stdout = createCleanOutputStream(hideDebug ? getStdout(name) : process.stdout);
 
   const container = await findContainerByName(name);
 
@@ -227,7 +326,7 @@ export async function runTestsFromRepo(
     Tty: false,
     name,
     ...config,
-    HostConfig: { AutoRemove: true, NetworkMode: `container:${RPC_NODE_SETTING[key].name}`, ...config?.HostConfig },
+    HostConfig: { AutoRemove: true, ExtraHosts: ["localhost:host-gateway"], ...config?.HostConfig },
   });
 
   const [statusInfo] = data;
@@ -236,7 +335,7 @@ export async function runTestsFromRepo(
     throw new Error(`Container ${name} stop working, but status code not found`);
   }
 
-  if (statusInfo?.StatusCode) {
+  if (statusInfo?.StatusCode && statusInfo?.StatusCode !== 143) {
     throw new Error(`Container ${name} stop working, with status code ${statusInfo.StatusCode}`);
   }
 

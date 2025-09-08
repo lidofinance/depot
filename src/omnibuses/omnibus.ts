@@ -15,7 +15,6 @@ import { OmnibusForwardCalls } from "./calls/omnibus-forward-calls";
 import { OmnibusSubmitProposalCall } from "./calls/omnibus-submit-calls";
 import { OmnibusForwardCall } from "./calls/omnibus-forward-call";
 import {
-  contract,
   Contract,
   getEventAbi,
   getFunctionAbi,
@@ -25,11 +24,11 @@ import {
   LidoContracts,
   LidoImpls,
   LidoProxies,
+  OmnibusBaseContract,
 } from "../contracts";
 import blueprints, { Blueprints } from "./blueprints";
 import { Agent_ABI } from "../../abi/Agent.abi";
 import { FilterAbiEvents, FindEventAbiParams } from "../types/abi.types";
-import { IOmnibus_ABI } from "../../abi/IOmnibus.abi";
 import { Artifacts } from "hardhat/types";
 import { createTimedSpinner } from "../common/spinner";
 import {
@@ -81,8 +80,6 @@ export interface OmnibusCallEvent {
   allowMultiple: boolean;
 }
 
-export type BlueprintCtx<$Network extends NetworkName = NetworkName> = Omit<OmnibusConfigCtx<$Network>, "blueprints">;
-
 type OmnibusCall =
   | OmnibusDirectCall
   | OmnibusForwardCall
@@ -96,7 +93,15 @@ interface OmnibusFormatParams {
   padLength?: number;
 }
 
-interface OmnibusConfigCtx<$Network extends NetworkName = NetworkName> {
+export type BlueprintCtx<$Network extends NetworkName = NetworkName> = Omit<
+  OmnibusConfigCtx<$Network>,
+  "blueprints" | "deployment"
+>;
+
+interface OmnibusConfigCtx<
+  $Network extends NetworkName = NetworkName,
+  $DeployedContracts extends Record<string, Contract> = Record<string, Contract>,
+> {
   impls: LidoImpls<$Network>;
   proxies: LidoProxies<$Network>;
   contracts: LidoContracts<$Network>;
@@ -109,6 +114,7 @@ interface OmnibusConfigCtx<$Network extends NetworkName = NetworkName> {
   submitCalls: ReturnType<typeof OmnibusSubmitProposalCall.createCallBuilder>;
   executeCall: ReturnType<typeof OmnibusExecuteCall.createCallBuilder>;
   blueprints: Blueprints;
+  deployment: $DeployedContracts;
 }
 
 interface DeployOmnibusContractCtx<N extends NetworkName> {
@@ -116,17 +122,10 @@ interface DeployOmnibusContractCtx<N extends NetworkName> {
   impls: LidoImpls<N>;
   proxies: LidoProxies<N>;
   client: RpcClient;
-  deployContract: (contractName: string, args: unknown[]) => Promise<Contract>;
+  deployContract: <T extends Contract>(contractName: string, args: unknown[]) => Promise<T>;
 }
 
-interface OmnibusContractConfig<$Network extends NetworkName> {
-  name: string;
-  address?: Address;
-  args?: unknown[];
-  deploy?: (ctx: DeployOmnibusContractCtx<$Network>) => Promise<Contract>;
-}
-
-interface OmnibusConfig<$Network extends NetworkName> {
+interface OmnibusConfig<$Network extends NetworkName, $DeployedContracts extends Record<string, Contract>> {
   network: $Network;
 
   /**
@@ -147,11 +146,12 @@ interface OmnibusConfig<$Network extends NetworkName> {
    */
   executedAt?: number | undefined;
 
-  contract?: OmnibusContractConfig<$Network>;
-
-  calls: (ctx: OmnibusConfigCtx<$Network>) => OmnibusCall[];
+  calls: (ctx: OmnibusConfigCtx<$Network, $DeployedContracts>) => OmnibusCall[];
   testVote: TestVoteFn<$Network>;
   testProposal?: TestProposalFn<$Network>;
+
+  deploy?: (ctx: DeployOmnibusContractCtx<$Network>) => Promise<$DeployedContracts>;
+  deployment?: $DeployedContracts;
 }
 
 interface VoteCall {
@@ -203,27 +203,43 @@ interface PassVoteResult {
   submittedProposalIds: bigint[];
 }
 
-export class Omnibus<$Network extends NetworkName = NetworkName> {
+export class Omnibus<
+  $Network extends NetworkName = NetworkName,
+  $DeployedContracts extends Record<string, Contract> = Record<string, Contract>,
+> {
   #name: string | undefined;
-
-  public readonly calls: OmnibusCall[];
 
   #contractVoteCalls?: VoteCall[];
   #contractEVMScript?: HexStrPrefixed;
 
   #deployedContracts: Record<Address, Contract> = {};
-  #deployedOmnibusContract?: Contract;
+  #deployment: $DeployedContracts | null = null;
+  #calls: OmnibusCall[] | null = null;
 
-  readonly #config: OmnibusConfig<$Network>;
+  readonly #config: OmnibusConfig<$Network, $DeployedContracts>;
+  readonly #ctx: Omit<OmnibusConfigCtx<$Network>, "deployment">;
 
-  static create<$Network extends NetworkName = NetworkName>(config: OmnibusConfig<$Network>) {
-    const contracts = getLidoContracts(config.network);
-    const { callsScript, voting, adminExecutor, emergencyProtectedTimelock } = contracts;
+  readonly #impls: LidoImpls<$Network>;
+  readonly #proxies: LidoProxies<$Network>;
+  readonly #contracts: LidoContracts<$Network>;
+
+  static create<
+    $Network extends NetworkName = NetworkName,
+    $DeployedContracts extends Record<string, Contract> = Record<string, Contract>,
+  >(config: OmnibusConfig<$Network, $DeployedContracts>) {
+    return new Omnibus(config);
+  }
+
+  constructor(config: OmnibusConfig<$Network, $DeployedContracts>) {
+    this.#impls = getLidoImpls(config.network);
+    this.#proxies = getLidoProxies(config.network);
+    this.#contracts = getLidoContracts(config.network);
+    const { callsScript, voting, adminExecutor, emergencyProtectedTimelock } = this.#contracts;
 
     const blueprintCtx: BlueprintCtx<$Network> = {
-      contracts,
-      proxies: getLidoProxies(config.network),
-      impls: getLidoImpls(config.network),
+      contracts: this.#contracts,
+      proxies: this.#proxies,
+      impls: this.#impls,
       event: event,
 
       executeCall: OmnibusExecuteCall.createCallBuilder({ callsScript, voting }),
@@ -245,14 +261,17 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
         blueprintsBound[blueprintNamespace][blueprintName] = blueprintMethod.bind(null, blueprintCtx);
       }
     }
-    const calls = config.calls({ ...blueprintCtx, blueprints: blueprintsBound });
 
-    return new Omnibus(config, calls);
-  }
-
-  constructor(config: OmnibusConfig<$Network>, calls: OmnibusCall[]) {
     this.#config = Object.freeze(config);
-    this.calls = calls;
+    this.#ctx = { ...blueprintCtx, blueprints: blueprintsBound };
+
+    if (!this.#config.deploy) {
+      this.#deployment = {} as $DeployedContracts;
+    }
+
+    if (this.#config.deployment) {
+      this.#deployment = this.#config.deployment;
+    }
   }
 
   get network() {
@@ -279,12 +298,32 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
     return this.#name ?? `Omnibus<${this.network}>`;
   }
 
+  hasDeployMethod() {
+    return !!this.#config.deploy;
+  }
+
+  getDeployment() {
+    return this.#deployment;
+  }
+
+  getCalls() {
+    if (!this.#deployment) {
+      throw new Error(
+        `Contract was not properly prepared for launch. Make sure "prepareOmnibus()" was called before usage`,
+      );
+    }
+    if (!this.#calls) {
+      this.#calls = this.#config.calls({ ...this.#ctx, deployment: this.#deployment });
+    }
+    return this.#calls;
+  }
+
   setName(newName: string) {
     this.#name = newName;
   }
 
   getEvmScript() {
-    if (this.#config.contract) {
+    if (this.getOmnibusContract()) {
       if (!this.#contractEVMScript) {
         throw new Error(`Contract data not loaded`);
       }
@@ -292,7 +331,7 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
     }
 
     return EvmScriptParser.encode(
-      this.calls.map((call) => ({
+      this.getCalls().map((call) => ({
         address: call.getTarget(),
         calldata: call.getCalldata(),
       })),
@@ -300,10 +339,12 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
   }
 
   getOmnibusEvents(): OmnibusCallEvent[] {
-    const { voting, callsScript } = getLidoContracts(this.network);
+    const { voting, callsScript } = this.#contracts;
 
     return [
-      ...this.calls.map((call) => call.getEventsFor("omnibus")).flat(),
+      ...this.getCalls()
+        .map((call) => call.getEventsFor("omnibus"))
+        .flat(),
       event(voting, "ScriptResult", [
         /* executor: */ callsScript.address,
         /* script: */ this.getEvmScript(),
@@ -314,32 +355,80 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
     ];
   }
 
-  getOmnibusContractInfo() {
-    if (!this.#config.contract) return undefined;
-
-    return {
-      name: this.#config.contract.name,
-      address: this.#deployedOmnibusContract?.address ?? this.#config.contract.address,
-      args: this.#config.contract.args,
-    };
+  getOmnibusContract() {
+    if (!this.#config.deploy) {
+      // if omnibus doesn't define deploy function, it can't be launched from contract
+      return undefined;
+    }
+    if (!this.#deployment) {
+      throw new Error(`Omnibus contracts is not deployed`);
+    }
+    if ("omnibus" in this.#deployment) {
+      return this.#deployment.omnibus as OmnibusBaseContract;
+    }
   }
 
   // ---
   // Omnibus Contract Methods
   // ---
 
-  async loadAndValidateOmnibusContractCalls(client: RpcClient) {
-    const omnibusContractInfo = this.getOmnibusContractInfo();
+  async deployOmnibusContracts(
+    artifacts: Artifacts,
+    client: RpcClient,
+    txOptions: WriteContractOptions,
+    formatOptions: Omit<FormatOptions, "trace"> = { padLength: 0 },
+  ) {
+    if (!this.#config.deploy) {
+      throw new Error(`Omnibus doesn't have contracts to deploy`);
+    }
+    if (this.#config.deployment) {
+      this.#deployment = this.#config.deployment;
+      return this.#deployment;
+    }
 
-    if (!omnibusContractInfo) {
+    const deployContract = async <T extends Contract>(name: string, args: unknown[]): Promise<T> => {
+      const artifact = await artifacts.readArtifact(name);
+      console.log(fmt.padded(`⏳Deploying contract ${name}...`, formatOptions.padLength));
+
+      const address = await client.deployContract(
+        {
+          args,
+          abi: artifact.abi,
+          bytecode: bytes.normalize(artifact.bytecode),
+        },
+        txOptions,
+      );
+
+      console.log(
+        fmt.padded(fmt.success(`Contract "${name}" was successfully deployed at ${address}`), formatOptions.padLength),
+      );
+
+      const contract = { abi: artifact.abi, address: address, label: artifact.contractName };
+      this.#deployedContracts[bytes.normalize(address)] = contract;
+      return contract as unknown as T;
+    };
+
+    this.#deployment = await this.#config.deploy({
+      client,
+      impls: this.#impls,
+      proxies: this.#proxies,
+      contracts: this.#contracts,
+      deployContract,
+    });
+
+    return this.#deployment;
+  }
+
+  async loadAndValidateOmnibusContractCalls(client: RpcClient) {
+    const omnibusContract = this.getOmnibusContract();
+
+    if (!omnibusContract) {
       throw new Error(`Omnibus doesn't contain "contract" property`);
     }
 
-    if (!omnibusContractInfo.address) {
+    if (!omnibusContract.address) {
       throw new Error(`Omnibus contract is not deployed. Make sure "contract.address" property is set.`);
     }
-
-    const omnibusContract = contract(IOmnibus_ABI, omnibusContractInfo.address, omnibusContractInfo.name);
 
     const [calls, evmScript] = await Promise.all([
       client.read(omnibusContract, "getOmnibusCalls", []),
@@ -360,66 +449,7 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
     this.#validateVoteCalls();
   }
 
-  async deployOmnibusContract(
-    artifacts: Artifacts,
-    client: RpcClient,
-    txOptions: WriteContractOptions,
-    formatOptions: Omit<FormatOptions, "trace"> = { padLength: 0 },
-  ) {
-    if (!this.#config.contract) {
-      throw new Error(`Omnibus doesn't contain contract to deploy`);
-    }
-
-    const impls = getLidoImpls(this.network);
-    const proxies = getLidoProxies(this.network);
-    const contracts = getLidoContracts(this.network);
-
-    const deployContract = async (name: string, args: unknown[]): Promise<Contract> => {
-      const artifact = await artifacts.readArtifact(name);
-      console.log(fmt.padded(`⏳Deploying contract ${name}...`, formatOptions.padLength));
-
-      const address = await client.deployContract(
-        {
-          args,
-          abi: artifact.abi,
-          bytecode: bytes.normalize(artifact.bytecode),
-        },
-        txOptions,
-      );
-
-      console.log(
-        fmt.padded(fmt.success(`Contract "${name}" was successfully deployed at ${address}`), formatOptions.padLength),
-      );
-
-      const contract = { abi: artifact.abi, address: address, label: artifact.contractName };
-      this.#deployedContracts[bytes.normalize(address)] = contract;
-      return contract;
-    };
-
-    if (this.#config.contract.deploy) {
-      this.#deployedOmnibusContract = await this.#config.contract.deploy({
-        client,
-        impls,
-        proxies,
-        contracts,
-        deployContract,
-      });
-    } else if (this.#config.contract.args) {
-      this.#deployedOmnibusContract = await deployContract(this.#config.contract.name, this.#config.contract.args);
-    } else {
-      throw new Error("Unable to deploy omnibus contract. No deploy or args parameter was provided.");
-    }
-
-    return this.#deployedOmnibusContract!;
-  }
-
-  // ---
-  // Tracing
-  // ---
-
   async trace(client: DevRpcClient) {
-    // TODO: add support for tracing already launched votings
-
     if (this.network !== client.getNetworkName()) {
       throw new Error(
         `Invalid network: Omnibus network is "${this.network}" but RPC connected to "${client.getNetworkName()}"`,
@@ -466,7 +496,11 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
         }
 
         spinner = createTimedSpinner(`Retrieving traces for executed DG proposals...`);
-        traces = await Promise.all(executeProposalReceipts.map((receipt) => trace(client, receipt.transactionHash)));
+        traces = await Promise.all(
+          executeProposalReceipts.map((receipt) =>
+            trace(client, receipt.transactionHash, Object.values(this.#deployment ?? {})),
+          ),
+        );
         spinner.succeed(`Traces successfully received`);
         console.log();
       }
@@ -492,6 +526,14 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
   // ---
   // Testing
   // ---
+
+  async passOmnibus(client: DevRpcClient) {
+    console.log("Passing omnibus...");
+    const { voteId, submittedProposalIds } = await this.#passOmnibus(client);
+    console.log(`Omnibus launched, aragon vote id = ${voteId}`);
+    console.log(`Passing proposals: [${submittedProposalIds}]`);
+    await processPendingProposals(client, submittedProposalIds);
+  }
 
   async test(client: DevRpcClient) {
     if (this.network !== client.getNetworkName()) {
@@ -542,15 +584,16 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
       console.log(fmt.padded(`${chalk.greenBright("✔")} All events validated`, 3));
     }
 
-    const impls = getLidoImpls(this.network);
-    const proxies = getLidoProxies(this.network);
-    const contracts = getLidoContracts(this.network);
-
     const checksBound: any = {};
     for (const [checksNamespace, checksMethods] of Object.entries(checks)) {
       checksBound[checksNamespace] = {};
       for (const [checkName, checkMethod] of Object.entries(checksMethods)) {
-        checksBound[checksNamespace][checkName] = checkMethod.bind(null, { client, impls, proxies, contracts });
+        checksBound[checksNamespace][checkName] = checkMethod.bind(null, {
+          client,
+          impls: this.#impls,
+          proxies: this.#proxies,
+          contracts: this.#contracts,
+        });
       }
     }
 
@@ -571,9 +614,9 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
         if (!this.#config.executedAt) {
           await this.#config.testVote({
             client,
-            impls,
-            proxies,
-            contracts,
+            impls: this.#impls,
+            proxies: this.#proxies,
+            contracts: this.#contracts,
             passOmnibus: async () =>
               this.#passOmnibus(client, (res) => {
                 voteId = res.voteId;
@@ -616,10 +659,10 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
       // Execute & Test Submitted Proposals
       // ---
 
-      const submitProposalCalls = this.calls.filter((call) => call instanceof OmnibusSubmitProposalCall);
+      const submitProposalCalls = this.getCalls().filter((call) => call instanceof OmnibusSubmitProposalCall);
       const submittedProposals = await Promise.all(
         submittedProposalIds.map((proposalId) =>
-          client.read(contracts.emergencyProtectedTimelock, "getProposalDetails", [proposalId]),
+          client.read(this.#contracts.emergencyProtectedTimelock, "getProposalDetails", [proposalId]),
         ),
       );
 
@@ -658,9 +701,9 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
           console.log(fmt.padded(`Passing & executing proposals [${submittedProposalIds}]...`, 2));
           await this.#config.testProposal({
             client,
-            impls,
-            proxies,
-            contracts,
+            impls: this.#impls,
+            proxies: this.#proxies,
+            contracts: this.#contracts,
             passProposals,
             checks: checksBound,
             submittedProposalIds,
@@ -703,20 +746,20 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
   // ---
 
   formatDescription(ipfsLink?: string, { padLength }: FormatOptions = DEFAULT_FORMAT_OPTIONS) {
-    const descriptionItems = this.calls.map((call) => call.formatTitle({ padLength }));
+    const descriptionItems = this.getCalls().map((call) => call.formatTitle({ padLength }));
     return ipfsLink ? [...descriptionItems, "", ipfsLink].join("\n") : descriptionItems.join("\n");
   }
 
   format({ executeOmnibusTrace, executeProposalTraces = [], padLength = 0 }: OmnibusFormatParams) {
     const strBuilder: string[] = [];
     const [extraCalls, callTraces] = executeOmnibusTrace
-      ? groupOmnibusTraceCalls(this.calls, executeOmnibusTrace)
+      ? groupOmnibusTraceCalls(this.getCalls(), executeOmnibusTrace)
       : [null, []];
 
     let executeProposalTraceIndex = 0;
-    for (let i = 0; i < this.calls.length; ++i) {
+    for (let i = 0; i < this.getCalls().length; ++i) {
       const callTrace = callTraces[i];
-      const omnibusCall = this.calls[i];
+      const omnibusCall = this.getCalls()[i];
 
       if (omnibusCall instanceof OmnibusSubmitProposalCall) {
         strBuilder.push(omnibusCall.format({ trace: executeProposalTraces[executeProposalTraceIndex], padLength }));
@@ -787,12 +830,12 @@ export class Omnibus<$Network extends NetworkName = NetworkName> {
       throw new Error(`Vote calls not loaded`);
     }
 
-    if (this.#contractVoteCalls.length !== this.calls.length) {
+    if (this.#contractVoteCalls.length !== this.getCalls().length) {
       throw new Error(`Unexpected vote calls count`);
     }
 
-    for (let i = 0; i < this.calls.length; ++i) {
-      const omnibusCall = this.calls[i];
+    for (let i = 0; i < this.getCalls().length; ++i) {
+      const omnibusCall = this.getCalls()[i];
       const voteCall = this.#contractVoteCalls[i];
       if (omnibusCall instanceof OmnibusDirectCall) {
         this.#validateVoteDirectCall(omnibusCall, voteCall);
@@ -1307,6 +1350,4 @@ function formatOmnibusCallEvent(event: OmnibusCallEvent, isSkipped: boolean) {
   const eventName = isSkipped ? chalk.yellow(event.abi.name) : chalk.green(event.abi.name);
   const strBuilder: string[] = [eventName, "(", argsStatuses.join(", "), chalk.magenta(")")];
   return strBuilder.join("");
-
-  // event.abi.name + "(" +
 }

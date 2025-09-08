@@ -10,6 +10,7 @@ const glob = require("glob");
 import { TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS } from "hardhat/builtin-tasks/task-names";
 import path from "path";
 import { ContractInfoResolver } from "./src/contract-info-resolver/contract-info-resolver";
+import { findContainerByName, stopContainer } from "./src/docker";
 
 const etherscanToken = env.ETHERSCAN_TOKEN();
 
@@ -28,6 +29,42 @@ subtask(TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS).setAction(async (_, hre, runSupe
 
   return [...paths, ...otherPaths];
 });
+
+let isShuttingDown = false;
+
+process.on("SIGINT", async () => {
+  console.log("SIGINT");
+  if (!isShuttingDown) {
+    isShuttingDown = true;
+    await stopDockerContainers();
+  }
+});
+
+process.on("SIGTERM", async () => {
+  console.log("SIGTERM");
+  if (!isShuttingDown) {
+    isShuttingDown = true;
+    await stopDockerContainers();
+  }
+});
+
+async function stopDockerContainers() {
+  const containerNames = ["lido-core", "lido-scripts", "lido-scripts-1", "lido-dual-governance", "hh-rpc-node"];
+  const containers = await Promise.all(containerNames.map((name) => findContainerByName(name)));
+
+  const stopContainerPromises: Promise<unknown>[] = [];
+  for (let i = 0; i < containerNames.length; ++i) {
+    const name = containerNames[i];
+    const container = containers[i];
+    if (container) {
+      console.log(`Stopping container ${name} initiated`);
+      stopContainerPromises.push(stopContainer(container, name));
+    }
+  }
+
+  console.log("Waiting for containers stopped...");
+  await Promise.allSettled(stopContainerPromises);
+}
 
 const config: HardhatUserConfig = {
   solidity: {

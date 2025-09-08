@@ -8,7 +8,7 @@ export default Omnibus.create({
   executedAt: undefined, // Execution block number should be set only if vote is passed and omnibus was successfully executed.
   quorumReached: undefined, // Should be set to true if quorum was reached during the vote.
 
-  calls: ({ contracts, blueprints, directCall, submitCalls, forwardCalls, event }) => [
+  calls: ({ contracts, blueprints, directCall, submitCalls, forwardCalls, forwardCall, event }) => [
     // Put omnibus calls here
   ],
 

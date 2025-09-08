@@ -27,6 +27,7 @@ import { CSModule_ABI } from "../abi/CSModule.abi";
 import { CSVerifier_ABI } from "../abi/CSVerifier.abi";
 import { CSVerifier_Proposed_ABI } from "../abi/CSVerifier_Proposed.abi";
 import { Escrow_ABI } from "../abi/Escrow.abi";
+import { WithdrawalQueue_ABI } from "../abi/WithdrawalQueue.abi";
 
 export type LidoHoodiConfig = typeof LIDO_ON_HOODI;
 
@@ -174,6 +175,16 @@ export const LIDO_ON_HOODI = {
   veboHashConsensus: {
     abi: HashConsensus_ABI,
     address: "0x30308CD8844fb2DB3ec4D056F1d475a802DCA07c",
+  },
+  withdrawalQueue: {
+    proxy: {
+      abi: OssifiableProxy_ABI,
+      address: "0xfe56573178f1bcdf53F01A6E9977670dcBBD9186",
+    },
+    impl: {
+      abi: WithdrawalQueue_ABI,
+      address: "0xD0a60e52837e045F4567193Cf8921191C486eCD5",
+    },
   },
   csHashConsensus: {
     abi: HashConsensus_ABI,
