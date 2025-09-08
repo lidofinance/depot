@@ -1,4 +1,4 @@
-# Omnibus "Offchain Omnibus Template"
+# Omnibus "Omnibus Template"
 
 ## Aragon Vote
 

@@ -1,6 +1,8 @@
 import { assert } from "chai";
 import { Omnibus } from "../../src/omnibuses";
 import { zeroAddress } from "viem";
+import { contract, OmnibusBaseContract } from "../../src/contracts";
+import { OmnibusBase_ABI } from "../../abi/OmnibusBase.abi";
 
 const ATC_STABLES_MULTISIG = "0x9B1cebF7616f2BC73b47D226f90b01a7c9F86956";
 const ATC_STABLES_LDO_TRANSFER_AMOUNT = 110_000n * 10n ** 18n;
@@ -46,9 +48,19 @@ export default Omnibus.create({
   // about the contract will be used to provide data for the omnibus launch
   // ---
 
-  contract: {
-    name: "ExampleOnchainOmnibus",
-    args: [],
+  // ---
+  // After the contract deployed on the mainnet put the deployed addresses in the "deployment" section
+  // to use the deployed addresses in the omnibus operations (launch, test, trace, and e.t.c)
+  // ---
+
+  // deployment: {
+  //   omnibus: contract(OmnibusBase_ABI, "0x", "ExampleOnchainOmnibus"),
+  // },
+
+  async deploy({ deployContract }) {
+    return {
+      omnibus: await deployContract<OmnibusBaseContract>("ExampleOnchainOmnibus", []),
+    };
   },
 
   calls: ({ blueprints, contracts, directCall, event, submitCalls, forwardCalls, executeCall, forwardCall }) => [

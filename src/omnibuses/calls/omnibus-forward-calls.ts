@@ -110,12 +110,11 @@ export class OmnibusForwardCalls implements BaseOmnibusCall {
     }
 
     strBuilder.push(
-      ...this.forwardedCalls.map(
-        (call, ind) =>
-          call.format({
-            trace: nestedCallTraces[ind],
-            padLength: padLength + 2,
-          }) + "\n",
+      ...this.forwardedCalls.map((call, ind) =>
+        call.format({
+          trace: nestedCallTraces[ind],
+          padLength: padLength + 2,
+        }),
       ),
     );
     return strBuilder.join("\n");

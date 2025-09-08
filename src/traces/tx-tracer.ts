@@ -22,7 +22,7 @@ export class TxTracer {
         addresses.add(callTraceItem.address!);
       }
     }
-    const resolvedContracts = await this.resolveContracts(network, Array.from(addresses));
+    const resolvedContracts = await this.resolveContracts(network, Array.from(addresses), prePopulatedContracts);
     return new TxTrace(
       network,
       bytes.normalize(callTraceItems[0].address || "0x"),
@@ -32,7 +32,11 @@ export class TxTracer {
     );
   }
 
-  private async resolveContracts(networkName: NetworkName, addresses: Address[]): Promise<Record<Address, Contract[]>> {
+  private async resolveContracts(
+    networkName: NetworkName,
+    addresses: Address[],
+    prePopulatedContracts: Contract[],
+  ): Promise<Record<Address, Contract[]>> {
     const res: Record<Address, Contract[]> = {};
 
     const allResolvedContracts = new Set<Address>();
@@ -40,6 +44,12 @@ export class TxTracer {
     for (const address of addresses) {
       const normalizedAddress = bytes.normalize(address);
       if (allResolvedContracts.has(normalizedAddress)) continue;
+      const prePopulatedContract = prePopulatedContracts.find((c) => bytes.isEqual(c.address, normalizedAddress));
+      if (prePopulatedContract) {
+        allResolvedContracts.add(normalizedAddress);
+        res[normalizedAddress] = [prePopulatedContract];
+        continue;
+      }
 
       let resolvedContracts = await resolveContract(networkName, normalizedAddress);
 

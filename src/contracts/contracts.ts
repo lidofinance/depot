@@ -14,7 +14,9 @@ import { CallsScript_ABI } from "../../abi/CallsScript.abi";
 import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
 import { TimelockedGovernance_ABI } from "../../abi/TimelockedGovernance.abi";
 import { Agent_ABI } from "../../abi/Agent.abi";
+import { OmnibusBase_ABI } from "../../abi/OmnibusBase.abi";
 
+export type OmnibusBaseContract = Contract<typeof OmnibusBase_ABI>;
 export type AgentContract = Contract<typeof Agent_ABI>;
 export type VotingContract = Contract<typeof Voting_ABI>;
 export type ExecutorContract = Contract<typeof Executor_ABI>;

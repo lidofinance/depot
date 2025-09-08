@@ -47,6 +47,13 @@ abstract contract OmnibusBase {
         return scriptBuilder.getResult();
     }
 
+    /// @notice Checks if `evmScript` is identical to this contract’s current EVM script.
+    /// @param evmScript EVM script to compare.
+    /// @return True if scripts match byte-for-byte, false otherwise.
+    function isValidEVMScript(bytes calldata evmScript) public view returns (bool) {
+        return keccak256(evmScript) == keccak256(getEVMScript());
+    }
+
     /// @notice Validates the specific vote on Aragon Voting contract against the vote items.
     /// @return A boolean value indicating whether the vote is valid.
     function isValidVoteScript(uint256 voteId) external view returns (bool) {

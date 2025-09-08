@@ -70,8 +70,6 @@ export interface TxTraceInput {
   gasLimit?: number | bigint;
 }
 
-const PADDING_SPACER = "   ";
-
 export class TxTrace {
   constructor(
     public readonly network: NetworkName,
@@ -122,9 +120,7 @@ export class TxTrace {
       try {
         const decoded = decodeFunctionData({ abi: c.abi, data: traceCallItem.input });
         const abiItem = getFunctionAbi(c, decoded.functionName, decoded.args);
-        // console.log("items:", abiItem.inputs.length, decoded.args?.length);
         if (abiItem.inputs.length !== (decoded.args?.length ?? 0)) {
-          // console.log("mismatch: ", abiItem.inputs, decoded.args);
           continue;
         }
         const result = traceCallItem.success

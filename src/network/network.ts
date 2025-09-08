@@ -84,6 +84,10 @@ export async function createDevRpcClient(
   return new DevRpcClient(network, viemClient);
 }
 
+export function getLocalRpcUrl(port: string | number) {
+  return `http://localhost:${port}`;
+}
+
 export default {
   MAINNET_CHAIN_ID,
   HOLESKY_CHAIN_ID,
