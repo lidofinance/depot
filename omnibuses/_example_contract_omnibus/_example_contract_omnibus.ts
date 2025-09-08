@@ -1,8 +1,7 @@
 import { assert } from "chai";
 import { Omnibus } from "../../src/omnibuses";
 import { zeroAddress } from "viem";
-import { contract, OmnibusBaseContract } from "../../src/contracts";
-import { OmnibusBase_ABI } from "../../abi/OmnibusBase.abi";
+import { OmnibusBaseContract } from "../../src/contracts";
 
 const ATC_STABLES_MULTISIG = "0x9B1cebF7616f2BC73b47D226f90b01a7c9F86956";
 const ATC_STABLES_LDO_TRANSFER_AMOUNT = 110_000n * 10n ** 18n;
@@ -54,12 +53,12 @@ export default Omnibus.create({
   // ---
 
   // deployment: {
-  //   omnibus: contract(OmnibusBase_ABI, "0x", "ExampleOnchainOmnibus"),
+  //   omnibus: contract(OmnibusBase_ABI, "0x", "ExampleContractOmnibus"),
   // },
 
   async deploy({ deployContract }) {
     return {
-      omnibus: await deployContract<OmnibusBaseContract>("ExampleOnchainOmnibus", []),
+      omnibus: await deployContract<OmnibusBaseContract>("ExampleContractOmnibus", []),
     };
   },
 

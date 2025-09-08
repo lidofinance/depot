@@ -1,4 +1,4 @@
-# Omnibus "Onchain Omnibus Template"
+# Omnibus "Example Contract Omnibus"
 
 ## Aragon Vote
 

@@ -32,8 +32,8 @@ interface IStakingRouter {
 }
 
 
-/// @title ExampleOnchainOmnibus
-contract ExampleOnchainOmnibus is OmnibusBase {
+/// @title ExampleContractOmnibus
+contract ExampleContractOmnibus is OmnibusBase {
     using VoteCallsBuilderUtils for VoteCallsBuilder;
     using ProposalCallsBuilderUtils for ProposalCallsBuilder;
     using ForwardedCallsBuilderUtils for ForwardedCallsBuilder;
