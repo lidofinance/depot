@@ -130,8 +130,14 @@ function omnibusNameToDescriptionHeader(omnibusName: string) {
     .replace(/(\d{4}) (\d{2}) (\d{2})/g, "$1-$2-$3");
 }
 
-task("omnibus:deploy", "Run deploy method on omnibus contract")
-  .addPositionalParam<string>("name", "Name of the onchain omnibus to deploy", undefined, types.string, false)
+task("omnibus:deploy", "Run deploy method on an omnibus script")
+  .addPositionalParam<string>(
+    "name",
+    "Name of the omnibus script with the deploy() method to run",
+    undefined,
+    types.string,
+    false,
+  )
   .addFlag("broadcast", "broadcast the transaction to the network")
   .setAction(async ({ name, broadcast = false }, hre) => {
     const omnibus = loadOmnibus(name);
