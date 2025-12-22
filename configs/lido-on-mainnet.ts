@@ -164,3 +164,5 @@ export default {
     proxy: null,
   },
 } as const;
+
+console.log("test");
