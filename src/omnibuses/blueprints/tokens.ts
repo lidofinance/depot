@@ -1,7 +1,15 @@
 import { Address } from "abitype";
 import { ERC20_ABI } from "../../../abi/ERC20.abi";
 import { OmnibusDirectCall } from "../calls/omnibus-direct-call";
-import { BlueprintCtx, event } from "../omnibus";
+import { BlueprintCtx } from "../omnibus";
+import { Finance_ABI } from "../../../abi/Finance.abi";
+import { Contract } from "../../contracts";
+import { Agent_ABI } from "../../../abi/Agent.abi";
+
+interface Contracts {
+  agent: Contract<typeof Agent_ABI>;
+  finance: Contract<typeof Finance_ABI>;
+}
 
 interface GenericTransferInput {
   title: string;
@@ -14,8 +22,8 @@ interface TransferInput extends GenericTransferInput {
   token: Address;
 }
 
-function transfer(ctx: BlueprintCtx, input: TransferInput): OmnibusDirectCall {
-  const { agent, finance } = ctx.contracts;
+function transfer(ctx: BlueprintCtx, contracts: Contracts, input: TransferInput): OmnibusDirectCall {
+  const { agent, finance } = contracts;
   const { to, amount, title, token, comment } = input;
 
   return ctx.directCall(title, {
@@ -31,8 +39,4 @@ function transfer(ctx: BlueprintCtx, input: TransferInput): OmnibusDirectCall {
   });
 }
 
-function transferLDO(ctx: BlueprintCtx, input: GenericTransferInput): OmnibusDirectCall {
-  return transfer(ctx, { ...input, token: ctx.contracts.ldo.address });
-}
-
-export default { transfer, transferLDO };
+export default { transfer };

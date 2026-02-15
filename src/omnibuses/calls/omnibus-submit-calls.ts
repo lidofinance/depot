@@ -4,23 +4,23 @@ import { encodeFunctionData } from "viem";
 import fmt from "../../common/format";
 import bytes from "../../common/bytes";
 import { TxTrace } from "../../traces/tx-traces";
-import {
-  VotingContract,
-  TimelockContract,
-  ExecutorContract,
-  CallsScriptContract,
-  DualGovernanceContract,
-  TimelockedGovernanceContract,
-} from "../../contracts/contracts";
 import { OmnibusDirectCall } from "./omnibus-direct-call";
 import { OmnibusExecuteCall } from "./omnibus-execute-call";
 import { OmnibusForwardCalls } from "./omnibus-forward-calls";
 import { BaseOmnibusCall, OmnibusCallEvent, DEFAULT_FORMAT_OPTIONS, event } from "../omnibus";
 import { OmnibusForwardCall } from "./omnibus-forward-call";
+import {
+  CallsScriptContract,
+  DualGovernanceContract,
+  ExecutorContract,
+  TimelockContract,
+  TimelockedGovernanceContract,
+  VotingContract,
+} from "../governance-contracts";
 
 interface OmnibusSubmitCallsContracts {
   voting: VotingContract;
-  executor: ExecutorContract;
+  adminExecutor: ExecutorContract;
   timelock: TimelockContract;
   callsScript: CallsScriptContract;
 }
@@ -32,6 +32,22 @@ type OmnibusSubmitCallsNestedCall =
   | OmnibusForwardCall
   | OmnibusForwardCalls;
 
+export class OmnibusSubmitProposalCallFactory {
+  readonly #contracts: OmnibusSubmitCallsContracts;
+
+  constructor(contracts: OmnibusSubmitCallsContracts) {
+    this.#contracts = contracts;
+  }
+
+  create(
+    title: string,
+    governance: DualGovernanceContract | TimelockedGovernanceContract,
+    calls: OmnibusSubmitCallsNestedCall[],
+  ): OmnibusSubmitProposalCall {
+    return new OmnibusSubmitProposalCall(this.#contracts, title, governance, calls);
+  }
+}
+
 export class OmnibusSubmitProposalCall implements BaseOmnibusCall {
   public readonly voting: VotingContract;
   public readonly timelock: TimelockContract;
@@ -42,23 +58,13 @@ export class OmnibusSubmitProposalCall implements BaseOmnibusCall {
   public readonly title: string;
   public readonly calls: OmnibusSubmitCallsNestedCall[];
 
-  public static createCallBuilder(contracts: OmnibusSubmitCallsContracts) {
-    return function submitCalls(
-      title: string,
-      governance: DualGovernanceContract | TimelockedGovernanceContract,
-      calls: OmnibusSubmitCallsNestedCall[],
-    ): OmnibusSubmitProposalCall {
-      return new OmnibusSubmitProposalCall(contracts, title, governance, calls);
-    };
-  }
-
   constructor(
     contracts: OmnibusSubmitCallsContracts,
     title: string,
     governance: DualGovernanceContract | TimelockedGovernanceContract,
     calls: OmnibusSubmitCallsNestedCall[],
   ) {
-    this.executor = contracts.executor;
+    this.executor = contracts.adminExecutor;
     this.voting = contracts.voting;
     this.timelock = contracts.timelock;
     this.callsScript = contracts.callsScript;
@@ -88,10 +94,10 @@ export class OmnibusSubmitProposalCall implements BaseOmnibusCall {
     }));
   }
 
-  getEventsFor(type: "omnibus" | "proposal"): OmnibusCallEvent[] {
-    if (type === "omnibus") {
+  getExpectedEvents(phase: "vote" | "proposal"): OmnibusCallEvent[] {
+    if (phase === "vote") {
       return this.getSubmitEvents();
-    } else if (type === "proposal") {
+    } else if (phase === "proposal") {
       return this.getExecutionEvents();
     }
     throw new Error("Unexpected type");
@@ -101,7 +107,7 @@ export class OmnibusSubmitProposalCall implements BaseOmnibusCall {
     return [
       ...this.calls.map((call) => {
         return [
-          ...call.getEventsFor("proposal"),
+          ...call.getExpectedEvents("proposal"),
           event(this.executor, "Executed", [
             /* target */ call.getTarget(),
             /* ethValue */ call instanceof OmnibusDirectCall ? call.getValue() : 0n,

@@ -1,5 +1,5 @@
 import { encodeFunctionData } from "viem";
-import { AgentContract, CallsScriptContract, Contract, VotingContract } from "../../contracts/contracts";
+import { Contract } from "../../contracts/contracts";
 import fmt from "../../common/format";
 import { OmnibusDirectCall } from "./omnibus-direct-call";
 import { BaseOmnibusCall, DEFAULT_FORMAT_OPTIONS, event, OmnibusCallEvent } from "../omnibus";
@@ -7,13 +7,27 @@ import { EvmScriptParser } from "../../aragon-votes-tools";
 import { ExtractAbiFunctionNames } from "abitype";
 import { FindFunctionAbiParams } from "../../types/abi.types";
 import chalk from "chalk";
+import { AgentContract, CallsScriptContract, VotingContract } from "../governance-contracts";
 
-interface OmnibusForwardCallContracts {
-  voting: VotingContract;
-  callsScript: CallsScriptContract;
+export class OmnibusForwardCallFactory {
+  public readonly voting: VotingContract;
+  public readonly callsScript: CallsScriptContract;
+
+  constructor(voting: VotingContract, callsScript: CallsScriptContract) {
+    this.voting = voting;
+    this.callsScript = callsScript;
+  }
+
+  create<$Contract extends Contract, $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]>>(
+    title: string,
+    forwarder: AgentContract,
+    input: OmnibusForwardCallInput<$Contract, $FunctionName>,
+  ): OmnibusForwardCall {
+    return new OmnibusForwardCall(this.voting, this.callsScript, forwarder, title, input);
+  }
 }
 
-interface OmnibusForwardCallInput<
+export interface OmnibusForwardCallInput<
   $Contract extends Contract = Contract,
   $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]> = string,
 > {
@@ -29,28 +43,16 @@ export class OmnibusForwardCall implements BaseOmnibusCall {
 
   readonly #callsScript: CallsScriptContract;
 
-  public static createCallBuilder(contracts: OmnibusForwardCallContracts) {
-    return function forwardCall<
-      $Contract extends Contract,
-      $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]>,
-    >(
-      title: string,
-      forwarder: AgentContract,
-      input: OmnibusForwardCallInput<$Contract, $FunctionName>,
-    ): OmnibusForwardCall {
-      return new OmnibusForwardCall(contracts, forwarder, title, input);
-    };
-  }
-
   constructor(
-    contracts: OmnibusForwardCallContracts,
+    voting: VotingContract,
+    callsScript: CallsScriptContract,
     forwarder: AgentContract,
     title: string,
     input: OmnibusForwardCallInput,
   ) {
-    this.call = new OmnibusDirectCall(contracts, title, input);
+    this.call = new OmnibusDirectCall(voting, callsScript, title, input);
     this.forwarder = forwarder;
-    this.#callsScript = contracts.callsScript;
+    this.#callsScript = callsScript;
   }
 
   getTarget() {
@@ -69,7 +71,7 @@ export class OmnibusForwardCall implements BaseOmnibusCall {
     return EvmScriptParser.encode([{ address: this.call.getTarget(), calldata: this.call.getCalldata() }]);
   }
 
-  getEventsFor(target: "omnibus" | "proposal") {
+  getExpectedEvents(phase: "vote" | "proposal"): OmnibusCallEvent[] {
     return [
       event(
         this.#callsScript,
@@ -77,7 +79,7 @@ export class OmnibusForwardCall implements BaseOmnibusCall {
         [/* sender: */ null, /* src: */ this.forwarder.address, /* dst: */ this.call.getTarget()],
         { emitter: this.forwarder.address },
       ),
-      ...this.call.getEventsFor(target),
+      ...this.call.getExpectedEvents(phase),
       event(this.forwarder, "ScriptResult", [
         /* executor: */ null,
         /* script: */ this.getForwardingCallsScript(),

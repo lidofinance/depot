@@ -46,7 +46,7 @@ contract ExampleContractOmnibus is OmnibusBase {
     address public constant VOTING = 0x2e59A20f205bB85a89C53f1936454680651E618e;
     address public constant FINANCE = 0xB9E5CBB9CA5b0d659238807E84D0176930753d86;
     address public constant EASY_TRACK = 0xF0211b7660680B49De1A7E9f25C65660F0a13Fea;
-    address public constant DUAL_GOVERNANCE = 0xcdF49b058D606AD34c5789FD8c3BF8B3E54bA2db;
+    address public constant DUAL_GOVERNANCE = 0xC1db28B3301331277e307FDCfF8DE28242A4486E;
     address public constant CURATED_MODULE = 0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5;
     address public constant STAKING_ROUTER = 0xFdDf38947aFB03C621C71b06C9C70bce73f12999;
     address public constant STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;

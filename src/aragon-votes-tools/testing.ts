@@ -3,13 +3,13 @@ import { getExecuteReceipt, startAragonVote } from "./lifecycle";
 import { NetworkName, DevRpcClient } from "../network";
 import { Address, TransactionReceipt } from "viem";
 import { HexStrPrefixed } from "../common/bytes";
-import { getLidoContracts } from "../contracts/contracts";
 import { createTimedSpinner } from "../common/spinner";
+import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
 export async function setupLdoHolder(client: DevRpcClient, account: Address = CREATOR) {
   const network = client.getNetworkName();
 
-  const { ldo } = getLidoContracts(network);
+  const { ldo } = getGovernanceContracts(network);
 
   if ((await client.read(ldo, "balanceOf", [account])) === CREATOR_ETH_BALANCE) {
     return account;
@@ -32,7 +32,7 @@ export async function passAragonVote(client: DevRpcClient, voteId: bigint) {
   const spinner = createTimedSpinner(`Passing vote with id ${voteId}`);
   const network = client.getNetworkName();
 
-  const { voting } = getLidoContracts(network);
+  const { voting } = getGovernanceContracts(network);
 
   const [, executed] = await client.read(voting, "getVote", [voteId]);
 

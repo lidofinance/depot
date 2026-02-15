@@ -1,18 +1,14 @@
 import { encodeFunctionData } from "viem";
 import fmt from "../../common/format";
-import { AgentContract, CallsScriptContract, Contract, VotingContract } from "../../contracts/contracts";
+import { Contract } from "../../contracts/contracts";
 import { OmnibusDirectCall } from "./omnibus-direct-call";
 import { BaseOmnibusCall, DEFAULT_FORMAT_OPTIONS, event, OmnibusCallEvent } from "../omnibus";
 import { ExtractAbiFunctionNames } from "abitype";
-import { FindFunctionAbiParams } from "../../types/abi.types";
 import chalk from "chalk";
+import { FindFunctionAbiParams } from "../../types/abi.types";
+import { AgentContract, CallsScriptContract, VotingContract } from "../governance-contracts";
 
-interface OmnibusExecuteCallContracts {
-  voting: VotingContract;
-  callsScript: CallsScriptContract;
-}
-
-interface OmnibusForwardCallInput<
+interface OmnibusExecuteCallInput<
   $Contract extends Contract = Contract,
   $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]> = string,
 > {
@@ -23,31 +19,37 @@ interface OmnibusForwardCallInput<
   events: OmnibusCallEvent[];
 }
 
+export class OmnibusExecuteCallFactory {
+  public readonly voting: VotingContract;
+  public readonly callsScript: CallsScriptContract;
+
+  constructor(voting: VotingContract, callsScript: CallsScriptContract) {
+    this.voting = voting;
+    this.callsScript = callsScript;
+  }
+
+  create<$Contract extends Contract, $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]>>(
+    title: string,
+    executor: AgentContract,
+    input: OmnibusExecuteCallInput<$Contract, $FunctionName>,
+  ): OmnibusExecuteCall {
+    return new OmnibusExecuteCall(this.voting, this.callsScript, title, executor, input);
+  }
+}
+
 export class OmnibusExecuteCall implements BaseOmnibusCall {
   public readonly executor: AgentContract;
 
   public readonly call: OmnibusDirectCall;
 
-  public static createCallBuilder(contracts: OmnibusExecuteCallContracts) {
-    return function executeCall<
-      $Contract extends Contract,
-      $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]>,
-    >(
-      title: string,
-      executor: AgentContract,
-      input: OmnibusForwardCallInput<$Contract, $FunctionName>,
-    ): OmnibusExecuteCall {
-      return new OmnibusExecuteCall(contracts, title, executor, input);
-    };
-  }
-
   constructor(
-    contracts: OmnibusExecuteCallContracts,
+    voting: VotingContract,
+    callsScript: CallsScriptContract,
     title: string,
     executor: AgentContract,
-    input: OmnibusForwardCallInput,
+    input: OmnibusExecuteCallInput,
   ) {
-    this.call = new OmnibusDirectCall(contracts, title, input);
+    this.call = new OmnibusDirectCall(voting, callsScript, title, input);
     this.executor = executor;
   }
 
@@ -75,9 +77,9 @@ export class OmnibusExecuteCall implements BaseOmnibusCall {
     });
   }
 
-  getEventsFor(target: "omnibus" | "proposal") {
+  getExpectedEvents(phase: "vote" | "proposal"): OmnibusCallEvent[] {
     return [
-      ...this.call.getEventsFor(target),
+      ...this.call.getExpectedEvents(phase),
       event(this.executor, "Execute", [
         /* sender */ null,
         /* target */ this.call.getTarget(),

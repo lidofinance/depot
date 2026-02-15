@@ -1,7 +1,10 @@
 import { Address } from "abitype";
 import { CheckContext } from "./checks";
 import { assert } from "../../common/assert";
-import { LidoContracts } from "../../contracts/contracts";
+import { StakingRouter_ABI } from "../../../abi/StakingRouter.abi";
+import { Contract } from "../../contracts";
+import { NodeOperatorsRegistry_ABI } from "../../../abi/NodeOperatorsRegistry.abi";
+import { CSModule_ABI } from "../../../abi/CSModule.abi";
 
 export interface StakingModuleParams {
   treasuryFee: number;
@@ -15,44 +18,36 @@ const STAKING_MODULE_IDS = {
   csm: 3n,
 };
 
-const checkStakingModule = async (
-  { contracts, client }: CheckContext,
-  stakingModuleName: StakingModuleName,
-  params: StakingModuleParams,
-) => {
-  const { stakingRouter } = contracts;
+interface CheckStakingModuleFeeInput {
+  stakingModuleId: number | bigint;
+  treasuryFee: number | bigint;
+  stakingModuleFee: number | bigint;
+}
 
-  const stakingModuleId = getStakingModuleId(stakingModuleName);
+const checkStakingModuleFee = async (
+  { client }: CheckContext,
+  { stakingRouter }: { stakingRouter: Contract<typeof StakingRouter_ABI> },
+  input: CheckStakingModuleFeeInput,
+) => {
+  const stakingModuleId = BigInt(input.stakingModuleId);
   const stakingModuleInfo = await client.read(stakingRouter, "getStakingModule", [stakingModuleId]);
 
-  assert.equal(stakingModuleInfo.treasuryFee, params.treasuryFee);
-  assert.equal(stakingModuleInfo.stakingModuleFee, params.stakingModuleFee);
+  assert.equal(stakingModuleInfo.treasuryFee, input.treasuryFee);
+  assert.equal(stakingModuleInfo.stakingModuleFee, input.stakingModuleFee);
 };
 
-interface CheckNodeOperatorParams {
+interface CheckNodeOperatorInput {
+  stakingModule: Contract<typeof NodeOperatorsRegistry_ABI>;
+  operatorId: bigint | number;
   active?: boolean;
   name?: string;
   rewardAddress?: Address;
 }
 
-const checkNodeOperator = async (
-  { contracts, client }: CheckContext,
-  stakingModuleName: StakingModuleName,
-  operatorId: bigint,
-  expected: CheckNodeOperatorParams,
-) => {
-  const stakingModule =
-    stakingModuleName === "curated"
-      ? contracts.curatedStakingModule
-      : stakingModuleName === "sdvt"
-        ? contracts.simpleDvt
-        : null;
+const checkNodeOperator = async ({ client }: CheckContext, input: CheckNodeOperatorInput) => {
+  const { stakingModule, operatorId, ...expected } = input;
 
-  if (!stakingModule) {
-    throw new Error(`Unsupported staking module type "${stakingModuleName}"`);
-  }
-
-  const [active, name, rewardAddress] = await client.read(stakingModule, "getNodeOperator", [operatorId, true]);
+  const [active, name, rewardAddress] = await client.read(stakingModule, "getNodeOperator", [BigInt(operatorId), true]);
 
   if (expected.active !== undefined) {
     assert.equal(active, expected.active);
@@ -65,12 +60,15 @@ const checkNodeOperator = async (
   }
 };
 
-async function checkNodeOperatorsCount(ctx: CheckContext, stakingModuleName: StakingModuleName, expectedCount: bigint) {
-  const stakingModule = getStakingModuleContract(ctx.contracts, stakingModuleName);
+interface CheckNodeOperatorsCountInput {
+  stakingModule: Contract<typeof NodeOperatorsRegistry_ABI> | Contract<typeof CSModule_ABI>;
+  nodeOperatorsCount: bigint | number;
+}
 
-  const nodeOperatorsCount = await ctx.client.read(stakingModule, "getNodeOperatorsCount", []);
+async function checkNodeOperatorsCount(ctx: CheckContext, input: CheckNodeOperatorsCountInput) {
+  const nodeOperatorsCount = await ctx.client.read(input.stakingModule, "getNodeOperatorsCount", []);
 
-  assert.equal(nodeOperatorsCount, expectedCount);
+  assert.equal(nodeOperatorsCount, input.nodeOperatorsCount);
 }
 
 function getStakingModuleId(stakingModuleName: StakingModuleName) {
@@ -81,19 +79,8 @@ function getStakingModuleId(stakingModuleName: StakingModuleName) {
   return stakingModuleId;
 }
 
-function getStakingModuleContract(contracts: LidoContracts, stakingModuleName: StakingModuleName) {
-  if (stakingModuleName === "curated") {
-    return contracts.curatedStakingModule;
-  } else if (stakingModuleName === "sdvt") {
-    return contracts.simpleDvt;
-  } else if (stakingModuleName === "csm") {
-    return contracts.csModule;
-  }
-  throw new Error(`Unsupported staking module type "${stakingModuleName}"`);
-}
-
 export default {
-  checkStakingModule,
+  checkStakingModuleFee,
   checkNodeOperator,
   checkNodeOperatorsCount,
 };

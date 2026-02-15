@@ -35,22 +35,18 @@ function setNodeOperatorNameCall(ctx: BlueprintCtx, input: SetNodeOperatorNameIn
   });
 }
 
+type NodeOperatorsRegistryContract = Contract<typeof NodeOperatorsRegistry_ABI>;
+
 interface AddNodeOperatorInput {
-  module: "curated" | "sdvt";
+  stakingModule: NodeOperatorsRegistryContract;
   operator: { name: string; rewardAddress: Address };
 }
 
 function addNodeOperator(ctx: BlueprintCtx, title: string, input: AddNodeOperatorInput) {
-  const { curatedStakingModule, simpleDvt } = ctx.contracts;
   const {
-    module,
+    stakingModule,
     operator: { name, rewardAddress },
   } = input;
-
-  const stakingModule = module === "curated" ? curatedStakingModule : module === "sdvt" ? simpleDvt : null;
-  if (!stakingModule) {
-    throw new Error(`Unsupported staking module type "${input.module}"`);
-  }
 
   return ctx.directCall(title, {
     on: stakingModule,

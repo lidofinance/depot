@@ -1,7 +1,9 @@
 import { TransactionReceipt } from "viem";
 import bytes from "../common/bytes";
-import { getEventAbi, getLidoContracts } from "../contracts";
+import { contract, getEventAbi } from "../contracts";
 import { DevRpcClient } from "../network";
+import { DualGovernanceConfigProvider_ABI } from "../../abi/DualGovernanceConfigProvider.abi";
+import { getGovernanceContracts } from "./governance-contracts";
 
 enum DgState {
   NotInitialized = 0,
@@ -21,11 +23,14 @@ export enum ProposalStatus {
 }
 
 async function prepareDualGovernanceState(client: DevRpcClient) {
-  const { emergencyProtectedTimelock, dualGovernance, dualGovernanceConfigProvider } = getLidoContracts(
-    client.getNetworkName(),
+  const { timelock, dualGovernance } = getGovernanceContracts(client.getNetworkName());
+
+  const dualGovernanceConfigProvider = contract(
+    DualGovernanceConfigProvider_ABI,
+    await client.read(dualGovernance, "getConfigProvider", []),
   );
 
-  const governance = await client.read(emergencyProtectedTimelock, "getGovernance", []);
+  const governance = await client.read(timelock, "getGovernance", []);
 
   if (!bytes.isEqual(governance, dualGovernance.address)) {
     throw new Error("Unexpected governance address");
@@ -57,18 +62,16 @@ async function prepareDualGovernanceState(client: DevRpcClient) {
 }
 
 export async function processPendingProposals(client: DevRpcClient, proposalIds: bigint[]) {
-  const { emergencyProtectedTimelock, dualGovernance } = getLidoContracts(client.getNetworkName());
+  const { timelock, dualGovernance } = getGovernanceContracts(client.getNetworkName());
 
   const [timestamp, [stranger], afterSubmitDelay, afterScheduleDelay] = await Promise.all([
     client.getChainTime(),
     client.getAccounts(),
-    client.read(emergencyProtectedTimelock, "getAfterSubmitDelay", []),
-    client.read(emergencyProtectedTimelock, "getAfterScheduleDelay", []),
+    client.read(timelock, "getAfterSubmitDelay", []),
+    client.read(timelock, "getAfterScheduleDelay", []),
   ]);
 
-  const proposals = await Promise.all(
-    proposalIds.map((id) => client.read(emergencyProtectedTimelock, "getProposalDetails", [id])),
-  );
+  const proposals = await Promise.all(proposalIds.map((id) => client.read(timelock, "getProposalDetails", [id])));
   const proposalsToSchedule = proposals.filter((proposal) => proposal.status === ProposalStatus.Submitted);
 
   const latestSubmitTimestamp = Math.max(...proposalsToSchedule.map((proposal) => proposal.submittedAt), 0);
@@ -91,30 +94,30 @@ export async function processPendingProposals(client: DevRpcClient, proposalIds:
 
   const executeProposalReceipts: TransactionReceipt[] = [];
   for (const proposalId of proposalIds) {
-    const proposal = await client.read(emergencyProtectedTimelock, "getProposalDetails", [proposalId]);
+    const proposal = await client.read(timelock, "getProposalDetails", [proposalId]);
     if (proposal.status === ProposalStatus.Executed) {
-      const proposalExecutedFilter = await client.viemClient.createEventFilter({
-        address: emergencyProtectedTimelock.address,
-        event: getEventAbi(emergencyProtectedTimelock, "ProposalExecuted"),
+      const proposalExecutedFilter = await client.createEventFilter({
+        address: timelock.address,
+        event: getEventAbi(timelock, "ProposalExecuted"),
         args: [proposalId],
-        fromBlock: (await client.viemClient.getBlockNumber()) - 500n, // TODO: handle it better
+        fromBlock: (await client.getBlockNumber()) - 500n, // TODO: handle it better
       });
-      const proposalExecutedLogs = await client.viemClient.getFilterLogs({ filter: proposalExecutedFilter });
+      const proposalExecutedLogs = await client.getFilterLogs({ filter: proposalExecutedFilter });
       if (proposalExecutedLogs.length === 0) {
         throw new Error(`"ProposalExecuted" log for proposal with id ${proposalId} not found`);
       }
 
       executeProposalReceipts.push(
-        await client.viemClient.getTransactionReceipt({ hash: proposalExecutedLogs[0].transactionHash }),
+        await client.getTransactionReceipt({ hash: proposalExecutedLogs[0].transactionHash }),
       );
 
       continue;
     }
-    const canExecuteProposal = await client.read(emergencyProtectedTimelock, "canExecute", [proposalId]);
+    const canExecuteProposal = await client.read(timelock, "canExecute", [proposalId]);
     if (!canExecuteProposal) {
       throw new Error(`Proposal ${proposalId} can not be executed`);
     }
-    const executeReceipt = await client.write(emergencyProtectedTimelock, "execute", [proposalId], { from: stranger });
+    const executeReceipt = await client.write(timelock, "execute", [proposalId], { from: stranger });
 
     executeProposalReceipts.push(executeReceipt);
   }

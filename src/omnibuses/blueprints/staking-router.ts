@@ -1,5 +1,9 @@
+import { StakingRouter_ABI } from "../../../abi/StakingRouter.abi";
+import { Contract } from "../../contracts";
 import { OmnibusDirectCall } from "../calls/omnibus-direct-call";
 import { BlueprintCtx } from "../omnibus";
+
+type StakingRouterContract = Contract<typeof StakingRouter_ABI>;
 
 export enum StakingModule {
   CuratedStakingModule = 1,
@@ -18,8 +22,11 @@ interface UpdateStakingModuleInput {
   minDepositBlockDistance: bigint;
 }
 
-function updateStakingModule(ctx: BlueprintCtx, input: UpdateStakingModuleInput): OmnibusDirectCall {
-  const { stakingRouter } = ctx.contracts;
+function updateStakingModule(
+  ctx: BlueprintCtx,
+  { stakingRouter }: { stakingRouter: StakingRouterContract },
+  input: UpdateStakingModuleInput,
+): OmnibusDirectCall {
   const {
     stakingModuleId,
     stakeShareLimit,

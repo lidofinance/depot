@@ -344,7 +344,6 @@ Run tiny omnibus and regression tests in other repos env
 This project is structured as follows:
 
 - [archive](./archive) - Old omnibuses and tests
-- [configs](./configs) - Lido deployed contracts addresses and related types
 - [interfaces](./interfaces) - ABI's of Lido contracts
 - [omnibuses](./omnibuses) - Actual omnibuses
 - [src](./src) - Source code:
