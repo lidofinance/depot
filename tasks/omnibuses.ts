@@ -92,7 +92,7 @@ task("omnibus:scaffold", "Create new empty omnibus from the template").setAction
   console.log(`- Description file: ${omnibusDescriptionPath}`);
 });
 
-task("omnibus:archive")
+task("omnibus:archive", "Move launched omnibus to archive folder")
   .addPositionalParam<string>("name", "Name of the omnibus to move to archive", undefined, types.string)
   .setAction(async ({ name }, hre) => {
     const omnibus = loadOmnibus(name);
@@ -480,7 +480,7 @@ function loadOmnibus(name: string) {
 
 async function prepareLocalRpcNode(network: NetworkName) {
   const name = "hh-rpc-node";
-  const cmd = ["pnpm", "start"];
+  const cmd = ["npm", "start"];
   const image = `ghcr.io/lidofinance/hardhat-node:2.26.0`;
 
   const port = env.ETH_LOCAL_RPC_PORT();
