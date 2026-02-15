@@ -2,9 +2,10 @@ import { decodeEventLog, encodeEventTopics, encodeFunctionData } from "viem";
 import { RpcClient, WriteContractOptions } from "../network";
 import { EvmScriptParser } from "./evm-script-parser";
 import { HexStrPrefixed } from "../common/bytes";
-import { getEventAbi, getLidoContracts } from "../contracts/contracts";
+import { getEventAbi } from "../contracts/contracts";
 import { Voting_ABI } from "../../abi/Voting.abi";
 import { createTimedSpinner } from "../common/spinner";
+import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
 export async function startAragonVote(
   client: RpcClient,
@@ -13,7 +14,7 @@ export async function startAragonVote(
   txOptions: WriteContractOptions,
 ) {
   const networkName = client.getNetworkName();
-  const { voting, tokenManager } = getLidoContracts(networkName);
+  const { voting, tokenManager } = getGovernanceContracts(networkName);
 
   const startVoteScript = EvmScriptParser.encode([
     {
@@ -54,23 +55,23 @@ export async function startAragonVote(
 }
 
 export async function executeAragonVote(client: RpcClient, voteId: bigint, txOptions: WriteContractOptions) {
-  const { voting } = getLidoContracts(client.getNetworkName());
+  const { voting } = getGovernanceContracts(client.getNetworkName());
   return client.write(voting, "executeVote", [voteId], txOptions);
 }
 
 export async function getExecuteReceipt(client: RpcClient, voteId: bigint, fromBlock?: number | bigint) {
-  const { voting } = getLidoContracts(client.getNetworkName());
-  const executeVoteFilter = await client.viemClient.createEventFilter({
+  const { voting } = getGovernanceContracts(client.getNetworkName());
+  const executeVoteFilter = await client.createEventFilter({
     address: voting.address,
     event: getEventAbi(voting, "ExecuteVote"),
     args: [voteId],
     fromBlock: fromBlock ? BigInt(fromBlock) : undefined,
   });
-  const executeLogs = await client.viemClient.getFilterLogs({ filter: executeVoteFilter });
+  const executeLogs = await client.getFilterLogs({ filter: executeVoteFilter });
   if (executeLogs.length === 0) {
     throw new Error(`ExecuteVote event with id ${voteId} is not found at block ${fromBlock}`);
   }
-  return client.viemClient.getTransactionReceipt({
+  return client.getTransactionReceipt({
     hash: executeLogs[0].transactionHash,
   });
 }

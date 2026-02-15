@@ -2,15 +2,11 @@ import chalk from "chalk";
 import { encodeFunctionData } from "viem";
 
 import fmt from "../../common/format";
-import { CallsScriptContract, Contract, LidoContracts, VotingContract } from "../../contracts/contracts";
+import { Contract } from "../../contracts/contracts";
 import { BaseOmnibusCall, OmnibusCallEvent, DEFAULT_FORMAT_OPTIONS, event } from "../omnibus";
 import { ExtractAbiFunctionNames } from "abitype";
 import { FindFunctionAbiParams } from "../../types/abi.types";
-
-interface OmnibusDirectCallContracts {
-  voting: VotingContract;
-  callsScript: CallsScriptContract;
-}
+import { CallsScriptContract, VotingContract } from "../governance-contracts";
 
 interface OmnibusDirectCallInput<
   $Contract extends Contract = Contract,
@@ -23,78 +19,81 @@ interface OmnibusDirectCallInput<
   value?: bigint;
 }
 
+export class OmnibusDirectCallFactory {
+  public readonly voting: VotingContract;
+  public readonly callsScript: CallsScriptContract;
+
+  constructor(voting: VotingContract, callsScript: CallsScriptContract) {
+    this.voting = voting;
+    this.callsScript = callsScript;
+  }
+
+  create<$Contract extends Contract, $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]>>(
+    title: string,
+    input: OmnibusDirectCallInput<$Contract, $FunctionName>,
+  ) {
+    return new OmnibusDirectCall(this.voting, this.callsScript, title, input);
+  }
+}
+
 export class OmnibusDirectCall implements BaseOmnibusCall {
   public readonly title: string;
-  public readonly functionName: string;
-  public readonly args: readonly unknown[];
-
-  readonly #value: bigint;
-  readonly #target: Contract;
-  readonly #events: OmnibusCallEvent[];
+  public readonly input: OmnibusDirectCallInput;
 
   readonly #voting: VotingContract;
   readonly #callsScript: CallsScriptContract;
 
-  static createCallBuilder({ voting, callsScript }: OmnibusDirectCallContracts) {
-    return function directCall<
-      $Contract extends Contract,
-      $FunctionName extends ExtractAbiFunctionNames<$Contract["abi"]>,
-    >(title: string, input: OmnibusDirectCallInput<$Contract, $FunctionName>): OmnibusDirectCall {
-      return new OmnibusDirectCall({ voting, callsScript }, title, input);
-    };
-  }
+  constructor(voting: VotingContract, callsScript: CallsScriptContract, title: string, input: OmnibusDirectCallInput) {
+    this.#voting = voting;
+    this.#callsScript = callsScript;
 
-  constructor(contracts: OmnibusDirectCallContracts, title: string, input: OmnibusDirectCallInput) {
     this.title = title;
-    this.args = input.args;
-    this.functionName = input.fn;
-
-    this.#voting = contracts.voting;
-    this.#callsScript = contracts.callsScript;
-
-    this.#events = input.events;
-    this.#value = input.value ?? 0n;
-    this.#target = input.on;
+    this.input = Object.freeze(input);
   }
 
   getValue() {
-    return this.#value;
+    return this.input.value ?? 0n;
   }
 
   getTarget() {
-    return this.#target.address;
+    return this.input.on.address;
   }
 
   getCalldata() {
     return encodeFunctionData({
-      abi: this.#target.abi,
-      args: this.args,
-      functionName: this.functionName,
+      abi: this.input.on.abi,
+      args: this.input.args,
+      functionName: this.input.fn,
     });
   }
 
-  getEventsFor(target: "omnibus" | "proposal") {
-    if (target === "omnibus") {
+  getExpectedEvents(phase: "vote" | "proposal"): OmnibusCallEvent[] {
+    const events = this.#getEvents();
+
+    if (phase === "vote") {
       return [
         event(
           this.#callsScript,
           "LogScriptCall",
-          [/* sender */ null, /* src */ this.#voting.address, /* dst */ this.#target.address],
+          [/* sender */ null, /* src */ this.#voting.address, /* dst */ this.input.on.address],
           { emitter: this.#voting.address },
         ),
-        ...this.#events,
+        ...events,
       ];
-    } else if (target === "proposal") {
-      return this.#events;
     }
-    throw new Error("Unexpected target type");
+
+    if (phase === "proposal") {
+      return events;
+    }
+
+    throw new Error(`Unexpected omnibus phase ${phase}`);
   }
 
   formatCall({ padLength } = DEFAULT_FORMAT_OPTIONS) {
     return fmt.decodedFuncCall({
-      args: this.args,
-      contract: this.#target,
-      functionName: this.functionName,
+      args: this.input.args,
+      contract: this.input.on,
+      functionName: this.input.fn,
       padLength: padLength,
     });
   }
@@ -112,5 +111,9 @@ export class OmnibusDirectCall implements BaseOmnibusCall {
 
   formatTitle({ padLength } = DEFAULT_FORMAT_OPTIONS) {
     return fmt.padded(this.title, padLength);
+  }
+
+  #getEvents() {
+    return this.input.events;
   }
 }

@@ -5,13 +5,21 @@ import { assert } from "../../common/assert";
 import { CheckContext } from "./checks";
 import { ERC20_ABI } from "../../../abi/ERC20.abi";
 import { AllowedRecipientsRegistry_ABI } from "../../../abi/AllowedRecipientsRegistry.abi";
-import { Contract } from "../../contracts/contracts";
+import { contract, Contract } from "../../contracts/contracts";
 import bytes from "../../common/bytes";
+import { EasyTrack_ABI } from "../../../abi/EasyTrack.abi";
+import { AgentContract } from "../governance-contracts";
 
 const DEFAULT_ENACTOR: Address = "0xEE00eE11EE22ee33eE44ee55ee66Ee77EE88ee99";
 const TEST_RECIPIENT: Address = "0x0102030405060708091011121314151617181920";
 
-const checkFactoriesExists = async ({ contracts: { easyTrack }, client }: CheckContext, factories: Address[]) => {
+type EasyTrackContract = Contract<typeof EasyTrack_ABI>;
+
+interface Contracts {
+  easyTrack: EasyTrackContract;
+}
+
+const checkFactoriesExists = async ({ client }: CheckContext, { easyTrack }: Contracts, factories: Address[]) => {
   const currentFactories = await client.read(easyTrack, "getEVMScriptFactories", []);
   assert.includeMembers(
     currentFactories.map((address) => bytes.normalize(address)) as Address[],
@@ -19,7 +27,7 @@ const checkFactoriesExists = async ({ contracts: { easyTrack }, client }: CheckC
   );
 };
 
-const checkFactoriesNotExists = async ({ contracts: { easyTrack }, client }: CheckContext, factories: Address[]) => {
+const checkFactoriesNotExists = async ({ client }: CheckContext, { easyTrack }: Contracts, factories: Address[]) => {
   const currentFactories = await client.read(easyTrack, "getEVMScriptFactories", []);
   assert.notIncludeMembers(
     currentFactories.map((address) => bytes.normalize(address)) as Address[],
@@ -27,30 +35,36 @@ const checkFactoriesNotExists = async ({ contracts: { easyTrack }, client }: Che
   );
 };
 
-const checkFactoryExists = async ({ contracts: { easyTrack }, client }: CheckContext, factory: Address) => {
+const checkFactoryExists = async ({ client }: CheckContext, { easyTrack }: Contracts, factory: Address) => {
   const factories = await client.read(easyTrack, "getEVMScriptFactories", []);
   assert.includeMembers(factories as Address[], [factory]);
 };
 
-const checkFactoryNotExists = async ({ contracts: { easyTrack }, client }: CheckContext, factory: Address) => {
+const checkFactoryNotExists = async ({ client }: CheckContext, { easyTrack }: Contracts, factory: Address) => {
   const factories = (await client.read(easyTrack, "getEVMScriptFactories", [])) as Address[];
   assert.notIncludeMembers(factories, [factory]);
 };
 
-const checkTopUpFactory = async (
-  { contracts, client }: CheckContext,
-  token: Address,
-  factory: Address,
-  registry: Address,
-  trustedCaller: Address,
-) => {
-  const { easyTrack, agent, stETH } = contracts;
-  const erc20Token: Contract<typeof ERC20_ABI> = { abi: ERC20_ABI, address: token, label: "ERC20" };
-  const recipientsRegistry: Contract<typeof AllowedRecipientsRegistry_ABI> = {
-    abi: AllowedRecipientsRegistry_ABI,
-    address: registry,
-    label: "AllowedRecipientsRegistry",
+interface CheckTopUpFactoryInput {
+  contracts: {
+    agent: AgentContract;
+    easyTrack: EasyTrackContract;
   };
+  token: Address;
+  factory: Address;
+  registry: Address;
+  trustedCaller: Address;
+  epsilon?: number;
+}
+
+const checkTopUpFactory = async ({ client }: CheckContext, input: CheckTopUpFactoryInput) => {
+  const { easyTrack, agent } = input.contracts;
+  const { token, factory, registry, trustedCaller, epsilon = 0 } = input;
+  const erc20Token: Contract<typeof ERC20_ABI> = contract(ERC20_ABI, token);
+  const recipientsRegistry: Contract<typeof AllowedRecipientsRegistry_ABI> = contract(
+    AllowedRecipientsRegistry_ABI,
+    registry,
+  );
 
   const [motionsBefore, agentTokenBalanceBefore, recipients] = await Promise.all([
     client.read(easyTrack, "getMotions", []),
@@ -89,8 +103,6 @@ const checkTopUpFactory = async (
     recipients.map((recipient) => client.read(erc20Token, "balanceOf", [recipient])),
   );
 
-  const epsilon = token === stETH.address ? 2 : 0;
-
   assert.approximately(
     agentTokenBalanceAfter,
     agentTokenBalanceBefore - transferAmounts.reduce((sum, val) => sum + val),
@@ -103,12 +115,12 @@ const checkTopUpFactory = async (
 };
 
 const checkAddRecipientFactory = async (
-  { contracts, client }: CheckContext,
+  { client }: CheckContext,
+  { easyTrack }: Contracts,
   factory: Address,
   registry: Address,
   trustedCaller: Address,
 ) => {
-  const { easyTrack } = contracts;
   const recipientsRegistry: Contract<typeof AllowedRecipientsRegistry_ABI> = {
     abi: AllowedRecipientsRegistry_ABI,
     address: registry,
@@ -147,12 +159,12 @@ const checkAddRecipientFactory = async (
 };
 
 const checkRemoveRecipientFactory = async (
-  { contracts, client }: CheckContext,
+  { client }: CheckContext,
+  { easyTrack }: Contracts,
   factory: Address,
   registry: Address,
   trustedCaller: Address,
 ) => {
-  const { easyTrack } = contracts;
   const registryContract: Contract<typeof AllowedRecipientsRegistry_ABI> = {
     address: registry,
     abi: AllowedRecipientsRegistry_ABI,

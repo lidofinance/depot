@@ -1,85 +1,17 @@
-import bytes from "../common/bytes";
 import { NetworkName } from "../network";
 import { Abi, AbiEvent, AbiFunction, Address, getAbiItem } from "viem";
 import { FilterAbiEvents, FilterAbiFunctions } from "../types/abi.types";
 import { ContractInfoResolver } from "../contract-info-resolver/contract-info-resolver";
 
-import { LidoMainnetConfig, LIDO_ON_MAINNET } from "../../configs/lido.mainnet";
-import { LidoHoleskyConfig, LIDO_ON_HOLESKY } from "../../configs/lido.holesky";
-import { LIDO_ON_HOODI, LidoHoodiConfig } from "../../configs/lido.hoodi";
-import { Executor_ABI } from "../../abi/Executor.abi";
-import { Voting_ABI } from "../../abi/Voting.abi";
-import { EmergencyProtectedTimelock_ABI } from "../../abi/EmergencyProtectedTimelock.abi";
-import { CallsScript_ABI } from "../../abi/CallsScript.abi";
-import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
-import { TimelockedGovernance_ABI } from "../../abi/TimelockedGovernance.abi";
-import { Agent_ABI } from "../../abi/Agent.abi";
 import { OmnibusBase_ABI } from "../../abi/OmnibusBase.abi";
 
 export type OmnibusBaseContract = Contract<typeof OmnibusBase_ABI>;
-export type AgentContract = Contract<typeof Agent_ABI>;
-export type VotingContract = Contract<typeof Voting_ABI>;
-export type ExecutorContract = Contract<typeof Executor_ABI>;
-export type TimelockContract = Contract<typeof EmergencyProtectedTimelock_ABI>;
-export type CallsScriptContract = Contract<typeof CallsScript_ABI>;
-export type DualGovernanceContract = Contract<typeof DualGovernance_ABI>;
-export type TimelockedGovernanceContract = Contract<typeof TimelockedGovernance_ABI>;
 
-export interface Contract<T extends Abi = Abi, A extends Address = Address> {
+export interface Contract<T extends Abi = Abi, A extends Address = Address, L extends string = string> {
   abi: T;
   address: A;
-  label: string;
+  label: L;
 }
-
-export type LidoImpls<N extends NetworkName = NetworkName> = N extends "mainnet"
-  ? ContractImpls<LidoMainnetConfig>
-  : N extends "holesky"
-    ? ContractImpls<LidoHoleskyConfig>
-    : N extends "hoodi"
-      ? ContractImpls<LidoHoodiConfig>
-      : never;
-
-export type LidoProxies<N extends NetworkName = NetworkName> = N extends "mainnet"
-  ? ContractProxies<LidoMainnetConfig>
-  : N extends "holesky"
-    ? ContractProxies<LidoHoleskyConfig>
-    : N extends "hoodi"
-      ? ContractProxies<LidoHoodiConfig>
-      : never;
-
-export type LidoContracts<N extends NetworkName = NetworkName> = N extends "mainnet"
-  ? ContractInstances<LidoMainnetConfig>
-  : N extends "holesky"
-    ? ContractInstances<LidoHoleskyConfig>
-    : N extends "hoodi"
-      ? ContractInstances<LidoHoodiConfig>
-      : never;
-
-type ContractInstances<T extends ContractsMap> = {
-  [K in keyof T]: T[K] extends ContractConfig
-    ? Contract<T[K]["abi"], T[K]["address"]>
-    : T[K] extends ProxiedContractConfig
-      ? Contract<T[K]["impl"]["abi"], T[K]["proxy"]["address"]>
-      : T[K] extends ContractsMap
-        ? ContractInstances<T[K]>
-        : never;
-};
-
-type ContractProxies<T extends ContractsMap> = {
-  [K in keyof T as T[K] extends ProxiedContractConfig | ContractsMap ? K : never]: T[K] extends ProxiedContractConfig
-    ? Contract<T[K]["proxy"]["abi"], T[K]["proxy"]["address"]>
-    : T[K] extends ContractsMap
-      ? ContractProxies<T[K]>
-      : never;
-};
-
-type ContractImpls<T extends ContractsMap> = {
-  [K in keyof T as T[K] extends ProxiedContractConfig | ContractsMap ? K : never]: T[K] extends ProxiedContractConfig
-    ? Contract<T[K]["impl"]["abi"], T[K]["impl"]["address"]>
-    : T[K] extends ContractsMap
-      ? ContractImpls<T[K]>
-      : never;
-};
 
 interface ContractConfig {
   abi: Abi;
@@ -101,96 +33,85 @@ interface ContractsMap {
 // Public Methods
 // ---
 
-export function contract<T extends Abi>(abi: T, address: Address, label = `Contract[${address}]`): Contract<T> {
-  return { abi, address, label };
+export function contract<T extends Abi, L extends string = string>(abi: T, address: Address, label?: L): Contract<T, Address, L> {
+  const resolvedLabel = (label ?? (`Contract[${address}]` as L)) as L;
+  return { abi, address, label: resolvedLabel };
 }
 
-export function getLidoContracts<N extends NetworkName>(network: N) {
-  if (network === "mainnet") {
-    return buildInstances(LIDO_ON_MAINNET) as LidoContracts<N>;
-  }
-  if (network === "holesky") {
-    return buildInstances(LIDO_ON_HOLESKY) as LidoContracts<N>;
-  }
-  if (network === "hoodi") {
-    return buildInstances(LIDO_ON_HOODI) as LidoContracts<N>;
-  }
-  throw new Error("Unsupported network");
-}
+type ContractsByLabel<Cs extends readonly Contract[]> = {
+  [C in Cs[number] as C["label"]]: C;
+};
 
-export function getLidoProxies<N extends NetworkName>(network: N) {
-  if (network === "mainnet") {
-    return buildProxies(LIDO_ON_MAINNET) as LidoProxies<N>;
-  }
-  if (network === "holesky") {
-    return buildProxies(LIDO_ON_HOLESKY) as LidoProxies<N>;
-  }
-  if (network === "hoodi") {
-    return buildProxies(LIDO_ON_HOODI) as LidoProxies<N>;
-  }
-  throw new Error("Unsupported network");
-}
+type ContractTuple = readonly [abi: Abi, address: Address] | readonly [abi: Abi, address: Address, label: string];
+type ContractInputMap = Record<string, ContractTuple>;
 
-export function getLidoImpls<N extends NetworkName>(network: N) {
-  if (network === "mainnet") {
-    return buildImpls(LIDO_ON_MAINNET) as LidoImpls<N>;
+type ContractFromTuple<T extends ContractTuple, K extends string> = T extends readonly [infer A, infer Addr, infer L]
+  ? A extends Abi
+    ? Addr extends Address
+      ? L extends string
+        ? Contract<A, Addr, L>
+        : never
+      : never
+    : never
+  : T extends readonly [infer A, infer Addr]
+    ? A extends Abi
+      ? Addr extends Address
+        ? Contract<A, Addr, K>
+        : never
+      : never
+    : never;
+
+type ContractsFromMap<M extends ContractInputMap> = {
+  [K in keyof M & string]: ContractFromTuple<M[K], K>;
+};
+
+export function createContracts<M extends ContractInputMap>(contractsMap: M): ContractsFromMap<M>;
+export function createContracts<Cs extends readonly Contract[]>(...contracts: Cs): ContractsByLabel<Cs>;
+export function createContracts(...args: unknown[]) {
+  const result: Partial<Record<string, Contract>> = {};
+
+  if (
+    args.length === 1 &&
+    typeof args[0] === "object" &&
+    args[0] !== null &&
+    !Array.isArray(args[0]) &&
+    !("abi" in (args[0] as Record<string, unknown>))
+  ) {
+    for (const [key, value] of Object.entries(args[0] as ContractInputMap)) {
+      const [abi, address, label] = value;
+      const resolvedLabel = label ?? key;
+      if (resolvedLabel in result) {
+        throw new Error(`Duplicate contract label "${resolvedLabel}"`);
+      }
+      result[resolvedLabel] = contract(abi, address, resolvedLabel);
+    }
+    return result;
   }
-  if (network === "holesky") {
-    return buildImpls(LIDO_ON_HOLESKY) as LidoImpls<N>;
+
+  for (const item of args as Contract[]) {
+    if (item.label in result) {
+      throw new Error(`Duplicate contract label "${item.label}"`);
+    }
+    result[item.label] = item;
   }
-  if (network === "hoodi") {
-    return buildImpls(LIDO_ON_HOODI) as LidoImpls<N>;
-  }
-  throw new Error("Unsupported network");
+
+  return result;
 }
 
 // Single contract may have a couple associated contracts if it's proxy
 export async function resolveContract(network: NetworkName, address: Address): Promise<Contract[]> {
-  const locallyResolved: Contract[] = [];
-
-  const impls = getLidoImpls(network);
-
-  for (const impl of Object.values(impls)) {
-    if (bytes.isEqual(impl.address, address)) {
-      locallyResolved.push(impl);
-      break;
-    }
-  }
-
-  const contracts = getLidoContracts(network);
-
-  for (const contract of Object.values(contracts)) {
-    if (bytes.isEqual(contract.address, address)) {
-      locallyResolved.push(contract);
-      break;
-    }
-  }
-
-  const proxies = getLidoProxies(network);
-
-  for (const proxy of Object.values(proxies)) {
-    if (bytes.isEqual(proxy.address, address)) {
-      locallyResolved.push(proxy);
-      break;
-    }
-  }
-
-  if (locallyResolved.length > 0) {
-    return locallyResolved;
-  }
-
   const resolvedContract = await ContractInfoResolver.resolve(network, address);
   const implAddress = resolvedContract.implementation;
 
   if (!implAddress) {
-    return [{ address, abi: resolvedContract.abi, label: getInstanceLabel(resolvedContract.name) }];
+    return [{ address, abi: resolvedContract.abi, label: resolvedContract.name }];
   }
 
   const resolvedContractImpl = await ContractInfoResolver.resolve(network, implAddress);
 
   return [
-    { address, abi: resolvedContractImpl.abi, label: getProxyLabel(resolvedContractImpl.name) },
-    { address, abi: resolvedContract.abi, label: getProxyLabel(resolvedContractImpl.name) },
+    { address, abi: resolvedContractImpl.abi, label: resolvedContractImpl.name },
+    { address, abi: resolvedContract.abi, label: `${resolvedContractImpl.name}__Proxy` },
   ];
 }
 
@@ -222,116 +143,4 @@ export function getFunctionAbi<T extends Pick<Contract, "abi">>(
     throw new Error(`abi element is not "event" type`);
   }
   return abi;
-}
-
-export function buildInstances<T extends ContractsMap>(config: T): ContractInstances<T> {
-  const res = {} as any;
-
-  for (const [key, value] of Object.entries(config)) {
-    if (isProxiedContract(value)) {
-      res[key] = {
-        abi: value.impl.abi,
-        address: bytes.normalize(value.proxy.address),
-        label: getProxyLabel(value.label ?? key),
-      };
-    } else if (isContract(value)) {
-      res[key] = {
-        abi: value.abi,
-        address: bytes.normalize(value.address),
-        label: getInstanceLabel(value.label ?? key),
-      };
-    } else if (isContractsConfig(value)) {
-      res[key] = buildInstances(value);
-    }
-  }
-
-  return res;
-}
-
-export function buildProxies<T extends ContractsMap>(config: T): ContractProxies<T> {
-  const res = {} as any;
-
-  for (const [key, value] of Object.entries(config)) {
-    if (isProxiedContract(value)) {
-      res[key] = {
-        abi: value.proxy.abi,
-        address: bytes.normalize(value.proxy.address),
-        label: getProxyLabel(value.label ?? key),
-      };
-    } else if (isContractsConfig(value)) {
-      const nested = buildProxies(value);
-      if (Object.keys(nested).length > 0) {
-        res[key] = nested;
-      }
-    }
-  }
-
-  return res;
-}
-
-export function buildImpls<T extends ContractsMap>(config: T): ContractImpls<T> {
-  const res = {} as any;
-
-  for (const [key, value] of Object.entries(config)) {
-    if (isProxiedContract(value)) {
-      res[key] = {
-        abi: value.impl.abi,
-        address: bytes.normalize(value.impl.address),
-        label: getImplLabel(value.label ?? key),
-      };
-    } else if (isContractsConfig(value)) {
-      const nested = buildImpls(value);
-      if (Object.keys(nested).length > 0) {
-        res[key] = nested;
-      }
-    }
-  }
-
-  return res;
-}
-
-// ---
-// Private Methods
-// ---
-
-function getInstanceLabel(contractLabel: string) {
-  return contractLabel.charAt(0).toUpperCase() + contractLabel.slice(1);
-}
-
-function getProxyLabel(contractLabel: string) {
-  return getInstanceLabel(contractLabel) + "__Proxy";
-}
-
-function getImplLabel(contractLabel: string) {
-  return getInstanceLabel(contractLabel) + "__Impl";
-}
-
-function isContract(value: unknown): value is Contract {
-  // prettier-ignore
-  return (
-    !!value &&
-    typeof value === "object" &&
-    ("abi" in value && Array.isArray(value.abi)) &&
-    ("address" in value && typeof value.address === "string")
-  );
-}
-
-function isProxiedContract(value: unknown): value is ProxiedContractConfig {
-  // prettier-ignore
-  return (
-    !!value &&
-    typeof value === "object" &&
-    ("impl" in value && isContract(value.impl)) &&
-    ("proxy" in value && isContract(value.proxy))
-  );
-}
-
-function isContractsConfig(value: unknown): value is ContractsMap {
-  if (!value || typeof value !== "object") return false;
-
-  if (isProxiedContract(value) || isContract(value)) {
-    return false;
-  }
-
-  return true;
 }

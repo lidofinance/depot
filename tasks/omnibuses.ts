@@ -21,7 +21,6 @@ import {
 } from "../src/network/network";
 import { privateKeyToAccount } from "viem/accounts";
 import format from "../src/common/format";
-import { getLidoContracts } from "../src/contracts/contracts";
 import { Omnibus } from "../src/omnibuses/omnibus";
 import path from "node:path";
 import { getRpcUrl } from "../src/network/network";
@@ -32,6 +31,8 @@ import { DevRpcClient, RpcClient } from "../src/network";
 import { createTimedSpinner } from "../src/common/spinner";
 import { ProposalStatus } from "../src/omnibuses/dual-governance";
 import { logBlue } from "../src/common/color";
+import { getGovernanceContracts } from "../src/omnibuses/governance-contracts";
+import { generateOmnibusContractFile } from "../src/omnibuses/contract-generator";
 
 task("omnibus:scaffold", "Create new empty omnibus from the template").setAction(async ({}) => {
   const network: NetworkName = await prompt.select("Choose the network:", [
@@ -41,7 +42,7 @@ task("omnibus:scaffold", "Create new empty omnibus from the template").setAction
   ]);
 
   const omnibusName = await prompt.text(
-    `Enter the name of the omnibus in the format "yyyy_dd_mm_some_optional_info" (for example: 2025_12_31 or 2025_12_31_happy_new_year_omni):`,
+    `Enter the name of the omnibus in the format "yyyy_mm_dd_some_optional_info" (for example: 2025_12_31 or 2025_12_31_happy_new_year_omni):`,
   );
 
   if (omnibusName.length === 0) {
@@ -119,6 +120,42 @@ task("omnibus:archive")
     await fs.rm(omnibusPath, { recursive: true });
 
     console.log(`Omnibus ${name} was archived to ${archivePath}`);
+  });
+
+task("omnibus:contract", "Generate solidity omnibus contract from an existing omnibus script")
+  .addPositionalParam<string>("name", "Name of the omnibus to convert", undefined, types.string, false)
+  .addOptionalParam<string>("contractName", "Name of the generated solidity contract", undefined, types.string)
+  .addOptionalParam<string>("formatter", "Formatter to use: prettier|forge|none", "prettier", types.string)
+  .addFlag("noFormat", "skip running solidity formatter on generated file")
+  .addFlag("force", "overwrite existing contract file")
+  .setAction(async ({ name, contractName, formatter, force, noFormat }, hre) => {
+    const omnibus = loadOmnibus(name);
+
+    if (omnibus.hasDeployMethod() && !omnibus.getDeployment()) {
+      console.log(
+        fmt.padded(
+          `Omnibus "${name}" has deploy() and doesn't contain deployment addresses. Resolving deployment contracts for generation...`,
+          1,
+        ),
+      );
+    }
+
+    const selectedFormatter = noFormat ? "none" : formatter;
+    if (!["prettier", "forge", "none"].includes(selectedFormatter)) {
+      throw new Error(`Unsupported formatter "${selectedFormatter}". Use: prettier, forge, none`);
+    }
+
+    const { generatedFilePath } = await generateOmnibusContractFile({
+      hre,
+      omnibus,
+      omnibusName: name,
+      contractName,
+      force,
+      formatter: selectedFormatter as "prettier" | "forge" | "none",
+      rootDir: path.resolve(__dirname, ".."),
+    });
+
+    console.log(`Solidity contract generated: ${generatedFilePath}`);
   });
 
 function omnibusNameToDescriptionHeader(omnibusName: string) {
@@ -340,10 +377,10 @@ task("omnibus:launch", "Launch the omnibus with given name")
 
     const pilot = privateKeyToAccount(await hre.keystores.unlock());
 
-    const { ldo } = getLidoContracts(omnibus.network);
+    const { ldo } = getGovernanceContracts(omnibus.network);
     let [nonce, ethBalance, ldoBalance] = await Promise.all([
-      client.viemClient.getTransactionCount({ address: pilot.address }),
-      client.viemClient.getBalance({ address: pilot.address }),
+      client.getTransactionCount({ address: pilot.address }),
+      client.getBalance(pilot.address),
       client.read(ldo, "balanceOf", [pilot.address]),
     ]);
 
@@ -390,12 +427,12 @@ task("omnibus:schedule-proposal", "Schedule proposal into DG")
   .setAction(async ({ networkName, proposalId }, hre) => {
     const client = await prepareDevRpcClient(networkName, hre);
 
-    const { emergencyProtectedTimelock, dualGovernance } = getLidoContracts(networkName);
+    const { timelock, dualGovernance } = getGovernanceContracts(networkName);
     const [[stranger], chainTime, afterSubmitDelay, proposal] = await Promise.all([
       client.getAccounts(),
       client.getChainTime(),
-      client.read(emergencyProtectedTimelock, "getAfterSubmitDelay", []),
-      client.read(emergencyProtectedTimelock, "getProposalDetails", [proposalId]),
+      client.read(timelock, "getAfterSubmitDelay", []),
+      client.read(timelock, "getProposalDetails", [proposalId]),
     ]);
 
     if (proposal.status !== ProposalStatus.Submitted) {
@@ -415,12 +452,12 @@ task("omnibus:execute-proposal", "Executes proposal with a given id")
   .setAction(async ({ networkName, proposalId }, hre) => {
     const client = await prepareDevRpcClient(networkName, hre);
 
-    const { emergencyProtectedTimelock, dualGovernance } = getLidoContracts(networkName);
+    const { timelock } = getGovernanceContracts(networkName);
     const [[stranger], chainTime, afterScheduleDelay, proposal] = await Promise.all([
       client.getAccounts(),
       client.getChainTime(),
-      client.read(emergencyProtectedTimelock, "getAfterScheduleDelay", []),
-      client.read(emergencyProtectedTimelock, "getProposalDetails", [proposalId]),
+      client.read(timelock, "getAfterScheduleDelay", []),
+      client.read(timelock, "getProposalDetails", [proposalId]),
     ]);
 
     if (proposal.status !== ProposalStatus.Scheduled) {
@@ -431,7 +468,7 @@ task("omnibus:execute-proposal", "Executes proposal with a given id")
     if (chainTime < scheduledAt + afterScheduleDelay) {
       await client.increaseTime(scheduledAt - afterScheduleDelay + 1);
     }
-    await client.write(emergencyProtectedTimelock, "execute", [proposalId], { from: stranger });
+    await client.write(timelock, "execute", [proposalId], { from: stranger });
     console.log(`Proposal with id ${proposalId} successfully executed`);
   });
 

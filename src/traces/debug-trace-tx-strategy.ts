@@ -13,7 +13,7 @@ export class DebugTxTraceStrategy implements TraceStrategy {
   }
 
   async trace(txHash: HexStrPrefixed): Promise<TxTraceItem[]> {
-    const receipt = await this.#client.viemClient.getTransaction({ hash: txHash });
+    const receipt = await this.#client.getTransaction({ hash: txHash });
     const structLogVisitor = new StructLogsTracingVisitor({
       address: bytes.normalize(receipt.to ?? "0x"),
       gasLimit: Number(receipt.gas),

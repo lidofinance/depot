@@ -9,23 +9,12 @@ import {
 import bytes, { HexStrNonPrefixed, HexStrPrefixed } from "../common/bytes";
 import { DevRpcClient, NetworkName, RpcClient, WriteContractOptions } from "../network";
 import { TxTrace, TxTraceCallItem, TxTraceItem, TxTraceLogItem } from "../traces/tx-traces";
-import { OmnibusDirectCall } from "./calls/omnibus-direct-call";
-import { OmnibusExecuteCall } from "./calls/omnibus-execute-call";
-import { OmnibusForwardCalls } from "./calls/omnibus-forward-calls";
-import { OmnibusSubmitProposalCall } from "./calls/omnibus-submit-calls";
-import { OmnibusForwardCall } from "./calls/omnibus-forward-call";
-import {
-  Contract,
-  getEventAbi,
-  getFunctionAbi,
-  getLidoContracts,
-  getLidoImpls,
-  getLidoProxies,
-  LidoContracts,
-  LidoImpls,
-  LidoProxies,
-  OmnibusBaseContract,
-} from "../contracts";
+import { OmnibusDirectCallFactory, OmnibusDirectCall } from "./calls/omnibus-direct-call";
+import { OmnibusExecuteCall, OmnibusExecuteCallFactory } from "./calls/omnibus-execute-call";
+import { OmnibusForwardCalls, OmnibusForwardCallsFactory } from "./calls/omnibus-forward-calls";
+import { OmnibusSubmitProposalCall, OmnibusSubmitProposalCallFactory } from "./calls/omnibus-submit-calls";
+import { OmnibusForwardCall, OmnibusForwardCallFactory } from "./calls/omnibus-forward-call";
+import { Contract, getEventAbi, getFunctionAbi, OmnibusBaseContract } from "../contracts";
 import blueprints, { Blueprints } from "./blueprints";
 import { Agent_ABI } from "../../abi/Agent.abi";
 import { FilterAbiEvents, FindEventAbiParams } from "../types/abi.types";
@@ -52,7 +41,7 @@ import { Voting_ABI } from "../../abi/Voting.abi";
 import { Executor_ABI } from "../../abi/Executor.abi";
 import { EmergencyProtectedTimelock_ABI } from "../../abi/EmergencyProtectedTimelock.abi";
 import fmt from "../common/format";
-import { isNull } from "lodash";
+import { getGovernanceContracts, GovernanceContracts } from "./governance-contracts";
 
 export const DEFAULT_FORMAT_OPTIONS: FormatOptions = Object.freeze({
   padLength: 0,
@@ -66,7 +55,7 @@ export interface FormatOptions {
 export interface BaseOmnibusCall {
   getTarget(): Address;
   getCalldata(): HexStrNonPrefixed;
-  getEventsFor(type: "omnibus" | "proposal"): OmnibusCallEvent[];
+  getExpectedEvents(phase: "vote" | "proposal"): OmnibusCallEvent[];
   format(formatOptions?: FormatOptions): string;
   formatTitle(formatOptions?: FormatOptions): string;
   formatCall(formatOptions?: FormatOptions): string;
@@ -93,34 +82,21 @@ interface OmnibusFormatParams {
   padLength?: number;
 }
 
-export type BlueprintCtx<$Network extends NetworkName = NetworkName> = Omit<
-  OmnibusConfigCtx<$Network>,
-  "blueprints" | "deployment"
->;
+export type BlueprintCtx = Pick<OmnibusConfigCtx, "event" | "directCall">;
 
-interface OmnibusConfigCtx<
-  $Network extends NetworkName = NetworkName,
-  $DeployedContracts extends Record<string, Contract> = Record<string, Contract>,
-> {
-  impls: LidoImpls<$Network>;
-  proxies: LidoProxies<$Network>;
-  contracts: LidoContracts<$Network>;
-
-  // The voting will be bound to the method at the construction of the omnibus
+// The voting will be bound to the method at the construction of the omnibus
+interface OmnibusConfigCtx<$DeployedContracts extends Record<string, Contract> = Record<string, Contract>> {
   event: typeof event;
-  directCall: ReturnType<typeof OmnibusDirectCall.createCallBuilder>;
-  forwardCalls: ReturnType<typeof OmnibusForwardCalls.createCallBuilder>;
-  forwardCall: ReturnType<typeof OmnibusForwardCall.createCallBuilder>;
-  submitCalls: ReturnType<typeof OmnibusSubmitProposalCall.createCallBuilder>;
-  executeCall: ReturnType<typeof OmnibusExecuteCall.createCallBuilder>;
+  directCall: OmnibusDirectCallFactory["create"];
+  executeCall: OmnibusExecuteCallFactory["create"];
+  forwardCall: OmnibusForwardCallFactory["create"];
+  forwardCalls: OmnibusForwardCallsFactory["create"];
+  submitCalls: OmnibusSubmitProposalCallFactory["create"];
   blueprints: Blueprints;
   deployment: $DeployedContracts;
 }
 
-interface DeployOmnibusContractCtx<N extends NetworkName> {
-  contracts: LidoContracts<N>;
-  impls: LidoImpls<N>;
-  proxies: LidoProxies<N>;
+interface DeployOmnibusContractCtx {
   client: RpcClient;
   deployContract: <T extends Contract>(contractName: string, args: unknown[]) => Promise<T>;
 }
@@ -146,11 +122,11 @@ interface OmnibusConfig<$Network extends NetworkName, $DeployedContracts extends
    */
   executedAt?: number | undefined;
 
-  calls: (ctx: OmnibusConfigCtx<$Network, $DeployedContracts>) => OmnibusCall[];
-  testVote: TestVoteFn<$Network>;
-  testProposal?: TestProposalFn<$Network>;
+  calls: (ctx: OmnibusConfigCtx<$DeployedContracts>) => OmnibusCall[];
+  testVote: TestVoteFn<$DeployedContracts>;
+  testProposal?: TestProposalFn<$DeployedContracts>;
 
-  deploy?: (ctx: DeployOmnibusContractCtx<$Network>) => Promise<$DeployedContracts>;
+  deploy?: (ctx: DeployOmnibusContractCtx) => Promise<$DeployedContracts>;
   deployment?: $DeployedContracts;
 }
 
@@ -160,33 +136,33 @@ interface VoteCall {
   payload: HexStrPrefixed;
 }
 
-interface TestVoteFn<N extends NetworkName> {
-  (ctx: TestVoteFnCtx<N>): Promise<void>;
+interface TestVoteFn<$DeployedContracts extends Record<string, Contract>> {
+  (ctx: TestVoteFnCtx<$DeployedContracts>): Promise<void>;
 }
 
 interface PassProposalResult {
   executeReceipts: TransactionReceipt[];
 }
 
-interface TestFnCommonCtx<$Network extends NetworkName> {
-  impls: LidoImpls<$Network>;
-  proxies: LidoProxies<$Network>;
-  contracts: LidoContracts<$Network>;
+interface TestFnCommonCtx<$DeployedContracts extends Record<string, Contract>> {
   client: DevRpcClient;
   checks: BoundChecks;
+  deployment: $DeployedContracts;
 }
 
-interface TestVoteFnCtx<$Network extends NetworkName> extends TestFnCommonCtx<$Network> {
+interface TestVoteFnCtx<$DeployedContracts extends Record<string, Contract>>
+  extends TestFnCommonCtx<$DeployedContracts> {
   passOmnibus: () => Promise<PassVoteResult>;
 }
 
-interface TestProposalFnCtx<N extends NetworkName> extends TestFnCommonCtx<N> {
+interface TestProposalFnCtx<$DeployedContracts extends Record<string, Contract>>
+  extends TestFnCommonCtx<$DeployedContracts> {
   submittedProposalIds: bigint[];
   passProposals: (proposalIds?: bigint[]) => Promise<PassProposalResult>;
 }
 
-export interface TestProposalFn<N extends NetworkName> {
-  (ctx: TestProposalFnCtx<N>): Promise<void>;
+export interface TestProposalFn<$DeployedContracts extends Record<string, Contract>> {
+  (ctx: TestProposalFnCtx<$DeployedContracts>): Promise<void>;
 }
 
 type BoundChecks = {
@@ -209,6 +185,8 @@ export class Omnibus<
 > {
   #name: string | undefined;
 
+  #contracts: GovernanceContracts;
+
   #contractVoteCalls?: VoteCall[];
   #contractEVMScript?: HexStrPrefixed;
 
@@ -217,11 +195,7 @@ export class Omnibus<
   #calls: OmnibusCall[] | null = null;
 
   readonly #config: OmnibusConfig<$Network, $DeployedContracts>;
-  readonly #ctx: Omit<OmnibusConfigCtx<$Network>, "deployment">;
-
-  readonly #impls: LidoImpls<$Network>;
-  readonly #proxies: LidoProxies<$Network>;
-  readonly #contracts: LidoContracts<$Network>;
+  readonly #ctx: Omit<OmnibusConfigCtx, "deployment">;
 
   static create<
     $Network extends NetworkName = NetworkName,
@@ -231,27 +205,19 @@ export class Omnibus<
   }
 
   constructor(config: OmnibusConfig<$Network, $DeployedContracts>) {
-    this.#impls = getLidoImpls(config.network);
-    this.#proxies = getLidoProxies(config.network);
-    this.#contracts = getLidoContracts(config.network);
-    const { callsScript, voting, adminExecutor, emergencyProtectedTimelock } = this.#contracts;
+    this.#contracts = getGovernanceContracts(config.network);
 
-    const blueprintCtx: BlueprintCtx<$Network> = {
-      contracts: this.#contracts,
-      proxies: this.#proxies,
-      impls: this.#impls,
+    const { callsScript, voting, adminExecutor, timelock } = this.#contracts;
+
+    const directCallFactory = new OmnibusDirectCallFactory(voting, callsScript);
+    const executeCallFactory = new OmnibusExecuteCallFactory(voting, callsScript);
+    const forwardCallFactory = new OmnibusForwardCallFactory(voting, callsScript);
+    const forwardCallsFactory = new OmnibusForwardCallsFactory(callsScript);
+    const submitProposalCallFactory = new OmnibusSubmitProposalCallFactory(this.#contracts);
+
+    const blueprintCtx: BlueprintCtx = {
       event: event,
-
-      executeCall: OmnibusExecuteCall.createCallBuilder({ callsScript, voting }),
-      forwardCalls: OmnibusForwardCalls.createCallBuilder({ callsScript }),
-      forwardCall: OmnibusForwardCall.createCallBuilder({ callsScript, voting }),
-      directCall: OmnibusDirectCall.createCallBuilder({ voting, callsScript }),
-      submitCalls: OmnibusSubmitProposalCall.createCallBuilder({
-        voting,
-        callsScript,
-        executor: adminExecutor,
-        timelock: emergencyProtectedTimelock,
-      }),
+      directCall: directCallFactory.create.bind(directCallFactory),
     };
 
     const blueprintsBound: any = {};
@@ -263,7 +229,14 @@ export class Omnibus<
     }
 
     this.#config = Object.freeze(config);
-    this.#ctx = { ...blueprintCtx, blueprints: blueprintsBound };
+    this.#ctx = {
+      ...blueprintCtx,
+      executeCall: executeCallFactory.create.bind(executeCallFactory),
+      forwardCall: forwardCallFactory.create.bind(forwardCallFactory),
+      forwardCalls: forwardCallsFactory.create.bind(forwardCallsFactory),
+      submitCalls: submitProposalCallFactory.create.bind(submitProposalCallFactory),
+      blueprints: blueprintsBound,
+    };
 
     if (!this.#config.deploy) {
       this.#deployment = {} as $DeployedContracts;
@@ -338,12 +311,12 @@ export class Omnibus<
     );
   }
 
-  getOmnibusEvents(): OmnibusCallEvent[] {
+  getVoteEvents(): OmnibusCallEvent[] {
     const { voting, callsScript } = this.#contracts;
 
     return [
       ...this.getCalls()
-        .map((call) => call.getEventsFor("omnibus"))
+        .map((call) => call.getExpectedEvents("vote"))
         .flat(),
       event(voting, "ScriptResult", [
         /* executor: */ callsScript.address,
@@ -410,9 +383,6 @@ export class Omnibus<
 
     this.#deployment = await this.#config.deploy({
       client,
-      impls: this.#impls,
-      proxies: this.#proxies,
-      contracts: this.#contracts,
       deployContract,
     });
 
@@ -590,9 +560,6 @@ export class Omnibus<
       for (const [checkName, checkMethod] of Object.entries(checksMethods)) {
         checksBound[checksNamespace][checkName] = checkMethod.bind(null, {
           client,
-          impls: this.#impls,
-          proxies: this.#proxies,
-          contracts: this.#contracts,
         });
       }
     }
@@ -614,9 +581,6 @@ export class Omnibus<
         if (!this.#config.executedAt) {
           await this.#config.testVote({
             client,
-            impls: this.#impls,
-            proxies: this.#proxies,
-            contracts: this.#contracts,
             passOmnibus: async () =>
               this.#passOmnibus(client, (res) => {
                 voteId = res.voteId;
@@ -627,6 +591,8 @@ export class Omnibus<
                 submittedProposalIds.push(...res.submittedProposalIds);
               }),
             checks: checksBound,
+            // TODO: fixme, check deployment is not null if the deploy logic contained in the config
+            deployment: this.#deployment!,
           });
           console.log(
             fmt.padded(
@@ -649,7 +615,7 @@ export class Omnibus<
         if (!executeOmnibusReceipt) {
           throw new Error(`executeOmnibusReceipt is null. Make sure "testVote" method calls passOmnibus()`);
         }
-        testEmittedEvents((executeOmnibusReceipt as TransactionReceipt).logs, this.getOmnibusEvents());
+        testEmittedEvents((executeOmnibusReceipt as TransactionReceipt).logs, this.getVoteEvents());
       } catch (error) {
         console.log(`${chalk.redBright("✗")} Aragon Vote test failed`);
         throw error;
@@ -662,7 +628,7 @@ export class Omnibus<
       const submitProposalCalls = this.getCalls().filter((call) => call instanceof OmnibusSubmitProposalCall);
       const submittedProposals = await Promise.all(
         submittedProposalIds.map((proposalId) =>
-          client.read(this.#contracts.emergencyProtectedTimelock, "getProposalDetails", [proposalId]),
+          client.read(this.#contracts.timelock, "getProposalDetails", [proposalId]),
         ),
       );
 
@@ -701,12 +667,11 @@ export class Omnibus<
           console.log(fmt.padded(`Passing & executing proposals [${submittedProposalIds}]...`, 2));
           await this.#config.testProposal({
             client,
-            impls: this.#impls,
-            proxies: this.#proxies,
-            contracts: this.#contracts,
             passProposals,
             checks: checksBound,
             submittedProposalIds,
+            // TODO: fixme, check deployment is not null if the deploy logic contained in the config
+            deployment: this.#deployment!,
           });
           console.log(
             fmt.padded(`${chalk.greenBright("✔")} Proposals [${submittedProposalIds}] successfully tested`, 3),
@@ -726,7 +691,7 @@ export class Omnibus<
       for (let i = 0; i < executeProposalReceipts.length; ++i) {
         const logs = executeProposalReceipts[i].logs;
 
-        const events = submitProposalCalls[i].getEventsFor("proposal");
+        const events = submitProposalCalls[i].getExpectedEvents("proposal");
 
         const optionalEventsCount = events.filter((event) => event.isOptional).length;
         assert.isTrue(logs.length >= events.length - optionalEventsCount, "Count of logs is too low");
@@ -1188,20 +1153,21 @@ interface MethodCallConfig {
 }
 
 export function filterOmnibusTrace(trace: TxTrace) {
-  const impls = getLidoImpls(trace.network);
-  const contracts = getLidoContracts(trace.network);
+  // const impls = getLidoImpls(trace.network);
+  const contracts = getGovernanceContracts(trace.network);
 
   return trace
+    .filter(omitProxyDelegateCalls())
     .filter(
       omitViewMethodCalls([
-        contracts.lidoLocator,
-        impls.lidoLocator,
+        contracts.locator,
+        // impls.lidoLocator,
         contracts.kernel,
-        impls.kernel,
+        // impls.kernel,
         contracts.evmScriptRegistry,
-        impls.evmScriptRegistry,
+        // impls.evmScriptRegistry,
         contracts.acl,
-        impls.acl,
+        // impls.acl,
         contracts.ldo,
       ]),
     )
@@ -1214,7 +1180,6 @@ export function filterOmnibusTrace(trace: TxTrace) {
         },
       ]),
     )
-    .filter(omitProxyDelegateCalls())
     .filter(omitStaticCalls())
     .filter(omitAragonServiceLogs())
     .filter(omitDualGovernanceServiceLogs());
@@ -1224,7 +1189,7 @@ function omitViewMethodCalls(contracts: Contract[]) {
   return (traceItem: TxTraceItem) => {
     if (!isCallOpcode(traceItem.type)) return true;
 
-    for (const { abi, address, label } of contracts) {
+    for (const { abi, address } of contracts) {
       if (!bytes.isEqual(traceItem.address, address)) {
         continue;
       }
@@ -1342,7 +1307,7 @@ function formatOmnibusCallEvent(event: OmnibusCallEvent, isSkipped: boolean) {
   for (let i = 0; i < event.args.length; ++i) {
     let arg = event.args[i];
 
-    const status = isSkipped || isNull(arg) ? chalk.yellow("skipped") : chalk.green("checked");
+    const status = isSkipped || arg === null ? chalk.yellow("skipped") : chalk.green("checked");
 
     argsStatuses.push(`${chalk.gray(event.abi.inputs[i].name)}: ${status}`);
   }

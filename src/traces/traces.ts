@@ -4,7 +4,8 @@ import { DebugTxTraceStrategy } from "./debug-trace-tx-strategy";
 import { HexStrPrefixed } from "../common/bytes";
 import { RpcClient } from "../network";
 import { DebugCallTracerStrategy } from "./debug-call-tracer-strategy";
-import { Contract, getLidoContracts } from "../contracts/contracts";
+import { Contract } from "../contracts/contracts";
+import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
 export async function trace(
   client: RpcClient,
@@ -14,7 +15,7 @@ export async function trace(
   const strategy = await getTracerStrategy(client);
   const tracer = new TxTracer(strategy);
   const network = client.getNetworkName();
-  return tracer.trace(network, txHash, [getLidoContracts(network).callsScript, ...prePopulatedContracts]);
+  return tracer.trace(network, txHash, [getGovernanceContracts(network).callsScript, ...prePopulatedContracts]);
 }
 
 async function getTracerStrategy(client: RpcClient) {

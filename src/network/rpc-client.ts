@@ -1,12 +1,22 @@
 import {
   Abi,
+  AbiEvent,
   Account,
   Address,
+  BlockNumber,
+  BlockTag,
   Chain,
   ContractFunctionArgs,
   ContractFunctionName,
+  CreateEventFilterParameters,
   CustomTransport,
+  GetFilterLogsParameters,
+  GetTransactionCountParameters,
+  GetTransactionParameters,
+  GetTransactionReceiptParameters,
   HttpTransport,
+  MaybeAbiEventName,
+  MaybeExtractEventArgsFromAbi,
   PublicClient,
   ReadContractReturnType,
   WalletClient,
@@ -50,9 +60,9 @@ export class RpcClient {
   }
 
   async simulate<
-    const contract extends Contract,
+    contract extends Contract,
     functionName extends ContractFunctionName<contract["abi"], "nonpayable" | "payable">,
-    const args extends ContractFunctionArgs<contract["abi"], "nonpayable" | "payable", functionName>,
+    args extends ContractFunctionArgs<contract["abi"], "nonpayable" | "payable", functionName>,
   >({ abi, address }: contract, functionName: functionName, args: args, options: WriteContractOptions) {
     return this.viemClient.simulateContract({
       abi,
@@ -64,7 +74,7 @@ export class RpcClient {
   }
 
   async write<
-    const contract extends Contract,
+    contract extends Contract,
     functionName extends ContractFunctionName<contract["abi"], "payable" | "nonpayable">,
     args extends ContractFunctionArgs<contract["abi"], "payable" | "nonpayable", functionName>,
   >(c: contract, functionName: functionName, args: args, options: WriteContractOptions) {
@@ -76,9 +86,9 @@ export class RpcClient {
   }
 
   async read<
-    const contract extends Contract,
+    contract extends Contract,
     functionName extends ContractFunctionName<contract["abi"], "pure" | "view">,
-    const args extends ContractFunctionArgs<contract["abi"], "pure" | "view", functionName>,
+    args extends ContractFunctionArgs<contract["abi"], "pure" | "view", functionName>,
   >(
     { abi, address }: contract,
     functionName: functionName,
@@ -123,6 +133,10 @@ export class RpcClient {
     return this.viemClient.getBalance({ address });
   }
 
+  getBlockNumber() {
+    return this.viemClient.getBlockNumber();
+  }
+
   #node: NodeInfo | null = null;
 
   async getNodeInfo(): Promise<NodeInfo> {
@@ -144,5 +158,43 @@ export class RpcClient {
 
   async getChainTime() {
     return this.viemClient.getBlock().then((block) => Number(block.timestamp));
+  }
+
+  getTransactionReceipt(args: GetTransactionReceiptParameters) {
+    return this.viemClient.getTransactionReceipt(args);
+  }
+
+  getTransaction<blockTag extends BlockTag = "latest">(args: GetTransactionParameters<blockTag>) {
+    return this.viemClient.getTransaction(args);
+  }
+
+  getTransactionCount(args: GetTransactionCountParameters) {
+    return this.viemClient.getTransactionCount(args);
+  }
+
+  getFilterLogs<
+    abi extends Abi | readonly unknown[] | undefined,
+    eventName extends string | undefined,
+    strict extends boolean | undefined = undefined,
+    fromBlock extends BlockNumber | BlockTag | undefined = undefined,
+    toBlock extends BlockNumber | BlockTag | undefined = undefined,
+  >(args: GetFilterLogsParameters<abi, eventName, strict, fromBlock, toBlock>) {
+    return this.viemClient.getFilterLogs(args);
+  }
+
+  createEventFilter<
+    abiEvent extends AbiEvent | undefined = undefined,
+    abiEvents extends readonly AbiEvent[] | readonly unknown[] | undefined = abiEvent extends AbiEvent
+      ? [abiEvent]
+      : undefined,
+    strict extends boolean | undefined = undefined,
+    fromBlock extends BlockNumber | BlockTag | undefined = undefined,
+    toBlock extends BlockNumber | BlockTag | undefined = undefined,
+    _EventName extends string | undefined = MaybeAbiEventName<abiEvent>,
+    _Args extends MaybeExtractEventArgsFromAbi<abiEvents, _EventName> | undefined = undefined,
+  >(
+    args?: CreateEventFilterParameters<abiEvent, abiEvents, strict, fromBlock, toBlock, _EventName, _Args> | undefined,
+  ) {
+    return this.viemClient.createEventFilter(args);
   }
 }
