@@ -72,7 +72,7 @@ export function toPascalCase(raw: string) {
 }
 
 export function omnibusNameToContractName(name: string) {
-  return `${toPascalCase(name)}Omnibus`;
+  return `Omnibus${toPascalCase(name)}`;
 }
 
 export function isPlainObject(value: unknown): value is Record<string, unknown> {

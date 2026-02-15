@@ -4,11 +4,10 @@ The purpose of this repo is to build, test and run omnibuses.
 
 ## Install
 
-Install and enable `pnpm` - https://pnpm.io/installation#prerequisites
+Install Node.js (includes npm) - https://nodejs.org/en/download
+Install nvm - https://github.com/nvm-sh/nvm
 
 Install docker - https://docs.docker.com/engine/install/
-
-Install NodeJS - https://nodejs.org/en/download
 
 ## Omnibus
 
@@ -51,16 +50,20 @@ Keystores allow you to securely store your private keys and use them in the proc
    ```shell
    cd depot
    ```
-4. Install dependencies via
+4. Use required Node.js version
    ```shell
-   pnpm install
+   nvm use
    ```
-5. Types will be generated automatically via postinstall script
-6. Seed the `.env` file from the `.env.example`
+5. Install dependencies via
+   ```shell
+   npm install
+   ```
+6. Types will be generated automatically via postinstall script
+7. Seed the `.env` file from the `.env.example`
    ```shell
    cp .env.example .env1
    ```
-7. Fill variables in
+8. Fill variables in
 
 Useful commands for onboarding:
 
@@ -237,7 +240,7 @@ unexpected events, the test will fail. If the event was described in the omnibus
 To run omnibus test you should run the following command:
 
 ```bash
-pnpm omnibus:test ${OMNIBUS_NAME}
+npm run omnibus:test -- ${OMNIBUS_NAME}
 ```
 
 Where `${OMNIBUS_NAME}` is the name of the file in the [omnibuses](./omnibuses) folder without `.ts` extension.
@@ -248,7 +251,7 @@ To run omnibus you need to have a keystore with the private key. To set it up yo
 to run the following command:
 
 ```bash
-pnpm ks:add ${KEYSTORE_NAME}
+npm run ks:add -- ${KEYSTORE_NAME}
 ```
 
 Where `${KEYSTORE_NAME}` can be anything you're comfortable with.
@@ -256,25 +259,25 @@ Where `${KEYSTORE_NAME}` can be anything you're comfortable with.
 To list all available keystores you can run the following command:
 
 ```bash
-pnpm ks:ls
+npm run ks:ls
 ```
 
 To remove keystore you can run the following command:
 
 ```bash
-pnpm ks:del ${KEYSTORE_NAME}
+npm run ks:del -- ${KEYSTORE_NAME}
 ```
 
 To generate a new keystore you can run the following command:
 
 ```bash
-pnpm ks:gen ${KEYSTORE_NAME}
+npm run ks:gen -- ${KEYSTORE_NAME}
 ```
 
 To change the keystore password you can run the following command:
 
 ```bash
-pnpm ks:pwd ${KEYSTORE_NAME}
+npm run ks:pwd -- ${KEYSTORE_NAME}
 ```
 
 ## Run omnibus
@@ -282,7 +285,7 @@ pnpm ks:pwd ${KEYSTORE_NAME}
 To run omnibus you need to run the following command:
 
 ```bash
-pnpm omnibus:run ${OMNIBUS_NAME}
+npm run omnibus:run -- ${OMNIBUS_NAME}
 ```
 
 Where `${OMNIBUS_NAME}` is the name of the file in the [omnibuses](./src/omnibuses) folder without `.ts` extension. While the script is running, it should print all calls made to the network and ask for your confirmation to continue. After deployment, you should see the following message:
@@ -302,19 +305,19 @@ You have to set vote ID in the omnibus file. Also, you can add launch date to th
 Test tiny omnibus at mainnet
 
 ```shell
-  pnpm omnibus:test _example_tiny_holesky_omnibus
+  npm run omnibus:test -- _example_tiny_holesky_omnibus
 ```
 
 Test tiny omnibus at holesky
 
 ```shell
-  pnpm omnibus:test _example_tiny_holesky_omnibus
+  npm run omnibus:test -- _example_tiny_holesky_omnibus
 ```
 
 Run tiny omnibus at holesky (you will need to add keystone first)
 
 ```shell
-  pnpm omnibus:run _example_tiny_holesky_omnibus --rpc remote --test-account false --network holesky
+  npm run omnibus:run -- _example_tiny_holesky_omnibus --rpc remote --test-account false --network holesky
 ```
 
 ### Run tests from other repos at mainnet
