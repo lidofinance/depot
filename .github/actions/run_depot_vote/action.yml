@@ -6,7 +6,16 @@ runs:
   steps:
     - name: Check that the fork is ready
       shell: bash
-      run: timeout 30 bash -c 'until printf "" 2>>/dev/null >>/dev/tcp/$0/$1; do sleep 1; done' 127.0.0.1 8545
+      run: |
+        timeout 120 bash -c '
+          until curl -sf -X POST -H "Content-Type: application/json" \
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
+            http://127.0.0.1:8545 > /dev/null 2>&1; do
+            echo "Waiting for hardhat node to be ready..."
+            sleep 2
+          done
+        '
+        echo "Hardhat node is ready"
 
     ## TODO: make real script here
     - name: Run Vote

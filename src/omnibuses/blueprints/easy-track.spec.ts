@@ -1,233 +1,129 @@
-import { expect } from "chai";
-import { randomAddress } from "hardhat/internal/hardhat-network/provider/utils/random";
-import bytes, { HexStrPrefixed } from "../../common/bytes";
-import sinon from "sinon";
-import * as voteScripts from "../../aragon-votes-tools/vote-script";
-import * as voteEvents from "../../aragon-votes-tools/events";
-import stakingRouter from "./staking-router";
-import easyTrack from "./easy-track";
-import { assert } from "../../common/assert";
-import { Contracts } from "../../contracts/contracts";
-import { Lido } from "../../../configs/types";
-import { AllowedRecipientsRegistry__factory } from "../../../typechain-types/factories/interfaces";
+import { assert } from "chai";
+import bytes from "../../common/bytes";
+import { toFunctionSelector } from "viem";
+import { AllowedRecipientsRegistry_ABI } from "../../../abi/AllowedRecipientsRegistry.abi";
+import { Finance_ABI } from "../../../abi/Finance.abi";
+import { getFunctionAbi, getLidoContracts } from "../../contracts/contracts";
+import { OmnibusDirectCall } from "../calls/omnibus-direct-call";
+import { event } from "../omnibus";
+import easyTrack, {
+  addRecipientEVMScriptFactoryPermission,
+  removeRecipientEVMScriptFactoryPermission,
+  topUpEVMScriptFactoryPermission,
+} from "./easy-track";
 
-const iAllowedRecipientsRegistry = AllowedRecipientsRegistry__factory.createInterface();
+function createCtx() {
+  const contracts = getLidoContracts("mainnet");
+  return {
+    contracts,
+    event,
+    directCall: OmnibusDirectCall.createCallBuilder({ voting: contracts.voting, callsScript: contracts.callsScript }),
+  } as any;
+}
 
-describe("AddNodeOperators", () => {
-  let addNodeOperatorsAction: any;
+describe("easy-track blueprints", () => {
+  it("removeEvmScriptFactory creates expected direct call", () => {
+    const ctx = createCtx();
+    const factory = "0x1111111111111111111111111111111111111111";
+    const call = easyTrack.removeEvmScriptFactory(ctx, { title: "Remove factory", factory });
 
-  beforeEach(() => {
-    sinon.stub(voteScripts, "call");
-    sinon.stub(voteEvents, "event");
-    addNodeOperatorsAction = stakingRouter.addNodeOperators({ curatedStakingModule: sinon.stub() } as any, {
-      operators: [
-        { name: "Operator 1", rewardAddress: randomAddress().toString() as HexStrPrefixed },
-        { name: "Operator 2", rewardAddress: randomAddress().toString() as HexStrPrefixed },
-        { name: "Operator 3", rewardAddress: randomAddress().toString() as HexStrPrefixed },
-      ],
+    assert.equal(call.title, "Remove factory");
+    assert.equal(call.functionName, "removeEVMScriptFactory");
+    assert.deepEqual(call.args, [factory]);
+
+    const events = call.getEventsFor("proposal");
+    assert.equal(events[0].abi.name, "EVMScriptFactoryRemoved");
+    assert.deepEqual(events[0].args, [factory]);
+  });
+
+  it("addEvmScriptFactory creates expected direct call", () => {
+    const ctx = createCtx();
+    const factory = "0x1111111111111111111111111111111111111111";
+    const permission = "0xabcdef" as const;
+    const call = easyTrack.addEvmScriptFactory(ctx, {
+      title: "Add factory",
+      factory,
+      permission,
     });
+
+    assert.equal(call.title, "Add factory");
+    assert.equal(call.functionName, "addEVMScriptFactory");
+    assert.deepEqual(call.args, [factory, permission]);
+
+    const events = call.getEventsFor("proposal");
+    assert.equal(events[0].abi.name, "EVMScriptFactoryAdded");
+    assert.deepEqual(events[0].args, [factory, permission]);
   });
 
-  after(() => {
-    sinon.restore();
-  });
+  it("addTopUpEvmScriptFactory uses computed permission", () => {
+    const ctx = createCtx();
+    const factory = "0x1111111111111111111111111111111111111111";
+    const registry = "0x2222222222222222222222222222222222222222";
+    const call = easyTrack.addTopUpEvmScriptFactory(ctx, {
+      title: "Add top up factory",
+      factory,
+      registry,
+    });
 
-  it("should return the correct title", () => {
-    expect(addNodeOperatorsAction.title).to.equal("Add 3 node operators:\n - Operator 1\n - Operator 2\n - Operator 3");
-  });
-});
-
-describe("EVM script factories", () => {
-  let callStub: sinon.SinonStub;
-  let eventStub: sinon.SinonStub;
-  beforeEach(() => {
-    callStub = sinon.stub(voteScripts, "call");
-    eventStub = sinon.stub(voteEvents, "event");
-  });
-  afterEach(() => {
-    sinon.restore();
-  });
-
-  it("removeEvmScriptFactory works as expected", async () => {
-    const mockContracts = {
-      easyTrack: { removeEVMScriptFactory: "0xremoveEVMScriptFactory" },
-      callsScript: {},
-      voting: {},
-    };
-    const input = { factory: "0xFactoryAddress", title: "Remove Factory" };
-
-    const result = easyTrack.removeEvmScriptFactory(mockContracts as unknown as Contracts<Lido>, input);
-
-    assert.equal(result.title, input.title);
-    assert.isTrue(callStub.calledOnceWith(mockContracts.easyTrack.removeEVMScriptFactory, [input.factory]));
-    assert.isTrue(eventStub.calledTwice);
-    assert.isTrue(eventStub.calledWith(mockContracts.callsScript, "LogScriptCall", { emitter: mockContracts.voting }));
-    assert.isTrue(eventStub.calledWith(mockContracts.easyTrack, "EVMScriptFactoryRemoved", { args: [input.factory] }));
-  });
-
-  it("addEvmScriptFactory works as expected", async () => {
-    const mockContracts = {
-      easyTrack: { addEVMScriptFactory: "0xaddEVMScriptFactory" },
-      callsScript: {},
-      voting: {},
-    };
-    const input = { factory: "0xFactoryAddress", title: "Add Factory", permission: "0xPermission" as HexStrPrefixed };
-
-    const result = easyTrack.addEvmScriptFactory(mockContracts as unknown as Contracts<Lido>, input);
-
-    assert.equal(result.title, input.title);
-    assert.isTrue(
-      callStub.calledOnceWith(mockContracts.easyTrack.addEVMScriptFactory, [input.factory, input.permission]),
-    );
-    assert.isTrue(eventStub.calledTwice);
-    assert.isTrue(eventStub.calledWith(mockContracts.callsScript, "LogScriptCall", { emitter: mockContracts.voting }));
-    assert.isTrue(
-      eventStub.calledWith(mockContracts.easyTrack, "EVMScriptFactoryAdded", {
-        args: [input.factory, input.permission],
-      }),
-    );
-  });
-
-  it("addTopUpEvmScriptFactory works as expected", async () => {
-    const mockContracts = {
-      easyTrack: { addEVMScriptFactory: "0xaddEVMScriptFactory" },
-      finance: {
-        address: "0xFinanceAddress",
-        newImmediatePayment: {
-          fragment: {
-            selector: "0xSelector",
-          },
-        },
-      },
-      callsScript: {},
-      voting: {},
-    };
-    const input = {
-      factory: "0xFactoryAddress",
-      name: "FactoryName",
-      registry: "0xRegistryAddress",
-    };
-
-    const permission = bytes.join(
-      ...[mockContracts.finance.address, mockContracts.finance.newImmediatePayment.fragment.selector],
-      ...[input.registry, iAllowedRecipientsRegistry.getFunction("updateSpentAmount").selector],
+    const expectedPermission = bytes.join(
+      ...[
+        ctx.contracts.finance.address,
+        toFunctionSelector(getFunctionAbi(ctx.contracts.finance, "newImmediatePayment")),
+      ],
+      ...[registry, toFunctionSelector(getFunctionAbi({ abi: AllowedRecipientsRegistry_ABI }, "updateSpentAmount"))],
     );
 
-    const result = easyTrack.addTopUpEvmScriptFactory(mockContracts as unknown as Contracts<Lido>, input);
-
-    assert.equal(result.title, `Add top up EVM Script Factory "${input.name}"`);
-    assert.isTrue(callStub.calledOnceWith(mockContracts.easyTrack.addEVMScriptFactory, [input.factory, permission]));
-    assert.isTrue(eventStub.calledTwice);
-    assert.isTrue(eventStub.calledWith(mockContracts.callsScript, "LogScriptCall", { emitter: mockContracts.voting }));
-    assert.isTrue(
-      eventStub.calledWith(mockContracts.easyTrack, "EVMScriptFactoryAdded", {
-        args: [input.factory, permission],
-      }),
-    );
+    assert.deepEqual(call.args, [factory, expectedPermission]);
   });
 
-  it("addAddRecipientEvmScriptFactory works as expected", async () => {
-    const mockContracts = {
-      easyTrack: { addEVMScriptFactory: "0xaddEVMScriptFactory" },
-      callsScript: {},
-      voting: {},
-    };
-    const input = {
-      factory: "0xFactoryAddress",
-      name: "FactoryName",
-      registry: "0xRegistryAddress",
-    };
+  it("add/remove recipient factories use expected permissions", () => {
+    const ctx = createCtx();
+    const factory = "0x1111111111111111111111111111111111111111";
+    const registry = "0x2222222222222222222222222222222222222222";
 
-    const permission = bytes.join(...[input.registry, iAllowedRecipientsRegistry.getFunction("addRecipient").selector]);
+    const addRecipientCall = easyTrack.addAddRecipientEvmScriptFactory(ctx, {
+      title: "Add recipient factory",
+      factory,
+      registry,
+    });
+    const removeRecipientCall = easyTrack.addRemoveRecipientEvmScriptFactory(ctx, {
+      title: "Remove recipient factory",
+      factory,
+      registry,
+    });
 
-    const result = easyTrack.addAddRecipientEvmScriptFactory(mockContracts as unknown as Contracts<Lido>, input);
-
-    assert.equal(result.title, `Add add recipient EVM Script Factory "${input.name}"`);
-    assert.isTrue(callStub.calledOnceWith(mockContracts.easyTrack.addEVMScriptFactory, [input.factory, permission]));
-    assert.isTrue(eventStub.calledTwice);
-    assert.isTrue(eventStub.calledWith(mockContracts.callsScript, "LogScriptCall", { emitter: mockContracts.voting }));
-    assert.isTrue(
-      eventStub.calledWith(mockContracts.easyTrack, "EVMScriptFactoryAdded", {
-        args: [input.factory, permission],
-      }),
+    const addPermission = bytes.join(
+      ...[registry, toFunctionSelector(getFunctionAbi({ abi: AllowedRecipientsRegistry_ABI }, "addRecipient"))],
     );
-  });
-
-  it("addRemoveRecipientEvmScriptFactory works as expected", async () => {
-    const mockContracts = {
-      easyTrack: { addEVMScriptFactory: "0xaddEVMScriptFactory" },
-      callsScript: {},
-      voting: {},
-    };
-    const input = {
-      factory: "0xFactoryAddress",
-      name: "FactoryName",
-      registry: "0xRegistryAddress",
-    };
-
-    const permission = bytes.join(
-      ...[input.registry, iAllowedRecipientsRegistry.getFunction("removeRecipient").selector],
+    const removePermission = bytes.join(
+      ...[registry, toFunctionSelector(getFunctionAbi({ abi: AllowedRecipientsRegistry_ABI }, "removeRecipient"))],
     );
 
-    const result = easyTrack.addRemoveRecipientEvmScriptFactory(mockContracts as unknown as Contracts<Lido>, input);
+    assert.deepEqual(addRecipientCall.args, [factory, addPermission]);
+    assert.deepEqual(removeRecipientCall.args, [factory, removePermission]);
+  });
 
-    assert.equal(result.title, `Add remove recipient EVM Script Factory "${input.name}"`);
-    assert.isTrue(callStub.calledOnceWith(mockContracts.easyTrack.addEVMScriptFactory, [input.factory, permission]));
-    assert.isTrue(eventStub.calledTwice);
-    assert.isTrue(eventStub.calledWith(mockContracts.callsScript, "LogScriptCall", { emitter: mockContracts.voting }));
-    assert.isTrue(
-      eventStub.calledWith(mockContracts.easyTrack, "EVMScriptFactoryAdded", {
-        args: [input.factory, permission],
-      }),
+  it("permission helper functions match ABI selectors", () => {
+    const finance = "0x3333333333333333333333333333333333333333";
+    const registry = "0x4444444444444444444444444444444444444444";
+
+    const topUp = topUpEVMScriptFactoryPermission(finance, registry);
+    const expectedTopUp = bytes.join(
+      ...[finance, toFunctionSelector(getFunctionAbi({ abi: Finance_ABI }, "newImmediatePayment"))],
+      ...[registry, toFunctionSelector(getFunctionAbi({ abi: AllowedRecipientsRegistry_ABI }, "updateSpentAmount"))],
     );
-  });
+    assert.equal(topUp, expectedTopUp);
 
-  it("adds multiple payment EVM script factories successfully", async () => {
-    const mockContracts = {
-      easyTrack: { addEVMScriptFactory: sinon.stub().resolves() },
-      finance: {
-        address: "0xFinanceAddress",
-        newImmediatePayment: {
-          fragment: {
-            selector: "0xSelector",
-          },
-        },
-      },
-      callsScript: {},
-      voting: {},
-    };
-    const input = {
-      name: "FactoryName",
-      registry: "0xRegistryAddress",
-      factories: {
-        topUp: "0xTopUpFactory",
-        addRecipient: "0xAddRecipientFactory",
-        removeRecipient: "0xRemoveRecipientFactory",
-      },
-    };
+    const addRecipient = addRecipientEVMScriptFactoryPermission(registry);
+    const expectedAddRecipient = bytes.join(
+      ...[registry, toFunctionSelector(getFunctionAbi({ abi: AllowedRecipientsRegistry_ABI }, "addRecipient"))],
+    );
+    assert.equal(addRecipient, expectedAddRecipient);
 
-    const result = easyTrack.addPaymentEvmScriptFactories(mockContracts as unknown as Contracts<Lido>, input);
-
-    assert.lengthOf(result, 3);
-  });
-
-  it("removes multiple payment EVM script factories successfully", async () => {
-    const mockContracts = {
-      easyTrack: { removeEVMScriptFactory: sinon.stub().resolves() },
-      callsScript: {},
-      voting: {},
-    };
-    const input = {
-      name: "FactoryName",
-      factories: {
-        topUp: "0xTopUpFactory",
-        addRecipient: "0xAddRecipientFactory",
-        removeRecipient: "0xRemoveRecipientFactory",
-      },
-    };
-
-    const result = easyTrack.removePaymentEvmScriptFactories(mockContracts as unknown as Contracts<Lido>, input);
-
-    assert.lengthOf(result, 3);
+    const removeRecipient = removeRecipientEVMScriptFactoryPermission(registry);
+    const expectedRemoveRecipient = bytes.join(
+      ...[registry, toFunctionSelector(getFunctionAbi({ abi: AllowedRecipientsRegistry_ABI }, "removeRecipient"))],
+    );
+    assert.equal(removeRecipient, expectedRemoveRecipient);
   });
 });

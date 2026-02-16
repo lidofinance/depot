@@ -173,13 +173,13 @@ function getTargetPlatformArgs() {
   const arch = os.arch();
 
   // Convert Node.js arch to Docker arch
-  const dockerArch =
-    {
-      x64: "amd64",
-      arm64: "arm64",
-      arm: "arm",
-      ia32: "386",
-    }[arch] || arch;
+  const archMap: Record<string, string> = {
+    x64: "amd64",
+    arm64: "arm64",
+    arm: "arm",
+    ia32: "386",
+  };
+  const dockerArch = archMap[arch] || arch;
 
   return {
     TARGETARCH: dockerArch,
