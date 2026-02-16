@@ -11,12 +11,13 @@ import {
   WalletClient,
 } from "viem";
 import { RpcClient } from "./rpc-client";
-import { TestClientMode } from "viem/_types/clients/createTestClient";
 import { HexStrPrefixed } from "../common/bytes";
 
-type PublicTestWalletClient = PublicClient<HttpTransport | CustomTransport, Chain, undefined> &
-  WalletClient<HttpTransport | CustomTransport, Chain, undefined> &
-  TestClient<TestClientMode, HttpTransport | CustomTransport, Chain, undefined>;
+type DevTestClientMode = "hardhat" | "anvil";
+
+type PublicTestWalletClient = PublicClient<HttpTransport | CustomTransport, Chain | undefined, undefined> &
+  WalletClient<HttpTransport | CustomTransport, Chain | undefined, undefined> &
+  TestClient<DevTestClientMode, HttpTransport | CustomTransport, Chain | undefined, undefined>;
 
 export class DevRpcClient extends RpcClient {
   #testClient: PublicTestWalletClient | null = null;

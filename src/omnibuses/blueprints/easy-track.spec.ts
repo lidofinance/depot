@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { randomAddress } from "hardhat/internal/hardhat-network/provider/utils/random";
+import { randomAddress } from "../../common/random";
 import bytes, { HexStrPrefixed } from "../../common/bytes";
 import sinon from "sinon";
 import * as voteScripts from "../../aragon-votes-tools/vote-script";

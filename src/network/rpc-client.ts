@@ -36,8 +36,8 @@ interface DeployContractInput {
   args?: unknown[];
 }
 
-type PublicWalletClient = PublicClient<HttpTransport | CustomTransport, Chain, undefined> &
-  WalletClient<HttpTransport | CustomTransport, Chain, undefined>;
+type PublicWalletClient = PublicClient<HttpTransport | CustomTransport, Chain | undefined, undefined> &
+  WalletClient<HttpTransport | CustomTransport, Chain | undefined, undefined>;
 
 export interface WriteContractOptions {
   from: Address | Account;
@@ -114,6 +114,7 @@ export class RpcClient {
       abi: input.abi,
       args: input.args,
       bytecode: input.bytecode,
+      chain: this.viemClient.chain,
       account: options.from,
       maxFeePerGas: options.maxFeePerGas,
       maxPriorityFeePerGas: options.maxPriorityFeePerGas,

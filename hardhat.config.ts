@@ -1,14 +1,10 @@
 import "dotenv/config";
-import { HardhatUserConfig, subtask } from "hardhat/config";
+import { HardhatUserConfig } from "hardhat/config";
 
-import "./src/hardhat-keystores";
-import "./tasks/omnibuses";
-import "hardhat-contract-sizer";
 import * as env from "./src/common/env";
+import { omnibusTaskBuilders } from "./tasks/omnibuses";
+import { keystoreTaskBuilders } from "./src/hardhat-keystores/tasks";
 
-const glob = require("glob");
-import { TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS } from "hardhat/builtin-tasks/task-names";
-import path from "path";
 import { ContractInfoResolver } from "./src/contract-info-resolver/contract-info-resolver";
 import { findContainerByName, stopContainer } from "./src/docker";
 
@@ -20,15 +16,6 @@ if (etherscanToken) {
   console.warn(`⚠️  "ETHERSCAN_TOKEN" env variable wasn't set. Some methods may work incorrectly or fail.\n`);
 }
 ContractInfoResolver.enableInMemoryCache();
-
-subtask(TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS).setAction(async (_, hre, runSuper) => {
-  const paths = await runSuper();
-
-  const otherDirectoryGlob = path.join(hre.config.paths.root, "omnibuses", "**", "*.sol");
-  const otherPaths = glob.sync(otherDirectoryGlob);
-
-  return [...paths, ...otherPaths];
-});
 
 let isShuttingDown = false;
 
@@ -67,6 +54,12 @@ async function stopDockerContainers() {
 }
 
 const config: HardhatUserConfig = {
+  tasks: [...omnibusTaskBuilders.map((taskBuilder) => taskBuilder.build()), ...keystoreTaskBuilders.map((taskBuilder) => taskBuilder.build())],
+  paths: {
+    sources: {
+      solidity: ["contracts", "omnibuses"],
+    },
+  },
   solidity: {
     version: "0.8.26",
     settings: {
@@ -82,12 +75,6 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {},
-  mocha: {
-    timeout: 5 * 60 * 10000,
-  },
-  keystores: {
-    path: "keystores",
-  },
 };
 
 export default config;

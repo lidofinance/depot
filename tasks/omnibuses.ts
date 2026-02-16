@@ -1,6 +1,5 @@
 import chalk from "chalk";
 import { task } from "hardhat/config";
-import * as types from "hardhat/internal/core/params/argumentTypes";
 
 import { passAragonVote, setupLdoHolder, startAragonVote } from "../src/aragon-votes-tools";
 import prompt from "../src/common/prompt";
@@ -23,8 +22,8 @@ import { privateKeyToAccount } from "viem/accounts";
 import format from "../src/common/format";
 import { Omnibus } from "../src/omnibuses/omnibus";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { getRpcUrl } from "../src/network/network";
-import { TASK_COMPILE } from "hardhat/builtin-tasks/task-names";
 import files from "../src/common/files";
 import { uploadDescription } from "./sub-tasks/upload-description";
 import { DevRpcClient, RpcClient } from "../src/network";
@@ -33,8 +32,32 @@ import { ProposalStatus } from "../src/omnibuses/dual-governance";
 import { logBlue } from "../src/common/color";
 import { getGovernanceContracts } from "../src/omnibuses/governance-contracts";
 import { generateOmnibusContractFile } from "../src/omnibuses/contract-generator";
+import { getKeystores } from "../src/hardhat-keystores";
+import { runHardhatTask } from "../src/hardhat/run-task";
 
-task("omnibus:scaffold", "Create new empty omnibus from the template").setAction(async ({}) => {
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+export const omnibusTaskBuilders: Array<ReturnType<typeof task>> = [];
+type TaskAction = (taskArguments: any, hre: any) => any;
+
+function asLazyAction(action: TaskAction) {
+  return async () => ({ default: action });
+}
+
+function defineTask(...args: Parameters<typeof task>): any {
+  const builder = task(...args) as any;
+  const originalSetAction = builder.setAction.bind(builder) as (action: unknown) => any;
+  builder.setAction = (action: unknown) => {
+    if (typeof action === "function" && action.length > 0) {
+      return originalSetAction(asLazyAction(action as TaskAction));
+    }
+    return originalSetAction(action);
+  };
+  omnibusTaskBuilders.push(builder);
+  return builder;
+}
+
+defineTask("omnibus:scaffold", "Create new empty omnibus from the template").setAction(async (_taskArgs: any) => {
   const network: NetworkName = await prompt.select("Choose the network:", [
     { title: "Mainnet", value: "mainnet" },
     { title: "Holesky", value: "holesky" },
@@ -92,10 +115,11 @@ task("omnibus:scaffold", "Create new empty omnibus from the template").setAction
   console.log(`- Description file: ${omnibusDescriptionPath}`);
 });
 
-task("omnibus:archive", "Move launched omnibus to archive folder")
-  .addPositionalParam<string>("name", "Name of the omnibus to move to archive", undefined, types.string)
-  .setAction(async ({ name }, hre) => {
-    const omnibus = loadOmnibus(name);
+defineTask("omnibus:archive", "Move launched omnibus to archive folder")
+  .addPositionalArgument({ name: "name", description: "Name of the omnibus to move to archive" })
+  .setAction(async (taskArgs: any, hre: any) => {
+    const { name } = taskArgs;
+    const omnibus = await loadOmnibus(name);
 
     if (!omnibus.voteId) {
       throw new Error(`Omnibus "${name}" "voteId" property is not set`);
@@ -122,14 +146,24 @@ task("omnibus:archive", "Move launched omnibus to archive folder")
     console.log(`Omnibus ${name} was archived to ${archivePath}`);
   });
 
-task("omnibus:contract", "Generate solidity omnibus contract from an existing omnibus script")
-  .addPositionalParam<string>("name", "Name of the omnibus to convert", undefined, types.string, false)
-  .addOptionalParam<string>("contractName", "Name of the generated solidity contract", undefined, types.string)
-  .addOptionalParam<string>("formatter", "Formatter to use: prettier|forge|none", "prettier", types.string)
-  .addFlag("noFormat", "skip running solidity formatter on generated file")
-  .addFlag("force", "overwrite existing contract file")
-  .setAction(async ({ name, contractName, formatter, force, noFormat }, hre) => {
-    const omnibus = loadOmnibus(name);
+defineTask("omnibus:contract", "Generate solidity omnibus contract from an existing omnibus script")
+  .addPositionalArgument({ name: "name", description: "Name of the omnibus to convert" })
+  .addOption({
+    name: "contractName",
+    description: "Name of the generated solidity contract",
+    defaultValue: "",
+  })
+  .addOption({
+    name: "formatter",
+    description: "Formatter to use: prettier|forge|none",
+    defaultValue: "prettier",
+  })
+  .addFlag({ name: "noFormat", description: "skip running solidity formatter on generated file" })
+  .addFlag({ name: "force", description: "overwrite existing contract file" })
+  .setAction(async (taskArgs: any, hre: any) => {
+    const { name, contractName, formatter, force, noFormat } = taskArgs;
+    const normalizedContractName = contractName || undefined;
+    const omnibus = await loadOmnibus(name);
 
     if (omnibus.hasDeployMethod() && !omnibus.getDeployment()) {
       console.log(
@@ -149,7 +183,7 @@ task("omnibus:contract", "Generate solidity omnibus contract from an existing om
       hre,
       omnibus,
       omnibusName: name,
-      contractName,
+      contractName: normalizedContractName,
       force,
       formatter: selectedFormatter as "prettier" | "forge" | "none",
       rootDir: path.resolve(__dirname, ".."),
@@ -167,17 +201,12 @@ function omnibusNameToDescriptionHeader(omnibusName: string) {
     .replace(/(\d{4}) (\d{2}) (\d{2})/g, "$1-$2-$3");
 }
 
-task("omnibus:deploy", "Run deploy method on an omnibus script")
-  .addPositionalParam<string>(
-    "name",
-    "Name of the omnibus script with the deploy() method to run",
-    undefined,
-    types.string,
-    false,
-  )
-  .addFlag("broadcast", "broadcast the transaction to the network")
-  .setAction(async ({ name, broadcast = false }, hre) => {
-    const omnibus = loadOmnibus(name);
+defineTask("omnibus:deploy", "Run deploy method on an omnibus script")
+  .addPositionalArgument({ name: "name", description: "Name of the omnibus script with the deploy() method to run" })
+  .addFlag({ name: "broadcast", description: "broadcast the transaction to the network" })
+  .setAction(async (taskArgs: any, hre: any) => {
+    const { name, broadcast = false } = taskArgs;
+    const omnibus = await loadOmnibus(name);
 
     if (!omnibus.hasDeployMethod()) {
       throw new Error(`Omnibus "${name}" doesn't have deploy method`);
@@ -192,7 +221,7 @@ task("omnibus:deploy", "Run deploy method on an omnibus script")
       throw new Error(`Omnibus contracts already deployed at ${JSON.stringify(deployedAddresses)}`);
     }
 
-    await hre.run(TASK_COMPILE);
+    await buildOmnibusContracts(hre, name);
 
     const client = broadcast ? await createRpcClient(omnibus.network) : await prepareDevRpcClient(omnibus.network, hre);
 
@@ -208,7 +237,7 @@ task("omnibus:deploy", "Run deploy method on an omnibus script")
       );
     }
 
-    const deployer = privateKeyToAccount(await hre.keystores.unlock());
+    const deployer = privateKeyToAccount(await getKeystores(hre).unlock());
 
     console.log(`Network: ${client.getNetworkName()}`);
     console.log(`Deployer: ${deployer.address}`);
@@ -220,20 +249,21 @@ task("omnibus:deploy", "Run deploy method on an omnibus script")
     console.log(`Omnibus contract ${deployedOmnibusContract.label} was deployed at ${deployedOmnibusContract.address}`);
   });
 
-task("omnibus:test", "Runs tests for the given omnibus at local node")
-  .addPositionalParam<string>("name", "Name of the omnibus to test", undefined, types.string, false)
-  .addOptionalParam<number>("blockNumber", "Block number to spawn rpc node on", undefined, types.int)
-  .setAction(async ({ name }, hre) => {
-    const omnibus = loadOmnibus(name);
+defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
+  .addPositionalArgument({ name: "name", description: "Name of the omnibus to test" })
+  .setAction(async (taskArgs: any, hre: any) => {
+    const { name } = taskArgs;
+    const omnibus = await loadOmnibus(name);
     const client = await prepareDevRpcClient(omnibus.network, hre);
     await prepareOmnibus(hre, client, omnibus);
     await omnibus.test(client);
   });
 
-task("omnibus:trace", "Trace the omnibus with given name and shows the execution trace")
-  .addPositionalParam<string>("name", "Name of the omnibus to run")
-  .setAction(async ({ name }: OmnibusLaunchParams, hre) => {
-    const omnibus = loadOmnibus(name);
+defineTask("omnibus:trace", "Trace the omnibus with given name and shows the execution trace")
+  .addPositionalArgument({ name: "name", description: "Name of the omnibus to run" })
+  .setAction(async (taskArgs: OmnibusLaunchParams, hre: any) => {
+      const { name } = taskArgs;
+      const omnibus = await loadOmnibus(name);
     const client = await prepareDevRpcClient(omnibus.network, hre);
     await prepareOmnibus(hre, client, omnibus);
 
@@ -242,28 +272,34 @@ task("omnibus:trace", "Trace the omnibus with given name and shows the execution
     await omnibus.trace(client);
   });
 
-task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
-  .addOptionalParam<string>("name", "Name of the omnibus to run")
-  .addOptionalParam<string>(
-    "repo",
-    "Name of the repo for test: depot|core|scripts|dual-governance",
-    undefined,
-    types.string,
-  )
-  .addOptionalParam<string>("pattern", "Pattern for test run", undefined, types.string)
-  .addOptionalParam<boolean>(
-    "mountTests",
-    "Mount test files from /mount/<repo> to external repo test dir",
-    false,
-    types.boolean,
-  )
-  .setAction(async ({ name, repo, pattern, mountTests }, hre) => {
+defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
+  .addOption({
+    name: "name",
+    description: "Name of the omnibus to run",
+    defaultValue: "",
+  })
+  .addOption({
+    name: "repo",
+    description: "Name of the repo for test: depot|core|scripts|dual-governance",
+    defaultValue: "",
+  })
+  .addOption({
+    name: "pattern",
+    description: "Pattern for test run",
+    defaultValue: "",
+  })
+  .addFlag({ name: "mountTests", description: "Mount test files from /mount/<repo> to external repo test dir" })
+  .setAction(async (taskArgs: any, hre: any) => {
+    const { name, repo, pattern, mountTests } = taskArgs;
+    const normalizedName = name || undefined;
+    const normalizedRepo = repo || undefined;
+    const normalizedPattern = pattern || undefined;
     let client: DevRpcClient;
     let network: NetworkName;
 
     let snapshotId;
-    if (name) {
-      const omnibus = loadOmnibus(name);
+    if (normalizedName) {
+      const omnibus = await loadOmnibus(normalizedName);
 
       network = omnibus.network;
       client = await prepareLocalRpcNode(omnibus.network);
@@ -280,13 +316,13 @@ task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
 
     try {
       const repoNamesToTest: Exclude<Repos, "depot">[] = [];
-      if (!repo || repo === "core") {
+      if (!normalizedRepo || normalizedRepo === "core") {
         repoNamesToTest.push("core");
       }
-      if (!repo || repo === "dual-governance") {
+      if (!normalizedRepo || normalizedRepo === "dual-governance") {
         repoNamesToTest.push("dual-governance");
       }
-      if (!repo || repo === "scripts") {
+      if (!normalizedRepo || normalizedRepo === "scripts") {
         repoNamesToTest.push("scripts");
       }
 
@@ -297,7 +333,7 @@ task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
           (repo) =>
             new Promise<{ status: "fulfilled"; result: any } | { status: "rejected"; error: any }>(async (resolve) => {
               try {
-                const res = await runRepoTests(repo, pattern, hideDebug, mountTests);
+                const res = await runRepoTests(repo, normalizedPattern, hideDebug, mountTests);
                 resolve({ status: "fulfilled", result: res });
               } catch (error) {
                 console.error(`Tests run for repo "${repo}" has failed with error: ${error}`);
@@ -326,11 +362,12 @@ type OmnibusLaunchParams = {
   broadcast: boolean;
 };
 
-task("omnibus:launch", "Launch the omnibus with given name")
-  .addPositionalParam<string>("name", "Name of the omnibus to run")
-  .addFlag("broadcast", "broadcast the transaction to the network")
-  .setAction(async ({ name, broadcast }: OmnibusLaunchParams, hre) => {
-    const omnibus = loadOmnibus(name);
+defineTask("omnibus:launch", "Launch the omnibus with given name")
+  .addPositionalArgument({ name: "name", description: "Name of the omnibus to run" })
+  .addFlag({ name: "broadcast", description: "broadcast the transaction to the network" })
+  .setAction(async (taskArgs: OmnibusLaunchParams, hre: any) => {
+    const { name, broadcast } = taskArgs;
+    const omnibus = await loadOmnibus(name);
 
     if (omnibus.voteId || omnibus.launchedAt || omnibus.executedAt) {
       throw new Error(`The omnibus "${omnibus.voteId}" already lunched. Aborting...`);
@@ -375,7 +412,7 @@ task("omnibus:launch", "Launch the omnibus with given name")
       );
     }
 
-    const pilot = privateKeyToAccount(await hre.keystores.unlock());
+    const pilot = privateKeyToAccount(await getKeystores(hre).unlock());
 
     const { ldo } = getGovernanceContracts(omnibus.network);
     let [nonce, ethBalance, ldoBalance] = await Promise.all([
@@ -411,69 +448,77 @@ task("omnibus:launch", "Launch the omnibus with given name")
     console.log(` - block number: ${receipt.blockNumber}`);
   });
 
-task("omnibus:pass-aragon-vote", "Adopt Aragon Vote with the given id")
-  .addPositionalParam<number>("networkName", "Network of the vote", undefined, types.string, false)
-  .addPositionalParam<number>("voteId", "Aragon Vote id", undefined, types.bigint, false)
-  .setAction(async ({ networkName, voteId }, hre) => {
+defineTask("omnibus:pass-aragon-vote", "Adopt Aragon Vote with the given id")
+  .addPositionalArgument({ name: "networkName", description: "Network of the vote" })
+  .addPositionalArgument({ name: "voteId", description: "Aragon Vote id" })
+  .setAction(async (taskArgs: any, hre: any) => {
+    const { networkName, voteId } = taskArgs;
     const client = await prepareDevRpcClient(networkName, hre);
 
-    const receipt = await passAragonVote(client, voteId);
-    console.log(`Aragon vote with id ${voteId} was executed at block ${receipt.blockNumber}`);
+    const parsedVoteId = BigInt(voteId);
+    const receipt = await passAragonVote(client, parsedVoteId);
+    console.log(`Aragon vote with id ${parsedVoteId} was executed at block ${receipt.blockNumber}`);
   });
 
-task("omnibus:schedule-proposal", "Schedule proposal into DG")
-  .addPositionalParam<number>("networkName", "Network of the vote", undefined, types.string, false)
-  .addPositionalParam<number>("proposalId", "Proposal id", undefined, types.bigint, false)
-  .setAction(async ({ networkName, proposalId }, hre) => {
+defineTask("omnibus:schedule-proposal", "Schedule proposal into DG")
+  .addPositionalArgument({ name: "networkName", description: "Network of the vote" })
+  .addPositionalArgument({ name: "proposalId", description: "Proposal id" })
+  .setAction(async (taskArgs: any, hre: any) => {
+    const { networkName, proposalId } = taskArgs;
     const client = await prepareDevRpcClient(networkName, hre);
+    const parsedProposalId = BigInt(proposalId);
 
     const { timelock, dualGovernance } = getGovernanceContracts(networkName);
     const [[stranger], chainTime, afterSubmitDelay, proposal] = await Promise.all([
       client.getAccounts(),
       client.getChainTime(),
       client.read(timelock, "getAfterSubmitDelay", []),
-      client.read(timelock, "getProposalDetails", [proposalId]),
+      client.read(timelock, "getProposalDetails", [parsedProposalId]),
     ]);
 
     if (proposal.status !== ProposalStatus.Submitted) {
-      throw new Error(`Unexpected proposal with id ${proposalId} in a wrong state: ${ProposalStatus.Submitted}`);
+      throw new Error(`Unexpected proposal with id ${parsedProposalId} in a wrong state: ${ProposalStatus.Submitted}`);
     }
 
     const submittedAt = proposal.submittedAt;
     if (chainTime < submittedAt + afterSubmitDelay) {
       await client.increaseTime(submittedAt - afterSubmitDelay + 1);
     }
-    await client.write(dualGovernance, "scheduleProposal", [proposalId], { from: stranger });
+    await client.write(dualGovernance, "scheduleProposal", [parsedProposalId], { from: stranger });
   });
 
-task("omnibus:execute-proposal", "Executes proposal with a given id")
-  .addPositionalParam<number>("networkName", "Network of the vote", undefined, types.string, false)
-  .addPositionalParam<number>("proposalId", "Proposal id", undefined, types.bigint, false)
-  .setAction(async ({ networkName, proposalId }, hre) => {
+defineTask("omnibus:execute-proposal", "Executes proposal with a given id")
+  .addPositionalArgument({ name: "networkName", description: "Network of the vote" })
+  .addPositionalArgument({ name: "proposalId", description: "Proposal id" })
+  .setAction(async (taskArgs: any, hre: any) => {
+    const { networkName, proposalId } = taskArgs;
     const client = await prepareDevRpcClient(networkName, hre);
+    const parsedProposalId = BigInt(proposalId);
 
     const { timelock } = getGovernanceContracts(networkName);
     const [[stranger], chainTime, afterScheduleDelay, proposal] = await Promise.all([
       client.getAccounts(),
       client.getChainTime(),
       client.read(timelock, "getAfterScheduleDelay", []),
-      client.read(timelock, "getProposalDetails", [proposalId]),
+      client.read(timelock, "getProposalDetails", [parsedProposalId]),
     ]);
 
     if (proposal.status !== ProposalStatus.Scheduled) {
-      throw new Error(`Unexpected proposal with id ${proposalId} in a wrong state: ${ProposalStatus.Submitted}`);
+      throw new Error(`Unexpected proposal with id ${parsedProposalId} in a wrong state: ${ProposalStatus.Submitted}`);
     }
 
     const scheduledAt = proposal.scheduledAt;
     if (chainTime < scheduledAt + afterScheduleDelay) {
       await client.increaseTime(scheduledAt - afterScheduleDelay + 1);
     }
-    await client.write(timelock, "execute", [proposalId], { from: stranger });
-    console.log(`Proposal with id ${proposalId} successfully executed`);
+    await client.write(timelock, "execute", [parsedProposalId], { from: stranger });
+    console.log(`Proposal with id ${parsedProposalId} successfully executed`);
   });
 
-function loadOmnibus(name: string) {
-  const omnibus: Omnibus = require(`../omnibuses/${name}/${name}.ts`).default;
+async function loadOmnibus(name: string): Promise<Omnibus> {
+  const omnibusModulePath = path.resolve(__dirname, "..", "omnibuses", name, `${name}.ts`);
+  const omnibusModule = await import(pathToFileURL(omnibusModulePath).href);
+  const omnibus: Omnibus = omnibusModule.default;
   omnibus.setName(name);
   return omnibus;
 }
@@ -506,6 +551,7 @@ async function prepareLocalRpcNode(network: NetworkName) {
 async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntimeEnvironment) {
   console.log("⏳Preparing local dev RPC client...");
   const localDevRpcUrl = getLocalRpcUrl(env.ETH_LOCAL_RPC_PORT());
+  const targetRpcUrl = getRpcUrl(networkName);
 
   try {
     console.log(fmt.padded(`Trying to connect to the local RPC node at: ${localDevRpcUrl}...`, 2));
@@ -517,12 +563,57 @@ async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntime
     console.log(fmt.padded(`Trying to connect the in-process hardhat dev RPC node...`, 2));
   }
 
-  hre.network.config.chainId = getChainIdByNetworkName(networkName);
-  const builtinHardhatClient = await createDevRpcClient(networkName, hre.network.provider);
+  const connectLocalDevNetwork = async () => {
+    const networkApi = (hre as any).network;
+    const networkManagerApi = (hre as any).networkManager;
+    const connectFn =
+      typeof networkApi?.connect === "function"
+        ? networkApi.connect.bind(networkApi)
+        : typeof networkManagerApi?.connect === "function"
+          ? networkManagerApi.connect.bind(networkManagerApi)
+          : null;
 
-  await builtinHardhatClient.reset({
-    jsonRpcUrl: getRpcUrl(networkName),
-  });
+    if (!connectFn) {
+      throw new Error(`Hardhat network connection API is not available on HRE`);
+    }
+
+    return connectFn({
+      network: "default",
+      override: {
+        chainId: getChainIdByNetworkName(networkName),
+        forking: {
+          enabled: true,
+          url: targetRpcUrl,
+        },
+      },
+    });
+  };
+
+  let networkConnection: any;
+  try {
+    networkConnection = await connectLocalDevNetwork();
+  } catch (error) {
+    throw new Error(
+      `Failed to connect to local in-process dev network "default": ${(error as Error).message}. ` +
+        `Run without "--network" for local dev execution or start a standalone local RPC node.`,
+    );
+  }
+
+  if (networkConnection?.networkName !== "default" || networkConnection?.networkConfig?.type !== "edr-simulated") {
+    throw new Error(
+      `Unexpected fallback network "${String(networkConnection?.networkName)}" of type "${String(networkConnection?.networkConfig?.type)}". ` +
+        `Expected "default" (edr-simulated). Refusing to use non-local provider for dev reset.`,
+    );
+  }
+
+  const builtinHardhatClient = await createDevRpcClient(networkName, networkConnection.provider);
+  const providerRpcUrl = builtinHardhatClient.getRpcUrl();
+  if (providerRpcUrl && !providerRpcUrl.includes("localhost") && !providerRpcUrl.includes("127.0.0.1")) {
+    throw new Error(
+      `In-process dev RPC fallback resolved to a non-local provider (${providerRpcUrl}). ` +
+        `Run without "--network" or start local RPC explicitly.`,
+    );
+  }
 
   console.log(fmt.success(`Successfully connected to the in-process hardhat dev RPC node\n`));
 
@@ -546,7 +637,7 @@ export async function prepareOmnibus(
       }
     } else if (client instanceof DevRpcClient) {
       console.log(fmt.padded("Compiling contracts before deploy...", 3));
-      await hre.run(TASK_COMPILE, { quiet: true });
+      await buildOmnibusContracts(hre, omnibus.name, true);
       console.log(fmt.padded(fmt.success("Contracts compiled successfully"), 3));
 
       const [deployer] = await client.getAccounts();
@@ -571,4 +662,23 @@ export async function prepareOmnibus(
   console.log(fmt.success("Omnibus prepared\n"));
 
   return omnibus;
+}
+
+async function buildOmnibusContracts(hre: HardhatRuntimeEnvironment, omnibusName: string, quiet = false) {
+  const omnibusDirPath = path.resolve(__dirname, "..", "omnibuses", omnibusName);
+
+  const omnibusSolidityFiles = await fs
+    .readdir(omnibusDirPath)
+    .then((entries) => entries.filter((entry) => entry.endsWith(".sol")))
+    .then((entries) => entries.map((entry) => path.relative(process.cwd(), path.join(omnibusDirPath, entry))));
+
+  if (omnibusSolidityFiles.length === 0) {
+    throw new Error(`No Solidity contracts found in omnibus folder: ${omnibusDirPath}`);
+  }
+
+  await runHardhatTask(hre, "build", {
+    quiet,
+    noTests: true,
+    files: omnibusSolidityFiles,
+  });
 }

@@ -2,7 +2,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 import { StakingModule } from "../../contracts/lido";
 import { StakingRouter__factory } from "../../../typechain-types";
-import { randomAddress, randomHash } from "hardhat/internal/hardhat-network/provider/utils/random";
+import { randomAddress, randomHash } from "../../common/random";
 import stakingRouter from "./staking-router";
 
 describe("UpdateStakingModule", () => {

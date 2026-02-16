@@ -78,8 +78,8 @@ export async function createDevRpcClient(
 ): Promise<DevRpcClient> {
   const viemClient =
     typeof rpcUrlOrProvider === "string" || rpcUrlOrProvider === undefined
-      ? await createPublicWalletClientFromNetwork(network, rpcUrlOrProvider ?? getRpcUrl(network))
-      : await createPublicWalletClientFromProvider(network, rpcUrlOrProvider);
+      ? await createDevPublicWalletClientFromNetwork(network, rpcUrlOrProvider ?? getRpcUrl(network))
+      : await createDevPublicWalletClientFromProvider(network, rpcUrlOrProvider);
 
   return new DevRpcClient(network, viemClient);
 }
@@ -104,7 +104,8 @@ export default {
 // ---
 
 async function createPublicWalletClientFromNetwork(network: NetworkName, rpcUrl: string) {
-  const viemClient = createPublicWalletClient(network, http(rpcUrl, { timeout: 300_0000 }));
+  const transport = http(rpcUrl, { timeout: 300_0000 });
+  const viemClient = createPublicWalletClient(network, transport);
   const chainId = await viemClient.getChainId();
 
   if (chainId !== getChainIdByNetworkName(network)) {
@@ -115,12 +116,50 @@ async function createPublicWalletClientFromNetwork(network: NetworkName, rpcUrl:
 }
 
 async function createPublicWalletClientFromProvider(network: NetworkName, provider: EthereumProvider) {
-  const viemClient = createPublicWalletClient(network, custom(provider));
+  const transport = custom(provider);
+  const viemClient = createPublicWalletClient(network, transport);
 
   const chainId = await viemClient.getChainId();
 
-  // Default hh network has chain id 1337
-  if (chainId === HARDHAT_CHAIN_ID || chainId === getChainIdByNetworkName(network)) {
+  if (chainId === HARDHAT_CHAIN_ID) {
+    // For local dev chains we should not pin a target L1/L2 chain in the wallet client.
+    // Otherwise viem validates tx against e.g. mainnet(1) and rejects on local 31337.
+    return createWalletClient({ transport }).extend(publicActions);
+  }
+
+  if (chainId === getChainIdByNetworkName(network)) {
+    return viemClient;
+  }
+
+  throw new Error(`Unexpected chain id`);
+}
+
+async function createDevPublicWalletClientFromNetwork(network: NetworkName, rpcUrl: string) {
+  const transport = http(rpcUrl, { timeout: 300_0000 });
+  const viemClient = createPublicWalletClient(network, transport);
+  const chainId = await viemClient.getChainId();
+
+  if (chainId === HARDHAT_CHAIN_ID) {
+    return createWalletClient({ transport }).extend(publicActions);
+  }
+
+  if (chainId === getChainIdByNetworkName(network)) {
+    return viemClient;
+  }
+
+  throw new Error(`Unexpected chain id`);
+}
+
+async function createDevPublicWalletClientFromProvider(network: NetworkName, provider: EthereumProvider) {
+  const transport = custom(provider);
+  const viemClient = createPublicWalletClient(network, transport);
+  const chainId = await viemClient.getChainId();
+
+  if (chainId === HARDHAT_CHAIN_ID) {
+    return createWalletClient({ transport }).extend(publicActions);
+  }
+
+  if (chainId === getChainIdByNetworkName(network)) {
     return viemClient;
   }
 
