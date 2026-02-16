@@ -32,6 +32,7 @@ import { DevRpcClient, RpcClient } from "../src/network";
 import { createTimedSpinner } from "../src/common/spinner";
 import { ProposalStatus } from "../src/omnibuses/dual-governance";
 import { logBlue } from "../src/common/color";
+import { adoptAragonVoting } from "../src/aragon-votes-tools";
 
 task("omnibus:scaffold", "Create new empty omnibus from the template").setAction(async ({}) => {
   const network: NetworkName = await prompt.select("Choose the network:", [
@@ -282,6 +283,16 @@ task("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
     } finally {
       await client.revert(snapshotId);
     }
+  });
+
+task("omnibus:ci-prepare", "Prepare omnibus vote on CI (adopt aragon voting on local node)")
+  .addPositionalParam<string>("name", "Name of the omnibus to run")
+  .setAction(async ({ name }, hre) => {
+    const omnibus = loadOmnibus(name);
+
+    const client = await createDevRpcClient(omnibus.network, getLocalRpcUrl(env.ETH_LOCAL_RPC_PORT()));
+    await prepareOmnibus(hre, client, omnibus);
+    await adoptAragonVoting(client, omnibus.getEvmScript(), omnibus.formatDescription());
   });
 
 type OmnibusLaunchParams = {
