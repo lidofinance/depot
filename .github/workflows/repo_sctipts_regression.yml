@@ -1,0 +1,90 @@
+name: Scripts tests CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-tests-1:
+    name: Brownie fork tests 1
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 100
+
+    services:
+      hardhat-node:
+        image: ghcr.io/lidofinance/hardhat-node:2.26.0
+        ports:
+          - 8545:8545
+        env:
+          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
+
+    steps:
+      - name: Checkout depot repository
+        uses: actions/checkout@v4
+        with:
+          path: depot
+
+      - name: Setup depot
+        uses: ./depot/.github/actions/prepare_depot
+
+      - name: Checkout scripts repository
+        uses: actions/checkout@v4
+        with:
+          path: scripts
+          repository: lidofinance/scripts
+
+      - name: Prepare scripts
+        uses: ./depot/.github/actions/prepare_scripts
+
+      - name: Run vote
+        uses: ./depot/.github/actions/run_depot_vote
+
+      - name: Run script tests 1/2
+        run: make test-1/2
+        working-directory: scripts
+        env:
+          WEB3_INFURA_PROJECT_ID: ${{ secrets.INFURA_TOKEN }}
+          ETHERSCAN_TOKEN: ${{ secrets.ETHERSCAN_TOKEN }}
+          ETH_RPC_URL: "https://mainnet.infura.io/v3/${{ secrets.INFURA_TOKEN }}"
+
+  run-tests-2:
+    name: Scripts fork tests 2
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 100
+
+    services:
+      hardhat-node:
+        image: ghcr.io/lidofinance/hardhat-node:2.26.0
+        ports:
+          - 8545:8545
+        env:
+          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
+
+    steps:
+      - name: Checkout depot repository
+        uses: actions/checkout@v4
+        with:
+          path: depot
+
+      - name: Setup depot
+        uses: ./depot/.github/actions/prepare_depot
+
+      - name: Checkout scripts repository
+        uses: actions/checkout@v4
+        with:
+          path: scripts
+          repository: lidofinance/scripts
+
+      - name: Prepare scripts
+        uses: ./depot/.github/actions/prepare_scripts
+
+      - name: Run vote
+        uses: ./depot/.github/actions/run_depot_vote
+
+      - name: Run script tests 2/2
+        run: make test-2/2
+        working-directory: scripts
+        env:
+          WEB3_INFURA_PROJECT_ID: ${{ secrets.INFURA_TOKEN }}
+          ETHERSCAN_TOKEN: ${{ secrets.ETHERSCAN_TOKEN }}
+          ETH_RPC_URL: "https://mainnet.infura.io/v3/${{ secrets.INFURA_TOKEN }}"
+          SECONDARY_NETWORK: mfh-1
