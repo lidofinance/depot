@@ -70,28 +70,48 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
     }).toString()}`;
 
     const request = await fetch(getSourceCodeUrl);
-    const response = (await request.json()) as EtherscanResponse<EtherscanGetSourceCodeResult[] | string>;
+    const response = await this.parseEtherscanResponse(request);
 
     if (response.message === "OK" && Array.isArray(response.result)) {
       return response.result[0];
     }
-    if (response.result.toString().includes("rate limit reached")) {
+    if (response.result.toString().toLowerCase().includes("rate limit reached")) {
       if (attempts >= MAX_ATTEMPTS) {
         throw new RateLimitError(response.result.toString());
       }
       await new Promise((resolve) => setTimeout(resolve, DELAY * attempts ** 2));
       return this.getContractInfo(networkName, address, attempts + 1);
     }
-    if (response.result.toString().includes("Contract source code not verified")) {
+    if (response.result.toString().toLowerCase().includes("contract source code not verified")) {
       throw new Error("Contract is not verified");
     }
     throw new Error(`Unexpected Etherscan Response: ${JSON.stringify(response)}`);
   }
 
+  private async parseEtherscanResponse(
+    response: Response,
+  ): Promise<EtherscanResponse<EtherscanGetSourceCodeResult[] | string>> {
+    const text = await response.text();
+
+    try {
+      return JSON.parse(text) as EtherscanResponse<EtherscanGetSourceCodeResult[] | string>;
+    } catch {
+      const message = text.trim();
+      if (message.toLowerCase().includes("contract source code not verified")) {
+        throw new Error("Contract is not verified");
+      }
+
+      const shortMessage = message.length > 300 ? `${message.slice(0, 300)}...` : message;
+      throw new Error(
+        `Unexpected Etherscan response format (expected JSON, got ${response.status} ${response.statusText}): ${shortMessage}`,
+      );
+    }
+  }
+
   private processSourceCode(response: EtherscanGetSourceCodeResult): string {
     const rawSourceCode = response.SourceCode;
     if (this.isVyperContract(response)) {
-      JSON.stringify({
+      return JSON.stringify({
         language: "Vyper",
         sources: response.SourceCode,
         // TODO: add real settings

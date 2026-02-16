@@ -1,6 +1,6 @@
 export async function runHardhatTask(
   hre: unknown,
-  taskName: string,
+  taskName: string | string[],
   args: Record<string, unknown> = {},
 ): Promise<unknown> {
   const maybeHre = hre as any;
@@ -15,4 +15,3 @@ export async function runHardhatTask(
 
   throw new Error(`Hardhat task runner is not available on HRE`);
 }
-

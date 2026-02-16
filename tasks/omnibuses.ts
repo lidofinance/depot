@@ -158,10 +158,9 @@ defineTask("omnibus:contract", "Generate solidity omnibus contract from an exist
     description: "Formatter to use: prettier|forge|none",
     defaultValue: "prettier",
   })
-  .addFlag({ name: "noFormat", description: "skip running solidity formatter on generated file" })
   .addFlag({ name: "force", description: "overwrite existing contract file" })
   .setAction(async (taskArgs: any, hre: any) => {
-    const { name, contractName, formatter, force, noFormat } = taskArgs;
+    const { name, contractName, formatter, force } = taskArgs;
     const normalizedContractName = contractName || undefined;
     const omnibus = await loadOmnibus(name);
 
@@ -174,9 +173,8 @@ defineTask("omnibus:contract", "Generate solidity omnibus contract from an exist
       );
     }
 
-    const selectedFormatter = noFormat ? "none" : formatter;
-    if (!["prettier", "forge", "none"].includes(selectedFormatter)) {
-      throw new Error(`Unsupported formatter "${selectedFormatter}". Use: prettier, forge, none`);
+    if (!["prettier", "forge", "none"].includes(formatter)) {
+      throw new Error(`Unsupported formatter "${formatter}". Use: prettier, forge, none`);
     }
 
     const { generatedFilePath } = await generateOmnibusContractFile({
@@ -185,7 +183,7 @@ defineTask("omnibus:contract", "Generate solidity omnibus contract from an exist
       omnibusName: name,
       contractName: normalizedContractName,
       force,
-      formatter: selectedFormatter as "prettier" | "forge" | "none",
+      formatter: formatter as "prettier" | "forge" | "none",
       rootDir: path.resolve(__dirname, ".."),
     });
 
@@ -259,11 +257,30 @@ defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
     await omnibus.test(client);
   });
 
+defineTask("omnibus:test-solidity", "Runs Solidity tests (*.t.sol) for the given omnibus")
+  .addPositionalArgument({ name: "name", description: "Name of the omnibus to test with Solidity runner" })
+  .addOption({
+    name: "grep",
+    description: "Only run Solidity tests matching this grep pattern",
+    defaultValue: "",
+  })
+  .addFlag({ name: "noCompile", description: "Don't compile before running Solidity tests" })
+  .setAction(async (taskArgs: any, hre: any) => {
+    const { name, grep, noCompile } = taskArgs;
+    const omnibusTestFiles = await collectOmnibusSolidityTests(name);
+
+    await runHardhatTask(hre, ["test", "solidity"], {
+      testFiles: omnibusTestFiles,
+      grep: grep || undefined,
+      noCompile: Boolean(noCompile),
+    });
+  });
+
 defineTask("omnibus:trace", "Trace the omnibus with given name and shows the execution trace")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to run" })
   .setAction(async (taskArgs: OmnibusLaunchParams, hre: any) => {
-      const { name } = taskArgs;
-      const omnibus = await loadOmnibus(name);
+    const { name } = taskArgs;
+    const omnibus = await loadOmnibus(name);
     const client = await prepareDevRpcClient(omnibus.network, hre);
     await prepareOmnibus(hre, client, omnibus);
 
@@ -669,7 +686,7 @@ async function buildOmnibusContracts(hre: HardhatRuntimeEnvironment, omnibusName
 
   const omnibusSolidityFiles = await fs
     .readdir(omnibusDirPath)
-    .then((entries) => entries.filter((entry) => entry.endsWith(".sol")))
+    .then((entries) => entries.filter((entry) => entry.endsWith(".sol") && !entry.endsWith(".t.sol")))
     .then((entries) => entries.map((entry) => path.relative(process.cwd(), path.join(omnibusDirPath, entry))));
 
   if (omnibusSolidityFiles.length === 0) {
@@ -681,4 +698,31 @@ async function buildOmnibusContracts(hre: HardhatRuntimeEnvironment, omnibusName
     noTests: true,
     files: omnibusSolidityFiles,
   });
+}
+
+async function collectOmnibusSolidityTests(omnibusName: string): Promise<string[]> {
+  const omnibusDirPath = path.resolve(__dirname, "..", "omnibuses", omnibusName);
+
+  const walk = async (currentPath: string): Promise<string[]> => {
+    const entries = await fs.readdir(currentPath, { withFileTypes: true });
+    const files: string[] = [];
+
+    for (const entry of entries) {
+      const absolutePath = path.join(currentPath, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...(await walk(absolutePath)));
+      } else if (entry.isFile() && absolutePath.endsWith(".t.sol")) {
+        files.push(path.relative(process.cwd(), absolutePath));
+      }
+    }
+
+    return files;
+  };
+
+  const testFiles = await walk(omnibusDirPath);
+  if (testFiles.length === 0) {
+    throw new Error(`No Solidity tests (*.t.sol) found in omnibus folder: ${omnibusDirPath}`);
+  }
+
+  return testFiles.sort();
 }

@@ -150,13 +150,15 @@ interface TestFnCommonCtx<$DeployedContracts extends Record<string, Contract>> {
   deployment: $DeployedContracts;
 }
 
-interface TestVoteFnCtx<$DeployedContracts extends Record<string, Contract>>
-  extends TestFnCommonCtx<$DeployedContracts> {
+interface TestVoteFnCtx<
+  $DeployedContracts extends Record<string, Contract>,
+> extends TestFnCommonCtx<$DeployedContracts> {
   passOmnibus: () => Promise<PassVoteResult>;
 }
 
-interface TestProposalFnCtx<$DeployedContracts extends Record<string, Contract>>
-  extends TestFnCommonCtx<$DeployedContracts> {
+interface TestProposalFnCtx<
+  $DeployedContracts extends Record<string, Contract>,
+> extends TestFnCommonCtx<$DeployedContracts> {
   submittedProposalIds: bigint[];
   passProposals: (proposalIds?: bigint[]) => Promise<PassProposalResult>;
 }
@@ -429,9 +431,10 @@ export class Omnibus<
     const snapshotId = await client.snapshot();
     try {
       const { voteId, executeReceipt: executeVoteReceipt } = await this.#passOmnibus(client);
+      const prePopulatedContracts = this.#getTracePrePopulatedContracts();
 
       let spinner = createTimedSpinner(`Retrieving trace for execution of vote ${voteId}...`);
-      const fullTrace = await trace(client, executeVoteReceipt.transactionHash);
+      const fullTrace = await trace(client, executeVoteReceipt.transactionHash, prePopulatedContracts);
       spinner.succeed(`Trace successfully received`);
 
       const executeVoteTrace = filterOmnibusTrace(fullTrace);
@@ -467,9 +470,7 @@ export class Omnibus<
 
         spinner = createTimedSpinner(`Retrieving traces for executed DG proposals...`);
         traces = await Promise.all(
-          executeProposalReceipts.map((receipt) =>
-            trace(client, receipt.transactionHash, Object.values(this.#deployment ?? {})),
-          ),
+          executeProposalReceipts.map((receipt) => trace(client, receipt.transactionHash, prePopulatedContracts)),
         );
         spinner.succeed(`Traces successfully received`);
         console.log();
@@ -491,6 +492,21 @@ export class Omnibus<
     } finally {
       await client.revert(snapshotId);
     }
+  }
+
+  #getTracePrePopulatedContracts(): Contract[] {
+    const prePopulated = [...Object.values(this.#contracts), ...Object.values(this.#deployedContracts)];
+
+    if (this.#deployment) {
+      prePopulated.push(...Object.values(this.#deployment));
+    }
+
+    const uniqueByAddress = new Map<Address, Contract>();
+    for (const item of prePopulated) {
+      uniqueByAddress.set(bytes.normalize(item.address), item);
+    }
+
+    return Array.from(uniqueByAddress.values());
   }
 
   // ---
@@ -595,10 +611,7 @@ export class Omnibus<
             deployment: this.#deployment!,
           });
           console.log(
-            fmt.padded(
-              `${chalk.greenBright("✔")} Aragon Vote test successfully passed. Executed vote id ${voteId}`,
-              2,
-            ),
+            fmt.padded(`${chalk.greenBright("✔")} Aragon Vote test successfully passed. Executed vote id ${voteId}`, 2),
           );
         } else {
           await this.#passOmnibus(client, (res) => {

@@ -51,7 +51,18 @@ export class TxTracer {
         continue;
       }
 
-      let resolvedContracts = await resolveContract(networkName, normalizedAddress);
+      let resolvedContracts: Contract[];
+      try {
+        resolvedContracts = await resolveContract(networkName, normalizedAddress);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn(
+          `Failed to resolve contract info for ${normalizedAddress} on "${networkName}": ${errorMessage}. ` +
+            `Falling back to raw trace decoding.`,
+        );
+
+        resolvedContracts = [{ address: normalizedAddress, abi: [], label: `Contract[${normalizedAddress}]` }];
+      }
 
       allResolvedContracts.add(normalizedAddress);
       res[normalizedAddress] = resolvedContracts;
