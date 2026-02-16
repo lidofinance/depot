@@ -1,8 +1,8 @@
-import { ContractInfoResolver } from "./contract-info-resolver";
 import sinon from "sinon";
 import { assert } from "../common/assert";
+import { ContractInfoResolver } from "./contract-info-resolver";
 
-const CHAIN_ID = 1;
+const NETWORK_NAME = "mainnet";
 const FLATTENED_CONTRACT_ADDRESS = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0";
 
 describe("ContractInfoResolver", () => {
@@ -15,6 +15,7 @@ describe("ContractInfoResolver", () => {
     implementation: null,
     sourceCode: "contract A {}",
   };
+
   const mockProvider = {
     request: sinon.stub().resolves(mockResponse),
   };
@@ -24,49 +25,66 @@ describe("ContractInfoResolver", () => {
     set: sinon.stub().resolves(),
   };
 
+  beforeEach(() => {
+    mockProvider.request.resetBehavior();
+    mockCache.get.resetBehavior();
+    mockCache.set.resetBehavior();
+    mockProvider.request.resolves(mockResponse);
+    mockCache.get.resolves(null);
+    mockCache.set.resolves();
+    ContractInfoResolver.etherscanProvider = mockProvider as any;
+    ContractInfoResolver.cache = mockCache as any;
+  });
+
   afterEach(() => {
     mockCache.get.resetHistory();
     mockCache.set.resetHistory();
     mockProvider.request.resetHistory();
+    ContractInfoResolver.etherscanProvider = undefined;
+    ContractInfoResolver.cache = undefined;
   });
 
-  it("resolves contract info and caches the result when cache is enabled", async () => {
-    const resolver = new ContractInfoResolver({ contractInfoProvider: mockProvider, cache: mockCache }, true);
-    const res = await resolver.resolve(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS);
+  it("resolves contract info and caches the result", async () => {
+    const res = await ContractInfoResolver.resolve(NETWORK_NAME, FLATTENED_CONTRACT_ADDRESS);
 
     assert.deepEqual(res, mockResponse as any);
-    assert.isTrue(mockCache.set.calledOnceWith(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS, mockResponse));
+    assert.isTrue(mockProvider.request.calledOnceWithExactly(NETWORK_NAME, FLATTENED_CONTRACT_ADDRESS));
+    assert.isTrue(mockCache.set.calledOnceWithExactly(NETWORK_NAME, FLATTENED_CONTRACT_ADDRESS, mockResponse));
   });
 
   it("returns cached contract info if available", async () => {
-    mockCache.get = sinon.stub().resolves(mockResponse);
-    const resolver = new ContractInfoResolver({ contractInfoProvider: mockProvider, cache: mockCache }, true);
+    mockCache.get.resolves(mockResponse);
 
-    const res = await resolver.resolve(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS);
+    const res = await ContractInfoResolver.resolve(NETWORK_NAME, FLATTENED_CONTRACT_ADDRESS);
 
     assert.deepEqual(res, mockResponse as any);
     assert.isTrue(mockProvider.request.notCalled);
+    assert.isTrue(mockCache.set.notCalled);
   });
 
   it("throws an error if provider resolve fails", async () => {
-    mockCache.get.resolves(null);
     mockProvider.request.rejects(new Error("Provider error"));
 
-    const resolver = new ContractInfoResolver({ contractInfoProvider: mockProvider, cache: mockCache });
-
-    await assert.isRejected(resolver.resolve(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS), "Provider error");
+    await assert.isRejected(ContractInfoResolver.resolve(NETWORK_NAME, FLATTENED_CONTRACT_ADDRESS), "Provider error");
   });
 
-  it("does not use cache if ETHERSCAN_CACHE_ENABLED is false", async () => {
-    process.env.ETHERSCAN_CACHE_ENABLED = "false";
-    mockProvider.request.resolves(mockResponse);
-    const resolver = new ContractInfoResolver({ contractInfoProvider: mockProvider, cache: mockCache });
+  it("does not use cache when cache is disabled", async () => {
+    ContractInfoResolver.cache = undefined;
 
-    const res = await resolver.resolve(CHAIN_ID, FLATTENED_CONTRACT_ADDRESS);
+    const res = await ContractInfoResolver.resolve(NETWORK_NAME, FLATTENED_CONTRACT_ADDRESS);
 
     assert.deepEqual(res, mockResponse as any);
     assert.isTrue(mockProvider.request.calledOnce);
     assert.isTrue(mockCache.get.notCalled);
     assert.isTrue(mockCache.set.notCalled);
+  });
+
+  it("throws if etherscan provider is not configured", async () => {
+    ContractInfoResolver.etherscanProvider = undefined;
+
+    await assert.isRejected(
+      ContractInfoResolver.resolve(NETWORK_NAME, FLATTENED_CONTRACT_ADDRESS),
+      "Etherscan Tokens wasn't set",
+    );
   });
 });

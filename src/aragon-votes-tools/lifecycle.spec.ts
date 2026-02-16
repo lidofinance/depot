@@ -1,146 +1,139 @@
 import { expect } from "chai";
 import sinon from "sinon";
-import { executeAragonVote, startAragonVote, wait } from "./lifecycle";
-import { ContractTransactionResponse, Signer } from "ethers";
-import lido from "../lido";
-import providers from "../providers";
-import * as voteScript from "./vote-script";
+import { decodeFunctionData, encodeAbiParameters, encodeEventTopics } from "viem";
+import { executeAragonVote, getExecuteReceipt, startAragonVote } from "./lifecycle";
+import { RpcClient, WriteContractOptions } from "../network";
 import { HexStrPrefixed } from "../common/bytes";
-import { DirectEvmCall } from "./vote-script";
-import { randomAddress } from "hardhat/internal/hardhat-network/provider/utils/random";
+import { Voting_ABI } from "../../abi/Voting.abi";
+import { EvmScriptParser } from "./evm-script-parser";
+import * as contracts from "../contracts/contracts";
 
 describe("lifecycle functions", () => {
-  let mockSigner: Signer;
-  let mockVoting: any;
-  let mockTokenManager: any;
-  let mockChainId: sinon.SinonStub;
-  let mockCall: sinon.SinonStub;
-  let mockEvm: sinon.SinonStub;
+  const voteId = 42n;
+  const creator = "0x00000000000000000000000000000000000000a1";
+  const description = "Test Description";
+  const evmScript = "0x1234" as HexStrPrefixed;
+  const startVoteScript = "0xabcd" as HexStrPrefixed;
+  const txOptions = { from: "0x00000000000000000000000000000000000000b2" } as WriteContractOptions;
 
-  const mockTopicHash = "mockTopicHash";
-  const evmReturn = randomAddress().toString();
-  const callReturn = new DirectEvmCall({} as any, {} as any, [] as any);
+  const voting = {
+    address: "0x00000000000000000000000000000000000000c3",
+    abi: Voting_ABI,
+  } as any;
+  const tokenManager = {
+    address: "0x00000000000000000000000000000000000000d4",
+    abi: [],
+  } as any;
+
+  function createStartVoteLog() {
+    const topics = encodeEventTopics({
+      abi: Voting_ABI,
+      eventName: "StartVote",
+      args: { voteId, creator },
+    });
+    const data = encodeAbiParameters([{ name: "metadata", type: "string" }], [description]);
+    return { topics, data };
+  }
+
+  function createClient(): RpcClient {
+    return {
+      getNetworkName: sinon.stub().returns("mainnet"),
+      write: sinon.stub(),
+      viemClient: {
+        createEventFilter: sinon.stub(),
+        getFilterLogs: sinon.stub(),
+        getTransactionReceipt: sinon.stub(),
+      },
+    } as unknown as RpcClient;
+  }
 
   beforeEach(() => {
-    mockSigner = {} as Signer;
-    mockVoting = {
-      "newVote(bytes,string,bool,bool)": sinon.stub().resolves({}),
-      interface: {
-        getEvent: sinon.stub().returns({
-          topicHash: mockTopicHash,
-        }),
-        parseLog: sinon.stub().returns({ args: [BigInt(1)] }),
-        executeVote: sinon.stub(),
-      },
-    };
-    mockTokenManager = {
-      connect: sinon.stub().returnsThis(),
-      forward: sinon.stub().resolves({}),
-    };
-    mockChainId = sinon.stub(providers, "chainId").resolves(1n);
-    sinon.stub(lido, "chainId").returns({ voting: mockVoting, tokenManager: mockTokenManager } as unknown as any);
-    mockCall = sinon.stub(voteScript, "call").returns(callReturn);
-    mockEvm = sinon.stub(voteScript, "evm").returns(evmReturn as HexStrPrefixed);
+    sinon.stub(contracts, "getLidoContracts").returns({ voting, tokenManager } as any);
   });
 
   afterEach(() => {
     sinon.restore();
   });
 
-  it("should start a vote with provided parameters", async () => {
-    const result = await startAragonVote(mockSigner, "mockEvmScript", "Test Description", true);
+  it("starts a vote and returns voteId + receipt", async () => {
+    const client = createClient();
+    const receipt = { logs: [createStartVoteLog()] };
+    const encodeStub = sinon.stub(EvmScriptParser, "encode").returns(startVoteScript);
+    (client.write as sinon.SinonStub).resolves(receipt);
 
-    expect(mockCall.firstCall.args).to.be.deep.equal([
-      mockVoting["newVote(bytes,string,bool,bool)"],
-      ["mockEvmScript", "Test Description", true, false],
-    ]);
-    expect(mockEvm.calledWith(callReturn)).to.be.true;
-    expect(mockTokenManager.connect.calledWith(mockSigner)).to.be.true;
-    expect(mockTokenManager.forward.calledWith(evmReturn)).to.be.true;
-    expect(result).to.be.an("object");
+    const result = await startAragonVote(client, evmScript, description, txOptions);
+
+    expect(result.voteId).to.equal(voteId);
+    expect(result.receipt).to.equal(receipt);
+    expect(
+      (client.write as sinon.SinonStub).calledOnceWithExactly(tokenManager, "forward", [startVoteScript], txOptions),
+    ).to.be.true;
+
+    const [calls] = encodeStub.firstCall.args;
+    expect(calls).to.have.length(1);
+    expect(calls[0].address).to.equal(voting.address);
+    const decoded = decodeFunctionData({ abi: Voting_ABI, data: calls[0].calldata });
+    expect(decoded.functionName).to.equal("newVote");
+    expect(decoded.args).to.deep.equal([evmScript, description, false, false]);
   });
 
-  it("should start a vote with default castVote parameter", async () => {
-    await startAragonVote(mockSigner, "mockEvmScript", "Test Description");
+  it("throws when StartVote log is absent", async () => {
+    const client = createClient();
+    sinon.stub(EvmScriptParser, "encode").returns(startVoteScript);
+    (client.write as sinon.SinonStub).resolves({ logs: [] });
 
-    expect(mockCall.firstCall.args).to.be.deep.equal([
-      mockVoting["newVote(bytes,string,bool,bool)"],
-      ["mockEvmScript", "Test Description", false, false],
-    ]);
+    await expect(startAragonVote(client, evmScript, description, txOptions)).to.be.rejectedWith(
+      "StartVote log not found",
+    );
   });
 
-  it("should throw an error if chainId retrieval fails", async () => {
-    mockChainId.rejects(new Error("ChainId error"));
+  it("propagates write errors from startAragonVote", async () => {
+    const client = createClient();
+    sinon.stub(EvmScriptParser, "encode").returns(startVoteScript);
+    (client.write as sinon.SinonStub).rejects(new Error("Forward error"));
 
-    await expect(startAragonVote(mockSigner, "mockEvmScript", "Test Description")).to.be.rejectedWith("ChainId error");
+    await expect(startAragonVote(client, evmScript, description, txOptions)).to.be.rejectedWith("Forward error");
   });
 
-  it("should throw an error if forward transaction fails", async () => {
-    mockTokenManager.forward.rejects(new Error("Forward error"));
+  it("executes vote through RpcClient.write", async () => {
+    const client = createClient();
+    const receipt = { transactionHash: "0x01" };
+    (client.write as sinon.SinonStub).resolves(receipt);
 
-    await expect(startAragonVote(mockSigner, "mockEvmScript", "Test Description")).to.be.rejectedWith("Forward error");
+    const result = await executeAragonVote(client, voteId, txOptions);
+
+    expect(result).to.equal(receipt);
+    expect((client.write as sinon.SinonStub).calledOnceWithExactly(voting, "executeVote", [voteId], txOptions)).to.be
+      .true;
   });
 
-  it("should return voteId and receipt when StartVote log is found", async () => {
-    const mockTx = {
-      wait: sinon.stub().resolves({ logs: [{ topics: [mockTopicHash], data: "mockData" }] }),
-    } as unknown as ContractTransactionResponse;
-    const mockReceipt = {
-      logs: [{ topics: [mockTopicHash], data: "mockData" }],
-    };
+  it("returns ExecuteVote tx receipt by vote id", async () => {
+    const client = createClient();
+    const filter = {} as any;
+    const executeReceipt = { transactionHash: "0xabc" };
+    (client.viemClient.createEventFilter as sinon.SinonStub).resolves(filter);
+    (client.viemClient.getFilterLogs as sinon.SinonStub).resolves([{ transactionHash: "0xabc" }]);
+    (client.viemClient.getTransactionReceipt as sinon.SinonStub).resolves(executeReceipt);
 
-    const result = await wait(mockTx);
+    const result = await getExecuteReceipt(client, voteId, 123);
 
-    expect(result.voteId).to.equal(BigInt(1));
-    expect(result.receipt).to.deep.equal(mockReceipt);
+    expect(result).to.equal(executeReceipt);
+    expect((client.viemClient.createEventFilter as sinon.SinonStub).calledOnce).to.be.true;
+    const createFilterArgs = (client.viemClient.createEventFilter as sinon.SinonStub).firstCall.args[0];
+    expect(createFilterArgs.address).to.equal(voting.address);
+    expect(createFilterArgs.args).to.deep.equal([voteId]);
+    expect(createFilterArgs.fromBlock).to.equal(123n);
+    expect((client.viemClient.getFilterLogs as sinon.SinonStub).calledOnceWithExactly({ filter })).to.be.true;
+    expect((client.viemClient.getTransactionReceipt as sinon.SinonStub).calledOnceWithExactly({ hash: "0xabc" })).to.be
+      .true;
   });
 
-  it("should throw an error if receipt is not found", async () => {
-    const mockTx = { wait: sinon.stub().resolves(null) } as unknown as ContractTransactionResponse;
+  it("throws when ExecuteVote event cannot be found", async () => {
+    const client = createClient();
+    const filter = {} as any;
+    (client.viemClient.createEventFilter as sinon.SinonStub).resolves(filter);
+    (client.viemClient.getFilterLogs as sinon.SinonStub).resolves([]);
 
-    await expect(wait(mockTx)).to.be.rejectedWith("Invalid confirmations value");
-  });
-
-  it("should throw an error if StartVote log is not found", async () => {
-    const mockTx = { wait: sinon.stub().resolves({ logs: [] }) } as unknown as ContractTransactionResponse;
-
-    await expect(wait(mockTx)).to.be.rejectedWith("StartVote log not found");
-  });
-
-  it("should execute vote with provided voteId and return receipt", async () => {
-    const mockTx = { wait: sinon.stub().resolves({}) } as unknown as ContractTransactionResponse;
-    mockVoting.executeVote = sinon.stub().resolves(mockTx);
-
-    const result = await executeAragonVote(mockSigner, 1);
-
-    expect(mockVoting.executeVote.calledWith(1)).to.be.true;
-    expect(result).to.deep.equal({});
-  });
-
-  it("should throw an error if transaction wait fails", async () => {
-    const mockTx = { wait: sinon.stub().resolves(null) } as unknown as ContractTransactionResponse;
-    mockVoting.executeVote = sinon.stub().resolves(mockTx);
-
-    await expect(executeAragonVote(mockSigner, 1)).to.be.rejectedWith("transaction wait failed");
-  });
-
-  it("should execute vote with bigint voteId and return receipt", async () => {
-    const mockTx = { wait: sinon.stub().resolves({}) } as unknown as ContractTransactionResponse;
-    mockVoting.executeVote = sinon.stub().resolves(mockTx);
-
-    const result = await executeAragonVote(mockSigner, 1n);
-
-    expect(mockVoting.executeVote.calledWith(BigInt(1))).to.be.true;
-    expect(result).to.deep.equal({});
-  });
-
-  it("should execute vote with string voteId and return receipt", async () => {
-    const mockTx = { wait: sinon.stub().resolves({}) } as unknown as ContractTransactionResponse;
-    mockVoting.executeVote = sinon.stub().resolves(mockTx);
-
-    const result = await executeAragonVote(mockSigner, "1");
-
-    expect(mockVoting.executeVote.calledWith("1")).to.be.true;
-    expect(result).to.deep.equal({});
+    await expect(getExecuteReceipt(client, voteId)).to.be.rejectedWith("ExecuteVote event with id 42 is not found");
   });
 });
