@@ -10,12 +10,14 @@ import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
 import { NodeOperatorsRegistry_ABI } from "../../abi/NodeOperatorsRegistry.abi";
 import { StakingRouter_ABI } from "../../abi/StakingRouter.abi";
 import { StETH_ABI } from "../../abi/StETH.abi";
+import { ExampleContractOmnibusVoteStateValidatorContract } from "./_example_contract_omnibus.abi";
 
 const ATC_STABLES_MULTISIG = "0x9B1cebF7616f2BC73b47D226f90b01a7c9F86956";
 const ATC_STABLES_LDO_TRANSFER_AMOUNT = 110_000n * 10n ** 18n;
 
 const PML_MULTISIG = "0x17F6b2C738a63a8D3A113a228cfd0b373244633D";
 const PML_LDO_TRANSFER_AMOUNT = 180_000n * 10n ** 18n;
+const EXPECTED_TOTAL_LDO_TRANSFER_AMOUNT = ATC_STABLES_LDO_TRANSFER_AMOUNT + PML_LDO_TRANSFER_AMOUNT;
 
 const DEPOSIT_PAUSED_STATUS = 1;
 const CURATED_STAKING_MODULE_ID = 1n;
@@ -78,32 +80,44 @@ export default Omnibus.create({
   // },
 
   async deploy({ deployContract }) {
+    const voteStateValidator = await deployContract<ExampleContractOmnibusVoteStateValidatorContract>(
+      "ExampleContractOmnibusVoteStateValidator",
+      [contracts.ldo.address, contracts.agent.address, EXPECTED_TOTAL_LDO_TRANSFER_AMOUNT],
+    );
     return {
-      omnibus: await deployContract<OmnibusBaseContract>("ExampleContractOmnibus", []),
+      voteStateValidator,
+      omnibus: await deployContract<OmnibusBaseContract>("ExampleContractOmnibus", [voteStateValidator.address]),
     };
   },
 
-  calls: ({ blueprints, directCall, event, submitCalls, forwardCalls, executeCall, forwardCall }) => [
+  calls: ({ blueprints, directCall, event, submitCalls, forwardCalls, executeCall, forwardCall, deployment }) => [
+    directCall("1. Capture LDO balance before vote execution", {
+      on: deployment.voteStateValidator,
+      fn: "validateStateBeforeVote",
+      args: [],
+      events: [event(deployment.voteStateValidator, "StateValidatedBefore", [null])],
+    }),
+
     blueprints.easyTrack.addTopUpEvmScriptFactory(contracts, {
-      title: `1. Add TopUpEVMScriptFactory with address ${REWARDS_STETH_TOP_UP_EVM_SCRIPT_FACTORY}`,
+      title: `2. Add TopUpEVMScriptFactory with address ${REWARDS_STETH_TOP_UP_EVM_SCRIPT_FACTORY}`,
       factory: REWARDS_STETH_TOP_UP_EVM_SCRIPT_FACTORY,
       registry: REWARDS_STETH_REGISTRY,
     }),
 
     blueprints.easyTrack.addAddRecipientEvmScriptFactory(contracts, {
-      title: `2. Add AddRecipientEVMScriptFactory with address ${REWARDS_STETH_ADD_RECIPIENT_EVM_SCRIPT_FACTORY}`,
+      title: `3. Add AddRecipientEVMScriptFactory with address ${REWARDS_STETH_ADD_RECIPIENT_EVM_SCRIPT_FACTORY}`,
       factory: REWARDS_STETH_ADD_RECIPIENT_EVM_SCRIPT_FACTORY,
       registry: REWARDS_STETH_REGISTRY,
     }),
 
     blueprints.easyTrack.addRemoveRecipientEvmScriptFactory(contracts, {
-      title: `3. Add RemoveRecipientEVMScriptFactory with address ${REWARDS_STETH_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY}`,
+      title: `4. Add RemoveRecipientEVMScriptFactory with address ${REWARDS_STETH_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY}`,
       factory: REWARDS_STETH_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY,
       registry: REWARDS_STETH_REGISTRY,
     }),
 
     blueprints.tokens.transfer(contracts, {
-      title: "4. Transfer 110,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig",
+      title: "5. Transfer 110,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig",
       to: ATC_STABLES_MULTISIG,
       token: contracts.ldo.address,
       amount: ATC_STABLES_LDO_TRANSFER_AMOUNT,
@@ -111,21 +125,21 @@ export default Omnibus.create({
     }),
 
     blueprints.easyTrack.removeEvmScriptFactory(contracts, {
-      title: `5. Remove TopUpEVMScriptFactory with address ${REWARDS_LDO_TOP_UP_FACTORY}`,
+      title: `6. Remove TopUpEVMScriptFactory with address ${REWARDS_LDO_TOP_UP_FACTORY}`,
       factory: REWARDS_LDO_TOP_UP_FACTORY,
     }),
 
     blueprints.easyTrack.removeEvmScriptFactory(contracts, {
-      title: `6. Remove AddRecipientEVMScriptFactory with address ${REWARDS_LDO_ADD_RECIPIENT_FACTORY}`,
+      title: `7. Remove AddRecipientEVMScriptFactory with address ${REWARDS_LDO_ADD_RECIPIENT_FACTORY}`,
       factory: REWARDS_LDO_ADD_RECIPIENT_FACTORY,
     }),
 
     blueprints.easyTrack.removeEvmScriptFactory(contracts, {
-      title: `7. Remove RemoveRecipientEVMScriptFactory with address ${REWARDS_LDO_REMOVE_RECIPIENT_FACTORY}`,
+      title: `8. Remove RemoveRecipientEVMScriptFactory with address ${REWARDS_LDO_REMOVE_RECIPIENT_FACTORY}`,
       factory: REWARDS_LDO_REMOVE_RECIPIENT_FACTORY,
     }),
 
-    directCall("8. Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig", {
+    directCall("9. Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig", {
       on: contracts.finance,
       fn: "newImmediatePayment",
       args: [
@@ -148,8 +162,20 @@ export default Omnibus.create({
       ],
     }),
 
-    submitCalls("9. Submit proposal to Dual Governance with the following calls:", contracts.dualGovernance, [
-      forwardCall("9.1. Forward call to Agent update staking limit on", contracts.agent, {
+    directCall("10. Validate LDO balance after vote execution", {
+      on: deployment.voteStateValidator,
+      fn: "validateStateAfterVote",
+      args: [],
+      events: [
+        event(deployment.voteStateValidator, "StateValidatedAfter", [
+          null,
+          PML_LDO_TRANSFER_AMOUNT + ATC_STABLES_LDO_TRANSFER_AMOUNT,
+        ]),
+      ],
+    }),
+
+    submitCalls("11. Submit proposal to Dual Governance with the following calls:", contracts.dualGovernance, [
+      forwardCall("11.1. Forward call to Agent update staking limit on", contracts.agent, {
         on: contracts.stakingRouter,
         fn: "setStakingModuleStatus",
         args: [CURATED_STAKING_MODULE_ID, DEPOSIT_PAUSED_STATUS],
@@ -161,7 +187,7 @@ export default Omnibus.create({
           ]),
         ],
       }),
-      executeCall("9.2. Execute calls via Agent to transfer ETH", contracts.agent, {
+      executeCall("11.2. Execute calls via Agent to transfer ETH", contracts.agent, {
         on: contracts.stETH,
         fn: "submit",
         args: [contracts.agent.address],
@@ -178,11 +204,11 @@ export default Omnibus.create({
         ],
       }),
       forwardCalls(
-        `9.3. Forward ${NEW_NODE_OPERATORS.length} calls via Aragon Agent to add new Node Operators to the Curated Module`,
+        `11.3. Forward ${NEW_NODE_OPERATORS.length} calls via Aragon Agent to add new Node Operators to the Curated Module`,
         contracts.agent,
         NEW_NODE_OPERATORS.map((operator, i) =>
           blueprints.stakingModule.addNodeOperator(
-            `9.3.${i + 1}. Add node operator "${operator.name}" with the reward address ${operator.rewardAddress} to Curated module`,
+            `11.3.${i + 1}. Add node operator "${operator.name}" with the reward address ${operator.rewardAddress} to Curated module`,
             { stakingModule: contracts.curatedStakingModule, operator },
           ),
         ),
@@ -190,7 +216,7 @@ export default Omnibus.create({
     ]),
   ],
 
-  testVote: async ({ client, checks, passOmnibus }) => {
+  testVote: async ({ client, checks, passOmnibus, deployment }) => {
     const { ldo, agent } = contracts;
 
     await checks.stakingRouter.checkStakingModuleFee(contracts, {
@@ -204,10 +230,21 @@ export default Omnibus.create({
       client.read(ldo, "balanceOf", [ATC_STABLES_MULTISIG]),
       client.read(ldo, "balanceOf", [PML_MULTISIG]),
     ]);
+    const beforeValidatedBefore = await client.read(deployment.voteStateValidator, "beforeValidated", []);
+    const afterValidatedBefore = await client.read(deployment.voteStateValidator, "afterValidated", []);
 
     const { submittedProposalIds } = await passOmnibus();
 
     assert.equal(submittedProposalIds.length, 1);
+    const beforeValidatedAfter = await client.read(deployment.voteStateValidator, "beforeValidated", []);
+    const afterValidatedAfter = await client.read(deployment.voteStateValidator, "afterValidated", []);
+    const spent = await client.read(deployment.voteStateValidator, "spent", []);
+
+    assert.equal(beforeValidatedBefore, false);
+    assert.equal(afterValidatedBefore, false);
+    assert.equal(beforeValidatedAfter, true);
+    assert.equal(afterValidatedAfter, true);
+    assert.equal(spent, EXPECTED_TOTAL_LDO_TRANSFER_AMOUNT);
 
     await Promise.all([
       checks.tokens.checkERC20Balance({

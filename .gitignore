@@ -23,3 +23,5 @@ etherscan-cache
 .idea
 # config files
 .envrc
+cache_forge/
+out_forge/

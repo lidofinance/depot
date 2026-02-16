@@ -79,7 +79,7 @@ async function resolveDeploymentForContractGeneration(omnibus: Omnibus, hre: Har
   const omnibusDirPath = path.resolve(__dirname, "..", "..", "..", "omnibuses", omnibus.name);
   const omnibusSolidityFiles = await fs
     .readdir(omnibusDirPath)
-    .then((entries) => entries.filter((entry) => entry.endsWith(".sol")))
+    .then((entries) => entries.filter((entry) => entry.endsWith(".sol") && !entry.endsWith(".t.sol")))
     .then((entries) => entries.map((entry) => path.relative(process.cwd(), path.join(omnibusDirPath, entry))));
 
   if (omnibusSolidityFiles.length === 0) {
@@ -129,7 +129,9 @@ async function formatSolidityFile(filePath: string, rootDir: string, formatter: 
       return;
     } catch (error) {
       const message = (error as Error).message ?? "unknown error";
-      throw new Error(`Failed to format generated contract with prettier: ${message}. Use "--formatter none" to skip formatting.`);
+      throw new Error(
+        `Failed to format generated contract with prettier: ${message}. Use "--formatter none" to skip formatting.`,
+      );
     }
   }
 
@@ -137,7 +139,9 @@ async function formatSolidityFile(filePath: string, rootDir: string, formatter: 
     await execFile("forge", ["fmt", filePath], { cwd: rootDir });
   } catch (error) {
     const message = (error as Error).message ?? "unknown error";
-    throw new Error(`Failed to format generated contract with forge fmt: ${message}. Use "--formatter none" to skip formatting.`);
+    throw new Error(
+      `Failed to format generated contract with forge fmt: ${message}. Use "--formatter none" to skip formatting.`,
+    );
   }
 }
 
@@ -150,7 +154,8 @@ async function extractTopLevelAddressConstHints(omnibusScriptPath: string): Prom
     return hints;
   }
 
-  const constAddressPattern = /^const\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*["'](0x[a-fA-F0-9]{40})["']\s*(?:as const)?\s*;/gm;
+  const constAddressPattern =
+    /^const\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*["'](0x[a-fA-F0-9]{40})["']\s*(?:as const)?\s*;/gm;
 
   for (const match of content.matchAll(constAddressPattern)) {
     const constName = match[1];

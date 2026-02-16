@@ -54,7 +54,10 @@ async function stopDockerContainers() {
 }
 
 const config: HardhatUserConfig = {
-  tasks: [...omnibusTaskBuilders.map((taskBuilder) => taskBuilder.build()), ...keystoreTaskBuilders.map((taskBuilder) => taskBuilder.build())],
+  tasks: [
+    ...omnibusTaskBuilders.map((taskBuilder) => taskBuilder.build()),
+    ...keystoreTaskBuilders.map((taskBuilder) => taskBuilder.build()),
+  ],
   paths: {
     sources: {
       solidity: ["contracts", "omnibuses"],
