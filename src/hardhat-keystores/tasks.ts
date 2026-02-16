@@ -2,6 +2,13 @@ import chalk from "chalk";
 import { task } from "hardhat/config";
 
 import prompt from "../common/prompt";
+import { getKeystores } from "./get-keystores";
+
+type TaskAction = (taskArguments: any, hre: any) => any;
+
+function asLazyAction(action: TaskAction) {
+  return async () => ({ default: action });
+}
 
 const KEYSTORE_TASKS = {
   ADD: "keystore:add",
@@ -11,8 +18,17 @@ const KEYSTORE_TASKS = {
   PASSWORD: "keystore:password",
 };
 
-task(KEYSTORE_TASKS.LIST, "List available accounts").setAction(async (_, hre) => {
-  const keystores = await hre.keystores.all();
+export const keystoreTaskBuilders: Array<ReturnType<typeof task>> = [];
+function defineTask(...args: Parameters<typeof task>) {
+  const builder = task(...args);
+  keystoreTaskBuilders.push(builder);
+  return builder;
+}
+
+defineTask(KEYSTORE_TASKS.LIST, "List available accounts").setAction(
+  asLazyAction(async (_, hre) => {
+  const keystoresService = getKeystores(hre);
+  const keystores = await keystoresService.all();
 
   if (keystores.length === 0) {
     console.log("Accounts not found.");
@@ -27,36 +43,45 @@ task(KEYSTORE_TASKS.LIST, "List available accounts").setAction(async (_, hre) =>
   for (const account of keystores) {
     console.log("  ", account.format());
   }
-});
+  }),
+);
 
-task(KEYSTORE_TASKS.ADD, "Add a new account by entering a private key")
-  .addPositionalParam("name", "Name of the new account")
-  .setAction(async ({ name }, hre) => {
-    const existedKeystore = await hre.keystores.get(name);
+defineTask(KEYSTORE_TASKS.ADD, "Add a new account by entering a private key")
+  .addPositionalArgument({ name: "name", description: "Name of the new account" })
+  .setAction(
+    asLazyAction(async ({ name }, hre) => {
+    const keystores = getKeystores(hre);
+    const existedKeystore = await keystores.get(name);
     if (existedKeystore) {
       console.log(`Account ${existedKeystore.format()} already exists`);
       return;
     }
-    const newAccount = await hre.keystores.add(name);
+    const newAccount = await keystores.add(name);
     console.log(`A new account ${newAccount.format()} has been added`);
-  });
+    }),
+  );
 
-task(KEYSTORE_TASKS.GENERATE, "Add a new account with a random private key")
-  .addPositionalParam("name", "Name of the new account")
-  .setAction(async ({ name }, hre) => {
-    const existedKeystore = await hre.keystores.get(name);
+defineTask(KEYSTORE_TASKS.GENERATE, "Add a new account with a random private key")
+  .addPositionalArgument({ name: "name", description: "Name of the new account" })
+  .setAction(
+    asLazyAction(async ({ name }, hre) => {
+    const keystores = getKeystores(hre);
+    const existedKeystore = await keystores.get(name);
     if (existedKeystore) {
       console.log(`Account ${existedKeystore.format()} already exists`);
       return;
     }
-    const account = await hre.keystores.generate(name);
+    const account = await keystores.generate(name);
     console.log(`A new account ${account.format()} has been generated`);
-  });
+    }),
+  );
 
-task(KEYSTORE_TASKS.DELETE, "Delete an existing account")
-  .addPositionalParam("name", "Name of the account to delete")
-  .setAction(async ({ name }, hre) => {
-    const keystore = await hre.keystores.get(name);
+defineTask(KEYSTORE_TASKS.DELETE, "Delete an existing account")
+  .addPositionalArgument({ name: "name", description: "Name of the account to delete" })
+  .setAction(
+    asLazyAction(async ({ name }, hre) => {
+    const keystores = getKeystores(hre);
+    const keystore = await keystores.get(name);
 
     if (!keystore) {
       console.log(`Account with name ${name} not found`);
@@ -70,16 +95,19 @@ task(KEYSTORE_TASKS.DELETE, "Delete an existing account")
       return;
     }
     try {
-      await hre.keystores.remove(name);
+      await keystores.remove(name);
       console.log(`Account ${keystore.format()} was successfully removed`);
     } catch (e) {
       console.log(`Removal of the account ${keystore.format()} failed. Cause: ${e}`);
     }
-  });
+    }),
+  );
 
-task(KEYSTORE_TASKS.PASSWORD, "Change the password of an existing account")
-  .addPositionalParam("name", "Name of the account to change password for")
-  .setAction(async ({ name }, hre) => {
-    const account = await hre.keystores.password(name);
+defineTask(KEYSTORE_TASKS.PASSWORD, "Change the password of an existing account")
+  .addPositionalArgument({ name: "name", description: "Name of the account to change password for" })
+  .setAction(
+    asLazyAction(async ({ name }, hre) => {
+    const account = await getKeystores(hre).password(name);
     console.log(`Password for account ${account.format()} successfully changed`);
-  });
+    }),
+  );

@@ -96,11 +96,13 @@ export async function processPendingProposals(client: DevRpcClient, proposalIds:
   for (const proposalId of proposalIds) {
     const proposal = await client.read(timelock, "getProposalDetails", [proposalId]);
     if (proposal.status === ProposalStatus.Executed) {
+      const blockNumber = await client.getBlockNumber();
       const proposalExecutedFilter = await client.createEventFilter({
         address: timelock.address,
         event: getEventAbi(timelock, "ProposalExecuted"),
         args: [proposalId],
-        fromBlock: (await client.getBlockNumber()) - 500n, // TODO: handle it better
+        fromBlock: blockNumber - 10n, // TODO: handle it better
+        toBlock: blockNumber,
       });
       const proposalExecutedLogs = await client.getFilterLogs({ filter: proposalExecutedFilter });
       if (proposalExecutedLogs.length === 0) {

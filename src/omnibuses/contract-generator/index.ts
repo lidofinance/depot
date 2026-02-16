@@ -1,17 +1,19 @@
-import { TASK_COMPILE } from "hardhat/builtin-tasks/task-names";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile as execFileCb } from "node:child_process";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 import { RpcClient } from "../../network";
 import { Omnibus } from "../omnibus";
 import { buildGeneratorModel } from "./model";
 import { renderOmnibusSolidity } from "./render-solidity";
 import { omnibusNameToContractName } from "./utils";
 import { Address } from "../../common/types";
+import { runHardhatTask } from "../../hardhat/run-task";
 
 const execFile = promisify(execFileCb);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export type GenerateOmnibusContractParams = {
   hre: HardhatRuntimeEnvironment;
@@ -74,7 +76,21 @@ export async function generateOmnibusContractFile({
 }
 
 async function resolveDeploymentForContractGeneration(omnibus: Omnibus, hre: HardhatRuntimeEnvironment) {
-  await hre.run(TASK_COMPILE, { quiet: true });
+  const omnibusDirPath = path.resolve(__dirname, "..", "..", "..", "omnibuses", omnibus.name);
+  const omnibusSolidityFiles = await fs
+    .readdir(omnibusDirPath)
+    .then((entries) => entries.filter((entry) => entry.endsWith(".sol")))
+    .then((entries) => entries.map((entry) => path.relative(process.cwd(), path.join(omnibusDirPath, entry))));
+
+  if (omnibusSolidityFiles.length === 0) {
+    throw new Error(`No Solidity contracts found in omnibus folder: ${omnibusDirPath}`);
+  }
+
+  await runHardhatTask(hre, "build", {
+    quiet: true,
+    noTests: true,
+    files: omnibusSolidityFiles,
+  });
 
   let addressCounter = 1n;
   const fakeClient: Pick<RpcClient, "deployContract"> = {

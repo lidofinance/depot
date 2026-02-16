@@ -1,5 +1,3 @@
-import fetch from "node-fetch";
-
 import { ContractInfoProvider, ContractInfo } from "./types";
 
 import bytes from "../common/bytes";

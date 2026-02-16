@@ -7,7 +7,7 @@ import providers from "../providers";
 import * as voteScript from "./vote-script";
 import { HexStrPrefixed } from "../common/bytes";
 import { DirectEvmCall } from "./vote-script";
-import { randomAddress } from "hardhat/internal/hardhat-network/provider/utils/random";
+import { randomAddress } from "../common/random";
 
 describe("lifecycle functions", () => {
   let mockSigner: Signer;

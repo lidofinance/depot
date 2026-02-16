@@ -1,4 +1,3 @@
-import fetch from "node-fetch";
 import clarinet from "clarinet";
 import { JsonBuilder } from "./json-builder";
 import { RawStructLog } from "./types";
@@ -144,7 +143,7 @@ export class DebugTraceTxStreamed {
           method: "debug_traceTransaction",
           params: reqParams,
         }),
-      }).then((res) => res.body);
+      }).then((res) => (res.body ? Readable.fromWeb(res.body as any) : null));
     }
 
     // If used default hardhat provider and not a standalone dev RPC node, make regular call

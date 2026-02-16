@@ -4,7 +4,7 @@ import { assert } from "chai";
 import bytes from "../common/bytes";
 import { EtherscanContractInfoProvider, MAX_ATTEMPTS } from "./etherscan-contract-info-provider";
 import { BUILTIN_ETHERSCAN_CHAINS } from "./etherscan-chains-config";
-import { randomAddress } from "hardhat/internal/hardhat-network/provider/utils/random";
+import { randomAddress } from "../common/random";
 
 const CHAIN_ID = 1;
 const ETHERSCAN_API_URL = BUILTIN_ETHERSCAN_CHAINS.find((chain) => chain.chainId === CHAIN_ID);

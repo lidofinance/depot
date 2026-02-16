@@ -11,6 +11,7 @@ import { BuildModelResult, GeneratedAddressRef } from "./model";
 import { indentLines, isReferenceType, isTupleParameter, isValidAddress, toCamelCase } from "./utils";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type GenerateOmnibusSolidityInput = {
   contractName: string;
@@ -27,6 +28,7 @@ type RenderCtx = {
   forwardedCallInfos: { constName: string; count: number }[];
 };
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = path.resolve(__dirname, "templates", "omnibus-contract.sol.tpl");
 let templateCache: string | null = null;
 
