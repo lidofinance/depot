@@ -75,9 +75,9 @@ export default Omnibus.create({
   // to use the deployed addresses in the omnibus operations (launch, test, trace, and e.t.c)
   // ---
 
-  // deployment: {
-  //   omnibus: contract(OmnibusBase_ABI, "0x", "ExampleContractOmnibus"),
-  // },
+  // deployment: createContracts({
+  //   omnibus: [OmnibusBase_ABI, "0x"],
+  // }),
 
   async deploy({ deployContract }) {
     const voteStateValidator = await deployContract<ExampleContractOmnibusVoteStateValidatorContract>(
