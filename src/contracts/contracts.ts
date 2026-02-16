@@ -33,7 +33,11 @@ interface ContractsMap {
 // Public Methods
 // ---
 
-export function contract<T extends Abi, L extends string = string>(abi: T, address: Address, label?: L): Contract<T, Address, L> {
+export function contract<T extends Abi, L extends string = string>(
+  abi: T,
+  address: Address,
+  label?: L,
+): Contract<T, Address, L> {
   const resolvedLabel = (label ?? (`Contract[${address}]` as L)) as L;
   return { abi, address, label: resolvedLabel };
 }
@@ -44,6 +48,14 @@ type ContractsByLabel<Cs extends readonly Contract[]> = {
 
 type ContractTuple = readonly [abi: Abi, address: Address] | readonly [abi: Abi, address: Address, label: string];
 type ContractInputMap = Record<string, ContractTuple>;
+
+type ToPascalCase<S extends string> = S extends `${infer Head}_${infer Tail}`
+  ? `${Capitalize<Head>}${ToPascalCase<Tail>}`
+  : S extends `${infer Head}-${infer Tail}`
+    ? `${Capitalize<Head>}${ToPascalCase<Tail>}`
+    : S extends `${infer Head} ${infer Tail}`
+      ? `${Capitalize<Head>}${ToPascalCase<Tail>}`
+      : Capitalize<S>;
 
 type ContractFromTuple<T extends ContractTuple, K extends string> = T extends readonly [infer A, infer Addr, infer L]
   ? A extends Abi
@@ -56,7 +68,7 @@ type ContractFromTuple<T extends ContractTuple, K extends string> = T extends re
   : T extends readonly [infer A, infer Addr]
     ? A extends Abi
       ? Addr extends Address
-        ? Contract<A, Addr, K>
+        ? Contract<A, Addr, ToPascalCase<K>>
         : never
       : never
     : never;
@@ -69,6 +81,7 @@ export function createContracts<M extends ContractInputMap>(contractsMap: M): Co
 export function createContracts<Cs extends readonly Contract[]>(...contracts: Cs): ContractsByLabel<Cs>;
 export function createContracts(...args: unknown[]) {
   const result: Partial<Record<string, Contract>> = {};
+  const usedLabels = new Set<string>();
 
   if (
     args.length === 1 &&
@@ -79,11 +92,12 @@ export function createContracts(...args: unknown[]) {
   ) {
     for (const [key, value] of Object.entries(args[0] as ContractInputMap)) {
       const [abi, address, label] = value;
-      const resolvedLabel = label ?? key;
-      if (resolvedLabel in result) {
+      const resolvedLabel = label ?? toPascalCase(key);
+      if (usedLabels.has(resolvedLabel)) {
         throw new Error(`Duplicate contract label "${resolvedLabel}"`);
       }
-      result[resolvedLabel] = contract(abi, address, resolvedLabel);
+      usedLabels.add(resolvedLabel);
+      result[key] = contract(abi, address, resolvedLabel);
     }
     return result;
   }
@@ -96,6 +110,18 @@ export function createContracts(...args: unknown[]) {
   }
 
   return result;
+}
+
+function toPascalCase(value: string): string {
+  if (!value.includes("_") && !value.includes("-") && !value.includes(" ")) {
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+
+  return value
+    .split(/[_\-\s]+/)
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("");
 }
 
 // Single contract may have a couple associated contracts if it's proxy

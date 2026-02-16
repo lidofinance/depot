@@ -460,9 +460,32 @@ export class Omnibus<
       let executeProposalReceipts: TransactionReceipt[] = [];
       let traces: TxTrace[] = [];
       if (submittedProposalIds.length > 0) {
-        spinner = createTimedSpinner(`Process pending DG proposals...`);
+        const proposalStatusesBefore = await Promise.all(
+          submittedProposalIds.map((proposalId) =>
+            client.read(this.#contracts.timelock, "getProposalDetails", [proposalId]),
+          ),
+        );
+        const alreadyExecutedCount = proposalStatusesBefore.filter(
+          (proposal) => proposal.status === ProposalStatus.Executed,
+        ).length;
+        const pendingCount = submittedProposalIds.length - alreadyExecutedCount;
+
+        spinner = createTimedSpinner(
+          pendingCount === 0
+            ? `DG proposals are already executed, retrieving execution receipts...`
+            : `Processing pending DG proposals (${pendingCount}/${submittedProposalIds.length})...`,
+        );
+
         executeProposalReceipts = await processPendingProposals(client, submittedProposalIds);
-        spinner.succeed(`Pending DG proposals "${submittedProposalIds}" successfully executed.`);
+        if (pendingCount === 0) {
+          spinner.succeed(`Retrieved execution receipts for already executed DG proposals "${submittedProposalIds}".`);
+        } else if (alreadyExecutedCount === 0) {
+          spinner.succeed(`DG proposals "${submittedProposalIds}" successfully executed.`);
+        } else {
+          spinner.succeed(
+            `DG proposals "${submittedProposalIds}" processed: executed ${pendingCount}, already executed ${alreadyExecutedCount}.`,
+          );
+        }
 
         if (executeProposalReceipts.length !== submittedProposalIds.length) {
           throw new Error("Invalid proposal receipts count");
@@ -542,10 +565,12 @@ export class Omnibus<
     function testEmittedEvents(logItems: Log[], omnibusEvents: OmnibusCallEvent[]) {
       let logIndex = 0;
       let eventIndex = 0;
+      const matchedEventCounts = new Array(omnibusEvents.length).fill(0);
 
       while (eventIndex < omnibusEvents.length) {
         const event = omnibusEvents[eventIndex];
         const { skipped } = assertEventWithLog(logItems[logIndex], event);
+        const hadMatchedBefore = matchedEventCounts[eventIndex] > 0;
 
         // if optional event may be emitted multiple times, try to match it with log until it allows
         if (skipped || !event.allowMultiple) {
@@ -553,10 +578,16 @@ export class Omnibus<
         }
 
         if (skipped) {
+          // For allowMultiple events that were already matched at least once,
+          // a final mismatch simply means "no more of this event".
+          if (event.allowMultiple && hadMatchedBefore) {
+            continue;
+          }
           console.log(
             fmt.padded(`${chalk.yellowBright("✗")} ${eventIndex}. ${formatOmnibusCallEvent(event, skipped)}`, 3),
           );
         } else {
+          matchedEventCounts[eventIndex]++;
           logIndex++;
           console.log(
             fmt.padded(`${chalk.greenBright("✔")} ${eventIndex}. ${formatOmnibusCallEvent(event, skipped)}`, 3),
