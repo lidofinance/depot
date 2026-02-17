@@ -25,6 +25,7 @@
     "example:multi-test:dg:mainnet:custom": "hardhat omnibus:multi-test _example_tiny_omnibus --mount-tests true --repo dual-governance --pattern test/custom/*",
     "example:multi-test:all:mainnet:custom": "hardhat omnibus:multi-test _example_tiny_omnibus --mount-tests true --pattern default --hide-debug true",
     "style": "prettier --write .",
+    "prettier:check": "prettier --check .",
     "test": "nyc --reporter text-summary mocha"
   },
   "devDependencies": {
