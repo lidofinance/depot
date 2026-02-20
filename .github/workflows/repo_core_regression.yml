@@ -2,6 +2,7 @@ name: Core tests CI
 
 on:
   workflow_dispatch:
+  pull_request:
 
 jobs:
   run-tests:
@@ -15,7 +16,7 @@ jobs:
         ports:
           - 8545:8545
         env:
-          INFURA_TOKEN: ${{ secrets.INFURA_TOKEN }}
+          ETH_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
 
     steps:
       ################################################################
