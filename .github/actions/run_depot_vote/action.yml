@@ -17,6 +17,11 @@ runs:
         '
         echo "Hardhat node is ready"
 
+    - name: Debug hardhat-node logs (if health check failed)
+      if: failure()
+      shell: bash
+      run: docker ps -a && docker logs $(docker ps -aq --filter "ancestor=ghcr.io/lidofinance/hardhat-node:2.26.0") 2>&1 || echo "Could not fetch container logs"
+
     ## TODO: make real script here
     - name: Run Vote
       shell: bash
