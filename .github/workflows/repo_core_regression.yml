@@ -86,3 +86,4 @@ jobs:
         env:
           RPC_URL: http://127.0.0.1:8545
           NODE_OPTIONS: --max_old_space_size=7200
+          NETWORK_STATE_FILE: deployed-mainnet.json
