@@ -1,5 +1,5 @@
-name: "Tests"
-description: "Run depot vote"
+name: "Run depot vote"
+description: "Execute omnibus vote on forked hardhat node"
 
 runs:
   using: "composite"
