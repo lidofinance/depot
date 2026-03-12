@@ -1,6 +1,12 @@
 name: "Run depot vote"
 description: "Execute omnibus vote on forked hardhat node"
 
+inputs:
+  rpc-port:
+    description: "Port of the local hardhat node"
+    required: false
+    default: "8545"
+
 runs:
   using: "composite"
   steps:
@@ -10,7 +16,7 @@ runs:
         timeout 120 bash -c '
           until curl -sf -X POST -H "Content-Type: application/json" \
             -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_chainId\",\"params\":[],\"id\":1}" \
-            http://127.0.0.1:8545 > /dev/null 2>&1; do
+            http://127.0.0.1:${{ inputs.rpc-port }} > /dev/null 2>&1; do
             echo "Waiting for hardhat node to be ready..."
             sleep 2
           done
@@ -27,3 +33,5 @@ runs:
       shell: bash
       run: npm run omnibus:ci-prepare
       working-directory: depot
+      env:
+        ETH_LOCAL_RPC_URL: ${{ inputs.rpc-port }}
