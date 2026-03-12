@@ -4,19 +4,21 @@ on:
   workflow_dispatch:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   dual-governance-regression:
     name: "Regression tests"
     runs-on: ubuntu-latest
     timeout-minutes: 100
 
-    concurrency:
-      group: dual-governance-regression-depo-${{ github.ref }}
-      cancel-in-progress: true
-
     env:
       HARDHAT_NODE_URL: "http://127.0.0.1:8545"
-      ANVIL_NODE_URL: "http://127.0.0.1:8555"
 
     services:
       hardhat-node:
@@ -25,10 +27,11 @@ jobs:
           - 8545:8545
         env:
           ETH_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          HARDFORK: cancun
 
     steps:
       - name: Checkout depot repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: depot
 
@@ -40,7 +43,7 @@ jobs:
       ################################################################
 
       - name: Checkout dual-governance repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: lidofinance/dual-governance
           path: dual-governance
@@ -51,16 +54,16 @@ jobs:
       ################################################################
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: foundry-rs/foundry-toolchain@8789b3e21e6c11b2697f5eb56eddae542f746c10 # v1
         with:
-          version: "v1.0.0"
+          version: "v1.7.0"
 
       ################################################################
       # Setup cache for dependencies
       ################################################################
 
       - name: Cache Forge dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: dual-governance/lib
           key: forge-${{ hashFiles('dual-governance/foundry.toml') }}
@@ -69,6 +72,13 @@ jobs:
       ################################################################
       # Install dependencies
       ################################################################
+
+      - name: Setup Node.js for dual-governance
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20.16.0"
+          cache: npm
+          cache-dependency-path: dual-governance/package-lock.json
 
       - name: Install Node.js dependencies for dual-governance
         run: npm ci

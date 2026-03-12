@@ -4,10 +4,17 @@ on:
   workflow_dispatch:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   run-tests:
     name: Core repo tests in docker
-    runs-on: "ubuntu-latest"
+    runs-on: ubuntu-latest
     timeout-minutes: 120
 
     services:
@@ -17,6 +24,7 @@ jobs:
           - 8545:8545
         env:
           ETH_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          HARDFORK: cancun
 
     steps:
       ################################################################
@@ -24,7 +32,7 @@ jobs:
       ################################################################
 
       - name: Checkout depot repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: depot
 
@@ -36,10 +44,18 @@ jobs:
       ################################################################
 
       - name: Checkout core repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: lidofinance/core
           path: core
+          persist-credentials: false
+
+      - name: Setup Node.js for core
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: core/.nvmrc
+          cache: yarn
+          cache-dependency-path: core/yarn.lock
 
       - name: Enable corepack
         shell: bash
@@ -68,4 +84,5 @@ jobs:
         run: yarn test:integration
         working-directory: core
         env:
-          FORK_RPC_URL: http://127.0.0.1:8545
+          RPC_URL: http://127.0.0.1:8545
+          NODE_OPTIONS: --max_old_space_size=7200
