@@ -1,239 +1,211 @@
-import { NamedContract } from "../contracts";
-import sinon from "sinon";
-import { TxTrace, TxTraceCallItem, TxTraceItem, TxTraceLogItem } from "./tx-traces";
-import { Network } from "ethers";
 import { assert } from "../common/assert";
+import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, encodeFunctionResult } from "viem";
+import { TxTrace, TxTraceCallItem, TxTraceItem } from "./tx-traces";
 
-describe("Transaction traces", function () {
-  describe("parseMethodCall", function () {
-    it("parses method call with valid calldata and return data", () => {
-      const mockContract = {
-        name: "MockContract",
-        getFunction: sinon.stub().returns({ fragment: { name: "mockMethod", inputs: [] } }),
-        interface: {
-          decodeFunctionData: sinon.stub().returns(["arg1", "arg2"]),
-          decodeFunctionResult: sinon.stub().returns("result"),
-        },
-      } as unknown as NamedContract;
-      const calldata = "0xmockcalldata";
-      const ret = "0xmockret";
-      const txTrace = new TxTrace({} as Network, "0x456", [], {});
+const testAbi = [
+  {
+    type: "function",
+    name: "foo",
+    stateMutability: "view",
+    inputs: [{ name: "x", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "event",
+    name: "Ping",
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "from", type: "address" },
+      { indexed: false, name: "value", type: "uint256" },
+    ],
+  },
+] as const;
 
-      const result = txTrace["parseMethodCall"](mockContract, calldata, ret);
+const contractAddress = "0x1111111111111111111111111111111111111111" as `0x${string}`;
+const unknownAddress = "0x2222222222222222222222222222222222222222" as `0x${string}`;
 
-      assert.equal(result.fragment.name, "mockMethod");
-      assert.deepEqual(result.args, ["arg1", "arg2"] as any);
-      assert.equal(result.result, "result" as any);
-    });
+function createCallItem(address = contractAddress, depth = 0): TxTraceCallItem {
+  return {
+    type: "CALL",
+    depth,
+    value: 0n,
+    gasSpent: 0,
+    gasProvided: 0,
+    gasLimit: 0,
+    address,
+    success: true,
+    input: encodeFunctionData({ abi: testAbi, functionName: "foo", args: [123n] }),
+    output: encodeFunctionResult({ abi: testAbi, functionName: "foo", result: 456n }),
+  };
+}
 
-    it("throws error when contract function is not found", () => {
-      const mockContract = {
-        name: "MockContract",
-        getFunction: sinon.stub().throws(new Error("Function not found")),
-        interface: {
-          decodeFunctionData: sinon.stub(),
-          decodeFunctionResult: sinon.stub(),
-        },
-      } as unknown as NamedContract;
-      const calldata = "0xinvalidcalldata";
-      const ret = "0xmockret";
-      const txTrace = new TxTrace({} as Network, "0x456", [], {});
+describe("TxTrace", () => {
+  it("normalizes depths on filter", () => {
+    const calls: TxTraceItem[] = [
+      createCallItem(contractAddress, 4),
+      { ...(createCallItem(contractAddress, 5) as any), type: "LOG4", data: "0x", topics: ["0x00"] },
+      createCallItem(contractAddress, 6),
+    ] as any;
+    const trace = new TxTrace("mainnet", contractAddress, calls, {}, []);
 
-      assert.throws(() => txTrace["parseMethodCall"](mockContract, calldata, ret), "Function not found");
-    });
+    const filtered = trace.filter((item) => !("data" in item));
+
+    assert.deepEqual(
+      filtered.calls.map((c) => c.depth),
+      [0, 1],
+    );
   });
 
-  describe("updateDepths", () => {
-    it("updates depths correctly for a single call", () => {
-      const calls = [{ depth: 0 }] as TxTraceItem[];
-      const txTrace = new TxTrace({} as Network, "0x456", calls, {});
+  it("normalizes depths on slice", () => {
+    const calls: TxTraceItem[] = [createCallItem(contractAddress, 7), createCallItem(contractAddress, 9)];
+    const trace = new TxTrace("mainnet", contractAddress, calls, {}, []);
 
-      txTrace["updateDepths"](calls);
+    const sliced = trace.slice(0, 2);
 
-      assert.deepEqual(
-        calls.map((call) => call.depth),
-        [0],
-      );
-    });
-
-    it("updates depths correctly for nested calls", () => {
-      const calls = [{ depth: 0 }, { depth: 1 }, { depth: 2 }, { depth: 1 }, { depth: 0 }] as TxTraceItem[];
-      const txTrace = new TxTrace({} as Network, "0x456", calls, {});
-
-      txTrace["updateDepths"](calls);
-
-      assert.deepEqual(
-        calls.map((call) => call.depth),
-        [0, 1, 2, 3, 3],
-      );
-    });
-
-    it("updates depths correctly for calls with same depth", () => {
-      const calls = [{ depth: 0 }, { depth: 0 }, { depth: 1 }, { depth: 1 }] as TxTraceItem[];
-      const txTrace = new TxTrace({} as Network, "0x456", calls, {});
-
-      txTrace["updateDepths"](calls);
-
-      assert.deepEqual(
-        calls.map((call) => call.depth),
-        [0, 0, 1, 2],
-      );
-    });
-
-    it("updates depths correctly for calls with varying depths", () => {
-      const calls = [{ depth: 0 }, { depth: 2 }, { depth: 1 }, { depth: 3 }, { depth: 2 }] as TxTraceItem[];
-      const txTrace = new TxTrace({} as Network, "0x456", calls, {});
-
-      txTrace["updateDepths"](calls);
-
-      assert.deepEqual(
-        calls.map((call) => call.depth),
-        [0, 1, 2, 3, 4],
-      );
-    });
-
-    it("handles empty calls array", () => {
-      const calls = [] as TxTraceItem[];
-      const txTrace = new TxTrace({} as Network, "0x456", calls, {});
-
-      txTrace["updateDepths"](calls);
-
-      assert.deepEqual(
-        calls.map((call) => call.depth),
-        [],
-      );
-    });
+    assert.deepEqual(
+      sliced.calls.map((c) => c.depth),
+      [0, 1],
+    );
   });
 
-  describe("formatCallTraceItem", () => {
-    it("formats call trace item with valid contract and method call", () => {
-      const mockContract = {
-        name: "MockContract",
-        getFunction: sinon
-          .stub()
-          .returns({ fragment: { name: "mockMethod", inputs: [{ name: "param1" }, { name: "param2" }] } }),
-        interface: {
-          decodeFunctionData: sinon.stub().returns(["arg1", "arg2"]),
-          decodeFunctionResult: sinon.stub().returns("result"),
-        },
-      } as unknown as NamedContract;
-      const traceCallItem = {
-        type: "CALL",
-        depth: 0,
-        address: "0x123",
-        input: "0xmockinput",
-        output: "0xmockoutput",
-      } as unknown as TxTraceCallItem;
-      const txTrace = new TxTrace({} as Network, "0x456", [traceCallItem], { "0x123": mockContract });
+  it("normalizes varying depth gaps correctly", () => {
+    // updateDepths collapses unused depth levels but preserves ordering
+    // input depths [0, 3, 1, 5] → used levels are {0,1,3,5} → rewrite: 0→0, 1→1, 3→2, 5→3
+    const calls: TxTraceItem[] = [
+      createCallItem(contractAddress, 0),
+      createCallItem(contractAddress, 3),
+      createCallItem(contractAddress, 1),
+      createCallItem(contractAddress, 5),
+    ];
+    const trace = new TxTrace("mainnet", contractAddress, calls, {}, []);
+    const filtered = trace.filter(() => true);
 
-      const result = txTrace["formatCallTraceItem"](traceCallItem);
-
-      assert.match(result, new RegExp("CALL.*MockContract.*mockMethod"));
-      assert.match(result, new RegExp("param1.*=arg1"));
-      assert.match(result, new RegExp("param2.*=arg2"));
-      assert.include(result, "=> result");
-    });
-
-    it("formats call trace item with unknown contract", () => {
-      const traceCallItem = {
-        type: "CALL",
-        depth: 0,
-        address: "0xunknown",
-        input: "0xmockinput",
-        output: "0xmockoutput",
-      } as unknown as TxTraceCallItem;
-      const txTrace = new TxTrace({} as Network, "0x456", [traceCallItem], {});
-
-      const result = txTrace["formatCallTraceItem"](traceCallItem);
-
-      assert.match(result, new RegExp("CALL.*UNKNOWN.*0xunknown"));
-    });
-
-    it("formats call trace item with padding", () => {
-      const mockContract = {
-        name: "MockContract",
-        getFunction: sinon.stub().returns({ fragment: { name: "mockMethod", inputs: [] } }),
-        interface: {
-          decodeFunctionData: sinon.stub().returns(["arg1"]),
-          decodeFunctionResult: sinon.stub().returns("result"),
-        },
-      } as unknown as NamedContract;
-      const traceCallItem = {
-        type: "CALL",
-        depth: 1,
-        address: "0x123",
-        input: "0xmockinput",
-        output: "0xmockoutput",
-      } as unknown as TxTraceCallItem;
-      const txTrace = new TxTrace({} as Network, "0x456", [traceCallItem], { "0x123": mockContract });
-
-      const result = txTrace["formatCallTraceItem"](traceCallItem, 2);
-
-      assert.match(result, new RegExp(" {2}.*CALL.*MockContract.*mockMethod"));
-    });
+    assert.deepEqual(
+      filtered.calls.map((c) => c.depth),
+      [0, 2, 1, 3],
+    );
   });
 
-  describe("formatLogTraceItem", () => {
-    it("formats log trace item with valid contract and log data", () => {
-      const mockContract = {
-        name: "MockContract",
-        interface: {
-          parseLog: sinon.stub().returns({
-            name: "MockLog",
-            args: ["value1", "value2"],
-            fragment: { inputs: [{ name: "input0" }, { name: "input1" }] },
-          }),
-        },
-      } as unknown as NamedContract;
-      const traceLogItem = {
-        type: "LOG4",
-        depth: 0,
-        address: "0x123",
-        data: "0xmockdata",
-      } as TxTraceLogItem;
-      const txTrace = new TxTrace({} as Network, "0x456", [traceLogItem], { "0x123": mockContract });
+  it("handles empty calls array in filter", () => {
+    const trace = new TxTrace("mainnet", contractAddress, [], {}, []);
+    const filtered = trace.filter(() => true);
 
-      const result = txTrace["formatLogTraceItem"](traceLogItem);
+    assert.lengthOf(filtered.calls, 0);
+  });
 
-      assert.match(result, new RegExp(".*LOG.*MockContract.*MockLog.*\n.*input0.*=value1.*\n.*input1.*=value2"));
-    });
+  it("normalizes same-level depths after filter", () => {
+    const calls: TxTraceItem[] = [
+      createCallItem(contractAddress, 0),
+      createCallItem(contractAddress, 0),
+      createCallItem(contractAddress, 1),
+      createCallItem(contractAddress, 1),
+    ];
+    const trace = new TxTrace("mainnet", contractAddress, calls, {}, []);
+    const filtered = trace.filter(() => true);
 
-    it("formats log trace item with unknown contract", () => {
-      const traceLogItem = {
-        type: "LOG4",
-        depth: 0,
-        address: "0xunknown",
-        data: "0xmockdata",
-      } as TxTraceLogItem;
-      const txTrace = new TxTrace({} as Network, "0x456", [traceLogItem], {});
+    assert.deepEqual(
+      filtered.calls.map((c) => c.depth),
+      [0, 0, 1, 1],
+    );
+  });
 
-      const result = txTrace["formatLogTraceItem"](traceLogItem);
+  it("formats decoded function calls when ABI is known", () => {
+    const trace = new TxTrace(
+      "mainnet",
+      contractAddress,
+      [createCallItem()],
+      {
+        [contractAddress]: [{ address: contractAddress, abi: testAbi, label: "TestContract" }],
+      } as any,
+      [],
+    );
 
-      assert.equal(result, "LOG4");
-    });
+    const result = trace.formatOpCode(trace.calls[0], 0);
 
-    it("formats log trace item with padding", () => {
-      const mockContract = {
-        name: "MockContract",
-        interface: {
-          parseLog: sinon.stub().returns({
-            name: "MockLog",
-            args: ["value1", "value2"],
-            fragment: { inputs: [{ name: "input0" }, { name: "input1" }] },
-          }),
-        },
-      } as unknown as NamedContract;
-      const traceLogItem = {
-        type: "LOG4",
-        depth: 1,
-        address: "0x123",
-        data: "0xmockdata",
-      } as TxTraceLogItem;
-      const txTrace = new TxTrace({} as Network, "0x456", [traceLogItem], { "0x123": mockContract });
+    assert.include(result, "TestContract");
+    assert.include(result, "foo(uint256)");
+    assert.include(result, "123");
+    assert.include(result, "456");
+  });
 
-      const result = txTrace["formatLogTraceItem"](traceLogItem, 2);
+  it("falls back to raw call formatting when ABI is unknown", () => {
+    const trace = new TxTrace(
+      "mainnet",
+      unknownAddress,
+      [createCallItem(unknownAddress)],
+      { [unknownAddress]: [] } as any,
+      [],
+    );
 
-      assert.match(result, new RegExp(" {2}.*LOG.*MockContract.*MockLog.*\n.*input0.*=value1.*\n.*input1.*=value2"));
-    });
+    const result = trace.formatOpCode(trace.calls[0], 0);
+
+    assert.include(result, "CALL");
+    assert.include(result, "[return]");
+  });
+
+  it("formats decoded logs when ABI is known", () => {
+    const topics = encodeEventTopics({
+      abi: testAbi,
+      eventName: "Ping",
+      args: { from: contractAddress },
+    }) as `0x${string}`[];
+    const data = encodeAbiParameters([{ name: "value", type: "uint256" }], [777n]);
+    const logItem = {
+      type: "LOG4",
+      depth: 0,
+      address: contractAddress,
+      data,
+      topics,
+    } as any;
+
+    const trace = new TxTrace(
+      "mainnet",
+      contractAddress,
+      [logItem],
+      {
+        [contractAddress]: [{ address: contractAddress, abi: testAbi, label: "TestContract" }],
+      } as any,
+      [],
+    );
+
+    const result = trace.formatOpCode(logItem, 0);
+
+    assert.include(result, "Ping(address,uint256)");
+    assert.include(result, "777");
+  });
+
+  it("falls back to raw log formatting when ABI is unknown", () => {
+    const logItem = {
+      type: "LOG4" as const,
+      depth: 0,
+      address: unknownAddress,
+      data: "0x0000" as `0x${string}`,
+      topics: ["0xdeadbeef"] as `0x${string}`[],
+    } as any;
+    const trace = new TxTrace("mainnet", unknownAddress, [logItem], { [unknownAddress]: [] } as any, []);
+
+    const result = trace.formatOpCode(logItem, 0);
+
+    assert.include(result, "LOG4");
+    assert.include(result, "0xdeadbeef");
+  });
+
+  it("applies padding to formatted output", () => {
+    const trace = new TxTrace(
+      "mainnet",
+      contractAddress,
+      [createCallItem()],
+      {
+        [contractAddress]: [{ address: contractAddress, abi: testAbi, label: "TestContract" }],
+      } as any,
+      [],
+    );
+
+    const noPad = trace.formatOpCode(trace.calls[0], 0);
+    const withPad = trace.formatOpCode(trace.calls[0], 3);
+
+    // padded version should have more leading whitespace
+    assert.isAbove(withPad.length, noPad.length);
+    assert.match(withPad, /^\s{6}/); // 3 * 2-char pad
   });
 });

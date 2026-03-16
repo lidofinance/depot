@@ -1,111 +1,87 @@
-import { ContractTransactionReceipt } from "ethers";
-import { TxTracer } from "./tx-tracer";
-import { assert } from "../common/assert";
 import sinon from "sinon";
-import providers from "../providers";
+import { assert } from "../common/assert";
+import { TxTracer } from "./tx-tracer";
+import * as contracts from "../contracts/contracts";
 
 describe("TxTracer", () => {
-  beforeEach(() => {
-    sinon.stub(providers, "chainId").resolves(1n);
-    sinon.stub(providers, "provider").returns({ getNetwork: sinon.stub().resolves({ chainId: 1 }) } as any);
-  });
+  const addr1 = "0x1111111111111111111111111111111111111111";
+  const addr2 = "0x2222222222222222222222222222222222222222";
 
   afterEach(() => {
     sinon.restore();
   });
 
-  it("traces transaction and resolves contracts with implementation addresses", async () => {
-    const mockTraceStrategy = {
+  it("traces tx and resolves unique addresses from calls/creates/logs", async () => {
+    const traceStrategy = {
       trace: sinon.stub().resolves([
-        { type: "CALL", address: "0x123", depth: 0 },
-        { type: "CREATE", address: "0x456", depth: 0 },
-        { type: "LOG4", depth: 1 },
+        { type: "CALL", address: addr1, depth: 0, input: "0x", output: "0x", success: true },
+        { type: "CREATE", address: addr2, depth: 1, input: "0x", output: "0x", success: true },
+        { type: "LOG4", address: addr1, depth: 1, data: "0x", topics: ["0x0", "0x0", "0x0", "0x0"] },
       ]),
     };
-    const mockContractInfoResolver = {
-      resolve: sinon
+
+    const resolveStub = sinon.stub(contracts, "resolveContract");
+    resolveStub.withArgs("mainnet", addr1).resolves([{ address: addr1, abi: [], label: "C1" }] as any);
+    resolveStub.withArgs("mainnet", addr2).resolves([{ address: addr2, abi: [], label: "C2" }] as any);
+
+    const tracer = new TxTracer(traceStrategy as any);
+    const txTrace = await tracer.trace("mainnet", "0x1234");
+
+    assert.lengthOf(txTrace.calls, 3);
+    assert.equal(txTrace.from, addr1);
+    assert.equal(txTrace.contracts[addr1][0].label, "C1");
+    assert.equal(txTrace.contracts[addr2][0].label, "C2");
+    assert.equal(resolveStub.callCount, 2);
+  });
+
+  it("uses pre-populated contracts and skips remote resolve for them", async () => {
+    const traceStrategy = {
+      trace: sinon
         .stub()
-        .onFirstCall()
-        .resolves({ name: "MockContractCall", abi: [], implementation: "0x321" })
-        .onSecondCall()
-        .resolves({ name: "ImplementationContractCall", abi: [] })
-        .onThirdCall()
-        .resolves({ name: "MockContractCreate", abi: [], implementation: "0x654" })
-        .onCall(3)
-        .resolves({ name: "ImplementationContractCreate", abi: [] }),
+        .resolves([{ type: "CALL", address: addr1, depth: 0, input: "0x", output: "0x", success: true }]),
     };
-    const mockReceipt = { from: "0x456" } as ContractTransactionReceipt;
-    const tracer = new TxTracer(mockTraceStrategy, mockContractInfoResolver as any);
+    const prePopulated = [{ address: addr1, abi: [], label: "LocalContract" }];
+    const resolveStub = sinon.stub(contracts, "resolveContract");
 
-    const result = await tracer.trace(mockReceipt);
+    const tracer = new TxTracer(traceStrategy as any);
+    const txTrace = await tracer.trace("mainnet", "0x1234", prePopulated as any);
 
-    assert.equal(result["contracts"]["0x123"].name, "ImplementationContractCall");
-    assert.equal(result["contracts"]["0x456"].name, "ImplementationContractCreate");
-    assert.lengthOf(result["calls"], 3);
-    assert.equal(result["calls"][0].address, "0x123");
-    assert.equal(result["calls"][1].address, "0x456");
-    assert.equal(result["calls"][2].address, "0x123");
+    assert.equal(resolveStub.callCount, 0);
+    assert.equal(txTrace.contracts[addr1][0].label, "LocalContract");
+    assert.deepEqual(txTrace.prePopulatedContracts, prePopulated as any);
   });
 
-  it("traces transaction and resolves contracts without implementation addresses", async () => {
-    const mockTraceStrategy = {
-      trace: sinon.stub().resolves([{ type: "CALL", address: "0x123", depth: 0 }]),
+  it("normalizes addresses and avoids duplicate resolves", async () => {
+    const upper = "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    const lower = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const traceStrategy = {
+      trace: sinon.stub().resolves([
+        { type: "CALL", address: upper, depth: 0, input: "0x", output: "0x", success: true },
+        { type: "LOG4", address: lower, depth: 1, data: "0x", topics: ["0x0", "0x0", "0x0", "0x0"] },
+      ]),
     };
-    const mockContractInfoResolver = {
-      resolve: sinon.stub().onFirstCall().resolves({ name: "MockContract", abi: [] }),
-    };
-    const mockReceipt = { from: "0x456" } as ContractTransactionReceipt;
-    const tracer = new TxTracer(mockTraceStrategy, mockContractInfoResolver as any);
 
-    const result = await tracer.trace(mockReceipt);
+    const resolveStub = sinon
+      .stub(contracts, "resolveContract")
+      .resolves([{ address: lower, abi: [], label: "C" }] as any);
 
-    assert.equal(result["contracts"]["0x123"].name, "MockContract");
+    const tracer = new TxTracer(traceStrategy as any);
+    const txTrace = await tracer.trace("mainnet", "0x1234");
+
+    assert.equal(resolveStub.callCount, 1);
+    assert.equal(txTrace.contracts[lower][0].label, "C");
   });
 
-  it("traces transaction without resolving contracts if no resolver provided", async () => {
-    const mockTraceStrategy = {
-      trace: sinon.stub().resolves([{ type: "CALL", address: "0x123", depth: 0 }]),
-    };
-    const mockReceipt = { from: "0x456" } as ContractTransactionReceipt;
-    const tracer = new TxTracer(mockTraceStrategy, null);
-
-    const result = await tracer.trace(mockReceipt);
-
-    assert.deepEqual(result["contracts"], {});
-  });
-
-  it("handles contract resolve error", async () => {
-    const mockTraceStrategy = {
-      trace: sinon.stub().resolves([{ type: "CALL", address: "0x123", depth: 0 }]),
-    };
-    const mockContractInfoResolver = {
-      resolve: sinon.stub().onFirstCall().rejects("Resolve error"),
-    };
-    const mockReceipt = { from: "0x456" } as ContractTransactionReceipt;
-    const tracer = new TxTracer(mockTraceStrategy, mockContractInfoResolver as any);
-
-    const result = await tracer.trace(mockReceipt);
-
-    assert.deepEqual(result["contracts"], {});
-  });
-
-  it("handles implementation resolve error", async () => {
-    const mockTraceStrategy = {
-      trace: sinon.stub().resolves([{ type: "CALL", address: "0x123", depth: 0 }]),
-    };
-    const mockContractInfoResolver = {
-      resolve: sinon
+  it("propagates contract resolve errors", async () => {
+    const traceStrategy = {
+      trace: sinon
         .stub()
-        .onFirstCall()
-        .resolves({ name: "MockContractCall", abi: [], implementation: "0x321" })
-        .onSecondCall()
-        .rejects("Resolve error"),
+        .resolves([{ type: "CALL", address: addr1, depth: 0, input: "0x", output: "0x", success: true }]),
     };
-    const mockReceipt = { from: "0x456" } as ContractTransactionReceipt;
-    const tracer = new TxTracer(mockTraceStrategy, mockContractInfoResolver as any);
+    sinon.stub(contracts, "resolveContract").rejects(new Error("Resolve error"));
 
-    const result = await tracer.trace(mockReceipt);
+    const tracer = new TxTracer(traceStrategy as any);
 
-    assert.equal(result["contracts"]["0x123"].name, "MockContractCall");
+    await assert.isRejected(tracer.trace("mainnet", "0x1234"), "Resolve error");
   });
 });

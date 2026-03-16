@@ -1,104 +1,66 @@
+import { assert } from "chai";
+import { getLidoContracts } from "../../contracts/contracts";
+import { OmnibusDirectCall } from "../calls/omnibus-direct-call";
+import { event } from "../omnibus";
 import tokens from "./tokens";
-import { Contracts } from "../../contracts/contracts";
-import { Lido } from "../../../configs/types";
-import { assert } from "../../common/assert";
-import sinon from "sinon";
-import * as voteScripts from "../../aragon-votes-tools/vote-script";
-import * as voteEvents from "../../aragon-votes-tools/events";
-import { ERC20__factory } from "../../../typechain-types/factories/interfaces";
 
-describe("Tokens actions tests", () => {
-  let callStub: sinon.SinonStub;
-  let eventStub: sinon.SinonStub;
-  beforeEach(() => {
-    callStub = sinon.stub(voteScripts, "call");
-    eventStub = sinon.stub(voteEvents, "event");
-  });
-  afterEach(() => {
-    sinon.restore();
-  });
+function createCtx() {
+  const contracts = getLidoContracts("mainnet");
+  return {
+    contracts,
+    event,
+    directCall: OmnibusDirectCall.createCallBuilder({ voting: contracts.voting, callsScript: contracts.callsScript }),
+  } as any;
+}
 
-  it("transfers tokens successfully", async () => {
-    const mockContracts = {
-      agent: { address: "0xAgentAddress" },
-      finance: { newImmediatePayment: sinon.stub().resolves() },
-      callsScript: {},
-      voting: {},
-      ldo: { address: "0xLdoAddress" },
-    };
-    const input = {
+describe("tokens blueprints", () => {
+  it("transfer creates newImmediatePayment call with explicit token", () => {
+    const ctx = createCtx();
+    const token = "0x1111111111111111111111111111111111111111";
+    const to = "0x2222222222222222222222222222222222222222";
+    const amount = 1000n;
+
+    const call = tokens.transfer(ctx, {
       title: "Transfer Tokens",
-      to: "0xRecipientAddress",
-      amount: "1000",
-      token: "0xTokenAddress",
-    };
-    sinon.stub(ERC20__factory, "connect").returns(input.token as any);
+      token,
+      to,
+      amount,
+      comment: "Payment #1",
+    });
 
-    const result = tokens.transfer(mockContracts as unknown as Contracts<Lido>, input);
+    assert.equal(call.title, "Transfer Tokens");
+    assert.equal(call.functionName, "newImmediatePayment");
+    assert.deepEqual(call.args, [token, to, amount, "Payment #1"]);
 
-    assert.equal(result.title, input.title);
-    assert.isTrue(eventStub.callCount === 5);
-    assert.isTrue(
-      callStub.calledOnceWith(mockContracts.finance.newImmediatePayment, [
-        input.token,
-        input.to,
-        input.amount,
-        input.title,
-      ]),
+    const events = call.getEventsFor("proposal");
+    assert.deepEqual(
+      events.map((e) => e.abi.name),
+      ["NewPeriod", "NewTransaction", "Transfer", "VaultTransfer"],
     );
-    assert.isTrue(eventStub.calledWith(mockContracts.callsScript, "LogScriptCall", { emitter: mockContracts.voting }));
-    assert.isTrue(
-      eventStub.calledWith(mockContracts.finance, "NewTransaction", {
-        args: [undefined, false, input.to, input.amount, input.title],
-      }),
-    );
-    assert.isTrue(
-      eventStub.calledWith(input.token, "Transfer", { args: [mockContracts.agent, input.to, input.amount] }),
-    );
-    assert.isTrue(
-      eventStub.calledWith(mockContracts.agent, "VaultTransfer", { args: [input.token, input.to, input.amount] }),
-    );
-    assert.isTrue(eventStub.calledWith(mockContracts.finance, "NewPeriod", undefined, { optional: true }));
+
+    const newTxEvent = events.find((e) => e.abi.name === "NewTransaction")!;
+    assert.deepEqual(newTxEvent.args, [null, false, to, amount, "Payment #1"]);
+
+    const transferEvent = events.find((e) => e.abi.name === "Transfer")!;
+    assert.deepEqual(transferEvent.args, [ctx.contracts.agent.address, to, amount]);
+
+    const vaultEvent = events.find((e) => e.abi.name === "VaultTransfer")!;
+    assert.deepEqual(vaultEvent.args, [token, to, amount]);
   });
 
-  it("transfers LDO tokens successfully", async () => {
-    const mockContracts = {
-      agent: { address: "0xAgentAddress" },
-      finance: { newImmediatePayment: sinon.stub().resolves() },
-      callsScript: {},
-      voting: {},
-      ldo: { address: "0xLdoAddress" },
-    };
-    const input = {
-      title: "Transfer Tokens",
-      to: "0xRecipientAddress",
-      amount: "1000",
-    };
+  it("transferLDO uses LDO address from contracts", () => {
+    const ctx = createCtx();
+    const to = "0x2222222222222222222222222222222222222222";
+    const amount = 500n;
 
-    const result = tokens.transferLDO(mockContracts as unknown as Contracts<Lido>, input);
+    const call = tokens.transferLDO(ctx, {
+      title: "Transfer LDO",
+      to,
+      amount,
+      comment: "Treasury payment",
+    });
 
-    assert.equal(result.title, input.title);
-    assert.isTrue(eventStub.callCount === 5);
-    assert.isTrue(
-      callStub.calledOnceWith(mockContracts.finance.newImmediatePayment, [
-        mockContracts.ldo,
-        input.to,
-        input.amount,
-        input.title,
-      ]),
-    );
-    assert.isTrue(eventStub.calledWith(mockContracts.callsScript, "LogScriptCall", { emitter: mockContracts.voting }));
-    assert.isTrue(
-      eventStub.calledWith(mockContracts.finance, "NewTransaction", {
-        args: [undefined, false, input.to, input.amount, input.title],
-      }),
-    );
-    assert.isTrue(
-      eventStub.calledWith(mockContracts.ldo, "Transfer", { args: [mockContracts.agent, input.to, input.amount] }),
-    );
-    assert.isTrue(
-      eventStub.calledWith(mockContracts.agent, "VaultTransfer", { args: [mockContracts.ldo, input.to, input.amount] }),
-    );
-    assert.isTrue(eventStub.calledWith(mockContracts.finance, "NewPeriod", undefined, { optional: true }));
+    assert.equal(call.functionName, "newImmediatePayment");
+    assert.deepEqual(call.args, [ctx.contracts.ldo.address, to, amount, "Treasury payment"]);
   });
 });
