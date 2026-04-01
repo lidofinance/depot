@@ -1,76 +1,80 @@
-import { NetworkName } from "../networks";
-import { EventCheck, EvmScriptParser, FormattedEvmCall } from "../aragon-votes-tools";
-import blueprints from "./blueprints";
-import lido, { LidoEthContracts } from "../lido";
-import { flatten, mapValues, partial } from "lodash";
+import { flatten, mapValues, partial } from 'lodash'
 
+import { EventCheck, EvmScriptParser, FormattedEvmCall } from '../aragon-votes-tools'
+import lido, { LidoEthContracts } from '../lido'
+import { NetworkName } from '../networks'
+
+import blueprints from './blueprints'
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export type BindFirstParam<R extends Record<string, any>> = {
-  [K in keyof R]: BoundRecord<R[K]>;
-};
-type BoundRecord<F extends (...args: any[]) => any> = (...args: OmitFirstParameter<F>) => ReturnType<F>;
-type OmitFirstParameter<F> = F extends (arg0: any, ...rest: infer R) => any ? R : never;
+  [K in keyof R]: BoundRecord<R[K]>
+}
+type BoundRecord<F extends (...args: any[]) => unknown> = (...args: OmitFirstParameter<F>) => ReturnType<F>
+type OmitFirstParameter<F> = F extends (arg0: any, ...rest: infer R) => unknown ? R : never
 
 type BoundBlueprints = {
-  [K in keyof typeof blueprints]: BindFirstParam<(typeof blueprints)[K]>;
-};
+  [K in keyof typeof blueprints]: BindFirstParam<(typeof blueprints)[K]>
+}
+/* eslint-enable @typescript-eslint/no-explicit-any  */
 
 interface Context<N extends NetworkName> {
-  blueprints: BoundBlueprints;
-  contracts: LidoEthContracts<N>;
+  blueprints: BoundBlueprints
+  contracts: LidoEthContracts<N>
 }
 
 export interface OmnibusPlan<N extends NetworkName> {
-  items: (ctx: Context<N>) => (OmnibusItem | OmnibusItem[])[];
+  items: (ctx: Context<N>) => (OmnibusItem | OmnibusItem[])[]
   /**
    Network where the omnibus must be launched. Supported networks: "mainnet", "holesky".
    */
-  network: N;
+  network: N
   /**
     Description will be uploaded to IPFS and CID (IPFS address) will be added to vote metadata
    */
-  description: string;
+  description: string
   /**
    * When the omnibus was launched, contains the id of the vote.
    */
-  voteId?: number;
+  voteId?: number
   /**
    * Contains the info about the omnibus launching - the number of the block where the omnibus was launched.
    */
-  launchedOn?: number | undefined;
+  launchedOn?: number | undefined
   /**
    * Contains the info about the omnibus quorum - was it reached during the vote or not.
    */
-  quorumReached?: boolean;
+  quorumReached?: boolean
   /**
    * Contains the info about the omnibus execution - the number of the block with execution transaction.
    */
-  executedOn?: number | undefined;
+  executedOn?: number | undefined
 }
 
 export interface Omnibus {
-  network: NetworkName;
-  description: string;
-  summary: string;
-  calls: FormattedEvmCall[];
-  script: string;
-  voteId?: number;
-  isLaunched: boolean;
-  isExecuted: boolean;
-  items: OmnibusItem[]; // for event checking purpose
+  network: NetworkName
+  description: string
+  summary: string
+  calls: FormattedEvmCall[]
+  script: string
+  voteId?: number
+  isLaunched: boolean
+  isExecuted: boolean
+  items: OmnibusItem[] // for event checking purpose
 }
 
 export interface OmnibusItem {
-  title: string;
-  evmCall: FormattedEvmCall;
-  expectedEvents: EventCheck[];
+  title: string
+  evmCall: FormattedEvmCall
+  expectedEvents: EventCheck[]
 }
 
 function create<N extends NetworkName>(plan: OmnibusPlan<N>): Omnibus {
-  const contracts = lido.eth[plan.network]() as LidoEthContracts<N>;
+  const contracts = lido.eth[plan.network]() as LidoEthContracts<N>
   const boundBlueprints = mapValues(blueprints, (blueprints) =>
     mapValues(blueprints, (value) => partial(value, contracts)),
-  ) as BoundBlueprints;
-  const items = flatten(plan.items({ blueprints: boundBlueprints, contracts }));
+  ) as BoundBlueprints
+  const items = flatten(plan.items({ blueprints: boundBlueprints, contracts }))
 
   return {
     voteId: plan.voteId,
@@ -79,12 +83,12 @@ function create<N extends NetworkName>(plan: OmnibusPlan<N>): Omnibus {
     isLaunched: plan.voteId !== undefined,
     isExecuted: plan.executedOn !== undefined,
     items: items,
-    summary: items.map((item, index) => `${index + 1}. ${item.title}`).join("\n"),
+    summary: items.map((item, index) => `${index + 1}. ${item.title}`).join('\n'),
     calls: items.map((item) => item.evmCall),
     script: EvmScriptParser.encode(items.map((item) => item.evmCall)),
-  };
+  }
 }
 
 export default {
   create,
-};
+}

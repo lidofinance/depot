@@ -1,9 +1,9 @@
-import type { HexStrPrefixed } from "./bytes";
+import type { HexStrPrefixed } from './bytes'
 
-export type Address = HexStrPrefixed;
-export type PrivateKey = HexStrPrefixed;
-export type ChainId = bigint | number | string;
+export type Address = HexStrPrefixed
+export type PrivateKey = HexStrPrefixed
+export type ChainId = bigint | number | string
 
 export interface Stringable {
-  toString(...args: any[]): string;
+  toString(...args: unknown[]): string
 }

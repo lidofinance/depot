@@ -1,31 +1,32 @@
-import { BigNumberish } from "ethers";
-import { StakingModule } from "../../lido/lido";
-import { call, event, forward } from "../../aragon-votes-tools";
-import { Contracts } from "../../contracts/contracts";
-import { Lido } from "../../../configs/types";
-import { OmnibusItem } from "../omnibuses";
-import { Address } from "../../common/types";
+import { BigNumberish } from 'ethers'
+
+import { Lido } from '../../../configs/types'
+import { call, event, forward } from '../../aragon-votes-tools'
+import { Address } from '../../common/types'
+import { Contracts } from '../../contracts/contracts'
+import { StakingModule } from '../../lido/lido'
+import { OmnibusItem } from '../omnibuses'
 
 interface UpdateStakingModuleInput {
-  title: string;
-  stakingModuleId: StakingModule;
-  targetShare: BigNumberish;
-  treasuryFee: BigNumberish;
-  stakingModuleFee: BigNumberish;
+  title: string
+  stakingModuleId: StakingModule
+  targetShare: BigNumberish
+  treasuryFee: BigNumberish
+  stakingModuleFee: BigNumberish
 }
 
 interface NewNodeOperatorInput {
-  name: string;
-  rewardAddress: Address;
+  name: string
+  rewardAddress: Address
 }
 
 interface AddNodeOperatorsInput {
-  operators: NewNodeOperatorInput[];
+  operators: NewNodeOperatorInput[]
 }
 
 function updateStakingModule(contracts: Contracts<Lido>, input: UpdateStakingModuleInput): OmnibusItem {
-  const { callsScript, agent, voting, stakingRouter } = contracts;
-  const { stakingModuleId, targetShare, stakingModuleFee, treasuryFee } = input;
+  const { callsScript, agent, voting, stakingRouter } = contracts
+  const { stakingModuleId, targetShare, stakingModuleFee, treasuryFee } = input
 
   return {
     title: `Update "${StakingModule[stakingModuleId]}" staking module`,
@@ -33,52 +34,52 @@ function updateStakingModule(contracts: Contracts<Lido>, input: UpdateStakingMod
       call(stakingRouter.updateStakingModule, [stakingModuleId, targetShare, stakingModuleFee, treasuryFee]),
     ]),
     expectedEvents: [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
-      event(callsScript, "LogScriptCall", { emitter: agent }),
-      event(stakingRouter, "StakingModuleTargetShareSet", {
+      event(callsScript, 'LogScriptCall', { emitter: voting }),
+      event(callsScript, 'LogScriptCall', { emitter: agent }),
+      event(stakingRouter, 'StakingModuleTargetShareSet', {
         args: [stakingModuleId, targetShare, agent],
       }),
-      event(stakingRouter, "StakingModuleFeesSet", {
+      event(stakingRouter, 'StakingModuleFeesSet', {
         args: [stakingModuleId, stakingModuleFee, treasuryFee, agent],
       }),
-      event(agent, "ScriptResult"),
+      event(agent, 'ScriptResult'),
     ],
-  };
+  }
 }
 
 function addNodeOperators(contracts: Contracts<Lido>, input: AddNodeOperatorsInput): OmnibusItem {
-  const { callsScript, curatedStakingModule, agent, voting } = contracts;
-  const { operators } = input;
+  const { callsScript, curatedStakingModule, agent, voting } = contracts
+  const { operators } = input
 
   const calls = operators.map((item) => {
-    const { name, rewardAddress } = item;
-    return call(curatedStakingModule.addNodeOperator, [name, rewardAddress]);
-  });
+    const { name, rewardAddress } = item
+    return call(curatedStakingModule.addNodeOperator, [name, rewardAddress])
+  })
 
   const subItemEvents = operators.flatMap((operator) => {
-    const { name, rewardAddress } = operator;
+    const { name, rewardAddress } = operator
     return [
-      event(callsScript, "LogScriptCall", { emitter: agent }),
-      event(curatedStakingModule, "NodeOperatorAdded", {
+      event(callsScript, 'LogScriptCall', { emitter: agent }),
+      event(curatedStakingModule, 'NodeOperatorAdded', {
         args: [undefined, name, rewardAddress, 0],
       }),
-    ];
-  });
+    ]
+  })
 
   return {
     title:
       `Add ${input.operators.length} node operators:\n` +
-      input.operators.flatMap((item) => ` - ${item.name}`).join("\n"),
+      input.operators.flatMap((item) => ` - ${item.name}`).join('\n'),
     evmCall: forward(agent, calls),
     expectedEvents: [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
+      event(callsScript, 'LogScriptCall', { emitter: voting }),
       ...subItemEvents,
-      event(agent, "ScriptResult"),
+      event(agent, 'ScriptResult'),
     ],
-  };
+  }
 }
 
 export default {
   addNodeOperators,
   updateStakingModule,
-};
+}

@@ -1,17 +1,17 @@
-import path from "path";
-import fs from "fs/promises";
+import fs from 'fs/promises'
+import path from 'path'
 
 /**
  * Resolves dir relative to the project root
  * @param path - path to create if it is not exist
  */
 async function touchDir(dirPath: string) {
-  const absoluteDirPath = path.resolve(dirPath);
+  const absoluteDirPath = path.resolve(dirPath)
   try {
-    await fs.access(absoluteDirPath);
+    await fs.access(absoluteDirPath)
   } catch {
-    await fs.mkdir(absoluteDirPath, { recursive: true });
+    await fs.mkdir(absoluteDirPath, { recursive: true })
   }
 }
 
-export default { touchDir };
+export default { touchDir }

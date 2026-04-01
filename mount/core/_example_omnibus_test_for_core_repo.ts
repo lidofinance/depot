@@ -1,9 +1,7 @@
 // @ts-nocheck
 import { expect } from "chai";
-
-import { MiniMeToken } from "typechain-types";
-
 import { loadContract } from "lib";
+import { MiniMeToken } from "typechain-types";
 
 import { parseDeploymentJson } from "../../lib/protocol/networks";
 

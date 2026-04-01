@@ -1,7 +1,8 @@
-import { NetworkName } from "../networks";
-import lido from "./lido";
+import { NetworkName } from '../networks'
 
-export type LidoContracts = typeof lido;
-export type LidoEthContracts<T extends NetworkName = NetworkName> = ReturnType<LidoContracts["eth"][T]>;
+import lido from './lido'
 
-export default lido;
+export type LidoContracts = typeof lido
+export type LidoEthContracts<T extends NetworkName = NetworkName> = ReturnType<LidoContracts['eth'][T]>
+
+export default lido
