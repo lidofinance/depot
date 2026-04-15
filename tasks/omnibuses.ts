@@ -57,7 +57,7 @@ function defineTask(...args: Parameters<typeof task>): any {
   return builder;
 }
 
-defineTask("omnibus:scaffold", "Create new empty omnibus from the template").setAction(async (_taskArgs: any) => {
+defineTask("omnibus:create", "Create new empty omnibus from the template").setAction(async (_taskArgs: any) => {
   const network: NetworkName = await prompt.select("Choose the network:", [
     { title: "Mainnet", value: "mainnet" },
     { title: "Holesky", value: "holesky" },

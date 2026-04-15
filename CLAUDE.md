@@ -46,11 +46,11 @@ Use these examples as canonical patterns:
    - align constant names with omnibus `<name>.ts`
    - compile again after normalization (`npm run omnibus:build -- <name>`)
 
-## Optional scaffold command
+## Optional create command
 
 Use:
 
-`skills/omnibus-writer/scripts/scaffold_omnibus.sh <YYYY_MM_DD[_topic]> [mainnet|holesky]`
+`skills/omnibus-writer/scripts/create_omnibus.sh <YYYY_MM_DD[_topic]> [mainnet|holesky]`
 
 ## Agent-style quick flow
 

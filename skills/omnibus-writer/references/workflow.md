@@ -6,7 +6,7 @@ The source of truth remains `docs/omnibuses/WRITING_OMNIBUS.md`.
 ## Checklist
 
 1. Create new folder in `omnibuses/` with date-based name.
-2. Run `npm run omnibus:create` (or use scaffold script) to create template files.
+2. Run `npm run omnibus:create` (or use create script) to create template files.
 3. Put free-form requirements into `omnibuses/<name>/<name>.md` inside `<!-- OMNIBUS_DESCRIPTION -->`.
 4. Transform this description into concrete `calls` items in `<name>.ts`.
 5. Determine access-control model per target:

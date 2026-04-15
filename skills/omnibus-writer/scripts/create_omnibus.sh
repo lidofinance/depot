@@ -35,7 +35,7 @@ sed -i.bak "s/Omnibus Template/$NAME/g" "$MD_FILE"
 sed -i.bak "s/network: \"mainnet\"/network: \"$NETWORK\"/" "$TS_FILE"
 rm -f "$TS_FILE.bak" "$MD_FILE.bak"
 
-echo "Scaffold created:"
+echo "Omnibus created:"
 echo "- $TS_FILE"
 echo "- $MD_FILE"
 echo "Next: implement contracts/calls/tests, then run: npm run omnibus:test -- $NAME"
