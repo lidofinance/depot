@@ -1,80 +1,90 @@
 import { expect } from "chai";
 import * as env from "./env";
-import sinon from "sinon";
 
-describe("Environment variable functions", () => {
-  it("returns the value of LOCAL_ETH_RPC_PORT", () => {
-    process.env.LOCAL_ETH_RPC_PORT = "9545";
-    expect(env.LOCAL_ETH_RPC_PORT()).to.equal("9545");
+describe("environment helpers", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
   });
 
-  it("returns the value of LOCAL_ARB_RPC_PORT", () => {
-    process.env.LOCAL_ARB_RPC_PORT = "9546";
-    expect(env.LOCAL_ARB_RPC_PORT()).to.equal("9546");
+  afterEach(() => {
+    process.env = originalEnv;
   });
 
-  it("returns the value of LOCAL_OPT_RPC_PORT", () => {
-    process.env.LOCAL_OPT_RPC_PORT = "9547";
-    expect(env.LOCAL_OPT_RPC_PORT()).to.equal("9547");
+  it("returns ETH_LOCAL_RPC_PORT from ETH_LOCAL_RPC_URL with fallback", () => {
+    delete process.env.ETH_LOCAL_RPC_URL;
+    expect(env.ETH_LOCAL_RPC_PORT()).to.equal("8545");
+
+    process.env.ETH_LOCAL_RPC_URL = "19545";
+    expect(env.ETH_LOCAL_RPC_PORT()).to.equal("19545");
   });
 
-  it("returns the value of ARB_RPC_URL", () => {
-    process.env.ARB_RPC_URL = "https://arb1.arbitrum.io/rpc";
-    expect(env.ARB_RPC_URL()).to.equal("https://arb1.arbitrum.io/rpc");
+  it("returns required RPC urls", () => {
+    process.env.ETH_MAINNET_RPC_URL = "https://mainnet.example/rpc";
+    process.env.ETH_HOLESKY_RPC_URL = "https://holesky.example/rpc";
+    process.env.ETH_HOODI_RPC_URL = "https://hoodi.example/rpc";
+
+    expect(env.ETH_MAINNET_RPC_URL()).to.equal("https://mainnet.example/rpc");
+    expect(env.ETH_HOLESKY_RPC_URL()).to.equal("https://holesky.example/rpc");
+    expect(env.ETH_HOODI_RPC_URL()).to.equal("https://hoodi.example/rpc");
   });
 
-  it("returns the value of OPT_RPC_URL", () => {
-    process.env.OPT_RPC_URL = "https://mainnet.optimism.io";
-    expect(env.OPT_RPC_URL()).to.equal("https://mainnet.optimism.io");
+  it("throws on missing required env var", () => {
+    delete process.env.MISSING_VAR;
+    expect(() => env.getRequiredEnvVar("MISSING_VAR")).to.throw('required ENV variable "MISSING_VAR" is not set');
   });
 
-  it("returns the value of ETHERSCAN_TOKEN", () => {
-    process.env.ETHERSCAN_TOKEN = "your-etherscan-token";
-    expect(env.ETHERSCAN_TOKEN()).to.equal("your-etherscan-token");
+  it("returns optional var or default", () => {
+    delete process.env.OPTIONAL_VAR;
+    expect(env.getOptionalEnvVar("OPTIONAL_VAR", "fallback")).to.equal("fallback");
+
+    process.env.OPTIONAL_VAR = "value";
+    expect(env.getOptionalEnvVar("OPTIONAL_VAR", "fallback")).to.equal("value");
   });
 
-  it("logs a warning if ETHERSCAN_TOKEN is not set", () => {
-    const consoleWarnStub = sinon.stub(console, "warn");
-    delete process.env.ETHERSCAN_TOKEN;
+  it("returns raw optional tokens", () => {
+    process.env.ETHERSCAN_TOKEN = "etherscan-token";
+    process.env.PINATA_JWT = "pinata-jwt";
 
-    env.checkEnvVars();
-
-    expect(consoleWarnStub.calledWithMatch(/ETHERSCAN_TOKEN is not set/)).to.be.true;
-    consoleWarnStub.restore();
+    expect(env.ETHERSCAN_TOKEN()).to.equal("etherscan-token");
+    expect(env.PINATA_JWT()).to.equal("pinata-jwt");
   });
 
-  it("returns true if ETHERSCAN_CACHE_ENABLED is set to true", () => {
-    process.env.ETHERSCAN_CACHE_ENABLED = "true";
-    expect(env.ETHERSCAN_CACHE_ENABLED()).to.be.true;
+  it("returns branch and org defaults", () => {
+    delete process.env.GITHUB_ORG;
+    delete process.env.GIT_BRANCH_SCRIPTS;
+    delete process.env.GIT_BRANCH_DG;
+    delete process.env.GIT_BRANCH_CORE;
+
+    expect(env.GITHUB_ORG()).to.equal("lidofinance");
+    expect(env.GIT_BRANCH_SCRIPTS()).to.equal("master");
+    expect(env.GIT_BRANCH_DG()).to.equal("main");
+    expect(env.GIT_BRANCH_CORE()).to.equal("master");
   });
 
-  it("returns true if ETHERSCAN_CACHE_ENABLED is set to 1", () => {
-    process.env.ETHERSCAN_CACHE_ENABLED = "1";
-    expect(env.ETHERSCAN_CACHE_ENABLED()).to.be.true;
+  it("returns SHA defaults and overrides", () => {
+    delete process.env.GIT_SHA_SCRIPTS;
+    delete process.env.GIT_SHA_DG;
+    delete process.env.GIT_SHA_CORE;
+
+    expect(env.GIT_SHA_SCRIPTS()).to.equal("");
+    expect(env.GIT_SHA_DG()).to.equal("");
+    expect(env.GIT_SHA_CORE()).to.equal("");
+
+    process.env.GIT_SHA_SCRIPTS = "sha1";
+    process.env.GIT_SHA_DG = "sha2";
+    process.env.GIT_SHA_CORE = "sha3";
+    expect(env.GIT_SHA_SCRIPTS()).to.equal("sha1");
+    expect(env.GIT_SHA_DG()).to.equal("sha2");
+    expect(env.GIT_SHA_CORE()).to.equal("sha3");
   });
 
-  it("returns true if ETHERSCAN_CACHE_ENABLED is set to yes", () => {
-    process.env.ETHERSCAN_CACHE_ENABLED = "yes";
-    expect(env.ETHERSCAN_CACHE_ENABLED()).to.be.true;
-  });
+  it("returns default HH node image", () => {
+    delete process.env.HH_NODE_IMAGE;
+    expect(env.HH_NODE_IMAGE()).to.equal("ghcr.io/lidofinance/hardhat-node:2.26.0");
 
-  it("returns false if ETHERSCAN_CACHE_ENABLED is set to false", () => {
-    process.env.ETHERSCAN_CACHE_ENABLED = "false";
-    expect(env.ETHERSCAN_CACHE_ENABLED()).to.be.false;
-  });
-
-  it("returns false if ETHERSCAN_CACHE_ENABLED is set to 0", () => {
-    process.env.ETHERSCAN_CACHE_ENABLED = "0";
-    expect(env.ETHERSCAN_CACHE_ENABLED()).to.be.false;
-  });
-
-  it("returns false if ETHERSCAN_CACHE_ENABLED is set to no", () => {
-    process.env.ETHERSCAN_CACHE_ENABLED = "no";
-    expect(env.ETHERSCAN_CACHE_ENABLED()).to.be.false;
-  });
-
-  it("returns false if ETHERSCAN_CACHE_ENABLED is not set", () => {
-    delete process.env.ETHERSCAN_CACHE_ENABLED;
-    expect(env.ETHERSCAN_CACHE_ENABLED()).to.be.false;
+    process.env.HH_NODE_IMAGE = "custom-node";
+    expect(env.HH_NODE_IMAGE()).to.equal("custom-node");
   });
 });

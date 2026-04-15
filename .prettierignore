@@ -4,5 +4,6 @@ coverage
 public
 dist
 pnpm-lock.yaml
+package-lock.json
 pnpm-workspace.yaml
 mount

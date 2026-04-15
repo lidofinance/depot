@@ -27,7 +27,6 @@ export async function startAragonVote(
     },
   ]);
 
-  const spinner = createTimedSpinner(`Sending tx to create the vote...`);
   const receipt = await client.write(tokenManager, "forward", [startVoteScript], txOptions);
 
   const [startVoteTopic] = encodeEventTopics({
@@ -37,7 +36,6 @@ export async function startAragonVote(
   const startVoteLog = receipt.logs.find((log) => log.topics[0] === startVoteTopic);
 
   if (!startVoteLog) {
-    spinner.error(`Transaction failed`);
     throw new Error("StartVote log not found");
   }
 
@@ -49,7 +47,6 @@ export async function startAragonVote(
   });
 
   const voteId: bigint = startVoteEvent.args.voteId;
-  spinner.succeed(`Vote with id ${voteId} successfully created`);
 
   return { voteId, receipt };
 }
