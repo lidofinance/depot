@@ -1,13 +1,8 @@
 # Omnibus "Omnibus Template"
 
-## Aragon Vote
+## Omnibus Description
 
-<!-- ARAGON_VOTE -->
-Put here IPFS description of the aragon part of the omnibus
-<!-- ARAGON_VOTE -->
-
-## Dual Governance Proposal
-
-<!-- DUAL_GOVERNANCE_PROPOSAL -->
-Put here IPFS description of the dual governance part of the omnibus
-<!-- DUAL_GOVERNANCE_PROPOSAL -->
+<!-- OMNIBUS_DESCRIPTION -->
+Put full free-form omnibus description here. Agent reads this block and transforms it into omnibus call items.
+Include Aragon and Dual Governance parts in any structure that is convenient.
+<!-- OMNIBUS_DESCRIPTION -->

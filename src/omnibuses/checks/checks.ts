@@ -1,3 +1,4 @@
+import accessControl from "./access-control";
 import easyTrack from "./easy-track";
 import stakingRouter from "./staking-router";
 import tokens from "./tokens";
@@ -8,6 +9,7 @@ export interface CheckContext {
 }
 
 export default {
+  accessControl,
   easyTrack,
   stakingRouter,
   tokens,

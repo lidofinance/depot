@@ -85,6 +85,9 @@ export async function createDevRpcClient(
 }
 
 export function getLocalRpcUrl(port: string | number) {
+  if (typeof port === "string" && /^https?:\/\//i.test(port)) {
+    return port;
+  }
   return `http://localhost:${port}`;
 }
 

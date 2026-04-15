@@ -326,7 +326,7 @@ export async function runTestsFromRepo(
     Tty: false,
     name,
     ...config,
-    HostConfig: { AutoRemove: true, ExtraHosts: ["localhost:host-gateway"], ...config?.HostConfig },
+    HostConfig: { AutoRemove: true, ExtraHosts: ["host.docker.internal:host-gateway"], ...config?.HostConfig },
   });
 
   const [statusInfo] = data;

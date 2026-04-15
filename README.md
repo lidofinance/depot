@@ -19,6 +19,49 @@ newVote(bytes executionScript, string metadata, bool castVote, bool executesIfDe
 
 [function of the voting contract](https://github.com/aragon/aragon-apps/blob/b72da2c6606a361d0160d5d78fb534018ba3ce91/apps/voting/contracts/Voting.sol#L138) with the prepared script and description.
 
+### Omnibus documentation
+
+For the current human-readable writing guide and examples, use:
+
+- [docs/omnibuses/README.md](./docs/omnibuses/README.md)
+- [docs/omnibuses/WRITING_OMNIBUS.md](./docs/omnibuses/WRITING_OMNIBUS.md)
+
+### Agent workflow (Codex / Claude)
+
+Recommended flow when using agents:
+
+1. Start with command to the agent: `omnibus create`.
+2. Agent (or you manually) scaffolds a new omnibus from template:
+   ```bash
+   npm run omnibus:create
+   ```
+3. Open `omnibuses/<omnibus_name>/<omnibus_name>.md` and fill description in block:
+   ```md
+   <!-- OMNIBUS_DESCRIPTION -->
+   ... free-form action list and context ...
+   <!-- OMNIBUS_DESCRIPTION -->
+   ```
+4. Ask the agent to transform that description into concrete omnibus items in `<omnibus_name>.ts`.
+5. Decide contract mode:
+   - no contract: keep regular omnibus script
+   - with contract: generate dedicated Solidity omnibus contract
+6. Contract generation is opt-in and must be explicitly requested by user.
+7. If contract mode is needed, generate Solidity contract from the omnibus script:
+   ```bash
+   npm run omnibus:contract -- <omnibus_name>
+   ```
+8. Immediately compile generated Solidity contract:
+   ```bash
+   npm run omnibus:build -- <omnibus_name>
+   ```
+9. For contract mode, ensure omnibus `.ts` has `deploy()` (returning `omnibus`) or explicit `deployment` mapping.
+10. Finalize calls/events/tests with the agent, then validate and run:
+   ```bash
+   npm run omnibus:test -- <omnibus_name>
+   npm run omnibus:simulate -- <omnibus_name>
+   npm run omnibus:run -- <omnibus_name>
+   ```
+
 ## Omnibus Item
 
 Each omnibus is made up of items. An omnibus item is the basic building block of each omnibus. It represents a single on-chain action (such as changing protocol settings, granting or revoking access, transferring tokens, etc). In code, it is represented as an object containing
@@ -349,6 +392,7 @@ This project is structured as follows:
 - [archive](./archive) - Old omnibuses and tests
 - [interfaces](./interfaces) - ABI's of Lido contracts
 - [omnibuses](./omnibuses) - Actual omnibuses
+- [docs](./docs) - Human-readable documentation and guides
 - [src](./src) - Source code:
   - [common](./src/common) - Common utils and helpers
   - [contract-info-resolver](./src/contract-info-resolver) - Contract info resolver. Used to get contracts info from Etherscan

@@ -2,6 +2,9 @@
   "name": "hardhat-project",
   "type": "module",
   "scripts": {
+    "omnibus:create": "hardhat omnibus:scaffold",
+    "omnibus:contract": "hardhat omnibus:contract",
+    "omnibus:build": "hardhat omnibus:build",
     "omnibus:run": "hardhat omnibus:run",
     "omnibus:test": "hardhat omnibus:test",
     "omnibus:simulate": "hardhat omnibus:simulate",
