@@ -3,7 +3,12 @@ import * as env from "../../src/common/env";
 import { logBlue } from "../../src/common/color";
 import Docker from "dockerode";
 import type { ContainerCreateOptions } from "dockerode";
-import { getLocalRpcUrl } from "../../src/network";
+
+function getDockerLocalRpcUrl() {
+  const localRpc = String(env.ETH_LOCAL_RPC_PORT());
+  const hostRpcUrl = /^https?:\/\//i.test(localRpc) ? localRpc : `http://localhost:${localRpc}`;
+  return hostRpcUrl.replace("://localhost", "://host.docker.internal").replace("://127.0.0.1", "://host.docker.internal");
+}
 
 export async function runRepoTests(
   repo: "core" | "dual-governance" | "scripts",
@@ -31,7 +36,7 @@ const runCoreTests = async (
   const cmd = ["sh", "-c", `MODE=forking yarn run hardhat test ${pattern} --network hardhat`];
 
   const config: Docker.ContainerCreateOptions = {
-    Env: [`FORK_RPC_URL=${getLocalRpcUrl(env.ETH_LOCAL_RPC_PORT())}`],
+    Env: [`FORK_RPC_URL=${getDockerLocalRpcUrl()}`],
   };
 
   if (shouldMountTests) {
@@ -66,8 +71,8 @@ const runScriptsTests = async (pattern?: string, hideDebug = false, shouldMountT
     };
   }
 
-  const config0 = { ...config, Env: [...Env, `ETH_RPC_URL=${getLocalRpcUrl(env.ETH_LOCAL_RPC_PORT())}`] };
-  const config1 = { ...config, Env: [...Env, `ETH_RPC_URL=${getLocalRpcUrl(env.ETH_LOCAL_RPC_PORT())}`] };
+  const config0 = { ...config, Env: [...Env, `ETH_RPC_URL=${getDockerLocalRpcUrl()}`] };
+  const config1 = { ...config, Env: [...Env, `ETH_RPC_URL=${getDockerLocalRpcUrl()}`] };
 
   const imageTag = await buildRepo(repo, env.GIT_BRANCH_SCRIPTS(), hideDebug);
   await Promise.all([
@@ -85,7 +90,7 @@ const runDgTests = async (pattern?: string, hideDebug = false, shouldMountTests 
 
   const config: Docker.ContainerCreateOptions = {
     Env: [
-      `MAINNET_RPC_URL=${getLocalRpcUrl(env.ETH_LOCAL_RPC_PORT())}`,
+      `MAINNET_RPC_URL=${getDockerLocalRpcUrl()}`,
       `DEPLOY_ARTIFACT_FILE_NAME=deploy-artifact-mainnet.toml`,
     ],
   };

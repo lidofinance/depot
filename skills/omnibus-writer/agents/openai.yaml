@@ -1,0 +1,4 @@
+version: 1
+display_name: Omnibus Writer
+short_description: Write, validate, and update Lido omnibuses with repo templates and checks.
+default_prompt: Create or update an omnibus in this repository using docs/omnibuses/WRITING_OMNIBUS.md as source of truth.

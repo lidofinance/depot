@@ -1357,6 +1357,6 @@ function formatOmnibusCallEvent(event: OmnibusCallEvent, isSkipped: boolean) {
   }
 
   const eventName = isSkipped ? chalk.yellow(event.abi.name) : chalk.green(event.abi.name);
-  const strBuilder: string[] = [eventName, "(", argsStatuses.join(", "), chalk.magenta(")")];
+  const strBuilder: string[] = [eventName, chalk.magenta("("), argsStatuses.join(", "), chalk.magenta(")")];
   return strBuilder.join("");
 }

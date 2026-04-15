@@ -190,6 +190,14 @@ defineTask("omnibus:contract", "Generate solidity omnibus contract from an exist
     console.log(`Solidity contract generated: ${generatedFilePath}`);
   });
 
+defineTask("omnibus:build", "Build Solidity omnibus contract(s) for the given omnibus")
+  .addPositionalArgument({ name: "name", description: "Name of the omnibus to build contracts for" })
+  .setAction(async (taskArgs: any, hre: any) => {
+    const { name } = taskArgs;
+    await buildOmnibusContracts(hre, name);
+    console.log(fmt.success(`Omnibus contracts for "${name}" compiled successfully`));
+  });
+
 function omnibusNameToDescriptionHeader(omnibusName: string) {
   return omnibusName
     .split("_")
@@ -398,6 +406,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
     const description = await fs.readFile(descriptionFilePath, { encoding: "utf-8" });
 
     const descriptionUrl = await uploadDescription(name, description, false);
+    const evmScript = omnibus.getEvmScript();
 
     console.log();
 
@@ -414,7 +423,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
     console.log();
 
     console.log(chalk.bold.underline("Omnibus EVM script:\n"));
-    console.log(chalk.greenBright(omnibus.getEvmScript()));
+    console.log(chalk.greenBright(evmScript));
     console.log();
 
     if (broadcast) {
@@ -456,7 +465,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
 
     await prompt.confirmOrAbort(`Proceed?`);
 
-    const { receipt, voteId } = await startAragonVote(client, omnibus.getEvmScript(), omnibus.formatDescription(), {
+    const { receipt, voteId } = await startAragonVote(client, evmScript, omnibus.formatDescription(), {
       from: pilot,
     });
 
@@ -528,8 +537,9 @@ defineTask("omnibus:execute-proposal", "Executes proposal with a given id")
     if (chainTime < scheduledAt + afterScheduleDelay) {
       await client.increaseTime(scheduledAt - afterScheduleDelay + 1);
     }
-    await client.write(timelock, "execute", [parsedProposalId], { from: stranger });
-    console.log(`Proposal with id ${parsedProposalId} successfully executed`);
+    const executeReceipt = await client.write(timelock, "execute", [parsedProposalId], { from: stranger });
+    console.log(`Proposal with id ${parsedProposalId} successfully executed at block ${executeReceipt.blockNumber}`);
+    console.log(` - tx hash: ${executeReceipt.transactionHash}`);
   });
 
 async function loadOmnibus(name: string): Promise<Omnibus> {
@@ -546,11 +556,12 @@ async function prepareLocalRpcNode(network: NetworkName) {
   const image = `ghcr.io/lidofinance/hardhat-node:2.26.0`;
 
   const port = env.ETH_LOCAL_RPC_PORT();
+  const localRpcUrl = getLocalRpcUrl(port);
 
   try {
-    console.log(fmt.padded(`Trying to connect to the local RPC node at: ${port}...`, 2));
-    const client = await createDevRpcClient(network, port);
-    console.log(fmt.success(`Successfully connected to the RPC node at ${port}\n`));
+    console.log(fmt.padded(`Trying to connect to the local RPC node at: ${localRpcUrl}...`, 2));
+    const client = await createDevRpcClient(network, localRpcUrl);
+    console.log(fmt.success(`Successfully connected to the RPC node at ${localRpcUrl}\n`));
     return client;
   } catch (error) {
     console.log(fmt.padded(`Failed to connect to local RPC: "${(error as Error).message.split("\n")[0]}"`, 4));

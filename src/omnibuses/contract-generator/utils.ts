@@ -72,7 +72,19 @@ export function toPascalCase(raw: string) {
 }
 
 export function omnibusNameToContractName(name: string) {
-  return `Omnibus${toPascalCase(name)}`;
+  const datePrefixedName = name.match(/^(\d{4})_(\d{2})_(\d{2})(?:_(.+))?$/);
+  if (!datePrefixedName) {
+    return `Omnibus${toPascalCase(name)}`;
+  }
+
+  const [, year, month, day, suffix] = datePrefixedName;
+  const datePart = `${year}_${month}_${day}`;
+
+  if (!suffix) {
+    return `Omnibus_${datePart}`;
+  }
+
+  return `Omnibus_${datePart}_${toPascalCase(suffix)}`;
 }
 
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
