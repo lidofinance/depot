@@ -133,7 +133,19 @@ function isGitRefsResponse(obj: any): obj is GitRefsResponse {
   return "ref" in obj && "node_id" in obj && "url" in obj && "object" in obj;
 }
 
-async function getLastCommitSha(org: string, repo: string, branch: string) {
+const GIT_SHA_OVERRIDES: Record<Repos, () => string> = {
+  scripts: env.GIT_SHA_SCRIPTS,
+  core: env.GIT_SHA_CORE,
+  "dual-governance": env.GIT_SHA_DG,
+  depot: () => "",
+};
+
+async function getLastCommitSha(org: string, repo: Repos, branch: string) {
+  const override = GIT_SHA_OVERRIDES[repo]?.();
+  if (override) {
+    return override;
+  }
+
   const url = `https://api.github.com/repos/${org}/${repo}/git/refs/heads/${branch}`;
   const response = await fetch(url);
   const item = await response.json();
@@ -145,7 +157,7 @@ async function getLastCommitSha(org: string, repo: string, branch: string) {
   return item.object.sha;
 }
 
-async function getBuildVersion(org: string, repo: string, branch: string) {
+async function getBuildVersion(org: string, repo: Repos, branch: string) {
   let buildVersion = "";
   if (branch) {
     const sha = await getLastCommitSha(org, repo, branch);
@@ -161,13 +173,13 @@ function getTargetPlatformArgs() {
   const arch = os.arch();
 
   // Convert Node.js arch to Docker arch
-  const dockerArch =
-    {
-      x64: "amd64",
-      arm64: "arm64",
-      arm: "arm",
-      ia32: "386",
-    }[arch] || arch;
+  const archMap: Record<string, string> = {
+    x64: "amd64",
+    arm64: "arm64",
+    arm: "arm",
+    ia32: "386",
+  };
+  const dockerArch = archMap[arch] || arch;
 
   return {
     TARGETARCH: dockerArch,
@@ -176,7 +188,7 @@ function getTargetPlatformArgs() {
   };
 }
 
-export async function buildRepo(repo: string, branch: string, hideDebug: boolean): Promise<string> {
+export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean): Promise<string> {
   const org = env.GITHUB_ORG();
 
   let buildVersion = "";

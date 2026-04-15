@@ -34,6 +34,7 @@ import { getGovernanceContracts } from "../src/omnibuses/governance-contracts";
 import { generateOmnibusContractFile } from "../src/omnibuses/contract-generator";
 import { getKeystores } from "../src/hardhat-keystores";
 import { runHardhatTask } from "../src/hardhat/run-task";
+import { adoptAragonVoting } from "../src/aragon-votes-tools";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -380,6 +381,17 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
     } finally {
       await client.revert(snapshotId);
     }
+  });
+
+defineTask("omnibus:ci-prepare", "Prepare omnibus vote on CI (adopt aragon voting on local node)")
+  .addPositionalArgument({ name: "name", description: "Name of the omnibus to run" })
+  .setAction(async (taskArgs: { name: string }, hre: any) => {
+    const { name } = taskArgs;
+    const omnibus = await loadOmnibus(name);
+
+    const client = await createDevRpcClient(omnibus.network, getLocalRpcUrl(env.ETH_LOCAL_RPC_PORT()));
+    await prepareOmnibus(hre, client, omnibus);
+    await adoptAragonVoting(client, omnibus.getEvmScript(), omnibus.formatDescription());
   });
 
 type OmnibusLaunchParams = {

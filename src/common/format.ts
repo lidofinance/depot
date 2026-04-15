@@ -146,11 +146,9 @@ export function formatDecodedLogItem(params: FormatDecodedLogItemParams) {
   const argNames = Object.keys(args).map((arg) => ({ name: arg }));
   const argValues = Object.values(args);
 
-  const eventSignature =
-    chalk.yellow.bold.italic(abi.name) +
-    chalk.yellow.italic("(") +
-    chalk.yellow.italic(abi.inputs.map((input) => input.type).join(",")) +
-    chalk.yellow.italic(")");
+  const eventSignature = chalk.yellow.bold.italic(
+    abi.name + "(" + abi.inputs.map((input) => input.type).join(",") + ")",
+  );
   const formattedArgs = formatArgs(argNames, argValues, padLength + 1);
   return [
     padded(opcode(type) + " ", padLength),
@@ -228,5 +226,5 @@ export default {
   decodedLog: formatDecodedLogItem,
   rawFuncCall: formatRawFunctionCall,
   decodedFuncCall: formatDecodedFunctionCall,
-  formatArgs
+  formatArgs,
 };

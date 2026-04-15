@@ -1,11 +1,20 @@
 import { assert } from "chai";
-
-import { buildImpls, buildInstances, buildProxies } from "./contracts";
+import sinon from "sinon";
 import { ACL_ABI } from "../../abi/ACL.abi";
 import { AppProxyUpgradeable_ABI } from "../../abi/AppProxyUpgradeable.abi";
 import { MiniMeToken_ABI } from "../../abi/MiniMeToken.abi";
-import { NodeOperatorsRegistry_ABI } from "../../abi/NodeOperatorsRegistry.abi";
-import { CSVerifier_ABI } from "../../abi/CSVerifier.abi";
+import { Voting_ABI } from "../../abi/Voting.abi";
+import { ContractInfoResolver } from "../contract-info-resolver/contract-info-resolver";
+import {
+  buildImpls,
+  buildInstances,
+  buildProxies,
+  contract,
+  getEventAbi,
+  getFunctionAbi,
+  getLidoContracts,
+  resolveContract,
+} from "./contracts";
 
 const config = {
   acl: {
@@ -13,91 +22,142 @@ const config = {
     proxy: { abi: AppProxyUpgradeable_ABI, address: "0x9895F0F17cc1d1891b6f18ee0b483B6f221b37Bb" },
   },
   ldo: { abi: MiniMeToken_ABI, address: "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32" },
-  stakingModules: {
-    simpleDVT: {
-      impl: { abi: NodeOperatorsRegistry_ABI, address: "0x1770044a38402e3CfCa2Fcfa0C84a093c9B42135" },
-      proxy: { abi: AppProxyUpgradeable_ABI, address: "0xaE7B191A31f627b4eB1d4DaC64eaB9976995b433" },
-    },
-    curatedStakingModule: {
-      impl: { abi: NodeOperatorsRegistry_ABI, address: "0x1770044a38402e3CfCa2Fcfa0C84a093c9B42135" },
-      proxy: { abi: AppProxyUpgradeable_ABI, address: "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5" },
-    },
-    csVerifier: {
-      abi: CSVerifier_ABI,
-      address: "0x0c345dFa318f9F4977cdd4f33d80F9D0ffA38e8B",
-    },
+  voting: {
+    impl: { abi: Voting_ABI, address: "0xf165148978fa3ce74d76043f833463c340cfb704" },
+    proxy: { abi: AppProxyUpgradeable_ABI, address: "0x2e59A20f205bB85a89C53f1936454680651E618e" },
   },
 } as const;
 
-const address = "0x1234567890123456789012345678901234567890";
+describe("contracts", () => {
+  afterEach(() => {
+    sinon.restore();
+  });
 
-describe("Contracts", () => {
-  it("create contracts from config", async () => {
+  it("builds instances/proxies/impls from config", () => {
     const impls = buildImpls(config);
     const proxies = buildProxies(config);
-    const instancies = buildInstances(config);
+    const instances = buildInstances(config);
 
-    assert.deepEqual(Object.keys(impls), ["acl", "stakingModules"]);
-    assert.deepEqual(Object.keys(proxies), ["acl", "stakingModules"]);
-    assert.deepEqual(Object.keys(instancies), ["acl", "ldo", "stakingModules"]);
+    assert.deepEqual(Object.keys(impls), ["acl", "voting"]);
+    assert.deepEqual(Object.keys(proxies), ["acl", "voting"]);
+    assert.deepEqual(Object.keys(instances), ["acl", "ldo", "voting"]);
 
-    assert.deepEqual(Object.keys(impls.stakingModules), ["curatedStakingModule", "simpleDVT"]);
-    assert.deepEqual(Object.keys(proxies.stakingModules), ["curatedStakingModule", "simpleDVT"]);
-    assert.deepEqual(Object.keys(instancies.stakingModules), ["curatedStakingModule", "simpleDVT", "csVerifier"]);
+    assert.equal(instances.ldo.label, "Ldo");
+    assert.equal(instances.acl.label, "Acl__Proxy");
+    assert.equal(instances.voting.label, "Voting__Proxy");
+    assert.equal(proxies.acl.label, "Acl__Proxy");
+    assert.equal(impls.acl.label, "Acl__Impl");
 
-    assert.equal(instancies.ldo.target, config.ldo.impl.address);
-    assert.equal(instancies.acl.target, config.acl.proxy.address);
-    assert.equal(instancies.nOR.curatedStakingModule.target, config.nOR.curatedStakingModule.proxy.address);
-    assert.equal(instancies.nOR.simpleDvt.target, config.nOR.simpleDvt.proxy.address);
-
-    assert.equal(instancies.proxies.acl.target, config.acl.proxy.address);
-    assert.equal(instancies.proxies.nOR.curatedStakingModule.target, config.nOR.curatedStakingModule.proxy.address);
-    assert.equal(instancies.proxies.nOR.simpleDvt.target, config.nOR.simpleDvt.proxy.address);
-
-    assert.equal(instancies.implementations.acl.target, config.acl.impl.address);
-    assert.equal(
-      instancies.implementations.nOR.curatedStakingModule.target,
-      config.nOR.curatedStakingModule.impl.address,
-    );
-    assert.equal(instancies.implementations.nOR.simpleDvt.target, config.nOR.curatedStakingModule.impl.address);
-
-    assert.isFunction(instancies.implementations.nOR.simpleDvt.activateNodeOperator);
-    assert.isFunction(instancies.implementations.nOR.curatedStakingModule.activateNodeOperator);
-
-    assert.equal(await instancies.ldo?.runner?.resolveName?.(""), "mockSigner");
-    const labelLDO = contracts.label(instancies.ldo);
-    const labelACL = contracts.label(instancies.acl);
-
-    assert.include(labelACL, "Acl__Proxy");
-    assert.include(labelACL, config.acl.proxy.address);
-
-    assert.include(labelLDO, "Ldo");
-    assert.include(labelLDO, config.ldo.impl.address);
+    // instances use proxy address for proxied contracts, own address for plain contracts
+    assert.equal(instances.acl.address, config.acl.proxy.address.toLowerCase());
+    assert.equal(instances.ldo.address, config.ldo.address.toLowerCase());
+    // impls use impl address
+    assert.equal(impls.acl.address, config.acl.impl.address.toLowerCase());
   });
-  it("get label form non-named contract", async () => {
-    const label = contracts.label({ target: address } as any);
-    assert.isTrue(label.includes("Contract"));
-    assert.isTrue(label.includes(address));
+
+  it("builds nested contract groups", () => {
+    const nestedConfig = {
+      ...config,
+      stakingModules: {
+        simpleDVT: {
+          impl: { abi: ACL_ABI, address: "0x1770044a38402e3CfCa2Fcfa0C84a093c9B42135" },
+          proxy: { abi: AppProxyUpgradeable_ABI, address: "0xaE7B191A31f627b4eB1d4DaC64eaB9976995b433" },
+        },
+      },
+    } as const;
+
+    const instances = buildInstances(nestedConfig);
+    const proxies = buildProxies(nestedConfig);
+    const impls = buildImpls(nestedConfig);
+
+    assert.containsAllKeys(instances, ["acl", "ldo", "voting", "stakingModules"]);
+    assert.equal((instances as any).stakingModules.simpleDVT.label, "SimpleDVT__Proxy");
+    assert.equal((proxies as any).stakingModules.simpleDVT.label, "SimpleDVT__Proxy");
+    assert.equal((impls as any).stakingModules.simpleDVT.label, "SimpleDVT__Impl");
   });
-  it("parse string address", async () => {
-    assert.equal(contracts.address(address), address);
+
+  it("creates explicit contract object", () => {
+    const c = contract(MiniMeToken_ABI, "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32", "LDO");
+    assert.equal(c.label, "LDO");
+    assert.equal(c.address, "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32");
   });
-  it("parse BaseContract target address", async () => {
-    assert.equal(contracts.address({ target: address } as any), address);
+
+  it("extracts abi function and event", () => {
+    const voting = buildInstances(config).voting;
+    const fn = getFunctionAbi(voting, "newVote");
+    const event = getEventAbi(voting, "StartVote");
+
+    assert.equal(fn.type, "function");
+    assert.equal(fn.name, "newVote");
+    assert.equal(event.type, "event");
+    assert.equal(event.name, "StartVote");
   });
-  it("parse BaseContract target address error not a string", async () => {
-    assert.throws(() => contracts.address({ target: null } as any), /target is not an string instance/);
+
+  it("returns known lido contracts for mainnet", () => {
+    const contracts = getLidoContracts("mainnet");
+    assert.containsAllKeys(contracts, ["ldo", "voting", "tokenManager"]);
+    assert.match(contracts.ldo.address, /^0x[0-9a-f]{40}$/);
+    assert.equal(contracts.voting.label, "Voting__Proxy");
   });
-  it("parse BaseContract target address error invalid address structure", async () => {
-    assert.throws(() => contracts.address({ target: "0x0" } as any), /target 0x0 is invalid bytes string/);
+
+  it("resolves known local contract without etherscan", async () => {
+    const contracts = getLidoContracts("mainnet");
+    const res = await resolveContract("mainnet", contracts.ldo.address);
+
+    assert.isAtLeast(res.length, 1);
+    assert.equal(res[0].address, contracts.ldo.address);
+    assert.equal(res[0].label, contracts.ldo.label);
   });
-  it("parse BaseContract target address error invalid length", async () => {
-    assert.throws(() => contracts.address({ target: "0x00" } as any), /target 0x00 is invalid bytes string/);
+
+  it("resolves unknown non-proxy contract through etherscan", async () => {
+    const unknown = "0x1111111111111111111111111111111111111111";
+    sinon.stub(ContractInfoResolver, "resolve").resolves({
+      name: "unknownContract",
+      abi: [],
+      implementation: null,
+      constructorArgs: "0x",
+      sourceCode: "",
+      evmVersion: "default",
+      compilerVersion: "0.8.0",
+    } as any);
+
+    const res = await resolveContract("mainnet", unknown);
+
+    assert.deepEqual(res, [{ address: unknown, abi: [], label: "UnknownContract" }]);
   });
-  it("parse contract address error", async () => {
-    assert.throws(
-      () => contracts.address({ target: "0xH234567890123456789012345678901234567890" } as any),
-      /is invalid bytes string/,
-    );
+
+  it("resolves unknown proxy contract with implementation", async () => {
+    const proxy = "0x2222222222222222222222222222222222222222";
+    const impl = "0x3333333333333333333333333333333333333333";
+    sinon
+      .stub(ContractInfoResolver, "resolve")
+      .onFirstCall()
+      .resolves({
+        name: "proxyContract",
+        abi: [{ type: "function", name: "foo", inputs: [], outputs: [], stateMutability: "view" }],
+        implementation: impl,
+        constructorArgs: "0x",
+        sourceCode: "",
+        evmVersion: "default",
+        compilerVersion: "0.8.0",
+      } as any)
+      .onSecondCall()
+      .resolves({
+        name: "implContract",
+        abi: [{ type: "function", name: "bar", inputs: [], outputs: [], stateMutability: "view" }],
+        implementation: null,
+        constructorArgs: "0x",
+        sourceCode: "",
+        evmVersion: "default",
+        compilerVersion: "0.8.0",
+      } as any);
+
+    const res = await resolveContract("mainnet", proxy);
+
+    assert.lengthOf(res, 2);
+    assert.equal(res[0].address, proxy);
+    assert.equal(res[1].address, proxy);
+    assert.equal(res[0].label, "ImplContract__Proxy");
+    assert.equal(res[1].label, "ImplContract__Proxy");
   });
 });

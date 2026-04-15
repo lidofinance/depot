@@ -29,7 +29,6 @@ export async function setupLdoHolder(client: DevRpcClient, account: Address = CR
 }
 
 export async function passAragonVote(client: DevRpcClient, voteId: bigint) {
-  const spinner = createTimedSpinner(`Passing vote with id ${voteId}`);
   const network = client.getNetworkName();
 
   const { voting } = getGovernanceContracts(network);
@@ -37,7 +36,6 @@ export async function passAragonVote(client: DevRpcClient, voteId: bigint) {
   const [, executed] = await client.read(voting, "getVote", [voteId]);
 
   if (executed) {
-    spinner.succeed(`Vote with id ${voteId} already executed. Retrieving execution receipt...`);
     return getExecuteReceipt(client, voteId);
   }
 
@@ -58,7 +56,6 @@ export async function passAragonVote(client: DevRpcClient, voteId: bigint) {
 
   await client.stopImpersonating(whaleAddress, whaleBalanceBefore);
 
-  spinner.succeed(`Vote with id ${voteId} successfully executed`);
   return receipt;
 }
 

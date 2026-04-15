@@ -198,7 +198,7 @@ The two examples above are equivalent. The first one uses blueprint [transferLDO
 and the second one uses custom item with the same logic.
 :::
 
-You can find the detailed example of the omnibus in this [file](./omnibuses/_example_omnibus.ts).
+You can find the detailed example of the omnibus in this [file](./omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts).
 
 ## Testing omnibus
 
@@ -206,7 +206,7 @@ Each omnibus MUST be thoroughly tested before running on the mainnet.
 
 ### Writing tests
 
-To test an omnibus you need to create a new file in the [omnibuses](./omnibuses) folder with the same name as the omnibus file but with the `.spec.ts` extension. You can find the detailed example in this [file](./omnibuses/_example_omnibus.spec.ts).
+To test an omnibus you need to create a new file in the [omnibuses](./omnibuses) folder with the same name as the omnibus file but with the `.spec.ts` extension.
 
 Basic test structure:
 

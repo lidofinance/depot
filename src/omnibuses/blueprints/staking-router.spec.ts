@@ -1,122 +1,57 @@
-import { expect } from "chai";
-import sinon from "sinon";
-import { StakingModule } from "../../contracts/lido";
-import { StakingRouter__factory } from "../../../typechain-types";
-import { randomAddress, randomHash } from "../../common/random";
-import stakingRouter from "./staking-router";
+import { assert } from "chai";
+import { getLidoContracts } from "../../contracts/contracts";
+import { OmnibusDirectCall } from "../calls/omnibus-direct-call";
+import { event } from "../omnibus";
+import stakingRouter, { StakingModule } from "./staking-router";
 
-describe("UpdateStakingModule", () => {
-  let mockContracts: any;
-  let updateStakingModuleAction: any;
-  let SRContract = StakingRouter__factory.connect(randomAddress().toString());
+function createCtx() {
+  const contracts = getLidoContracts("mainnet");
+  return {
+    contracts,
+    event,
+    directCall: OmnibusDirectCall.createCallBuilder({ voting: contracts.voting, callsScript: contracts.callsScript }),
+  } as any;
+}
 
-  const testValues = {
-    title: 'Update "SimpleDVT" staking module',
-    stakingModuleId: StakingModule.SimpleDVT,
-    targetShare: 50,
-    treasuryFee: 5,
-    stakingModuleFee: 3,
-  };
-
-  after(() => {
-    sinon.restore();
-  });
-
-  const getEvent = sinon.stub().callsFake(function (event: string) {
-    const fragment = {
-      type: "event",
-      name: event,
-      inputs: [],
-    };
-    return {
-      fragment,
-      address: randomAddress(),
-    };
-  });
-
-  beforeEach(() => {
-    mockContracts = {
-      stakingRouter: {
-        updateStakingModule: {
-          _contract: SRContract,
-        },
-        getStakingModule: sinon.stub().resolves({
-          targetShare: 50,
-          treasuryFee: 5,
-          stakingModuleFee: 3,
-        }),
-        getEvent,
-        address: randomAddress(),
-      },
-      agent: {
-        interface: {
-          encodeFunctionData: sinon.stub().returns(randomHash()),
-        },
-        address: randomAddress(),
-        getEvent,
-      }, // forwarder
-      callsScript: {
-        LogScriptCall: {
-          called: false,
-        },
-        getEvent,
-        address: randomAddress(),
-      },
-      voting: {
-        getEvent,
-        address: randomAddress(),
-      },
-    };
-
-    updateStakingModuleAction = stakingRouter.updateStakingModule(mockContracts, {
-      title: "Raise Simple DVT target share from 0.5% to 4%",
-      stakingModuleId: testValues.stakingModuleId,
-      targetShare: testValues.targetShare,
-      treasuryFee: testValues.treasuryFee,
-      stakingModuleFee: testValues.stakingModuleFee,
+describe("staking-router blueprint", () => {
+  it("updateStakingModule creates expected call and events", () => {
+    const ctx = createCtx();
+    const call = stakingRouter.updateStakingModule(ctx, {
+      title: "Update simple DVT module params",
+      stakingModuleId: BigInt(StakingModule.SimpleDVT),
+      stakeShareLimit: 40_000n,
+      priorityExitShareThreshold: 10_000n,
+      stakingModuleFee: 500n,
+      treasuryFee: 500n,
+      maxDepositsPerBlock: 150n,
+      minDepositBlockDistance: 25n,
     });
-    updateStakingModuleAction["_contracts"] = mockContracts as any;
-  });
 
-  it("should return the correct title", () => {
-    expect(updateStakingModuleAction.title).to.equal(testValues.title);
-  });
+    assert.equal(call.title, "Update simple DVT module params");
+    assert.equal(call.functionName, "updateStakingModule");
+    assert.deepEqual(call.args, [2n, 40000n, 10000n, 500n, 500n, 150n, 25n]);
 
-  it("should correctly set targetShare, treasuryFee, and stakingModuleFee", async () => {
-    const call = updateStakingModuleAction.evmCall["calls"][0];
+    const proposalEvents = call.getEventsFor("proposal");
+    assert.deepEqual(
+      proposalEvents.map((e) => e.abi.name),
+      [
+        "StakingModuleShareLimitSet",
+        "StakingModuleFeesSet",
+        "StakingModuleMaxDepositsPerBlockSet",
+        "StakingModuleMinDepositBlockDistanceSet",
+      ],
+    );
 
-    expect(call.address).to.equal(await SRContract.getAddress());
-    expect(call["args"]).to.deep.equal([
-      testValues.stakingModuleId,
-      testValues.targetShare,
-      testValues.stakingModuleFee,
-      testValues.treasuryFee,
-    ]);
-  });
+    const shareLimitEvent = proposalEvents[0];
+    assert.deepEqual(shareLimitEvent.args, [2n, 40_000n, 10_000n, null]);
 
-  it("should emit correct events after update", async () => {
-    const events = updateStakingModuleAction.expectedEvents;
+    const feesEvent = proposalEvents[1];
+    assert.deepEqual(feesEvent.args, [2n, 500n, 500n, null]);
 
-    expect(events).to.be.an("array");
-    expect(events).to.have.length(5);
-    expect(events[0].address).to.equal(mockContracts.voting.address);
-    expect(events[0].fragment.name).to.equal("LogScriptCall");
-    expect(events[1].address).to.equal(mockContracts.agent.address);
-    expect(events[1].fragment.name).to.equal("LogScriptCall");
-    expect(events[2].address).to.equal(mockContracts.stakingRouter.address);
-    expect(events[2].fragment.name).to.equal("StakingModuleTargetShareSet");
-    expect(events[2].args).to.be.an("array");
-    expect(events[2].args).to.have.length(3);
-    expect(events[2].args![0]).to.equal(testValues.stakingModuleId);
-    expect(events[2].args![1]).to.equal(testValues.targetShare);
-    expect(events[3].address).to.equal(mockContracts.stakingRouter.address);
-    expect(events[3].fragment.name).to.equal("StakingModuleFeesSet");
-    expect(events[3].args).to.be.an("array");
-    expect(events[3].args).to.have.length(4);
-    expect(events[3].args![0]).to.equal(testValues.stakingModuleId);
-    expect(events[3].args![1]).to.equal(testValues.stakingModuleFee);
-    expect(events[3].args![2]).to.equal(testValues.treasuryFee);
-    expect(events[4].address).to.equal(mockContracts.agent.address);
-    expect(events[4].fragment.name).to.equal("ScriptResult");
+    const maxDepositsEvent = proposalEvents[2];
+    assert.deepEqual(maxDepositsEvent.args, [2n, 150n, null]);
+
+    const minDistanceEvent = proposalEvents[3];
+    assert.deepEqual(minDistanceEvent.args, [2n, 25n, null]);
   });
 });
