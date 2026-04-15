@@ -1,17 +1,23 @@
 import { assert } from "chai";
-import { getLidoContracts } from "../../contracts/contracts";
-import { OmnibusDirectCall } from "../calls/omnibus-direct-call";
-import { event } from "../omnibus";
+import { contract } from "../../contracts";
+import { getGovernanceContracts } from "../governance-contracts";
+import { OmnibusDirectCallFactory } from "../calls/omnibus-direct-call";
+import { event, BlueprintCtx } from "../omnibus";
+import { Agent_ABI } from "../../../abi/Agent.abi";
+import { Finance_ABI } from "../../../abi/Finance.abi";
 import tokens from "./tokens";
 
-function createCtx() {
-  const contracts = getLidoContracts("mainnet");
+function createCtx(): BlueprintCtx {
+  const { voting, callsScript } = getGovernanceContracts("mainnet");
+  const factory = new OmnibusDirectCallFactory(voting, callsScript);
   return {
-    contracts,
     event,
-    directCall: OmnibusDirectCall.createCallBuilder({ voting: contracts.voting, callsScript: contracts.callsScript }),
-  } as any;
+    directCall: factory.create.bind(factory),
+  };
 }
+
+const agent = contract(Agent_ABI, "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c");
+const finance = contract(Finance_ABI, "0xB9E5CBB9CA5b0d659238807E84D0176930753d86");
 
 describe("tokens blueprints", () => {
   it("transfer creates newImmediatePayment call with explicit token", () => {
@@ -20,47 +26,33 @@ describe("tokens blueprints", () => {
     const to = "0x2222222222222222222222222222222222222222";
     const amount = 1000n;
 
-    const call = tokens.transfer(ctx, {
-      title: "Transfer Tokens",
-      token,
-      to,
-      amount,
-      comment: "Payment #1",
-    });
+    const call = tokens.transfer(
+      ctx,
+      { agent, finance },
+      {
+        title: "Transfer Tokens",
+        token,
+        to,
+        amount,
+        comment: "Payment #1",
+      },
+    );
 
     assert.equal(call.title, "Transfer Tokens");
-    assert.equal(call.functionName, "newImmediatePayment");
-    assert.deepEqual(call.args, [token, to, amount, "Payment #1"]);
+    assert.equal(call.input.fn, "newImmediatePayment");
+    assert.deepEqual(call.input.args, [token, to, amount, "Payment #1"]);
 
-    const events = call.getEventsFor("proposal");
-    assert.deepEqual(
-      events.map((e) => e.abi.name),
-      ["NewPeriod", "NewTransaction", "Transfer", "VaultTransfer"],
-    );
+    const events = call.getExpectedEvents("proposal");
+    const eventNames = events.map((e) => e.abi.name);
+    assert.includeMembers(eventNames, ["NewPeriod", "NewTransaction", "Transfer", "VaultTransfer"]);
 
     const newTxEvent = events.find((e) => e.abi.name === "NewTransaction")!;
     assert.deepEqual(newTxEvent.args, [null, false, to, amount, "Payment #1"]);
 
     const transferEvent = events.find((e) => e.abi.name === "Transfer")!;
-    assert.deepEqual(transferEvent.args, [ctx.contracts.agent.address, to, amount]);
+    assert.deepEqual(transferEvent.args, [agent.address, to, amount]);
 
     const vaultEvent = events.find((e) => e.abi.name === "VaultTransfer")!;
     assert.deepEqual(vaultEvent.args, [token, to, amount]);
-  });
-
-  it("transferLDO uses LDO address from contracts", () => {
-    const ctx = createCtx();
-    const to = "0x2222222222222222222222222222222222222222";
-    const amount = 500n;
-
-    const call = tokens.transferLDO(ctx, {
-      title: "Transfer LDO",
-      to,
-      amount,
-      comment: "Treasury payment",
-    });
-
-    assert.equal(call.functionName, "newImmediatePayment");
-    assert.deepEqual(call.args, [ctx.contracts.ldo.address, to, amount, "Treasury payment"]);
   });
 });

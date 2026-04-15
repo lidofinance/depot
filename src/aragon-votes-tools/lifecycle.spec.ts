@@ -6,7 +6,7 @@ import { RpcClient, WriteContractOptions } from "../network";
 import { HexStrPrefixed } from "../common/bytes";
 import { Voting_ABI } from "../../abi/Voting.abi";
 import { EvmScriptParser } from "./evm-script-parser";
-import * as contracts from "../contracts/contracts";
+import * as governance from "../omnibuses/governance-contracts";
 
 describe("lifecycle functions", () => {
   const voteId = 42n;
@@ -48,7 +48,7 @@ describe("lifecycle functions", () => {
   }
 
   beforeEach(() => {
-    sinon.stub(contracts, "getLidoContracts").returns({ voting, tokenManager } as any);
+    sinon.stub(governance, "getGovernanceContracts").returns({ voting, tokenManager } as any);
   });
 
   afterEach(() => {

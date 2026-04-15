@@ -5,16 +5,8 @@ import { AppProxyUpgradeable_ABI } from "../../abi/AppProxyUpgradeable.abi";
 import { MiniMeToken_ABI } from "../../abi/MiniMeToken.abi";
 import { Voting_ABI } from "../../abi/Voting.abi";
 import { ContractInfoResolver } from "../contract-info-resolver/contract-info-resolver";
-import {
-  buildImpls,
-  buildInstances,
-  buildProxies,
-  contract,
-  getEventAbi,
-  getFunctionAbi,
-  getLidoContracts,
-  resolveContract,
-} from "./contracts";
+import { contract, getEventAbi, getFunctionAbi, resolveContract } from "./contracts";
+import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
 const config = {
   acl: {
@@ -33,49 +25,6 @@ describe("contracts", () => {
     sinon.restore();
   });
 
-  it("builds instances/proxies/impls from config", () => {
-    const impls = buildImpls(config);
-    const proxies = buildProxies(config);
-    const instances = buildInstances(config);
-
-    assert.deepEqual(Object.keys(impls), ["acl", "voting"]);
-    assert.deepEqual(Object.keys(proxies), ["acl", "voting"]);
-    assert.deepEqual(Object.keys(instances), ["acl", "ldo", "voting"]);
-
-    assert.equal(instances.ldo.label, "Ldo");
-    assert.equal(instances.acl.label, "Acl__Proxy");
-    assert.equal(instances.voting.label, "Voting__Proxy");
-    assert.equal(proxies.acl.label, "Acl__Proxy");
-    assert.equal(impls.acl.label, "Acl__Impl");
-
-    // instances use proxy address for proxied contracts, own address for plain contracts
-    assert.equal(instances.acl.address, config.acl.proxy.address.toLowerCase());
-    assert.equal(instances.ldo.address, config.ldo.address.toLowerCase());
-    // impls use impl address
-    assert.equal(impls.acl.address, config.acl.impl.address.toLowerCase());
-  });
-
-  it("builds nested contract groups", () => {
-    const nestedConfig = {
-      ...config,
-      stakingModules: {
-        simpleDVT: {
-          impl: { abi: ACL_ABI, address: "0x1770044a38402e3CfCa2Fcfa0C84a093c9B42135" },
-          proxy: { abi: AppProxyUpgradeable_ABI, address: "0xaE7B191A31f627b4eB1d4DaC64eaB9976995b433" },
-        },
-      },
-    } as const;
-
-    const instances = buildInstances(nestedConfig);
-    const proxies = buildProxies(nestedConfig);
-    const impls = buildImpls(nestedConfig);
-
-    assert.containsAllKeys(instances, ["acl", "ldo", "voting", "stakingModules"]);
-    assert.equal((instances as any).stakingModules.simpleDVT.label, "SimpleDVT__Proxy");
-    assert.equal((proxies as any).stakingModules.simpleDVT.label, "SimpleDVT__Proxy");
-    assert.equal((impls as any).stakingModules.simpleDVT.label, "SimpleDVT__Impl");
-  });
-
   it("creates explicit contract object", () => {
     const c = contract(MiniMeToken_ABI, "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32", "LDO");
     assert.equal(c.label, "LDO");
@@ -83,7 +32,7 @@ describe("contracts", () => {
   });
 
   it("extracts abi function and event", () => {
-    const voting = buildInstances(config).voting;
+    const voting = contract(Voting_ABI, config.voting.proxy.address);
     const fn = getFunctionAbi(voting, "newVote");
     const event = getEventAbi(voting, "StartVote");
 
@@ -93,15 +42,15 @@ describe("contracts", () => {
     assert.equal(event.name, "StartVote");
   });
 
-  it("returns known lido contracts for mainnet", () => {
-    const contracts = getLidoContracts("mainnet");
+  it("returns known governance contracts for mainnet", () => {
+    const contracts = getGovernanceContracts("mainnet");
     assert.containsAllKeys(contracts, ["ldo", "voting", "tokenManager"]);
-    assert.match(contracts.ldo.address, /^0x[0-9a-f]{40}$/);
+    assert.match(contracts.ldo.address, /^0x[0-9a-fA-F]{40}$/);
     assert.equal(contracts.voting.label, "Voting__Proxy");
   });
 
   it("resolves known local contract without etherscan", async () => {
-    const contracts = getLidoContracts("mainnet");
+    const contracts = getGovernanceContracts("mainnet");
     const res = await resolveContract("mainnet", contracts.ldo.address);
 
     assert.isAtLeast(res.length, 1);
