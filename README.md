@@ -31,7 +31,7 @@ For the current human-readable writing guide and examples, use:
 Recommended flow when using agents:
 
 1. Start with command to the agent: `omnibus create`.
-2. Agent (or you manually) scaffolds a new omnibus from template:
+2. Agent (or you manually) creates a new omnibus from template:
    ```bash
    npm run omnibus:create
    ```

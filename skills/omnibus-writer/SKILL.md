@@ -1,6 +1,6 @@
 ---
 name: omnibus-writer
-description: Create and update omnibus files in this repository, including date-based omnibus scaffolding, contracts/calls/test sections, expected event definitions, vote metadata lifecycle, and runbook commands. Use when asked to write a new omnibus, modify an existing omnibus, prepare omnibus tests, or review omnibus correctness before launch.
+description: Create and update omnibus files in this repository, including date-based omnibus creation, contracts/calls/test sections, expected event definitions, vote metadata lifecycle, and runbook commands. Use when asked to write a new omnibus, modify an existing omnibus, prepare omnibus tests, or review omnibus correctness before launch.
 ---
 
 # Omnibus Writer
@@ -13,9 +13,9 @@ Use this skill to author and maintain omnibuses in this repository.
 2. Pick the correct pattern:
    - regular omnibus: `omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts`
    - contract omnibus: `omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts`
-3. Scaffold a new omnibus when requested:
+3. Create a new omnibus when requested:
    - `npm run omnibus:create`
-   - or `skills/omnibus-writer/scripts/scaffold_omnibus.sh <name> [mainnet|holesky]`
+   - or `skills/omnibus-writer/scripts/create_omnibus.sh <name> [mainnet|holesky]`
 4. Ask user to write free-form description in `omnibuses/<name>/<name>.md` inside:
    - `<!-- OMNIBUS_DESCRIPTION --> ... <!-- OMNIBUS_DESCRIPTION -->`
 5. Transform this description into concrete omnibus calls in `<name>.ts`.
