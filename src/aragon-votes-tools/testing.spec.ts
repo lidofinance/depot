@@ -2,7 +2,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 import { Voting_ABI } from "../../abi/Voting.abi";
 import { DevRpcClient } from "../network";
-import * as contracts from "../contracts/contracts";
+import * as governance from "../omnibuses/governance-contracts";
 import * as lifecycle from "./lifecycle";
 import { HexStrPrefixed } from "../common/bytes";
 import { CREATOR, CREATOR_ETH_BALANCE, CREATOR_LDO_BALANCE, LDO_WHALES_BY_NETWORK_NAME } from "./constants";
@@ -27,7 +27,7 @@ describe("testing tools", () => {
   }
 
   beforeEach(() => {
-    sinon.stub(contracts, "getLidoContracts").returns({ ldo, voting } as any);
+    sinon.stub(governance, "getGovernanceContracts").returns({ ldo, voting } as any);
   });
 
   afterEach(() => {

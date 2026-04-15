@@ -1,37 +1,45 @@
 import { assert } from "chai";
-import { getLidoContracts } from "../../contracts/contracts";
-import { OmnibusDirectCall } from "../calls/omnibus-direct-call";
-import { event } from "../omnibus";
+import { contract } from "../../contracts";
+import { getGovernanceContracts } from "../governance-contracts";
+import { OmnibusDirectCallFactory } from "../calls/omnibus-direct-call";
+import { event, BlueprintCtx } from "../omnibus";
+import { StakingRouter_ABI } from "../../../abi/StakingRouter.abi";
 import stakingRouter, { StakingModule } from "./staking-router";
 
-function createCtx() {
-  const contracts = getLidoContracts("mainnet");
+function createCtx(): BlueprintCtx {
+  const { voting, callsScript } = getGovernanceContracts("mainnet");
+  const factory = new OmnibusDirectCallFactory(voting, callsScript);
   return {
-    contracts,
     event,
-    directCall: OmnibusDirectCall.createCallBuilder({ voting: contracts.voting, callsScript: contracts.callsScript }),
-  } as any;
+    directCall: factory.create.bind(factory),
+  };
 }
+
+const stakingRouterContract = contract(StakingRouter_ABI, "0xFdDf38947aFB03C621C71b06C9C70bce73f12999");
 
 describe("staking-router blueprint", () => {
   it("updateStakingModule creates expected call and events", () => {
     const ctx = createCtx();
-    const call = stakingRouter.updateStakingModule(ctx, {
-      title: "Update simple DVT module params",
-      stakingModuleId: BigInt(StakingModule.SimpleDVT),
-      stakeShareLimit: 40_000n,
-      priorityExitShareThreshold: 10_000n,
-      stakingModuleFee: 500n,
-      treasuryFee: 500n,
-      maxDepositsPerBlock: 150n,
-      minDepositBlockDistance: 25n,
-    });
+    const call = stakingRouter.updateStakingModule(
+      ctx,
+      { stakingRouter: stakingRouterContract },
+      {
+        title: "Update simple DVT module params",
+        stakingModuleId: BigInt(StakingModule.SimpleDVT),
+        stakeShareLimit: 40_000n,
+        priorityExitShareThreshold: 10_000n,
+        stakingModuleFee: 500n,
+        treasuryFee: 500n,
+        maxDepositsPerBlock: 150n,
+        minDepositBlockDistance: 25n,
+      },
+    );
 
     assert.equal(call.title, "Update simple DVT module params");
-    assert.equal(call.functionName, "updateStakingModule");
-    assert.deepEqual(call.args, [2n, 40000n, 10000n, 500n, 500n, 150n, 25n]);
+    assert.equal(call.input.fn, "updateStakingModule");
+    assert.deepEqual(call.input.args, [2n, 40000n, 10000n, 500n, 500n, 150n, 25n]);
 
-    const proposalEvents = call.getEventsFor("proposal");
+    const proposalEvents = call.getExpectedEvents("proposal");
     assert.deepEqual(
       proposalEvents.map((e) => e.abi.name),
       [
