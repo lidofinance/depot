@@ -1,65 +1,119 @@
-# Repository Agent Instructions
+# AGENTS.md
 
-## Purpose
+Instructions for AI coding agents working in this repository.
 
-Use these instructions when working with omnibuses in this repository.
+## Project overview
 
-## Source of truth
+Hardhat 3 + TypeScript + Viem project for building, testing, and launching Lido governance omnibuses (batched on-chain proposals).
 
-1. Human documentation:
-   - `docs/omnibuses/README.md`
-   - `docs/omnibuses/WRITING_OMNIBUS.md`
-2. Canonical code examples:
-   - `omnibuses/_omnibus_template/_omnibus_template.ts`
-   - `omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts`
-   - `omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts`
-   - `omnibuses/2025_09_01/2025_09_01.ts`
-3. Skill package:
-   - `skills/omnibus-writer/SKILL.md`
+## Setup
 
-## Trigger
+```bash
+nvm use           # Node 22+
+npm install
+```
 
-Apply the `omnibus-writer` skill for requests about:
+## Commands
 
-- creating a new omnibus
-- modifying omnibus calls/contracts/tests
-- reviewing omnibus correctness
-- preparing omnibus runbook for launch
+```bash
+# Omnibus lifecycle
+npm run omnibus:create              # scaffold new omnibus from template
+npm run omnibus:test -- <name>      # run omnibus tests on local hardhat node
+npm run omnibus:simulate -- <name>  # simulate omnibus execution
+npm run omnibus:run -- <name>       # launch omnibus on mainnet/testnet
+npm run omnibus:contract -- <name>  # generate Solidity contract (opt-in)
+npm run omnibus:build -- <name>     # compile generated Solidity contract
 
-## Working rules
+# Quality
+npm run lint                        # ESLint (0 errors, 0 warnings expected)
+npm run lint:fix                    # auto-fix
+npm test                            # unit tests (mocha)
+npm run test:integration            # integration tests (needs hardhat node on :8545)
+npx tsc --noEmit                    # typecheck
+```
 
-1. Prefer blueprint-based calls when available.
-2. Keep event expectations complete and deterministic.
-3. Do not fill `voteId/launchedAt/executedAt/quorumReached` before real launch milestones.
-4. Keep omnibus markdown sections present:
-   - `<!-- OMNIBUS_DESCRIPTION -->`
-5. In tests, cover each call item and functional outcomes.
-6. In tests, enforce four state phases: before vote, after vote, before DG, after DG.
-7. Use `checks.*` helpers first when equivalent checks already exist.
-8. Treat generated Solidity contract as draft; manually normalize naming, role constants, and permissions.
-9. Determine permission model before writing calls/tests:
-   - OZ AccessControl => `grantRole/revokeRole/hasRole`
-   - Aragon ACL => `grantPermission/revokePermission/hasPermission`
-   - Lido (`0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84`) is Aragon ACL-managed; never use OZ AccessControl methods for Lido permissions.
-   - In tests, use `checks.accessControl.*` helpers for permission assertions.
-10. Validate before launch with:
-   - `npx tsc --noEmit omnibuses/<name>/<name>.ts`
-   - `npm run omnibus:test -- <name>`
-   - `npm run omnibus:simulate -- <name>`
-11. For contract mode, always compile generated `.sol` immediately after generation:
-   - `npm run omnibus:build -- <name>`
-12. Never generate contract files implicitly. Run `npm run omnibus:contract -- <name>` only after explicit user request (for example: "сгенерируй контракт омнибус").
-13. If contract mode is requested, add/verify `deploy()` in omnibus `.ts` (returning `omnibus`) or explicit `deployment: createContracts({...})` after successful contract generation/compilation, so contract mode is actually used by omnibus runtime.
-14. After contract generation, agent must normalize generated `.sol`:
-   - replace inline role/address literals in calls with named constants
-   - use the same constant names as in omnibus `<name>.ts` where applicable
-   - re-run `npm run omnibus:build -- <name>` after normalization
+## Architecture
 
-## Agent command flow
+```
+src/
+  aragon-votes-tools/   # vote lifecycle: create, pass, execute
+  common/               # utils, env, formatting, assert
+  contracts/            # contract abstraction, ABI helpers
+  contract-info-resolver/ # etherscan contract resolution
+  docker/               # Docker container management for multi-repo tests
+  hardhat-keystores/    # encrypted keystore management
+  hardhat/              # HH3 task runner helpers
+  ipfs/                 # IPFS/Pinata upload
+  network/              # RPC client (viem), DevRpcClient with test actions
+  omnibuses/            # omnibus runtime, blueprints, checks, contract generator
+  traces/               # transaction tracing (debug_traceTransaction)
+tasks/                  # Hardhat tasks (omnibus:*, keystore:*)
+omnibuses/              # actual omnibus scripts and templates
+test/                   # all tests
+contracts/mocks/        # mock Solidity contracts for integration tests
+```
 
-When user says `omnibus create`, run this sequence:
+## Test conventions
 
-1. `npm run omnibus:create`
-2. Ask user to fill `omnibuses/<name>/<name>.md` inside `<!-- OMNIBUS_DESCRIPTION --> ... <!-- OMNIBUS_DESCRIPTION -->`.
-3. Transform that free-form description into concrete omnibus calls in `<name>.ts`.
-4. Clarify if Solidity contract is required, and if yes run `npm run omnibus:contract -- <name>`.
+All tests live in `test/` (not in `src/`).
+
+- `test/<module>/<name>.unit.test.ts` — fast, no network
+- `test/<module>/<name>.integration.test.ts` — needs hardhat node
+
+**Mocking rules (ESM):**
+
+- `sinon.stub(object, "method")` on plain objects — OK
+- `sinon.stub(esmModule, "export")` — FORBIDDEN (ESM exports are immutable)
+- For module-level deps use DI containers: `export const deps = { fn }`, stub via `sinon.stub(deps, "fn")`
+- For HTTP mock `globalThis.fetch` directly (nock v13 doesn't intercept native fetch)
+
+## Code style
+
+- ESLint flat config (`eslint.config.mjs`), 0 errors / 0 warnings
+- Prettier with defaults (semi: true, printWidth: 120)
+- Conventional commits enforced via commitlint
+- Pre-commit: lint-staged runs eslint + prettier on staged files
+
+**ESLint error rules (block commit):**
+
+- `no-floating-promises` — always await or `void` fire-and-forget
+- `no-misused-promises` — no async in void callbacks
+- `require-await` — no unnecessary async
+- `no-unused-vars` — remove or prefix with `_`
+- `prefer-const` — use const when not reassigned
+
+## Git workflow
+
+- Conventional commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`
+- Husky pre-commit: lint-staged
+- Husky commit-msg: commitlint
+- Do not commit `.env`, `.keystores/`, `artifacts/`, `node_modules/`
+
+## Omnibus workflow
+
+For creating/modifying omnibuses, read `docs/omnibuses/WRITING_OMNIBUS.md`.
+
+Canonical examples:
+
+- `omnibuses/_omnibus_template/_omnibus_template.ts`
+- `omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts`
+- `omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts`
+- `omnibuses/2025_09_01/2025_09_01.ts`
+
+Key rules:
+
+1. Prefer blueprint calls over custom calls
+2. Determine permission model before coding (OZ AccessControl vs Aragon ACL)
+3. Lido (`0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84`) uses Aragon ACL — never use OZ methods
+4. Contract generation is opt-in — only after explicit user request
+5. Validate before launch: `npx tsc --noEmit`, `npm run omnibus:test`, `npm run omnibus:simulate`
+
+## Verification checklist
+
+Before submitting changes, verify:
+
+```bash
+npx tsc --noEmit         # 0 errors
+npm run lint             # 0 errors, 0 warnings
+npm test                 # all passing
+```
