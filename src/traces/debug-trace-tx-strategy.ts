@@ -14,8 +14,14 @@ export class DebugTxTraceStrategy implements TraceStrategy {
 
   async trace(txHash: HexStrPrefixed): Promise<TxTraceItem[]> {
     const receipt = await this.#client.getTransaction({ hash: txHash });
+    if (receipt.to === null) {
+      // Contract creation tx: `to` is null. StructLogsTracingVisitor needs a
+      // target address for the root call, so tracing such transactions via
+      // this strategy is not supported — use a call-tracer strategy instead.
+      throw new Error(`debug_traceTransaction via struct logs does not support contract creation tx: ${txHash}`);
+    }
     const structLogVisitor = new StructLogsTracingVisitor({
-      address: bytes.normalize(receipt.to ?? "0x"),
+      address: bytes.normalize(receipt.to),
       gasLimit: Number(receipt.gas),
       data: bytes.normalize(receipt.input),
       value: receipt.value,

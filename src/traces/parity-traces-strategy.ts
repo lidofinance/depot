@@ -35,10 +35,14 @@ export class ParityTraceStrategy implements TraceStrategy {
   }
 
   async trace(txHash: HexStrPrefixed): Promise<TxTraceItem[]> {
-    const rawCallTrace: ParityTraceItem[] = await this.#client.transport.request({
+    const raw: unknown = await this.#client.transport.request({
       method: "trace_transaction",
       params: [txHash],
     });
+    if (!Array.isArray(raw)) {
+      throw new Error(`trace_transaction(${txHash}) returned non-array response`);
+    }
+    const rawCallTrace = raw.map((item, i) => assertParityTraceItem(item, txHash, i));
 
     const result: (TxTraceCallItem | TxTraceCreateItem)[] = [];
 
@@ -57,6 +61,23 @@ export class ParityTraceStrategy implements TraceStrategy {
 
     return result;
   }
+}
+
+function assertParityTraceItem(item: unknown, txHash: string, index: number): ParityTraceItem {
+  if (typeof item !== "object" || item === null) {
+    throw new Error(`trace_transaction(${txHash}) item ${index} is not an object`);
+  }
+  const obj = item as Record<string, unknown>;
+  if (obj.type !== "call" && obj.type !== "create") {
+    throw new Error(`trace_transaction(${txHash}) item ${index} has unexpected type: ${String(obj.type)}`);
+  }
+  if (typeof obj.action !== "object" || obj.action === null) {
+    throw new Error(`trace_transaction(${txHash}) item ${index} missing action`);
+  }
+  if (!Array.isArray(obj.traceAddress)) {
+    throw new Error(`trace_transaction(${txHash}) item ${index} missing traceAddress array`);
+  }
+  return item as ParityTraceItem;
 }
 
 function createTxTraceCallItem(callTraceItem: ParityTraceItem, depth: number): TxTraceCallItem {

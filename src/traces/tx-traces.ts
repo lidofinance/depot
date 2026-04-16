@@ -83,13 +83,14 @@ export class TxTrace {
   ) {}
 
   public filter(predicate: (callTrace: TxTraceItem, i: number, collection: TxTraceItem[]) => boolean): TxTrace {
-    const calls = this.calls.filter(predicate);
+    // Shallow-clone each item so updateDepths() doesn't mutate the original trace's items.
+    const calls = this.calls.filter(predicate).map((item) => ({ ...item }) as TxTraceItem);
     this.updateDepths(calls);
     return new TxTrace(this.network, this.from, calls, this.contracts, this.prePopulatedContracts);
   }
 
   public slice(start?: number, end?: number): TxTrace {
-    const calls = this.calls.slice(start, end);
+    const calls = this.calls.slice(start, end).map((item) => ({ ...item }) as TxTraceItem);
     this.updateDepths(calls);
     return new TxTrace(this.network, this.from, calls, this.contracts, this.prePopulatedContracts);
   }
