@@ -17,9 +17,10 @@ describe("keystore plugin", () => {
     expect(keystores.password).to.be.instanceOf(Function);
   });
 
-  it("keystore in tasks", () => {
-    const expectedTask = ["keystore:list", "keystore:add", "keystore:generate", "keystore:delete", "keystore:password"];
-    const keystoreTasks = Object.keys(hre.tasks).filter((taskNme) => taskNme.startsWith("keystore:"));
-    expect(keystoreTasks).to.deep.equal(expectedTask);
+  it("keystore tasks registered in hre", () => {
+    const expectedTasks = ["keystore:list", "keystore:add", "keystore:generate", "keystore:delete", "keystore:password"];
+    for (const taskName of expectedTasks) {
+      expect(() => hre.tasks.getTask(taskName), `task ${taskName} should be registered`).to.not.throw();
+    }
   });
 });

@@ -1,7 +1,7 @@
 import sinon from "sinon";
 import { assert } from "../../../src/common/assert";
 import { TxTracer } from "../../../src/traces/tx-tracer";
-import * as contracts from "../../../src/contracts/contracts";
+import { tracerDeps } from "../../../src/traces/tx-tracer";
 
 describe("TxTracer", () => {
   const addr1 = "0x1111111111111111111111111111111111111111";
@@ -20,7 +20,7 @@ describe("TxTracer", () => {
       ]),
     };
 
-    const resolveStub = sinon.stub(contracts, "resolveContract");
+    const resolveStub = sinon.stub(tracerDeps, "resolveContract");
     resolveStub.withArgs("mainnet", addr1).resolves([{ address: addr1, abi: [], label: "C1" }] as any);
     resolveStub.withArgs("mainnet", addr2).resolves([{ address: addr2, abi: [], label: "C2" }] as any);
 
@@ -41,7 +41,7 @@ describe("TxTracer", () => {
         .resolves([{ type: "CALL", address: addr1, depth: 0, input: "0x", output: "0x", success: true }]),
     };
     const prePopulated = [{ address: addr1, abi: [], label: "LocalContract" }];
-    const resolveStub = sinon.stub(contracts, "resolveContract");
+    const resolveStub = sinon.stub(tracerDeps, "resolveContract");
 
     const tracer = new TxTracer(traceStrategy as any);
     const txTrace = await tracer.trace("mainnet", "0x1234", prePopulated as any);
@@ -62,7 +62,7 @@ describe("TxTracer", () => {
     };
 
     const resolveStub = sinon
-      .stub(contracts, "resolveContract")
+      .stub(tracerDeps, "resolveContract")
       .resolves([{ address: lower, abi: [], label: "C" }] as any);
 
     const tracer = new TxTracer(traceStrategy as any);
@@ -72,16 +72,17 @@ describe("TxTracer", () => {
     assert.equal(txTrace.contracts[lower][0].label, "C");
   });
 
-  it("propagates contract resolve errors", async () => {
+  it("falls back to raw contract on resolve errors", async () => {
     const traceStrategy = {
       trace: sinon
         .stub()
         .resolves([{ type: "CALL", address: addr1, depth: 0, input: "0x", output: "0x", success: true }]),
     };
-    sinon.stub(contracts, "resolveContract").rejects(new Error("Resolve error"));
+    sinon.stub(tracerDeps, "resolveContract").rejects(new Error("Resolve error"));
 
     const tracer = new TxTracer(traceStrategy as any);
+    const txTrace = await tracer.trace("mainnet", "0x1234");
 
-    await assert.isRejected(tracer.trace("mainnet", "0x1234"), "Resolve error");
+    assert.equal(txTrace.contracts[addr1][0].label, `Contract[${addr1}]`);
   });
 });
