@@ -365,8 +365,8 @@ class Stack<T> {
     const minAllowedIndex = -this.items.length;
     const maxAllowedIndex = this.items.length - 1;
 
-    if (offset < minAllowedIndex && offset > maxAllowedIndex) {
-      throw new Error(`Offset out of bounds`);
+    if (offset < minAllowedIndex || offset > maxAllowedIndex) {
+      throw new Error(`Offset ${offset} out of bounds [${minAllowedIndex}, ${maxAllowedIndex}]`);
     }
 
     const index = (this.items.length + offset) % this.items.length;

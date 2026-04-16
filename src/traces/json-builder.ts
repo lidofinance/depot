@@ -5,7 +5,6 @@ const TOKENS = {
   ARRAY_CLOSE: "]",
   COLON: ":",
   COMMA: ",",
-  DOUBLE_QUOTES: '"',
 };
 
 export class JsonBuilder {
@@ -92,21 +91,15 @@ export class JsonBuilder {
   }
 
   public key(key: string) {
-    this.tokens.push(TOKENS.DOUBLE_QUOTES);
-    this.tokens.push(key);
-    this.tokens.push(TOKENS.DOUBLE_QUOTES);
+    // JSON.stringify escapes quotes, backslashes, and control chars
+    this.tokens.push(JSON.stringify(key));
     this.tokens.push(TOKENS.COLON);
     return this;
   }
 
   public value(value: string | number | boolean | null) {
-    if (typeof value === "string") {
-      this.tokens.push(TOKENS.DOUBLE_QUOTES);
-      this.tokens.push(value);
-      this.tokens.push(TOKENS.DOUBLE_QUOTES);
-    } else {
-      this.tokens.push("" + value); // cast to string
-    }
+    // JSON.stringify handles string escaping + number/boolean/null serialization
+    this.tokens.push(JSON.stringify(value));
     this.comma();
     return this;
   }
@@ -150,6 +143,6 @@ export class JsonBuilder {
   }
 
   private parse(tokens: string[]): object {
-    return JSON.parse(tokens.join("").replace(/\n/g, "\\n"));
+    return JSON.parse(tokens.join(""));
   }
 }
