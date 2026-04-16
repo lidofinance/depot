@@ -86,7 +86,7 @@ export class DebugTraceTxStreamed {
     for await (const chunk of readable) {
       cparser.write((chunk as Buffer).toString());
     }
-    const parsed = obj as { result?: DebugStructLogResponse; error?: JsonRpcError };
+    const parsed = parseJsonRpcResponse(obj, hash);
 
     if (parsed.result) {
       this.handlers.gas?.(parsed.result.gas);
@@ -169,4 +169,15 @@ export class DebugTraceTxStreamed {
 
     yield "]}";
   }
+}
+
+function parseJsonRpcResponse(raw: unknown, hash: string): { result?: DebugStructLogResponse; error?: JsonRpcError } {
+  if (typeof raw !== "object" || raw === null) {
+    throw new Error(`debug_traceTransaction(${hash}) returned non-object response`);
+  }
+  const obj = raw as Record<string, unknown>;
+  if (obj.result === undefined && obj.error === undefined) {
+    throw new Error(`debug_traceTransaction(${hash}) response has neither result nor error`);
+  }
+  return obj as { result?: DebugStructLogResponse; error?: JsonRpcError };
 }

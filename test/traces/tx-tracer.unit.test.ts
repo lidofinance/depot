@@ -72,13 +72,27 @@ describe("TxTracer", () => {
     assert.equal(txTrace.contracts[lower][0].label, "C");
   });
 
-  it("falls back to raw contract on resolve errors", async () => {
+  it("marks placeholder as resolve failed on unexpected error", async () => {
     const traceStrategy = {
       trace: sinon
         .stub()
         .resolves([{ type: "CALL", address: addr1, depth: 0, input: "0x", output: "0x", success: true }]),
     };
-    sinon.stub(tracerDeps, "resolveContract").rejects(new Error("Resolve error"));
+    sinon.stub(tracerDeps, "resolveContract").rejects(new Error("Network unreachable"));
+
+    const tracer = new TxTracer(traceStrategy as any);
+    const txTrace = await tracer.trace("mainnet", "0x1234");
+
+    assert.equal(txTrace.contracts[addr1][0].label, `Contract[${addr1}] (resolve failed)`);
+  });
+
+  it("uses plain placeholder for unverified contracts", async () => {
+    const traceStrategy = {
+      trace: sinon
+        .stub()
+        .resolves([{ type: "CALL", address: addr1, depth: 0, input: "0x", output: "0x", success: true }]),
+    };
+    sinon.stub(tracerDeps, "resolveContract").rejects(new Error("Contract is not verified"));
 
     const tracer = new TxTracer(traceStrategy as any);
     const txTrace = await tracer.trace("mainnet", "0x1234");

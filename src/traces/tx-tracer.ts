@@ -58,12 +58,20 @@ export class TxTracer {
         resolvedContracts = await tracerDeps.resolveContract(networkName, normalizedAddress);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn(
-          `Failed to resolve contract info for ${normalizedAddress} on "${networkName}": ${errorMessage}. ` +
-            `Falling back to raw trace decoding.`,
-        );
-
-        resolvedContracts = [{ address: normalizedAddress, abi: [], label: `Contract[${normalizedAddress}]` }];
+        const isUnverified = errorMessage.includes("not verified");
+        if (!isUnverified) {
+          // "not verified" is expected for unverified contracts — placeholder silently.
+          // Any other failure (network, rate limit, auth) is unexpected — log loudly
+          // and mark the placeholder label so downstream decoders show "resolve failed".
+          console.warn(
+            `Failed to resolve contract info for ${normalizedAddress} on "${networkName}": ${errorMessage}. ` +
+              `Falling back to raw trace decoding.`,
+          );
+        }
+        const label = isUnverified
+          ? `Contract[${normalizedAddress}]`
+          : `Contract[${normalizedAddress}] (resolve failed)`;
+        resolvedContracts = [{ address: normalizedAddress, abi: [], label }];
       }
 
       allResolvedContracts.add(normalizedAddress);

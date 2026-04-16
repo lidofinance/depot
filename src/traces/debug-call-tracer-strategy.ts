@@ -36,10 +36,11 @@ export class DebugCallTracerStrategy implements TraceStrategy {
   }
 
   async trace(txHash: HexStrPrefixed): Promise<TxTraceItem[]> {
-    const callTrace: CallsTrace = await this.#client.send("debug_traceTransaction", [
+    const raw = await this.#client.send("debug_traceTransaction", [
       txHash,
       { tracer: "callTracer", tracerConfig: { withLog: true } },
     ]);
+    const callTrace = assertCallsTrace(raw, txHash);
 
     const result: TxTraceItem[] = [];
     this.#traceRecursive(callTrace, result);
@@ -141,4 +142,27 @@ export class DebugCallTracerStrategy implements TraceStrategy {
     }
     throw new Error("Unsupported call trace type");
   }
+}
+
+const KNOWN_CALL_TRACE_TYPES: ReadonlySet<string> = new Set([
+  "CALL",
+  "DELEGATECALL",
+  "STATICCALL",
+  "CREATE",
+  "CREATE2",
+  "SELFDESTRUCT",
+]);
+
+function assertCallsTrace(raw: unknown, txHash: string): CallsTrace {
+  if (typeof raw !== "object" || raw === null) {
+    throw new Error(`debug_traceTransaction(${txHash}) returned non-object response`);
+  }
+  const obj = raw as Record<string, unknown>;
+  if (typeof obj.type !== "string" || !KNOWN_CALL_TRACE_TYPES.has(obj.type)) {
+    throw new Error(`debug_traceTransaction(${txHash}) returned unexpected top-level type: ${String(obj.type)}`);
+  }
+  if (typeof obj.from !== "string" || typeof obj.to !== "string") {
+    throw new Error(`debug_traceTransaction(${txHash}) returned missing/invalid from or to fields`);
+  }
+  return raw as CallsTrace;
 }
