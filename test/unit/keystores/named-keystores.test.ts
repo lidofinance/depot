@@ -3,13 +3,13 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { NamedKeystores, create, AccountAlreadyExistsError, NoKeystoreError } from "./named-keystores";
-import { NamedKeystore } from "./named-keystore";
-import { NamedKeystoresStorage } from "./named-keystores-storage";
-import { getRandomPrivateKey } from "./test_helpers";
+import { NamedKeystores, create, AccountAlreadyExistsError, NoKeystoreError } from "../../../src/hardhat-keystores/named-keystores";
+import { NamedKeystore } from "../../../src/hardhat-keystores/named-keystore";
+import { NamedKeystoresStorage } from "../../../src/hardhat-keystores/named-keystores-storage";
+import { getRandomPrivateKey } from "../../../src/hardhat-keystores/test_helpers";
 import { afterEach } from "mocha";
 import sinon from "sinon";
-import prompt from "../common/prompt";
+import prompt from "../../../src/common/prompt";
 
 chai.use(chaiAsPromised);
 const { expect } = chai;

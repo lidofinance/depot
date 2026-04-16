@@ -1,5 +1,5 @@
 import { assert } from "chai";
-import { JsonBuilder } from "./json-builder";
+import { JsonBuilder } from "../../../src/traces/json-builder";
 
 describe("JsonBuilder", () => {
   let builder = new JsonBuilder();

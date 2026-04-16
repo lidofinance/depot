@@ -1,9 +1,9 @@
 // TODO: write new tracing test
 // import { assert } from "chai";
-// import { IssuableERC20, IssuableERC20__factory } from "../../typechain-types";
-// import providers, { ProviderCheats, SignerWithAddress } from "../providers";
-// import rpcs, { SpawnedRpcNode } from "../rpcs";
-// import { DebugTraceTxStreamed, TraceParameters } from "./debug-trace-tx-streamed";
+// import { IssuableERC20, IssuableERC20__factory } from "../../../typechain-types";
+// import providers, { ProviderCheats, SignerWithAddress } from "../../../src/providers";
+// import rpcs, { SpawnedRpcNode } from "../../../src/rpcs";
+// import { DebugTraceTxStreamed, TraceParameters } from "../../../src/traces/debug-trace-tx-streamed";
 // import { get } from "lodash";
 //
 // async function streamDebutTraceTransaction(node: SpawnedRpcNode, hash: string, params: TraceParameters) {

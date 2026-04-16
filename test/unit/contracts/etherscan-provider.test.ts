@@ -1,7 +1,7 @@
 import nock from "nock";
 import { assert } from "chai";
-import bytes from "../common/bytes";
-import { EtherscanContractInfoProvider, MAX_ATTEMPTS } from "./etherscan-contract-info-provider";
+import bytes from "../../../src/common/bytes";
+import { EtherscanContractInfoProvider, MAX_ATTEMPTS } from "../../../src/contract-info-resolver/etherscan-contract-info-provider";
 
 const NETWORK_NAME = "mainnet";
 const ETHERSCAN_HOST = "https://api.etherscan.io";

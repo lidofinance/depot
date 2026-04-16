@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import * as env from "./env";
+import * as env from "../../../src/common/env";
 
 describe("environment helpers", () => {
   const originalEnv = process.env;
@@ -12,11 +12,11 @@ describe("environment helpers", () => {
     process.env = originalEnv;
   });
 
-  it("returns ETH_LOCAL_RPC_PORT from ETH_LOCAL_RPC_URL with fallback", () => {
-    delete process.env.ETH_LOCAL_RPC_URL;
+  it("returns ETH_LOCAL_RPC_PORT with fallback", () => {
+    delete process.env.ETH_LOCAL_RPC_PORT;
     expect(env.ETH_LOCAL_RPC_PORT()).to.equal("8545");
 
-    process.env.ETH_LOCAL_RPC_URL = "19545";
+    process.env.ETH_LOCAL_RPC_PORT = "19545";
     expect(env.ETH_LOCAL_RPC_PORT()).to.equal("19545");
   });
 
