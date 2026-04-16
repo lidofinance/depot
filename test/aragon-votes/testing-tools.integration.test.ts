@@ -1,15 +1,14 @@
 import { assert } from "chai";
 import { Address } from "viem";
-import { createDevRpcClient } from "../../src/network/network";
 import { lifecycleDeps } from "../../src/aragon-votes-tools/lifecycle";
 import { testingDeps, setupLdoHolder, passAragonVote, adoptAragonVoting } from "../../src/aragon-votes-tools/testing";
 import { CREATOR, LDO_WHALES_BY_NETWORK_NAME } from "../../src/aragon-votes-tools/constants";
 import { HexStrPrefixed } from "../../src/common/bytes";
+import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
 import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
 import { DevRpcClient } from "../../src/network/dev-rpc-client";
 import { GovernanceContracts } from "../../src/omnibuses/governance-contracts";
 
-const RPC_URL = process.env.TEST_RPC_URL ?? "http://localhost:8545";
 const MOCK_ERC20_MINT_SELECTOR = "0x40c10f19"; // mint(address,uint256)
 
 describe("aragon vote testing tools (integration)", function () {
@@ -25,7 +24,7 @@ describe("aragon vote testing tools (integration)", function () {
   };
 
   before(async function () {
-    client = await createDevRpcClient("mainnet", RPC_URL);
+    client = await createInProcessDevRpcClient();
     [deployer] = await client.getAccounts();
     mocks = await deployMockGovernance(client, deployer);
 

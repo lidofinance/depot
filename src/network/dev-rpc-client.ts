@@ -66,6 +66,20 @@ export class DevRpcClient extends RpcClient {
     return client.revert({ id: snapshotId });
   }
 
+  /**
+   * Run a callback against the dev node inside an automatic snapshot/revert pair.
+   * A snapshot is taken before the callback, and the state is reverted afterwards
+   * — whether the callback resolves or throws. Returns the callback's result.
+   */
+  async withSnapshot<T>(callback: () => Promise<T> | T): Promise<T> {
+    const snapshotId = await this.snapshot();
+    try {
+      return await callback();
+    } finally {
+      await this.revert(snapshotId);
+    }
+  }
+
   async increaseTime(seconds: number | bigint): Promise<void> {
     const client = await this.#getTestClient();
     await client.increaseTime({ seconds: Number(seconds) });
