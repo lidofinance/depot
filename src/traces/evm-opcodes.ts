@@ -126,22 +126,22 @@ export type CreateEvmOpcodes = keyof typeof CREATE_EVM_OPCODES;
 export type TerminationEvmOpcodes = keyof typeof TERMINATION_EVM_OPCODES;
 export type SelfDestructEvmOpcodes = keyof typeof SELFDESTRUCT_EVM_OPCODES;
 
-export function isCallOpcode(opcode: any, only?: CallEvmOpcodes[]): opcode is CallEvmOpcodes {
-  return only ? only.includes(opcode) : !!CALL_EVM_OPCODES[opcode as CallEvmOpcodes];
+export function isCallOpcode(opcode: EvmOpcode, only?: CallEvmOpcodes[]): opcode is CallEvmOpcodes {
+  return only ? only.includes(opcode as CallEvmOpcodes) : !!CALL_EVM_OPCODES[opcode as CallEvmOpcodes];
 }
 
-export function isCreateOpcode(opcode: any): opcode is CreateEvmOpcodes {
+export function isCreateOpcode(opcode: EvmOpcode): opcode is CreateEvmOpcodes {
   return !!CREATE_EVM_OPCODES[opcode as CreateEvmOpcodes];
 }
 
-export function isExitOpcode(opcode: any): opcode is TerminationEvmOpcodes {
+export function isExitOpcode(opcode: EvmOpcode): opcode is TerminationEvmOpcodes {
   return !!TERMINATION_EVM_OPCODES[opcode as TerminationEvmOpcodes];
 }
 
-export function isLogOpcode(op: any): op is LogEvmOpcodes {
+export function isLogOpcode(op: EvmOpcode): op is LogEvmOpcodes {
   return !!LOG_EVM_OPCODES[op as LogEvmOpcodes];
 }
 
-export function isSelfDestructOpcode(op: any): op is SelfDestructEvmOpcodes {
+export function isSelfDestructOpcode(op: EvmOpcode): op is SelfDestructEvmOpcodes {
   return !!SELFDESTRUCT_EVM_OPCODES[op as SelfDestructEvmOpcodes];
 }

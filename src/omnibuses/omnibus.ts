@@ -171,7 +171,9 @@ type BoundChecks = {
   [K in keyof typeof checks]: BindFirstParam<(typeof checks)[K]>;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type BindFirstParam<R extends Record<string, (...args: any[]) => any>> = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [K in keyof R]: R[K] extends (first: any, ...rest: infer Args) => infer Return ? (...args: Args) => Return : never;
 };
 
@@ -222,7 +224,8 @@ export class Omnibus<
       directCall: directCallFactory.create.bind(directCallFactory),
     };
 
-    const blueprintsBound: any = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const blueprintsBound: Record<string, Record<string, (...args: any[]) => unknown>> = {};
     for (const [blueprintNamespace, blueprintMethods] of Object.entries(blueprints)) {
       blueprintsBound[blueprintNamespace] = {};
       for (const [blueprintName, blueprintMethod] of Object.entries(blueprintMethods)) {
@@ -237,7 +240,7 @@ export class Omnibus<
       forwardCall: forwardCallFactory.create.bind(forwardCallFactory),
       forwardCalls: forwardCallsFactory.create.bind(forwardCallsFactory),
       submitCalls: submitProposalCallFactory.create.bind(submitProposalCallFactory),
-      blueprints: blueprintsBound,
+      blueprints: blueprintsBound as Blueprints,
     };
 
     if (!this.#config.deploy) {
@@ -518,10 +521,10 @@ export class Omnibus<
   }
 
   #getTracePrePopulatedContracts(): Contract[] {
-    const prePopulated = [...Object.values(this.#contracts), ...Object.values(this.#deployedContracts)];
+    const prePopulated: Contract[] = [...Object.values(this.#contracts), ...Object.values(this.#deployedContracts)];
 
     if (this.#deployment) {
-      prePopulated.push(...Object.values(this.#deployment));
+      prePopulated.push(...(Object.values(this.#deployment) as Contract[]));
     }
 
     const uniqueByAddress = new Map<Address, Contract>();
@@ -601,7 +604,7 @@ export class Omnibus<
       console.log(fmt.padded(`${chalk.greenBright("✔")} All events validated`, 3));
     }
 
-    const checksBound: any = {};
+    const checksBound: Record<string, Record<string, CallableFunction>> = {};
     for (const [checksNamespace, checksMethods] of Object.entries(checks)) {
       checksBound[checksNamespace] = {};
       for (const [checkName, checkMethod] of Object.entries(checksMethods)) {
@@ -637,7 +640,7 @@ export class Omnibus<
                 }
                 submittedProposalIds.push(...res.submittedProposalIds);
               }),
-            checks: checksBound,
+            checks: checksBound as BoundChecks,
             // TODO: fixme, check deployment is not null if the deploy logic contained in the config
             deployment: this.#deployment!,
           });
@@ -712,7 +715,7 @@ export class Omnibus<
           await this.#config.testProposal({
             client,
             passProposals,
-            checks: checksBound,
+            checks: checksBound as BoundChecks,
             submittedProposalIds,
             // TODO: fixme, check deployment is not null if the deploy logic contained in the config
             deployment: this.#deployment!,

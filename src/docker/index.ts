@@ -128,8 +128,8 @@ interface GitRefsResponse {
   };
 }
 
-function isGitRefsResponse(obj: any): obj is GitRefsResponse {
-  return "ref" in obj && "node_id" in obj && "url" in obj && "object" in obj;
+function isGitRefsResponse(obj: unknown): obj is GitRefsResponse {
+  return typeof obj === "object" && obj !== null && "ref" in obj && "node_id" in obj && "url" in obj && "object" in obj;
 }
 
 const GIT_SHA_OVERRIDES: Record<Repos, () => string> = {
@@ -249,7 +249,7 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
       transform(chunk, encoding, callback) {
         try {
           const streamLogRegExp = /{"stream":"(.*?)"}/i;
-          const text = chunk.toString("utf8");
+          const text = (chunk as Buffer).toString("utf8");
           const match = streamLogRegExp.exec(text) || [];
 
           if (!match) {
@@ -264,7 +264,7 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
             .replace(/\\"/g, '"')
             .replace(/\\\\/g, "\\");
 
-          streamValue = streamValue.replace(/\\u([0-9a-fA-F]{4})/g, (match, hex) => {
+          streamValue = streamValue.replace(/\\u([0-9a-fA-F]{4})/g, (_match: string, hex: string) => {
             return String.fromCharCode(parseInt(hex, 16));
           });
 
@@ -293,7 +293,7 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
 export function createCleanOutputStream(targetStream: NodeJS.WritableStream) {
   return new Transform({
     transform(chunk, encoding, callback) {
-      let text = chunk.toString("utf8");
+      let text = (chunk as Buffer).toString("utf8");
 
       // Skip Docker headers if present
       if (text.charCodeAt(0) <= 8) {
