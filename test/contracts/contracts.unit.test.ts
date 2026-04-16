@@ -1,12 +1,12 @@
 import { assert } from "chai";
 import sinon from "sinon";
-import { ACL_ABI } from "../../../abi/ACL.abi";
-import { AppProxyUpgradeable_ABI } from "../../../abi/AppProxyUpgradeable.abi";
-import { MiniMeToken_ABI } from "../../../abi/MiniMeToken.abi";
-import { Voting_ABI } from "../../../abi/Voting.abi";
-import { ContractInfoResolver } from "../../../src/contract-info-resolver/contract-info-resolver";
-import { contract, getEventAbi, getFunctionAbi, resolveContract } from "../../../src/contracts/contracts";
-import { getGovernanceContracts } from "../../../src/omnibuses/governance-contracts";
+import { ACL_ABI } from "../../abi/ACL.abi";
+import { AppProxyUpgradeable_ABI } from "../../abi/AppProxyUpgradeable.abi";
+import { MiniMeToken_ABI } from "../../abi/MiniMeToken.abi";
+import { Voting_ABI } from "../../abi/Voting.abi";
+import { ContractInfoResolver } from "../../src/contract-info-resolver/contract-info-resolver";
+import { contract, getEventAbi, getFunctionAbi, resolveContract } from "../../src/contracts/contracts";
+import { getGovernanceContracts } from "../../src/omnibuses/governance-contracts";
 
 const config = {
   acl: {

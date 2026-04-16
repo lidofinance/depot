@@ -1,9 +1,9 @@
 import { expect } from "chai";
-import { NamedKeystore } from "../../../src/hardhat-keystores/named-keystore";
+import { NamedKeystore } from "../../src/hardhat-keystores/named-keystore";
 import { encrypt } from "web3-eth-accounts";
-import { PrivateKey } from "../../../src/common/types";
-import { getRandomPrivateKey } from "../../../src/hardhat-keystores/test_helpers";
-import bytes from "../../../src/common/bytes";
+import { PrivateKey } from "../../src/common/types";
+import { getRandomPrivateKey } from "../../src/hardhat-keystores/test_helpers";
+import bytes from "../../src/common/bytes";
 
 describe("NamedKeystore", () => {
   it("creates a NamedKeystore from a private key", async () => {

@@ -2,14 +2,14 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Address, Hex } from "viem";
-import { DevRpcClient } from "../../../src/network/dev-rpc-client";
-import { contract, Contract } from "../../../src/contracts";
-import { Voting_ABI } from "../../../abi/Voting.abi";
-import { TokenManager_ABI } from "../../../abi/TokenManager.abi";
-import { MiniMeToken_ABI } from "../../../abi/MiniMeToken.abi";
+import { DevRpcClient } from "../../src/network/dev-rpc-client";
+import { contract, Contract } from "../../src/contracts";
+import { Voting_ABI } from "../../abi/Voting.abi";
+import { TokenManager_ABI } from "../../abi/TokenManager.abi";
+import { MiniMeToken_ABI } from "../../abi/MiniMeToken.abi";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(__dirname, "../../..");
+const ROOT = resolve(__dirname, "../..");
 
 function loadArtifact(name: string) {
   const raw = readFileSync(resolve(ROOT, `artifacts/contracts/mocks/${name}.sol/${name}.json`), "utf-8");

@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import { isKnownError } from "../../../src/common/errors";
-import { NoKeystoreError } from "../../../src/hardhat-keystores/named-keystores";
+import { isKnownError } from "../../src/common/errors";
+import { NoKeystoreError } from "../../src/hardhat-keystores/named-keystores";
 
 describe("isKnownError function", () => {
   it("returns false for standard Error instances", () => {

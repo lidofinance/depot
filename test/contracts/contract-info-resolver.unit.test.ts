@@ -1,6 +1,6 @@
 import sinon from "sinon";
-import { assert } from "../../../src/common/assert";
-import { ContractInfoResolver } from "../../../src/contract-info-resolver/contract-info-resolver";
+import { assert } from "../../src/common/assert";
+import { ContractInfoResolver } from "../../src/contract-info-resolver/contract-info-resolver";
 
 const NETWORK_NAME = "mainnet";
 const FLATTENED_CONTRACT_ADDRESS = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0";

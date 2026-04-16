@@ -1,13 +1,13 @@
 import { assert } from "chai";
 import { Address } from "viem";
-import { createDevRpcClient } from "../../../src/network/network";
-import { lifecycleDeps } from "../../../src/aragon-votes-tools/lifecycle";
-import { testingDeps, setupLdoHolder, passAragonVote, adoptAragonVoting } from "../../../src/aragon-votes-tools/testing";
-import { CREATOR, CREATOR_LDO_BALANCE, LDO_WHALES_BY_NETWORK_NAME } from "../../../src/aragon-votes-tools/constants";
-import { HexStrPrefixed } from "../../../src/common/bytes";
+import { createDevRpcClient } from "../../src/network/network";
+import { lifecycleDeps } from "../../src/aragon-votes-tools/lifecycle";
+import { testingDeps, setupLdoHolder, passAragonVote, adoptAragonVoting } from "../../src/aragon-votes-tools/testing";
+import { CREATOR, CREATOR_LDO_BALANCE, LDO_WHALES_BY_NETWORK_NAME } from "../../src/aragon-votes-tools/constants";
+import { HexStrPrefixed } from "../../src/common/bytes";
 import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
-import { DevRpcClient } from "../../../src/network/dev-rpc-client";
-import { GovernanceContracts } from "../../../src/omnibuses/governance-contracts";
+import { DevRpcClient } from "../../src/network/dev-rpc-client";
+import { GovernanceContracts } from "../../src/omnibuses/governance-contracts";
 
 const RPC_URL = process.env.TEST_RPC_URL ?? "http://localhost:8545";
 const MOCK_ERC20_MINT_SELECTOR = "0x40c10f19"; // mint(address,uint256)
@@ -77,7 +77,7 @@ describe("aragon vote testing tools (integration)", function () {
     const dummyEvmScript = "0x00000001" as HexStrPrefixed;
 
     // Create a vote first via lifecycle
-    const { startAragonVote } = await import("../../../src/aragon-votes-tools/lifecycle");
+    const { startAragonVote } = await import("../../src/aragon-votes-tools/lifecycle");
     const { voteId } = await startAragonVote(client, dummyEvmScript, "Vote to pass", { from: deployer });
 
     const receipt = await passAragonVote(client, voteId);
