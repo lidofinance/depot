@@ -1,12 +1,12 @@
 import { assert } from "chai";
 import { encodeFunctionData, Address } from "viem";
-import { createDevRpcClient } from "../../../src/network/network";
-import { lifecycleDeps, startAragonVote, executeAragonVote, getExecuteReceipt } from "../../../src/aragon-votes-tools/lifecycle";
-import { EvmScriptParser } from "../../../src/aragon-votes-tools/evm-script-parser";
-import { HexStrPrefixed } from "../../../src/common/bytes";
+import { createDevRpcClient } from "../../src/network/network";
+import { lifecycleDeps, startAragonVote, executeAragonVote, getExecuteReceipt } from "../../src/aragon-votes-tools/lifecycle";
+import { EvmScriptParser } from "../../src/aragon-votes-tools/evm-script-parser";
+import { HexStrPrefixed } from "../../src/common/bytes";
 import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
-import { DevRpcClient } from "../../../src/network/dev-rpc-client";
-import { GovernanceContracts } from "../../../src/omnibuses/governance-contracts";
+import { DevRpcClient } from "../../src/network/dev-rpc-client";
+import { GovernanceContracts } from "../../src/omnibuses/governance-contracts";
 
 const RPC_URL = process.env.TEST_RPC_URL ?? "http://localhost:8545";
 

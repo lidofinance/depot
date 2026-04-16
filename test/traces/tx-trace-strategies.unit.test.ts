@@ -1,11 +1,11 @@
 // TODO: write new tracing test
 // import hre from "hardhat";
-// import { TracingSample__factory } from "../../../typechain-types";
-// import providers from "../../../src/providers";
-// import rpcs, { SpawnedRpcNode } from "../../../src/rpcs";
-// import { DebugTxTraceStrategy } from "../../../src/traces/debug-trace-tx-strategy";
+// import { TracingSample__factory } from "../../typechain-types";
+// import providers from "../../src/providers";
+// import rpcs, { SpawnedRpcNode } from "../../src/rpcs";
+// import { DebugTxTraceStrategy } from "../../src/traces/debug-trace-tx-strategy";
 // import { assert } from "chai";
-// import { HardhatVmTraceStrategy } from "../../../src/traces/hardhat-vm-trace-strategy";
+// import { HardhatVmTraceStrategy } from "../../src/traces/hardhat-vm-trace-strategy";
 //
 // const RPC_NODES = [
 //   ["anvil", { port: 8544, stepsTracing: true }],

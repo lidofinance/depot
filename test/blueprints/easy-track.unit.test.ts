@@ -1,18 +1,18 @@
 import { assert } from "chai";
-import bytes from "../../../src/common/bytes";
+import bytes from "../../src/common/bytes";
 import { toFunctionSelector } from "viem";
-import { AllowedRecipientsRegistry_ABI } from "../../../abi/AllowedRecipientsRegistry.abi";
-import { EasyTrack_ABI } from "../../../abi/EasyTrack.abi";
-import { Finance_ABI } from "../../../abi/Finance.abi";
-import { contract, getFunctionAbi } from "../../../src/contracts";
-import { getGovernanceContracts } from "../../../src/omnibuses/governance-contracts";
-import { OmnibusDirectCallFactory } from "../../../src/omnibuses/calls/omnibus-direct-call";
-import { event, BlueprintCtx } from "../../../src/omnibuses/omnibus";
+import { AllowedRecipientsRegistry_ABI } from "../../abi/AllowedRecipientsRegistry.abi";
+import { EasyTrack_ABI } from "../../abi/EasyTrack.abi";
+import { Finance_ABI } from "../../abi/Finance.abi";
+import { contract, getFunctionAbi } from "../../src/contracts";
+import { getGovernanceContracts } from "../../src/omnibuses/governance-contracts";
+import { OmnibusDirectCallFactory } from "../../src/omnibuses/calls/omnibus-direct-call";
+import { event, BlueprintCtx } from "../../src/omnibuses/omnibus";
 import easyTrack, {
   addRecipientEVMScriptFactoryPermission,
   removeRecipientEVMScriptFactoryPermission,
   topUpEVMScriptFactoryPermission,
-} from "../../../src/omnibuses/blueprints/easy-track";
+} from "../../src/omnibuses/blueprints/easy-track";
 
 function createCtx(): BlueprintCtx {
   const { voting, callsScript } = getGovernanceContracts("mainnet");

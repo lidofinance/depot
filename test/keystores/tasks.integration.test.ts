@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import hre from "hardhat";
-import { getKeystores } from "../../../src/hardhat-keystores/get-keystores";
+import { getKeystores } from "../../src/hardhat-keystores/get-keystores";
 
 describe("keystore plugin", () => {
   it("keystore in hre", () => {

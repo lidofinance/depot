@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import * as env from "../../../src/common/env";
+import * as env from "../../src/common/env";
 
 describe("environment helpers", () => {
   const originalEnv = process.env;
