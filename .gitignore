@@ -12,7 +12,7 @@ bin
 cache
 artifacts
 
-/keystores
+.keystores
 rpc-node-logs
 logs
 etherscan-cache

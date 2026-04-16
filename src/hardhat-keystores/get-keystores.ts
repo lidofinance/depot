@@ -16,7 +16,7 @@ function resolveKeystorePath(hre: HreWithConfig): string {
   const configuredPath = (hre.config as { keystores?: { path?: string } }).keystores?.path;
 
   if (!configuredPath) {
-    return path.join(hre.config.paths.root, "keystores");
+    return path.join(hre.config.paths.root, ".keystores");
   }
 
   if (path.isAbsolute(configuredPath)) {
