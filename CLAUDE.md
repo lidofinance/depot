@@ -2,7 +2,11 @@
 
 Read `AGENTS.md` for project setup, architecture, conventions, and verification checklist.
 
-## Omnibus skill
+## Skills
+
+Project skills live in `.agents/skills/` (cross-platform standard). For omnibus work, follow `.agents/skills/omnibus-writer/SKILL.md`.
+
+## Omnibus quick flow
 
 When user asks to create, modify, or review an omnibus — follow `docs/omnibuses/WRITING_OMNIBUS.md`.
 

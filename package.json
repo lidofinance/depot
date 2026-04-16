@@ -31,7 +31,8 @@
     "lint:fix": "eslint --fix .",
     "style": "prettier --write .",
     "prettier:check": "prettier --check .",
-    "prepare": "husky",
+    "prepare": "husky && node scripts/sync-skills.js",
+    "sync-skills": "node scripts/sync-skills.js",
     "test": "nyc --reporter text-summary mocha",
     "test:integration": "mocha --config .mocharc.integration.json",
     "test:all": "npm test && npm run test:integration"

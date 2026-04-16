@@ -17,7 +17,7 @@ case "$NETWORK" in
     ;;
 esac
 
-ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/../../../.." && pwd)"
 TARGET_DIR="$ROOT_DIR/omnibuses/$NAME"
 TS_FILE="$TARGET_DIR/$NAME.ts"
 MD_FILE="$TARGET_DIR/$NAME.md"

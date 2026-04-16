@@ -15,7 +15,7 @@ Use this skill to author and maintain omnibuses in this repository.
    - contract omnibus: `omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts`
 3. Create a new omnibus when requested:
    - `npm run omnibus:create`
-   - or `skills/omnibus-writer/scripts/create_omnibus.sh <name> [mainnet|holesky]`
+   - or `.agents/skills/omnibus-writer/scripts/create_omnibus.sh <name> [mainnet|holesky]`
 4. Ask user to write free-form description in `omnibuses/<name>/<name>.md` inside:
    - `<!-- OMNIBUS_DESCRIPTION --> ... <!-- OMNIBUS_DESCRIPTION -->`
 5. Transform this description into concrete omnibus calls in `<name>.ts`.
@@ -50,16 +50,19 @@ Use this skill to author and maintain omnibuses in this repository.
 9. Keep metadata lifecycle strict:
    - set `voteId/launchedAt/executedAt/quorumReached` only after real lifecycle milestones
 10. Validate with runbook commands before launch:
-   - `npx tsc --noEmit omnibuses/<name>/<name>.ts`
-   - `npm run omnibus:test -- <name>`
-   - `npm run omnibus:simulate -- <name>`
-   - `npm run omnibus:run -- <name>`
+
+- `npx tsc --noEmit omnibuses/<name>/<name>.ts`
+- `npm run omnibus:test -- <name>`
+- `npm run omnibus:simulate -- <name>`
+- `npm run omnibus:run -- <name>`
+
 11. For contract mode, compilation after generation is mandatory:
-   - `npm run omnibus:build -- <name>`
+
+- `npm run omnibus:build -- <name>`
 
 ## References
 
-- Compact checklist: `skills/omnibus-writer/references/workflow.md`
+- Compact checklist: `.agents/skills/omnibus-writer/references/workflow.md`
 - Template: `omnibuses/_omnibus_template/_omnibus_template.ts`
 - Real completed sample: `omnibuses/2025_09_01/2025_09_01.ts`
 

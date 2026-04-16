@@ -69,6 +69,7 @@ export default [
       "*.config.js",
       "*.config.mjs",
       "mount/",
+      "scripts/",
     ],
   },
 ];
