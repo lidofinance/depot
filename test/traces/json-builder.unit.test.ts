@@ -65,6 +65,36 @@ describe("JsonBuilder", () => {
         .build(),
       );
     });
+
+    it("escapes double quotes in string values", () => {
+      const withQuote = 'say "hi"';
+      assert.deepEqual({ msg: withQuote }, builder.openObject().key("msg").value(withQuote).closeObject().build());
+    });
+
+    it("escapes backslashes in string values", () => {
+      const withBackslash = "path\\to\\file";
+      assert.deepEqual(
+        { path: withBackslash },
+        builder.openObject().key("path").value(withBackslash).closeObject().build(),
+      );
+    });
+
+    it("escapes newlines and tabs in string values", () => {
+      const withControlChars = "line1\nline2\tcol";
+      assert.deepEqual(
+        { text: withControlChars },
+        builder.openObject().key("text").value(withControlChars).closeObject().build(),
+      );
+    });
+
+    it("escapes special characters in keys", () => {
+      const trickyKey = 'key"with\\special\nchars';
+      assert.deepEqual({ [trickyKey]: 1 }, builder.openObject().key(trickyKey).value(1).closeObject().build());
+    });
+
+    it("handles empty string value", () => {
+      assert.deepEqual({ empty: "" }, builder.openObject().key("empty").value("").closeObject().build());
+    });
   });
 
   describe("pop()", () => {

@@ -12,7 +12,7 @@ import {
 import { Address } from "../common/types";
 import { NetworkName } from "../network";
 import { Contract, getEventAbi, getFunctionAbi } from "../contracts/contracts";
-import { AbiEvent, decodeErrorResult, decodeEventLog, decodeFunctionData, decodeFunctionResult } from "viem";
+import { AbiEvent, BaseError, decodeErrorResult, decodeEventLog, decodeFunctionData, decodeFunctionResult } from "viem";
 import fmt from "../common/format";
 
 type TxTraceOpcodes = LogEvmOpcodes | CallEvmOpcodes | CreateEvmOpcodes | SelfDestructEvmOpcodes;
@@ -109,7 +109,8 @@ export class TxTrace {
   }
 
   #formatCallTraceItem(traceCallItem: TxTraceCallItem, padLength: number) {
-    const contracts = [...this.contracts[bytes.normalize(traceCallItem.address)], ...this.prePopulatedContracts];
+    const resolvedForAddress = this.contracts[bytes.normalize(traceCallItem.address)] ?? [];
+    const contracts = [...resolvedForAddress, ...this.prePopulatedContracts];
 
     let decodeResult: {
       functionName: string;
@@ -143,7 +144,10 @@ export class TxTrace {
           contract: c,
         };
         break;
-      } catch {}
+      } catch (err) {
+        if (isAbiMismatchError(err)) continue; // ABI of this contract doesn't match — probe next
+        throw err; // unexpected error — propagate
+      }
     }
 
     return decodeResult
@@ -175,7 +179,8 @@ export class TxTrace {
   }
 
   #formatLogTraceItem(traceLogItem: TxTraceLogItem, padding: number): string {
-    const contracts = [...this.contracts[bytes.normalize(traceLogItem.address)], ...this.prePopulatedContracts];
+    const resolvedForAddress = this.contracts[bytes.normalize(traceLogItem.address)] ?? [];
+    const contracts = [...resolvedForAddress, ...this.prePopulatedContracts];
 
     let decoded: { abi: AbiEvent; args: Record<string, unknown> } | null = null;
     for (let i = 0; i < contracts.length; ++i) {
@@ -189,7 +194,10 @@ export class TxTrace {
         const abi = getEventAbi(contracts[i], eventName);
         decoded = { abi, args: args ?? [] };
         break;
-      } catch {}
+      } catch (err) {
+        if (isAbiMismatchError(err)) continue; // event doesn't belong to this contract's ABI — probe next
+        throw err; // unexpected error — propagate
+      }
     }
 
     return decoded
@@ -230,4 +238,13 @@ export class TxTrace {
       call.depth = depthsRewrites[call.depth];
     }
   }
+}
+
+// Predicate used in trace decoding loops: treat viem ABI decoding errors and
+// our own "not found" errors from getFunctionAbi/getEventAbi as "try next contract".
+// Unexpected errors propagate out so real bugs stay visible.
+function isAbiMismatchError(err: unknown): boolean {
+  if (err instanceof BaseError) return true;
+  if (err instanceof Error && err.message.includes("not found")) return true;
+  return false;
 }
