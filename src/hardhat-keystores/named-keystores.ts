@@ -117,7 +117,7 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
   }
 
   async function password(name: string, newPassword?: string, oldPassword?: string): Promise<NamedKeystore> {
-    let keystore = await getOrSelect(name);
+    const keystore = await getOrSelect(name);
 
     const account = await NamedKeystore.fromPrivateKey(
       name,

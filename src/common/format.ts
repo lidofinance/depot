@@ -125,7 +125,7 @@ interface FormatRawLogItemParams {
 export function formatRawLogItem(params: FormatRawLogItemParams) {
   const { type, topics, data, padLength = 0 } = params;
   const logInfo = padded(opcode(type) + " " + label(topics[0] ?? "Anonymous"), padLength);
-  let formattedTopics: string[] = [];
+  const formattedTopics: string[] = [];
   for (let i = 1; i < topics.length; ++i) {
     formattedTopics.push(padded(chalk.gray(`topic ${i}: `) + topics[i], padLength + 1));
   }
@@ -182,7 +182,7 @@ function formatArgs(
     .join(`\n`);
 }
 
-function prettyStringify(value: Object, padLength: number = 2) {
+function prettyStringify(value: object, padLength: number = 2) {
   const valueStringified = JSON.stringify(value, (_, v) => (typeof v === "bigint" ? v.toString() : v), padLeft(1));
   return valueStringified
     .split("\n")
