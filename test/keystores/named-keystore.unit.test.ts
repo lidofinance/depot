@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { NamedKeystore } from "../../src/hardhat-keystores/named-keystore";
 import { encrypt } from "web3-eth-accounts";
 import { PrivateKey } from "../../src/common/types";
-import { getRandomPrivateKey } from "../../src/hardhat-keystores/test_helpers";
+import { getRandomPrivateKey } from "../helpers/keystore-helpers";
 import bytes from "../../src/common/bytes";
 
 describe("NamedKeystore", () => {
