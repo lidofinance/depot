@@ -27,7 +27,7 @@ export class TxTracer {
     const resolvedContracts = await this.resolveContracts(network, Array.from(addresses), prePopulatedContracts);
     return new TxTrace(
       network,
-      bytes.normalize(callTraceItems[0].address || "0x"),
+      bytes.normalize(callTraceItems[0].address),
       callTraceItems,
       resolvedContracts,
       prePopulatedContracts,

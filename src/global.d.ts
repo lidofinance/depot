@@ -9,9 +9,9 @@ declare module "chai" {
           message?: string | undefined,
         ): void;
 
-        contains<T = any>(collection: Iterable<T>, item: T, comparator?: (a: T, b: T) => boolean): void;
+        contains<T = unknown>(collection: Iterable<T>, item: T, comparator?: (a: T, b: T) => boolean): void;
 
-        reverts(promise: Promise<unknown>, error: string, args?: any[]): Promise<void>;
+        reverts(promise: Promise<unknown>, error: string, args?: unknown[]): Promise<void>;
       }
     }
   }

@@ -331,7 +331,9 @@ function renderConstructor(omnibus: Omnibus, addresses: GeneratedAddressRef[]) {
   }
 
   const constructorArgs = immutables.map((item) => `address ${toCamelCase(item.variableName)}_`).join(", ");
-  const assignments = immutables.map((item) => `        ${item.variableName} = ${toCamelCase(item.variableName)}_;`).join("\n");
+  const assignments = immutables
+    .map((item) => `        ${item.variableName} = ${toCamelCase(item.variableName)}_;`)
+    .join("\n");
 
   const body = [todoLine, assignments].filter((line) => line.length > 0).join("\n");
   return `constructor(${constructorArgs}) OmnibusBase(VOTING) {\n${body}\n    }`;
@@ -342,7 +344,7 @@ function formatAbiFunctionForInterface(functionAbi: AbiFunction) {
     functionAbi.stateMutability === "nonpayable" ? "external" : `external ${functionAbi.stateMutability}`;
   const args = functionAbi.inputs.map((input) => formatAbiParameter(input, "input")).join(", ");
   const outputs =
-    functionAbi.outputs && functionAbi.outputs.length > 0
+    functionAbi.outputs.length > 0
       ? ` returns (${functionAbi.outputs.map((output) => formatAbiParameter(output, "output")).join(", ")})`
       : "";
   return `function ${functionAbi.name}(${args}) ${mutability}${outputs}`;

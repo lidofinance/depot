@@ -83,7 +83,7 @@ export async function adoptAragonVoting(
 }
 
 function getLdoWhale(networkName: NetworkName) {
-  const whale = LDO_WHALES_BY_NETWORK_NAME[networkName];
+  const whale = LDO_WHALES_BY_NETWORK_NAME[networkName] as Address | undefined;
   if (!whale) {
     throw new Error("Unsupported chain");
   }
