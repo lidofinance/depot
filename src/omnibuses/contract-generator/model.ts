@@ -227,7 +227,11 @@ function collectAddressRefs(
     addAddress(address, hint);
   }
 
-  function collectAddressesFromArgs(inputs: readonly AbiParameter[], args: readonly unknown[] | unknown[], hint: string) {
+  function collectAddressesFromArgs(
+    inputs: readonly AbiParameter[],
+    args: readonly unknown[] | unknown[],
+    hint: string,
+  ) {
     if (inputs.length !== args.length) {
       throw new Error(`Unexpected function args length while collecting addresses: ${inputs.length} != ${args.length}`);
     }
@@ -337,7 +341,7 @@ export function formatAbiFunctionForInterface(functionAbi: AbiFunction) {
     functionAbi.stateMutability === "nonpayable" ? "external" : `external ${functionAbi.stateMutability}`;
   const args = functionAbi.inputs.map((input) => `${input.type}${input.name ? ` ${input.name}` : ""}`).join(", ");
   const outputs =
-    functionAbi.outputs && functionAbi.outputs.length > 0
+    functionAbi.outputs.length > 0
       ? ` returns (${functionAbi.outputs.map((output) => `${output.type}${output.name ? ` ${output.name}` : ""}`).join(", ")})`
       : "";
   return `function ${functionAbi.name}(${args}) ${mutability}${outputs}`;

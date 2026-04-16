@@ -56,7 +56,7 @@ export class RpcClient {
   }
 
   getRpcUrl() {
-    return (this.viemClient.transport as any)["url"] ?? null;
+    return ((this.viemClient.transport as Record<string, unknown>)["url"] as string) ?? null;
   }
 
   async simulate<

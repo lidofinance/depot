@@ -24,12 +24,14 @@ export const HH_NODE_IMAGE = () => process.env.HH_NODE_IMAGE || "ghcr.io/lidofin
 
 export function getRequiredEnvVar(name: string) {
   const value = process.env[name];
-  if (value === undefined || value === null) {
+  if (value === undefined) {
     throw new Error(`required ENV variable "${name}" is not set`);
   }
   return value;
 }
 
-export function getOptionalEnvVar(name: string, defaultValue?: any) {
+export function getOptionalEnvVar(name: string, defaultValue: string): string;
+export function getOptionalEnvVar(name: string): string | undefined;
+export function getOptionalEnvVar(name: string, defaultValue?: string) {
   return process.env[name] ?? defaultValue;
 }

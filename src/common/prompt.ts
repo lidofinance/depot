@@ -85,7 +85,7 @@ async function secret(message: string, options?: SecretOptions): Promise<string>
 }
 
 async function password(message: string, options: PasswordOptions): Promise<string> {
-  const password = await secret(message ?? "Enter the password:", {
+  const password = await secret(message, {
     invisible: true,
   });
 

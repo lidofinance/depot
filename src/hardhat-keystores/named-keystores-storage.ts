@@ -1,14 +1,13 @@
 import path from "path";
 import fs from "fs/promises";
+import { KeyStore } from "web3-types";
 import { NamedKeystore } from "./named-keystore";
 
 export class NamedKeystoresStorage {
   private static instances: Record<string, NamedKeystoresStorage> = {};
   public static create(keystoresDir: string): NamedKeystoresStorage {
-    if (!this.instances[keystoresDir]) {
-      this.instances[keystoresDir] = new NamedKeystoresStorage(keystoresDir);
-    }
-    return this.instances[keystoresDir]!;
+    this.instances[keystoresDir] ??= new NamedKeystoresStorage(keystoresDir);
+    return this.instances[keystoresDir];
   }
 
   private readonly keystoresDir: string;
@@ -49,7 +48,7 @@ export class NamedKeystoresStorage {
     this.accounts = await Promise.all(
       fileNames.map(
         async (fileName) =>
-          new NamedKeystore(fileName.split(".")[0] ?? fileName, JSON.parse(await this.read(fileName))),
+          new NamedKeystore(fileName.split(".")[0] ?? fileName, JSON.parse(await this.read(fileName)) as KeyStore),
       ),
     );
     this.isLoaded = true;

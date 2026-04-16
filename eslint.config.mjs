@@ -26,7 +26,6 @@ export default [
 
       // Type safety
       "@typescript-eslint/no-unsafe-argument": "warn",
-      "@typescript-eslint/no-unnecessary-condition": "warn",
 
       // Relaxed where pragmatic
       "@typescript-eslint/no-explicit-any": "warn",
@@ -44,7 +43,6 @@ export default [
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-unused-expressions": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
     },
   },
 
