@@ -92,7 +92,7 @@ const checkTopUpFactory = async ({ client }: CheckContext, input: CheckTopUpFact
   await client.increaseTime(newMotion.duration + 1n);
   await client.impersonate(DEFAULT_ENACTOR, 10n ** 18n);
 
-  const receipt = await client.write(easyTrack, "enactMotion", [newMotion.id, calldata], {
+  await client.write(easyTrack, "enactMotion", [newMotion.id, calldata], {
     from: DEFAULT_ENACTOR,
   });
 

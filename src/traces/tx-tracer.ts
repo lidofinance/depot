@@ -15,7 +15,7 @@ export class TxTracer {
     const callTraceItems = await this.traceStrategy.trace(txHash);
 
     const addresses = new Set<Address>();
-    for (const [idx, callTraceItem] of callTraceItems.entries()) {
+    for (const [_idx, callTraceItem] of callTraceItems.entries()) {
       if (isCallOpcode(callTraceItem.type)) {
         addresses.add((callTraceItem as TxTraceCallItem).address);
       } else if (isCreateOpcode(callTraceItem.type)) {

@@ -33,7 +33,7 @@ export { assert } from "chai";
 
 chai.util.addMethod(chai.assert, "reverts", reverts);
 
-async function reverts(promise: Promise<unknown>, error?: string, args?: any[]): Promise<void> {
+async function reverts(promise: Promise<unknown>, error?: string, _args?: any[]): Promise<void> {
   await promise
     .then(() => chai.assert.fail("Transaction hasn't reverted"))
     .catch((err: Error) => {

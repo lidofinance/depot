@@ -102,10 +102,7 @@ export class RpcClient {
     }) as Promise<ReadContractReturnType<contract["abi"], functionName, args>>;
   }
 
-  send<M extends string = string, P extends unknown[] = unknown[], R extends unknown = unknown>(
-    method: M,
-    params: P,
-  ): Promise<R> {
+  send<M extends string = string, P extends unknown[] = unknown[], R = unknown>(method: M, params: P): Promise<R> {
     return this.viemClient.transport.request({ method, params });
   }
 

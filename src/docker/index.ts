@@ -81,9 +81,8 @@ export async function runImageInBackground(
     logGreen(`Image pulling...`);
     const readable = await docker.pull(imageName);
     readable.setEncoding("utf8");
-    let data = "";
-    for await (const chunk of readable) {
-      data += chunk;
+    for await (const _chunk of readable) {
+      // drain the stream
     }
     // TODO: show logs based on settings
     // console.log(data);
@@ -275,7 +274,7 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
           }
           const cleaned = util.stripVTControlCharacters(streamValue);
           callback(null, cleaned);
-        } catch (error) {
+        } catch (_error) {
           callback(null, chunk);
         }
       },

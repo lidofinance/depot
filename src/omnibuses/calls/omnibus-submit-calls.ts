@@ -153,7 +153,7 @@ export class OmnibusSubmitProposalCall implements BaseOmnibusCall {
 
     return [
       ...strBuilder,
-      ...this.calls.map((call, ind) =>
+      ...this.calls.map((call, _ind) =>
         call.formatTitle({
           padLength: padLength + 1,
         }),

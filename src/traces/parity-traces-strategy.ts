@@ -1,4 +1,4 @@
-import { Address, PublicClient, TransactionReceipt } from "viem";
+import { Address, PublicClient } from "viem";
 import { TxTraceCallItem, TxTraceCreateItem, TxTraceItem } from "./tx-traces";
 import { TraceStrategy } from "./types";
 import { HexStrPrefixed } from "../common/bytes";

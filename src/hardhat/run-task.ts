@@ -1,4 +1,4 @@
-export async function runHardhatTask(
+export function runHardhatTask(
   hre: unknown,
   taskName: string | string[],
   args: Record<string, unknown> = {},

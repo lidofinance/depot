@@ -1,6 +1,4 @@
 import { Address } from "abitype";
-import { formatEther } from "viem";
-
 import { CheckContext } from "./checks";
 import { assert } from "../../common/assert";
 import { contract } from "../../contracts";

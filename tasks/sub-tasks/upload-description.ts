@@ -2,8 +2,6 @@ import prompt from "../../src/common/prompt";
 import { calculateCid, getUrlByCidV1, isCidUploaded } from "../../src/ipfs/utils";
 import { getIpfsProvider, instruction } from "../../src/ipfs/ipfs-provider";
 
-const VOTE_CID_PREFIX = "lidovoteipfs://"; //just template for parsing, not a real protocol
-
 export const uploadDescription = async (name: string, description: string, silent: boolean): Promise<string> => {
   const calculatedCid = await calculateCid(description);
   const descriptionUrl = getUrlByCidV1(calculatedCid);

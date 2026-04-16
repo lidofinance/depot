@@ -4,7 +4,6 @@ import { EvmScriptParser } from "./evm-script-parser";
 import { HexStrPrefixed } from "../common/bytes";
 import { getEventAbi } from "../contracts/contracts";
 import { Voting_ABI } from "../../abi/Voting.abi";
-import { createTimedSpinner } from "../common/spinner";
 import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
 export const lifecycleDeps = { getGovernanceContracts };

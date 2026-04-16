@@ -209,7 +209,7 @@ export class Omnibus<
   constructor(config: OmnibusConfig<$Network, $DeployedContracts>) {
     this.#contracts = getGovernanceContracts(config.network);
 
-    const { callsScript, voting, adminExecutor, timelock } = this.#contracts;
+    const { callsScript, voting } = this.#contracts;
 
     const directCallFactory = new OmnibusDirectCallFactory(voting, callsScript);
     const executeCallFactory = new OmnibusExecuteCallFactory(voting, callsScript);
@@ -761,7 +761,7 @@ export class Omnibus<
 
   format({ executeOmnibusTrace, executeProposalTraces = [], padLength = 0 }: OmnibusFormatParams) {
     const strBuilder: string[] = [];
-    const [extraCalls, callTraces] = executeOmnibusTrace
+    const [, callTraces] = executeOmnibusTrace
       ? groupOmnibusTraceCalls(this.getCalls(), executeOmnibusTrace)
       : [null, []];
 
@@ -944,7 +944,6 @@ export class Omnibus<
     }
 
     for (let i = 0; i < evmScriptCalls.length; ++i) {
-      const title = callTitles[i];
       this.#validateVoteDirectCall(omnibusCall.forwardedCalls[i], {
         title: callTitles[i],
         payload: evmScriptCalls[i].calldata,

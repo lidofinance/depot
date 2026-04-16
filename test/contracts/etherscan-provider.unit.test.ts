@@ -11,6 +11,8 @@ const CONTRACT_ADDRESS = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0";
 function mockFetchResponses(...responses: unknown[]) {
   let callIndex = 0;
   const originalFetch = globalThis.fetch;
+  // async required to match globalThis.fetch return type (Promise<Response>)
+  // eslint-disable-next-line @typescript-eslint/require-await
   globalThis.fetch = (async () => {
     const body = responses[callIndex] ?? responses[responses.length - 1];
     callIndex++;

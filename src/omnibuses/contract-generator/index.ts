@@ -94,6 +94,8 @@ async function resolveDeploymentForContractGeneration(omnibus: Omnibus, hre: Har
 
   let addressCounter = 1n;
   const fakeClient: Pick<RpcClient, "deployContract"> = {
+    // async required by RpcClient.deployContract interface
+    // eslint-disable-next-line @typescript-eslint/require-await
     deployContract: async () => {
       const address: Address = `0x${addressCounter.toString(16).padStart(40, "0")}`;
       addressCounter++;
