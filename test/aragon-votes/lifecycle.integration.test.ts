@@ -1,6 +1,5 @@
 import { assert } from "chai";
 import { Address } from "viem";
-import { createDevRpcClient } from "../../src/network/network";
 import {
   lifecycleDeps,
   startAragonVote,
@@ -8,11 +7,10 @@ import {
   getExecuteReceipt,
 } from "../../src/aragon-votes-tools/lifecycle";
 import { HexStrPrefixed } from "../../src/common/bytes";
+import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
 import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
 import { DevRpcClient } from "../../src/network/dev-rpc-client";
 import { GovernanceContracts } from "../../src/omnibuses/governance-contracts";
-
-const RPC_URL = process.env.TEST_RPC_URL ?? "http://localhost:8545";
 
 describe("aragon vote lifecycle (integration)", function () {
   let client: DevRpcClient;
@@ -22,7 +20,7 @@ describe("aragon vote lifecycle (integration)", function () {
   let originalDeps: typeof lifecycleDeps.getGovernanceContracts;
 
   before(async function () {
-    client = await createDevRpcClient("mainnet", RPC_URL);
+    client = await createInProcessDevRpcClient();
     [deployer] = await client.getAccounts();
     mocks = await deployMockGovernance(client, deployer);
 
