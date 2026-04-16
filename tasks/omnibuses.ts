@@ -39,7 +39,8 @@ import { adoptAragonVoting } from "../src/aragon-votes-tools";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const omnibusTaskBuilders: Array<ReturnType<typeof task>> = [];
-type TaskAction = (taskArguments: any, hre: any) => any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TaskAction = (taskArguments: any, hre: HardhatRuntimeEnvironment) => any;
 
 function asLazyAction(action: TaskAction) {
   return () => Promise.resolve({ default: action });
@@ -58,67 +59,69 @@ function defineTask(...args: Parameters<typeof task>): any {
   return builder;
 }
 
-defineTask("omnibus:create", "Create new empty omnibus from the template").setAction(async (_taskArgs: any) => {
-  const network: NetworkName = await prompt.select("Choose the network:", [
-    { title: "Mainnet", value: "mainnet" },
-    { title: "Holesky", value: "holesky" },
-    { title: "Hoodi", value: "hoodi" },
-  ]);
+defineTask("omnibus:create", "Create new empty omnibus from the template").setAction(
+  async (_taskArgs: Record<string, never>) => {
+    const network: NetworkName = await prompt.select("Choose the network:", [
+      { title: "Mainnet", value: "mainnet" },
+      { title: "Holesky", value: "holesky" },
+      { title: "Hoodi", value: "hoodi" },
+    ]);
 
-  const omnibusName = await prompt.text(
-    `Enter the name of the omnibus in the format "yyyy_mm_dd_some_optional_info" (for example: 2025_12_31 or 2025_12_31_happy_new_year_omni):`,
-  );
+    const omnibusName = await prompt.text(
+      `Enter the name of the omnibus in the format "yyyy_mm_dd_some_optional_info" (for example: 2025_12_31 or 2025_12_31_happy_new_year_omni):`,
+    );
 
-  if (omnibusName.length === 0) {
-    throw new Error("Name can't be empty");
-  }
+    if (omnibusName.length === 0) {
+      throw new Error("Name can't be empty");
+    }
 
-  const omnibusNameRegExp = /^\d{4}_\d{2}_\d{2}(_[a-z0-9_]*)?$/gi;
+    const omnibusNameRegExp = /^\d{4}_\d{2}_\d{2}(_[a-z0-9_]*)?$/gi;
 
-  if (!omnibusNameRegExp.test(omnibusName)) {
-    throw new Error("Invalid name. Omnibus name should match patter: yyyy_dd_mm_some_optional_info");
-  }
+    if (!omnibusNameRegExp.test(omnibusName)) {
+      throw new Error("Invalid name. Omnibus name should match patter: yyyy_dd_mm_some_optional_info");
+    }
 
-  const omnibusesDir = path.join(__dirname, "..", "omnibuses");
-  const newOmnibusDir = path.join(omnibusesDir, omnibusName);
+    const omnibusesDir = path.join(__dirname, "..", "omnibuses");
+    const newOmnibusDir = path.join(omnibusesDir, omnibusName);
 
-  if (await files.touchDir(newOmnibusDir)) {
-    throw new Error(`Omnibus ${newOmnibusDir} already exist`);
-  }
+    if (await files.touchDir(newOmnibusDir)) {
+      throw new Error(`Omnibus ${newOmnibusDir} already exist`);
+    }
 
-  const templateDirName = "_omnibus_template";
-  const templatePath = path.join(omnibusesDir, templateDirName);
+    const templateDirName = "_omnibus_template";
+    const templatePath = path.join(omnibusesDir, templateDirName);
 
-  await fs.cp(templatePath, newOmnibusDir, { recursive: true });
+    await fs.cp(templatePath, newOmnibusDir, { recursive: true });
 
-  const omnibusDescriptionPath = path.join(newOmnibusDir, `${omnibusName}.md`);
-  const omnibusScriptPath = path.join(newOmnibusDir, `${omnibusName}.ts`);
-  const templateFileName = "_omnibus_template";
+    const omnibusDescriptionPath = path.join(newOmnibusDir, `${omnibusName}.md`);
+    const omnibusScriptPath = path.join(newOmnibusDir, `${omnibusName}.ts`);
+    const templateFileName = "_omnibus_template";
 
-  await fs.rename(path.join(newOmnibusDir, `${templateFileName}.ts`), omnibusScriptPath);
-  await fs.rename(path.join(newOmnibusDir, `${templateFileName}.md`), omnibusDescriptionPath);
+    await fs.rename(path.join(newOmnibusDir, `${templateFileName}.ts`), omnibusScriptPath);
+    await fs.rename(path.join(newOmnibusDir, `${templateFileName}.md`), omnibusDescriptionPath);
 
-  // replace name of the omnibus in the description markdown file
-  const omnibusDescriptionContent = await fs.readFile(omnibusDescriptionPath, "utf-8");
-  await fs.writeFile(
-    omnibusDescriptionPath,
-    omnibusDescriptionContent.replace("Omnibus Template", omnibusNameToDescriptionHeader(omnibusName)),
-    { encoding: "utf-8" },
-  );
+    // replace name of the omnibus in the description markdown file
+    const omnibusDescriptionContent = await fs.readFile(omnibusDescriptionPath, "utf-8");
+    await fs.writeFile(
+      omnibusDescriptionPath,
+      omnibusDescriptionContent.replace("Omnibus Template", omnibusNameToDescriptionHeader(omnibusName)),
+      { encoding: "utf-8" },
+    );
 
-  // replace network name in the omnibus script
-  const omnibusScriptContent = await fs.readFile(omnibusScriptPath, "utf-8");
+    // replace network name in the omnibus script
+    const omnibusScriptContent = await fs.readFile(omnibusScriptPath, "utf-8");
 
-  await fs.writeFile(omnibusScriptPath, omnibusScriptContent.replace("mainnet", network), { encoding: "utf-8" });
+    await fs.writeFile(omnibusScriptPath, omnibusScriptContent.replace("mainnet", network), { encoding: "utf-8" });
 
-  console.log(`Omnibus file was successfully created:`);
-  console.log(`- Script file: ${omnibusScriptPath}`);
-  console.log(`- Description file: ${omnibusDescriptionPath}`);
-});
+    console.log(`Omnibus file was successfully created:`);
+    console.log(`- Script file: ${omnibusScriptPath}`);
+    console.log(`- Description file: ${omnibusDescriptionPath}`);
+  },
+);
 
 defineTask("omnibus:archive", "Move launched omnibus to archive folder")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to move to archive" })
-  .setAction(async (taskArgs: any, _hre: any) => {
+  .setAction(async (taskArgs: { name: string }, _hre: HardhatRuntimeEnvironment) => {
     const { name } = taskArgs;
     const omnibus = await loadOmnibus(name);
 
@@ -160,40 +163,45 @@ defineTask("omnibus:contract", "Generate solidity omnibus contract from an exist
     defaultValue: "prettier",
   })
   .addFlag({ name: "force", description: "overwrite existing contract file" })
-  .setAction(async (taskArgs: any, hre: any) => {
-    const { name, contractName, formatter, force } = taskArgs;
-    const normalizedContractName = contractName || undefined;
-    const omnibus = await loadOmnibus(name);
+  .setAction(
+    async (
+      taskArgs: { name: string; contractName: string; formatter: string; force: boolean },
+      hre: HardhatRuntimeEnvironment,
+    ) => {
+      const { name, contractName, formatter, force } = taskArgs;
+      const normalizedContractName = contractName || undefined;
+      const omnibus = await loadOmnibus(name);
 
-    if (omnibus.hasDeployMethod() && !omnibus.getDeployment()) {
-      console.log(
-        fmt.padded(
-          `Omnibus "${name}" has deploy() and doesn't contain deployment addresses. Resolving deployment contracts for generation...`,
-          1,
-        ),
-      );
-    }
+      if (omnibus.hasDeployMethod() && !omnibus.getDeployment()) {
+        console.log(
+          fmt.padded(
+            `Omnibus "${name}" has deploy() and doesn't contain deployment addresses. Resolving deployment contracts for generation...`,
+            1,
+          ),
+        );
+      }
 
-    if (!["prettier", "forge", "none"].includes(formatter)) {
-      throw new Error(`Unsupported formatter "${formatter}". Use: prettier, forge, none`);
-    }
+      if (!["prettier", "forge", "none"].includes(formatter)) {
+        throw new Error(`Unsupported formatter "${formatter}". Use: prettier, forge, none`);
+      }
 
-    const { generatedFilePath } = await generateOmnibusContractFile({
-      hre,
-      omnibus,
-      omnibusName: name,
-      contractName: normalizedContractName,
-      force,
-      formatter: formatter as "prettier" | "forge" | "none",
-      rootDir: path.resolve(__dirname, ".."),
-    });
+      const { generatedFilePath } = await generateOmnibusContractFile({
+        hre,
+        omnibus,
+        omnibusName: name,
+        contractName: normalizedContractName,
+        force,
+        formatter: formatter as "prettier" | "forge" | "none",
+        rootDir: path.resolve(__dirname, ".."),
+      });
 
-    console.log(`Solidity contract generated: ${generatedFilePath}`);
-  });
+      console.log(`Solidity contract generated: ${generatedFilePath}`);
+    },
+  );
 
 defineTask("omnibus:build", "Build Solidity omnibus contract(s) for the given omnibus")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to build contracts for" })
-  .setAction(async (taskArgs: any, hre: any) => {
+  .setAction(async (taskArgs: { name: string }, hre: HardhatRuntimeEnvironment) => {
     const { name } = taskArgs;
     await buildOmnibusContracts(hre, name);
     console.log(fmt.success(`Omnibus contracts for "${name}" compiled successfully`));
@@ -211,7 +219,7 @@ function omnibusNameToDescriptionHeader(omnibusName: string) {
 defineTask("omnibus:deploy", "Run deploy method on an omnibus script")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus script with the deploy() method to run" })
   .addFlag({ name: "broadcast", description: "broadcast the transaction to the network" })
-  .setAction(async (taskArgs: any, hre: any) => {
+  .setAction(async (taskArgs: { name: string; broadcast: boolean }, hre: HardhatRuntimeEnvironment) => {
     const { name, broadcast = false } = taskArgs;
     const omnibus = await loadOmnibus(name);
 
@@ -258,7 +266,7 @@ defineTask("omnibus:deploy", "Run deploy method on an omnibus script")
 
 defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to test" })
-  .setAction(async (taskArgs: any, hre: any) => {
+  .setAction(async (taskArgs: { name: string }, hre: HardhatRuntimeEnvironment) => {
     const { name } = taskArgs;
     const omnibus = await loadOmnibus(name);
     const client = await prepareDevRpcClient(omnibus.network, hre);
@@ -274,7 +282,7 @@ defineTask("omnibus:test-solidity", "Runs Solidity tests (*.t.sol) for the given
     defaultValue: "",
   })
   .addFlag({ name: "noCompile", description: "Don't compile before running Solidity tests" })
-  .setAction(async (taskArgs: any, hre: any) => {
+  .setAction(async (taskArgs: { name: string; grep: string; noCompile: boolean }, hre: HardhatRuntimeEnvironment) => {
     const { name, grep, noCompile } = taskArgs;
     const omnibusTestFiles = await collectOmnibusSolidityTests(name);
 
@@ -287,7 +295,7 @@ defineTask("omnibus:test-solidity", "Runs Solidity tests (*.t.sol) for the given
 
 defineTask("omnibus:trace", "Trace the omnibus with given name and shows the execution trace")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to run" })
-  .setAction(async (taskArgs: OmnibusLaunchParams, hre: any) => {
+  .setAction(async (taskArgs: OmnibusLaunchParams, hre: HardhatRuntimeEnvironment) => {
     const { name } = taskArgs;
     const omnibus = await loadOmnibus(name);
     const client = await prepareDevRpcClient(omnibus.network, hre);
@@ -315,70 +323,75 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
     defaultValue: "",
   })
   .addFlag({ name: "mountTests", description: "Mount test files from /mount/<repo> to external repo test dir" })
-  .setAction(async (taskArgs: any, hre: any) => {
-    const { name, repo, pattern, mountTests } = taskArgs;
-    const normalizedName = name || undefined;
-    const normalizedRepo = repo || undefined;
-    const normalizedPattern = pattern || undefined;
-    let client: DevRpcClient;
+  .setAction(
+    async (
+      taskArgs: { name: string; repo: string; pattern: string; mountTests: boolean },
+      hre: HardhatRuntimeEnvironment,
+    ) => {
+      const { name, repo, pattern, mountTests } = taskArgs;
+      const normalizedName = name || undefined;
+      const normalizedRepo = repo || undefined;
+      const normalizedPattern = pattern || undefined;
+      let client: DevRpcClient;
 
-    let snapshotId;
-    if (normalizedName) {
-      const omnibus = await loadOmnibus(normalizedName);
+      let snapshotId;
+      if (normalizedName) {
+        const omnibus = await loadOmnibus(normalizedName);
 
-      client = await prepareLocalRpcNode(omnibus.network);
-      snapshotId = await client.snapshot();
+        client = await prepareLocalRpcNode(omnibus.network);
+        snapshotId = await client.snapshot();
 
-      await prepareOmnibus(hre, client, omnibus);
-      await omnibus.passOmnibus(client);
-    } else {
-      console.log("Omnibus name doesn't pass. Run tests without passing any omnibuses");
-      client = await prepareLocalRpcNode("mainnet");
-      snapshotId = await client.snapshot();
-    }
-
-    try {
-      const repoNamesToTest: Exclude<Repos, "depot">[] = [];
-      if (!normalizedRepo || normalizedRepo === "core") {
-        repoNamesToTest.push("core");
-      }
-      if (!normalizedRepo || normalizedRepo === "dual-governance") {
-        repoNamesToTest.push("dual-governance");
-      }
-      if (!normalizedRepo || normalizedRepo === "scripts") {
-        repoNamesToTest.push("scripts");
+        await prepareOmnibus(hre, client, omnibus);
+        await omnibus.passOmnibus(client);
+      } else {
+        console.log("Omnibus name doesn't pass. Run tests without passing any omnibuses");
+        client = await prepareLocalRpcNode("mainnet");
+        snapshotId = await client.snapshot();
       }
 
-      const hideDebug = repoNamesToTest.length > 1;
-
-      const testRunResults = await Promise.all(
-        repoNamesToTest.map((repo) =>
-          runRepoTests(repo, normalizedPattern, hideDebug, mountTests)
-            .then((result) => ({ status: "fulfilled" as const, result }))
-            .catch((error) => {
-              console.error(`Tests run for repo "${repo}" has failed with error: ${error}`);
-              return { status: "rejected" as const, error };
-            }),
-        ),
-      );
-
-      for (let i = 0; i < repoNamesToTest.length; ++i) {
-        const repoName = repoNamesToTest[i];
-        const testRunResult = testRunResults[i];
-        if (testRunResult.status === "rejected") {
-          console.log(`Tests run for repo "${repoName}" has finished with error: ${testRunResult.error}`);
-        } else {
-          console.log(`Tests run for repo "${repoName} has finished successfully"`);
+      try {
+        const repoNamesToTest: Exclude<Repos, "depot">[] = [];
+        if (!normalizedRepo || normalizedRepo === "core") {
+          repoNamesToTest.push("core");
         }
+        if (!normalizedRepo || normalizedRepo === "dual-governance") {
+          repoNamesToTest.push("dual-governance");
+        }
+        if (!normalizedRepo || normalizedRepo === "scripts") {
+          repoNamesToTest.push("scripts");
+        }
+
+        const hideDebug = repoNamesToTest.length > 1;
+
+        const testRunResults = await Promise.all(
+          repoNamesToTest.map((repo) =>
+            runRepoTests(repo, normalizedPattern, hideDebug, mountTests)
+              .then((result) => ({ status: "fulfilled" as const, result }))
+              .catch((error) => {
+                console.error(`Tests run for repo "${repo}" has failed with error: ${error}`);
+                return { status: "rejected" as const, error };
+              }),
+          ),
+        );
+
+        for (let i = 0; i < repoNamesToTest.length; ++i) {
+          const repoName = repoNamesToTest[i];
+          const testRunResult = testRunResults[i];
+          if (testRunResult.status === "rejected") {
+            console.log(`Tests run for repo "${repoName}" has finished with error: ${testRunResult.error}`);
+          } else {
+            console.log(`Tests run for repo "${repoName} has finished successfully"`);
+          }
+        }
+      } finally {
+        await client.revert(snapshotId);
       }
-    } finally {
-      await client.revert(snapshotId);
-    }
-  });
+    },
+  );
 
 defineTask("omnibus:ci-prepare", "Prepare omnibus vote on CI (adopt aragon voting on local node)")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to run" })
-  .setAction(async (taskArgs: { name: string }, hre: any) => {
+  .setAction(async (taskArgs: { name: string }, hre: HardhatRuntimeEnvironment) => {
     const { name } = taskArgs;
     const omnibus = await loadOmnibus(name);
 
@@ -395,7 +408,7 @@ type OmnibusLaunchParams = {
 defineTask("omnibus:launch", "Launch the omnibus with given name")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to run" })
   .addFlag({ name: "broadcast", description: "broadcast the transaction to the network" })
-  .setAction(async (taskArgs: OmnibusLaunchParams, hre: any) => {
+  .setAction(async (taskArgs: OmnibusLaunchParams, hre: HardhatRuntimeEnvironment) => {
     const { name, broadcast } = taskArgs;
     const omnibus = await loadOmnibus(name);
 
@@ -483,7 +496,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
 defineTask("omnibus:pass-aragon-vote", "Adopt Aragon Vote with the given id")
   .addPositionalArgument({ name: "networkName", description: "Network of the vote" })
   .addPositionalArgument({ name: "voteId", description: "Aragon Vote id" })
-  .setAction(async (taskArgs: any, hre: any) => {
+  .setAction(async (taskArgs: { networkName: NetworkName; voteId: string }, hre: HardhatRuntimeEnvironment) => {
     const { networkName, voteId } = taskArgs;
     const client = await prepareDevRpcClient(networkName, hre);
 
@@ -495,7 +508,7 @@ defineTask("omnibus:pass-aragon-vote", "Adopt Aragon Vote with the given id")
 defineTask("omnibus:schedule-proposal", "Schedule proposal into DG")
   .addPositionalArgument({ name: "networkName", description: "Network of the vote" })
   .addPositionalArgument({ name: "proposalId", description: "Proposal id" })
-  .setAction(async (taskArgs: any, hre: any) => {
+  .setAction(async (taskArgs: { networkName: NetworkName; proposalId: string }, hre: HardhatRuntimeEnvironment) => {
     const { networkName, proposalId } = taskArgs;
     const client = await prepareDevRpcClient(networkName, hre);
     const parsedProposalId = BigInt(proposalId);
@@ -522,7 +535,7 @@ defineTask("omnibus:schedule-proposal", "Schedule proposal into DG")
 defineTask("omnibus:execute-proposal", "Executes proposal with a given id")
   .addPositionalArgument({ name: "networkName", description: "Network of the vote" })
   .addPositionalArgument({ name: "proposalId", description: "Proposal id" })
-  .setAction(async (taskArgs: any, hre: any) => {
+  .setAction(async (taskArgs: { networkName: NetworkName; proposalId: string }, hre: HardhatRuntimeEnvironment) => {
     const { networkName, proposalId } = taskArgs;
     const client = await prepareDevRpcClient(networkName, hre);
     const parsedProposalId = BigInt(proposalId);

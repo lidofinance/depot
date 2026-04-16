@@ -1,9 +1,11 @@
 import chalk from "chalk";
 import { task } from "hardhat/config";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import prompt from "../common/prompt";
 import { getKeystores } from "./get-keystores";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TaskAction = (taskArguments: any, hre: any) => any;
 
 function asLazyAction(action: TaskAction) {
@@ -26,7 +28,7 @@ function defineTask(...args: Parameters<typeof task>) {
 }
 
 defineTask(KEYSTORE_TASKS.LIST, "List available accounts").setAction(
-  asLazyAction(async (_, hre) => {
+  asLazyAction(async (_: Record<string, never>, hre: HardhatRuntimeEnvironment) => {
     const keystoresService = getKeystores(hre);
     const keystores = await keystoresService.all();
 
@@ -49,7 +51,7 @@ defineTask(KEYSTORE_TASKS.LIST, "List available accounts").setAction(
 defineTask(KEYSTORE_TASKS.ADD, "Add a new account by entering a private key")
   .addPositionalArgument({ name: "name", description: "Name of the new account" })
   .setAction(
-    asLazyAction(async ({ name }, hre) => {
+    asLazyAction(async ({ name }: { name: string }, hre: HardhatRuntimeEnvironment) => {
       const keystores = getKeystores(hre);
       const existedKeystore = await keystores.get(name);
       if (existedKeystore) {
@@ -64,7 +66,7 @@ defineTask(KEYSTORE_TASKS.ADD, "Add a new account by entering a private key")
 defineTask(KEYSTORE_TASKS.GENERATE, "Add a new account with a random private key")
   .addPositionalArgument({ name: "name", description: "Name of the new account" })
   .setAction(
-    asLazyAction(async ({ name }, hre) => {
+    asLazyAction(async ({ name }: { name: string }, hre: HardhatRuntimeEnvironment) => {
       const keystores = getKeystores(hre);
       const existedKeystore = await keystores.get(name);
       if (existedKeystore) {
@@ -79,7 +81,7 @@ defineTask(KEYSTORE_TASKS.GENERATE, "Add a new account with a random private key
 defineTask(KEYSTORE_TASKS.DELETE, "Delete an existing account")
   .addPositionalArgument({ name: "name", description: "Name of the account to delete" })
   .setAction(
-    asLazyAction(async ({ name }, hre) => {
+    asLazyAction(async ({ name }: { name: string }, hre: HardhatRuntimeEnvironment) => {
       const keystores = getKeystores(hre);
       const keystore = await keystores.get(name);
 
@@ -106,7 +108,7 @@ defineTask(KEYSTORE_TASKS.DELETE, "Delete an existing account")
 defineTask(KEYSTORE_TASKS.PASSWORD, "Change the password of an existing account")
   .addPositionalArgument({ name: "name", description: "Name of the account to change password for" })
   .setAction(
-    asLazyAction(async ({ name }, hre) => {
+    asLazyAction(async ({ name }: { name: string }, hre: HardhatRuntimeEnvironment) => {
       const account = await getKeystores(hre).password(name);
       console.log(`Password for account ${account.format()} successfully changed`);
     }),
