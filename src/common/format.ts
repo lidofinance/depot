@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { Address, Stringable } from "./types";
+import type { Address } from "./types";
 import bytes, { HexStrPrefixed } from "./bytes";
 import { CallEvmOpcodes, LogEvmOpcodes } from "../traces/evm-opcodes";
 import { Contract, getFunctionAbi } from "../contracts/contracts";
@@ -24,19 +24,8 @@ function opcode(opcode: string) {
   return chalk.bold.green(opcode.toUpperCase());
 }
 
-function argument(name: string, value: Stringable) {
-  const valueString = value.toString();
-  return chalk.yellow(name) + "=" + valueString.toString();
-}
-
 function label(label: string) {
   return chalk.magenta.bold(label);
-}
-
-function method(name: string, args = "", padding = "") {
-  return (
-    chalk.blue.italic(name) + chalk.blue.italic(`(\n${padding + "    "}`) + args + chalk.blue.italic(`\n${padding})`)
-  );
 }
 
 function contract(name: string, addr: Address) {
@@ -218,8 +207,6 @@ export default {
   label,
   opcode,
   address,
-  method,
-  argument,
   contract,
   padded,
   rawLog: formatRawLogItem,
