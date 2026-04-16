@@ -22,8 +22,9 @@ interface TxTraceItemMeta<T extends TxTraceOpcodes> {
   depth: number;
 }
 
-export interface TxTraceCtxSpawningItem<T extends CallEvmOpcodes | CreateEvmOpcodes = CallEvmOpcodes | CreateEvmOpcodes>
-  extends TxTraceItemMeta<T> {
+export interface TxTraceCtxSpawningItem<
+  T extends CallEvmOpcodes | CreateEvmOpcodes = CallEvmOpcodes | CreateEvmOpcodes,
+> extends TxTraceItemMeta<T> {
   value: bigint;
   gasSpent: number;
   gasProvided: number;
@@ -41,8 +42,10 @@ export interface TxTraceCreateItem extends TxTraceCtxSpawningItem<CreateEvmOpcod
   salt?: HexStrPrefixed;
 }
 
-interface TxTraceLogItemBase<_Type extends LogEvmOpcodes, _Topics extends HexStrPrefixed[]>
-  extends TxTraceItemMeta<_Type> {
+interface TxTraceLogItemBase<
+  _Type extends LogEvmOpcodes,
+  _Topics extends HexStrPrefixed[],
+> extends TxTraceItemMeta<_Type> {
   data: HexStrPrefixed;
   address: HexStrPrefixed;
   topics: _Topics;
@@ -174,14 +177,14 @@ export class TxTrace {
   #formatLogTraceItem(traceLogItem: TxTraceLogItem, padding: number): string {
     const contracts = [...this.contracts[bytes.normalize(traceLogItem.address)], ...this.prePopulatedContracts];
 
-    let decoded: { abi: AbiEvent; args: Record<string, any> } | null = null;
+    let decoded: { abi: AbiEvent; args: Record<string, unknown> } | null = null;
     for (let i = 0; i < contracts.length; ++i) {
       try {
         const { eventName, args } = decodeEventLog({
           abi: contracts[i].abi,
           data: traceLogItem.data,
           topics: traceLogItem.topics as [HexStrPrefixed, ...HexStrPrefixed[]],
-        }) as { eventName: string; args: Record<string, any> };
+        }) as unknown as { eventName: string; args: Record<string, unknown> };
 
         const abi = getEventAbi(contracts[i], eventName);
         decoded = { abi, args: args ?? [] };

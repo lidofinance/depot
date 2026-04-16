@@ -4,6 +4,6 @@ export abstract class KnownError extends Error {
   }
 }
 
-export const isKnownError = (error: any): error is KnownError => {
+export const isKnownError = (error: unknown): error is KnownError => {
   return error?.constructor?.prototype instanceof KnownError;
 };

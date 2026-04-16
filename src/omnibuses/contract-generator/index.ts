@@ -118,6 +118,7 @@ async function resolveDeploymentForContractGeneration(omnibus: Omnibus, hre: Har
 async function formatSolidityFile(filePath: string, rootDir: string, formatter: "prettier" | "forge") {
   if (formatter === "prettier") {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const dynamicImport = new Function("m", "return import(m)") as (moduleName: string) => Promise<any>;
       const prettier = await dynamicImport("prettier");
       const prettierPluginSolidity = await dynamicImport("prettier-plugin-solidity");
@@ -125,8 +126,10 @@ async function formatSolidityFile(filePath: string, rootDir: string, formatter: 
       const formatted = await prettier.format(source, {
         parser: "slang",
         printWidth: 120,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         plugins: [(prettierPluginSolidity as any).default ?? prettierPluginSolidity],
       });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await fs.writeFile(filePath, formatted, { encoding: "utf-8" });
       return;
     } catch (error) {

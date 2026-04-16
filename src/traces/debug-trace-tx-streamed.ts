@@ -7,7 +7,7 @@ import { Readable } from "stream";
 interface JsonRpcError {
   code: number;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 interface DebugStructLogResponse {
@@ -55,7 +55,7 @@ export class DebugTraceTxStreamed {
 
     const cparser = clarinet.parser();
     const jsonBuilder = new JsonBuilder();
-    let obj: any = null;
+    let obj: unknown = null;
 
     cparser.onopenobject = (key?: string) => {
       jsonBuilder.openObject();
@@ -84,17 +84,17 @@ export class DebugTraceTxStreamed {
     }
 
     for await (const chunk of readable) {
-      cparser.write(chunk.toString());
+      cparser.write((chunk as Buffer).toString());
     }
-    const { result, error } = obj;
+    const parsed = obj as { result?: DebugStructLogResponse; error?: JsonRpcError };
 
-    if (result) {
-      this.handlers.gas?.(result.gas);
-      this.handlers.returnValue?.(result.returnValue);
+    if (parsed.result) {
+      this.handlers.gas?.(parsed.result.gas);
+      this.handlers.returnValue?.(parsed.result.returnValue);
     }
 
-    if (error) {
-      this.handlers.error?.(error);
+    if (parsed.error) {
+      this.handlers.error?.(parsed.error);
     }
     cparser.close();
   }
@@ -143,6 +143,7 @@ export class DebugTraceTxStreamed {
           method: "debug_traceTransaction",
           params: reqParams,
         }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
       }).then((res) => (res.body ? Readable.fromWeb(res.body as any) : null));
     }
 

@@ -7,7 +7,7 @@ import * as env from "../src/common/env";
 import fs from "node:fs/promises";
 import fmt from "../src/common/format";
 
-import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { EthereumProvider, HardhatRuntimeEnvironment } from "hardhat/types";
 import { Repos, runImageInBackground } from "../src/docker";
 import { runRepoTests } from "./sub-tasks/containers";
 import { formatEther } from "viem";
@@ -46,8 +46,11 @@ function asLazyAction(action: TaskAction) {
   return () => Promise.resolve({ default: action });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function defineTask(...args: Parameters<typeof task>): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const builder = task(...args) as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const originalSetAction = builder.setAction.bind(builder) as (action: unknown) => any;
   builder.setAction = (action: unknown) => {
     if (typeof action === "function" && action.length > 0) {
@@ -55,6 +58,7 @@ function defineTask(...args: Parameters<typeof task>): any {
     }
     return originalSetAction(action);
   };
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   omnibusTaskBuilders.push(builder);
   return builder;
 }
@@ -611,8 +615,10 @@ async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntime
   }
 
   const connectLocalDevNetwork = () => {
-    const networkApi = (hre as any).network;
-    const networkManagerApi = (hre as any).networkManager;
+    const networkApi = (hre as unknown as Record<string, unknown>).network as Record<string, unknown> | undefined;
+    const networkManagerApi = (hre as unknown as Record<string, unknown>).networkManager as
+      | Record<string, unknown>
+      | undefined;
     const connectFn =
       typeof networkApi?.connect === "function"
         ? networkApi.connect.bind(networkApi)
@@ -636,9 +642,9 @@ async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntime
     });
   };
 
-  let networkConnection: any;
+  let networkConnection: { networkName?: string; networkConfig?: { type?: string }; provider?: unknown } | undefined;
   try {
-    networkConnection = await connectLocalDevNetwork();
+    networkConnection = (await connectLocalDevNetwork()) as typeof networkConnection;
   } catch (error) {
     throw new Error(
       `Failed to connect to local in-process dev network "default": ${(error as Error).message}. ` +
@@ -653,7 +659,7 @@ async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntime
     );
   }
 
-  const builtinHardhatClient = await createDevRpcClient(networkName, networkConnection.provider);
+  const builtinHardhatClient = await createDevRpcClient(networkName, networkConnection.provider as EthereumProvider);
   const providerRpcUrl = builtinHardhatClient.getRpcUrl();
   if (providerRpcUrl && !providerRpcUrl.includes("localhost") && !providerRpcUrl.includes("127.0.0.1")) {
     throw new Error(
