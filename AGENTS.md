@@ -2,16 +2,15 @@
 
 Instructions for AI coding agents working in this repository.
 
+Follow `CONTRIBUTING.md` for coding conventions (TypeScript, async safety, error handling, ESM, tests, git workflow).
+
+## Skills
+
+Project skills live in `.agents/skills/`. For omnibus work, follow `.agents/skills/omnibus-writer/SKILL.md`.
+
 ## Project overview
 
 Hardhat 3 + TypeScript + Viem project for building, testing, and launching Lido governance omnibuses (batched on-chain proposals).
-
-## Setup
-
-```bash
-nvm use           # Node 22+
-npm install
-```
 
 ## Commands
 
@@ -52,61 +51,6 @@ omnibuses/              # actual omnibus scripts and templates
 test/                   # all tests
 contracts/mocks/        # mock Solidity contracts for integration tests
 ```
-
-## Test conventions
-
-All tests live in `test/` (not in `src/`).
-
-- `test/<module>/<name>.unit.test.ts` — fast, no network
-- `test/<module>/<name>.integration.test.ts` — needs hardhat node
-
-**Mocking rules (ESM):**
-
-- `sinon.stub(object, "method")` on plain objects — OK
-- `sinon.stub(esmModule, "export")` — FORBIDDEN (ESM exports are immutable)
-- For module-level deps use DI containers: `export const deps = { fn }`, stub via `sinon.stub(deps, "fn")`
-- For HTTP mock `globalThis.fetch` directly (nock v13 doesn't intercept native fetch)
-
-## Code style
-
-- ESLint flat config (`eslint.config.mjs`), 0 errors / 0 warnings
-- Prettier with defaults (semi: true, printWidth: 120)
-- Conventional commits enforced via commitlint
-- Pre-commit: lint-staged runs eslint + prettier on staged files
-
-**ESLint error rules (block commit):**
-
-- `no-floating-promises` — always await or `void` fire-and-forget
-- `no-misused-promises` — no async in void callbacks
-- `require-await` — no unnecessary async
-- `no-unused-vars` — remove or prefix with `_`
-- `prefer-const` — use const when not reassigned
-
-## Git workflow
-
-- Conventional commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`
-- Husky pre-commit: lint-staged
-- Husky commit-msg: commitlint
-- Do not commit `.env`, `.keystores/`, `artifacts/`, `node_modules/`
-
-## Omnibus workflow
-
-For creating/modifying omnibuses, read `docs/omnibuses/WRITING_OMNIBUS.md`.
-
-Canonical examples:
-
-- `omnibuses/_omnibus_template/_omnibus_template.ts`
-- `omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts`
-- `omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts`
-- `omnibuses/2025_09_01/2025_09_01.ts`
-
-Key rules:
-
-1. Prefer blueprint calls over custom calls
-2. Determine permission model before coding (OZ AccessControl vs Aragon ACL)
-3. Lido (`0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84`) uses Aragon ACL — never use OZ methods
-4. Contract generation is opt-in — only after explicit user request
-5. Validate before launch: `npx tsc --noEmit`, `npm run omnibus:test`, `npm run omnibus:simulate`
 
 ## Verification checklist
 

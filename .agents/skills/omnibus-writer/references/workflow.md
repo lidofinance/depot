@@ -30,9 +30,11 @@ The source of truth remains `docs/omnibuses/WRITING_OMNIBUS.md`.
 19. If contract was generated, manually review naming/constants/roles/permissions.
 20. Keep `voteId/launchedAt/executedAt/quorumReached` as `undefined` before real launch.
 21. Run:
-   - `npx tsc --noEmit omnibuses/<name>/<name>.ts`
-   - `npm run omnibus:test -- <name>`
-   - `npm run omnibus:simulate -- <name>`
+
+- `npx tsc --noEmit omnibuses/<name>/<name>.ts`
+- `npm run omnibus:test -- <name>`
+- `npm run omnibus:simulate -- <name>`
+
 22. Only then run: `npm run omnibus:run -- <name>`.
 23. After launch, backfill vote metadata fields.
 
