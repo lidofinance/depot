@@ -3,7 +3,7 @@ import { Address } from "viem";
 import { createDevRpcClient } from "../../src/network/network";
 import { lifecycleDeps } from "../../src/aragon-votes-tools/lifecycle";
 import { testingDeps, setupLdoHolder, passAragonVote, adoptAragonVoting } from "../../src/aragon-votes-tools/testing";
-import { CREATOR, CREATOR_LDO_BALANCE, LDO_WHALES_BY_NETWORK_NAME } from "../../src/aragon-votes-tools/constants";
+import { CREATOR, LDO_WHALES_BY_NETWORK_NAME } from "../../src/aragon-votes-tools/constants";
 import { HexStrPrefixed } from "../../src/common/bytes";
 import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
 import { DevRpcClient } from "../../src/network/dev-rpc-client";
@@ -34,13 +34,15 @@ describe("aragon vote testing tools (integration)", function () {
     await client.setBalance(whale, 10n ** 18n);
     // Mint LDO to whale using MockERC20.mint(address, uint256)
     await client.impersonate(deployer);
-    await client.send("eth_sendTransaction", [{
-      from: deployer,
-      to: mocks.ldo.address,
-      data: (MOCK_ERC20_MINT_SELECTOR +
-        whale.slice(2).padStart(64, "0") +
-        (10n ** 24n).toString(16).padStart(64, "0")) as HexStrPrefixed,
-    }]);
+    await client.send("eth_sendTransaction", [
+      {
+        from: deployer,
+        to: mocks.ldo.address,
+        data: (MOCK_ERC20_MINT_SELECTOR +
+          whale.slice(2).padStart(64, "0") +
+          (10n ** 24n).toString(16).padStart(64, "0")) as HexStrPrefixed,
+      },
+    ]);
     await client.mine(1);
 
     const govContracts = () => mocks as unknown as GovernanceContracts;

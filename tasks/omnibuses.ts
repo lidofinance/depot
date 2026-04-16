@@ -42,7 +42,7 @@ export const omnibusTaskBuilders: Array<ReturnType<typeof task>> = [];
 type TaskAction = (taskArguments: any, hre: any) => any;
 
 function asLazyAction(action: TaskAction) {
-  return async () => ({ default: action });
+  return () => Promise.resolve({ default: action });
 }
 
 function defineTask(...args: Parameters<typeof task>): any {
@@ -118,7 +118,7 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
 
 defineTask("omnibus:archive", "Move launched omnibus to archive folder")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to move to archive" })
-  .setAction(async (taskArgs: any, hre: any) => {
+  .setAction(async (taskArgs: any, _hre: any) => {
     const { name } = taskArgs;
     const omnibus = await loadOmnibus(name);
 
@@ -321,13 +321,11 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
     const normalizedRepo = repo || undefined;
     const normalizedPattern = pattern || undefined;
     let client: DevRpcClient;
-    let network: NetworkName;
 
     let snapshotId;
     if (normalizedName) {
       const omnibus = await loadOmnibus(normalizedName);
 
-      network = omnibus.network;
       client = await prepareLocalRpcNode(omnibus.network);
       snapshotId = await client.snapshot();
 
@@ -335,7 +333,6 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
       await omnibus.passOmnibus(client);
     } else {
       console.log("Omnibus name doesn't pass. Run tests without passing any omnibuses");
-      network = "mainnet";
       client = await prepareLocalRpcNode("mainnet");
       snapshotId = await client.snapshot();
     }
@@ -355,16 +352,12 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
       const hideDebug = repoNamesToTest.length > 1;
 
       const testRunResults = await Promise.all(
-        repoNamesToTest.map(
-          (repo) =>
-            new Promise<{ status: "fulfilled"; result: any } | { status: "rejected"; error: any }>(async (resolve) => {
-              try {
-                const res = await runRepoTests(repo, normalizedPattern, hideDebug, mountTests);
-                resolve({ status: "fulfilled", result: res });
-              } catch (error) {
-                console.error(`Tests run for repo "${repo}" has failed with error: ${error}`);
-                resolve({ status: "rejected", error: error });
-              }
+        repoNamesToTest.map((repo) =>
+          runRepoTests(repo, normalizedPattern, hideDebug, mountTests)
+            .then((result) => ({ status: "fulfilled" as const, result }))
+            .catch((error) => {
+              console.error(`Tests run for repo "${repo}" has failed with error: ${error}`);
+              return { status: "rejected" as const, error };
             }),
         ),
       );
@@ -453,11 +446,12 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
     const pilot = privateKeyToAccount(await getKeystores(hre).unlock());
 
     const { ldo } = getGovernanceContracts(omnibus.network);
-    let [nonce, ethBalance, ldoBalance] = await Promise.all([
+    const [nonce, ethBalance, ldoBalanceInitial] = await Promise.all([
       client.getTransactionCount({ address: pilot.address }),
       client.getBalance(pilot.address),
       client.read(ldo, "balanceOf", [pilot.address]),
     ]);
+    let ldoBalance = ldoBalanceInitial;
 
     if (!broadcast && ldoBalance === 0n) {
       const spinner = createTimedSpinner("Preparing pilot for the test launch...");
@@ -603,7 +597,7 @@ async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntime
     console.log(fmt.padded(`Trying to connect the in-process hardhat dev RPC node...`, 2));
   }
 
-  const connectLocalDevNetwork = async () => {
+  const connectLocalDevNetwork = () => {
     const networkApi = (hre as any).network;
     const networkManagerApi = (hre as any).networkManager;
     const connectFn =

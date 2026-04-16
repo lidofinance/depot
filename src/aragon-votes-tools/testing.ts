@@ -3,7 +3,6 @@ import { getExecuteReceipt, startAragonVote } from "./lifecycle";
 import { NetworkName, DevRpcClient } from "../network";
 import { Address, TransactionReceipt } from "viem";
 import { HexStrPrefixed } from "../common/bytes";
-import { createTimedSpinner } from "../common/spinner";
 import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
 export const testingDeps = { getGovernanceContracts, startAragonVote, getExecuteReceipt };

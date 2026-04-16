@@ -47,7 +47,7 @@ export class DebugCallTracerStrategy implements TraceStrategy {
     return result;
   }
 
-  #traceRecursive(callsTrace: CallsTrace, result: TxTraceItem[], depth = 0, index = 0) {
+  #traceRecursive(callsTrace: CallsTrace, result: TxTraceItem[], depth = 0, _index = 0) {
     result.push(this.#processCallTraceItem(depth, callsTrace));
 
     const logItems = callsTrace.logs ?? [];

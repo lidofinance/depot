@@ -20,9 +20,9 @@ export default [
     rules: {
       // Async safety — critical for blockchain code
       "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": "warn",
+      "@typescript-eslint/no-misused-promises": "error",
       "require-await": "off",
-      "@typescript-eslint/require-await": "warn",
+      "@typescript-eslint/require-await": "error",
 
       // Type safety
       "@typescript-eslint/no-unsafe-argument": "warn",
@@ -30,7 +30,10 @@ export default [
 
       // Relaxed where pragmatic
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
     },
   },
 
@@ -45,11 +48,12 @@ export default [
     },
   },
 
-  // Omnibus files — relaxed (generated/templated code)
+  // Omnibus files — relaxed (generated/templated code, params destructured for reference)
   {
     files: ["omnibuses/**/*.ts"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
     },
   },
 
@@ -66,6 +70,7 @@ export default [
       "lib/",
       "*.config.js",
       "*.config.mjs",
+      "mount/",
     ],
   },
 ];

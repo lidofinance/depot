@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { Call, encodeFunctionData } from "viem";
+import { encodeFunctionData } from "viem";
 import fmt from "../../common/format";
 import { EvmScriptParser } from "../../aragon-votes-tools";
 import { OmnibusDirectCall } from "./omnibus-direct-call";

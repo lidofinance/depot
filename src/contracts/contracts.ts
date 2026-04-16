@@ -13,22 +13,6 @@ export interface Contract<T extends Abi = Abi, A extends Address = Address, L ex
   label: L;
 }
 
-interface ContractConfig {
-  abi: Abi;
-  label?: string;
-  address: Address;
-}
-
-type ProxiedContractConfig = {
-  impl: Omit<ContractConfig, "label">;
-  proxy: Omit<ContractConfig, "label">;
-  label?: string;
-};
-
-interface ContractsMap {
-  [key: string]: ContractConfig | ProxiedContractConfig | ContractsMap;
-}
-
 // ---
 // Public Methods
 // ---

@@ -19,19 +19,19 @@ ContractInfoResolver.enableInMemoryCache();
 
 let isShuttingDown = false;
 
-process.on("SIGINT", async () => {
+process.on("SIGINT", () => {
   console.log("SIGINT");
   if (!isShuttingDown) {
     isShuttingDown = true;
-    await stopDockerContainers();
+    void stopDockerContainers();
   }
 });
 
-process.on("SIGTERM", async () => {
+process.on("SIGTERM", () => {
   console.log("SIGTERM");
   if (!isShuttingDown) {
     isShuttingDown = true;
-    await stopDockerContainers();
+    void stopDockerContainers();
   }
 });
 

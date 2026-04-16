@@ -11,13 +11,6 @@ export interface StakingModuleParams {
   stakingModuleFee: number;
 }
 
-type StakingModuleName = "curated" | "sdvt" | "csm";
-const STAKING_MODULE_IDS = {
-  curated: 1n,
-  sdvt: 2n,
-  csm: 3n,
-};
-
 interface CheckStakingModuleFeeInput {
   stakingModuleId: number | bigint;
   treasuryFee: number | bigint;
@@ -69,14 +62,6 @@ async function checkNodeOperatorsCount(ctx: CheckContext, input: CheckNodeOperat
   const nodeOperatorsCount = await ctx.client.read(input.stakingModule, "getNodeOperatorsCount", []);
 
   assert.equal(nodeOperatorsCount, input.nodeOperatorsCount);
-}
-
-function getStakingModuleId(stakingModuleName: StakingModuleName) {
-  const stakingModuleId = STAKING_MODULE_IDS[stakingModuleName];
-  if (!stakingModuleId) {
-    throw new Error(`Unsupported staking module type "${stakingModuleName}"`);
-  }
-  return stakingModuleId;
 }
 
 export default {
