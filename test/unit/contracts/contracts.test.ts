@@ -1,12 +1,12 @@
 import { assert } from "chai";
 import sinon from "sinon";
-import { ACL_ABI } from "../../abi/ACL.abi";
-import { AppProxyUpgradeable_ABI } from "../../abi/AppProxyUpgradeable.abi";
-import { MiniMeToken_ABI } from "../../abi/MiniMeToken.abi";
-import { Voting_ABI } from "../../abi/Voting.abi";
-import { ContractInfoResolver } from "../contract-info-resolver/contract-info-resolver";
-import { contract, getEventAbi, getFunctionAbi, resolveContract } from "./contracts";
-import { getGovernanceContracts } from "../omnibuses/governance-contracts";
+import { ACL_ABI } from "../../../abi/ACL.abi";
+import { AppProxyUpgradeable_ABI } from "../../../abi/AppProxyUpgradeable.abi";
+import { MiniMeToken_ABI } from "../../../abi/MiniMeToken.abi";
+import { Voting_ABI } from "../../../abi/Voting.abi";
+import { ContractInfoResolver } from "../../../src/contract-info-resolver/contract-info-resolver";
+import { contract, getEventAbi, getFunctionAbi, resolveContract } from "../../../src/contracts/contracts";
+import { getGovernanceContracts } from "../../../src/omnibuses/governance-contracts";
 
 const config = {
   acl: {
@@ -49,8 +49,18 @@ describe("contracts", () => {
     assert.equal(contracts.voting.label, "Voting__Proxy");
   });
 
-  it("resolves known local contract without etherscan", async () => {
+  it("resolves non-proxy contract through resolver", async () => {
     const contracts = getGovernanceContracts("mainnet");
+    sinon.stub(ContractInfoResolver, "resolve").resolves({
+      name: contracts.ldo.label,
+      abi: contracts.ldo.abi,
+      implementation: null,
+      constructorArgs: "0x",
+      sourceCode: "",
+      evmVersion: "default",
+      compilerVersion: "0.8.0",
+    } as any);
+
     const res = await resolveContract("mainnet", contracts.ldo.address);
 
     assert.isAtLeast(res.length, 1);
@@ -72,7 +82,7 @@ describe("contracts", () => {
 
     const res = await resolveContract("mainnet", unknown);
 
-    assert.deepEqual(res, [{ address: unknown, abi: [], label: "UnknownContract" }]);
+    assert.deepEqual(res, [{ address: unknown, abi: [], label: "unknownContract" }]);
   });
 
   it("resolves unknown proxy contract with implementation", async () => {
@@ -106,7 +116,7 @@ describe("contracts", () => {
     assert.lengthOf(res, 2);
     assert.equal(res[0].address, proxy);
     assert.equal(res[1].address, proxy);
-    assert.equal(res[0].label, "ImplContract__Proxy");
-    assert.equal(res[1].label, "ImplContract__Proxy");
+    assert.equal(res[0].label, "implContract");
+    assert.equal(res[1].label, "implContract__Proxy");
   });
 });

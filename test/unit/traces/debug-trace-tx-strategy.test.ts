@@ -1,8 +1,8 @@
 // TODO: write new tracing test
-// import rpcs, { SpawnedRpcNode } from "../rpcs";
-// import { IssuableERC20, IssuableERC20__factory, TracingSample, TracingSample__factory } from "../../typechain-types";
-// import providers, { ProviderCheats, SignerWithAddress } from "../providers";
-// import { DebugTxTraceStrategy } from "./debug-trace-tx-strategy";
+// import rpcs, { SpawnedRpcNode } from "../../../src/rpcs";
+// import { IssuableERC20, IssuableERC20__factory, TracingSample, TracingSample__factory } from "../../../typechain-types";
+// import providers, { ProviderCheats, SignerWithAddress } from "../../../src/providers";
+// import { DebugTxTraceStrategy } from "../../../src/traces/debug-trace-tx-strategy";
 // import { assert, Assertion } from "chai";
 // import eth from "ethers";
 //

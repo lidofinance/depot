@@ -1,7 +1,7 @@
 import sinon from "sinon";
-import { assert } from "../common/assert";
-import { TxTracer } from "./tx-tracer";
-import * as contracts from "../contracts/contracts";
+import { assert } from "../../../src/common/assert";
+import { TxTracer } from "../../../src/traces/tx-tracer";
+import * as contracts from "../../../src/contracts/contracts";
 
 describe("TxTracer", () => {
   const addr1 = "0x1111111111111111111111111111111111111111";

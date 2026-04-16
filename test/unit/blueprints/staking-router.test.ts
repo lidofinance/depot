@@ -1,10 +1,10 @@
 import { assert } from "chai";
-import { contract } from "../../contracts";
-import { getGovernanceContracts } from "../governance-contracts";
-import { OmnibusDirectCallFactory } from "../calls/omnibus-direct-call";
-import { event, BlueprintCtx } from "../omnibus";
+import { contract } from "../../../src/contracts";
+import { getGovernanceContracts } from "../../../src/omnibuses/governance-contracts";
+import { OmnibusDirectCallFactory } from "../../../src/omnibuses/calls/omnibus-direct-call";
+import { event, BlueprintCtx } from "../../../src/omnibuses/omnibus";
 import { StakingRouter_ABI } from "../../../abi/StakingRouter.abi";
-import stakingRouter, { StakingModule } from "./staking-router";
+import stakingRouter, { StakingModule } from "../../../src/omnibuses/blueprints/staking-router";
 
 function createCtx(): BlueprintCtx {
   const { voting, callsScript } = getGovernanceContracts("mainnet");

@@ -1,6 +1,6 @@
 {
   "extension": ["ts"],
-  "spec": ["test/unit/**/*.test.ts"],
+  "spec": ["test/integration/**/*.test.ts"],
   "node-option": ["import=tsx"],
   "recursive": true,
   "timeout": 600000,

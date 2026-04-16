@@ -1,11 +1,11 @@
 import { assert } from "chai";
-import { contract } from "../../contracts";
-import { getGovernanceContracts } from "../governance-contracts";
-import { OmnibusDirectCallFactory } from "../calls/omnibus-direct-call";
-import { event, BlueprintCtx } from "../omnibus";
+import { contract } from "../../../src/contracts";
+import { getGovernanceContracts } from "../../../src/omnibuses/governance-contracts";
+import { OmnibusDirectCallFactory } from "../../../src/omnibuses/calls/omnibus-direct-call";
+import { event, BlueprintCtx } from "../../../src/omnibuses/omnibus";
 import { Agent_ABI } from "../../../abi/Agent.abi";
 import { Finance_ABI } from "../../../abi/Finance.abi";
-import tokens from "./tokens";
+import tokens from "../../../src/omnibuses/blueprints/tokens";
 
 function createCtx(): BlueprintCtx {
   const { voting, callsScript } = getGovernanceContracts("mainnet");

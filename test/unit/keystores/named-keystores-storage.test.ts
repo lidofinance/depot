@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import { NamedKeystoresStorage } from "./named-keystores-storage";
-import { NamedKeystore } from "./named-keystore";
+import { NamedKeystoresStorage } from "../../../src/hardhat-keystores/named-keystores-storage";
+import { NamedKeystore } from "../../../src/hardhat-keystores/named-keystore";
 import fs from "fs/promises";
 import path from "path";
 import sinon from "sinon";
