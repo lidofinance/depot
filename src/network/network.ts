@@ -2,7 +2,7 @@ import { EthereumProvider } from "hardhat/types";
 import * as env from "../common/env";
 import { RpcClient } from "./rpc-client";
 import { createWalletClient, custom, CustomTransport, http, HttpTransport, publicActions } from "viem";
-import { holesky, hoodi, mainnet } from "viem/chains";
+import { hardhat, holesky, hoodi, mainnet } from "viem/chains";
 import { DevRpcClient } from "./dev-rpc-client";
 
 export type NetworkName = "mainnet" | "holesky" | "hoodi";
@@ -127,7 +127,7 @@ async function createPublicWalletClientFromProvider(network: NetworkName, provid
   if (chainId === HARDHAT_CHAIN_ID) {
     // For local dev chains we should not pin a target L1/L2 chain in the wallet client.
     // Otherwise viem validates tx against e.g. mainnet(1) and rejects on local 31337.
-    return createWalletClient({ transport }).extend(publicActions);
+    return createWalletClient({ chain: hardhat, transport }).extend(publicActions);
   }
 
   if (chainId === getChainIdByNetworkName(network)) {
@@ -143,7 +143,7 @@ async function createDevPublicWalletClientFromNetwork(network: NetworkName, rpcU
   const chainId = await viemClient.getChainId();
 
   if (chainId === HARDHAT_CHAIN_ID) {
-    return createWalletClient({ transport }).extend(publicActions);
+    return createWalletClient({ chain: hardhat, transport }).extend(publicActions);
   }
 
   if (chainId === getChainIdByNetworkName(network)) {
@@ -159,7 +159,7 @@ async function createDevPublicWalletClientFromProvider(network: NetworkName, pro
   const chainId = await viemClient.getChainId();
 
   if (chainId === HARDHAT_CHAIN_ID) {
-    return createWalletClient({ transport }).extend(publicActions);
+    return createWalletClient({ chain: hardhat, transport }).extend(publicActions);
   }
 
   if (chainId === getChainIdByNetworkName(network)) {

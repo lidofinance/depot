@@ -7,6 +7,8 @@ import { Voting_ABI } from "../../abi/Voting.abi";
 import { createTimedSpinner } from "../common/spinner";
 import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
+export const lifecycleDeps = { getGovernanceContracts };
+
 export async function startAragonVote(
   client: RpcClient,
   evmScript: HexStrPrefixed,
@@ -14,7 +16,7 @@ export async function startAragonVote(
   txOptions: WriteContractOptions,
 ) {
   const networkName = client.getNetworkName();
-  const { voting, tokenManager } = getGovernanceContracts(networkName);
+  const { voting, tokenManager } = lifecycleDeps.getGovernanceContracts(networkName);
 
   const startVoteScript = EvmScriptParser.encode([
     {
@@ -52,12 +54,12 @@ export async function startAragonVote(
 }
 
 export async function executeAragonVote(client: RpcClient, voteId: bigint, txOptions: WriteContractOptions) {
-  const { voting } = getGovernanceContracts(client.getNetworkName());
+  const { voting } = lifecycleDeps.getGovernanceContracts(client.getNetworkName());
   return client.write(voting, "executeVote", [voteId], txOptions);
 }
 
 export async function getExecuteReceipt(client: RpcClient, voteId: bigint, fromBlock?: number | bigint) {
-  const { voting } = getGovernanceContracts(client.getNetworkName());
+  const { voting } = lifecycleDeps.getGovernanceContracts(client.getNetworkName());
   const executeVoteFilter = await client.createEventFilter({
     address: voting.address,
     event: getEventAbi(voting, "ExecuteVote"),

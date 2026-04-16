@@ -6,10 +6,12 @@ import { HexStrPrefixed } from "../common/bytes";
 import { createTimedSpinner } from "../common/spinner";
 import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
+export const testingDeps = { getGovernanceContracts, startAragonVote, getExecuteReceipt };
+
 export async function setupLdoHolder(client: DevRpcClient, account: Address = CREATOR) {
   const network = client.getNetworkName();
 
-  const { ldo } = getGovernanceContracts(network);
+  const { ldo } = testingDeps.getGovernanceContracts(network);
 
   if ((await client.read(ldo, "balanceOf", [account])) === CREATOR_ETH_BALANCE) {
     return account;
@@ -31,12 +33,12 @@ export async function setupLdoHolder(client: DevRpcClient, account: Address = CR
 export async function passAragonVote(client: DevRpcClient, voteId: bigint) {
   const network = client.getNetworkName();
 
-  const { voting } = getGovernanceContracts(network);
+  const { voting } = testingDeps.getGovernanceContracts(network);
 
   const [, executed] = await client.read(voting, "getVote", [voteId]);
 
   if (executed) {
-    return getExecuteReceipt(client, voteId);
+    return testingDeps.getExecuteReceipt(client, voteId);
   }
 
   const whaleAddress = getLdoWhale(network);
@@ -72,7 +74,7 @@ export async function adoptAragonVoting(
 ): Promise<AdoptResult> {
   const ldoHolderAddress = await setupLdoHolder(client);
 
-  const { voteId, receipt: createVoteReceipt } = await startAragonVote(client, evmScript, description, {
+  const { voteId, receipt: createVoteReceipt } = await testingDeps.startAragonVote(client, evmScript, description, {
     from: ldoHolderAddress,
   });
 
