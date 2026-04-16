@@ -1,17 +1,39 @@
-import nock from "nock";
 import { assert } from "chai";
 import bytes from "../../../src/common/bytes";
-import { EtherscanContractInfoProvider, MAX_ATTEMPTS } from "../../../src/contract-info-resolver/etherscan-contract-info-provider";
+import {
+  EtherscanContractInfoProvider,
+  MAX_ATTEMPTS,
+} from "../../../src/contract-info-resolver/etherscan-contract-info-provider";
 
 const NETWORK_NAME = "mainnet";
-const ETHERSCAN_HOST = "https://api.etherscan.io";
 const CONTRACT_ADDRESS = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0";
+
+function mockFetchResponses(...responses: unknown[]) {
+  let callIndex = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    const body = responses[callIndex] ?? responses[responses.length - 1];
+    callIndex++;
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }) as typeof globalThis.fetch;
+  return {
+    callCount: () => callIndex,
+    restore: () => {
+      globalThis.fetch = originalFetch;
+    },
+  };
+}
 
 describe("EtherscanContractInfoProvider", () => {
   const provider = new EtherscanContractInfoProvider("fake_api_key");
+  let restoreFetch: (() => void) | undefined;
 
   afterEach(() => {
-    nock.cleanAll();
+    restoreFetch?.();
+    restoreFetch = undefined;
   });
 
   it("returns parsed contract info for verified contract", async () => {
@@ -37,7 +59,8 @@ describe("EtherscanContractInfoProvider", () => {
       ],
     };
 
-    nock(ETHERSCAN_HOST).get("/v2/api").query(true).reply(200, response);
+    const mock = mockFetchResponses(response);
+    restoreFetch = mock.restore;
 
     const res = await provider.request(NETWORK_NAME, CONTRACT_ADDRESS);
 
@@ -72,77 +95,61 @@ describe("EtherscanContractInfoProvider", () => {
       ],
     };
 
-    nock(ETHERSCAN_HOST).get("/v2/api").query(true).reply(200, response);
+    const mock = mockFetchResponses(response);
+    restoreFetch = mock.restore;
 
     const res = await provider.request(NETWORK_NAME, CONTRACT_ADDRESS);
     assert.equal(res.implementation, "0x00000000000000000000000000000000000000aa");
   });
 
   it("throws for unverified contracts", async () => {
-    nock(ETHERSCAN_HOST).get("/v2/api").query(true).reply(200, {
+    const mock = mockFetchResponses({
       status: "0",
       message: "NOTOK",
       result: "Contract source code not verified",
     });
+    restoreFetch = mock.restore;
 
     await assert.isRejected(provider.request(NETWORK_NAME, CONTRACT_ADDRESS), "Contract is not verified");
   });
 
   it("retries on rate-limit and eventually succeeds", async () => {
-    let calls = 0;
-    nock(ETHERSCAN_HOST)
-      .get("/v2/api")
-      .query(true)
-      .times(2)
-      .reply(200, () => {
-        calls++;
-        return { status: "0", message: "NOTOK", result: "Max rate limit reached" };
-      });
+    const rateLimited = { status: "0", message: "NOTOK", result: "Max rate limit reached" };
+    const success = {
+      status: "1",
+      message: "OK",
+      result: [
+        {
+          SourceCode: "contract A {}",
+          ABI: "[]",
+          ContractName: "AfterRetry",
+          CompilerVersion: "v0.8.20+commit.a1b79de6",
+          OptimizationUsed: "1",
+          Runs: "200",
+          ConstructorArguments: "",
+          EVMVersion: "paris",
+          Library: "",
+          LicenseType: "MIT",
+          Proxy: "0",
+          Implementation: "",
+          SwarmSource: "",
+        },
+      ],
+    };
 
-    nock(ETHERSCAN_HOST)
-      .get("/v2/api")
-      .query(true)
-      .reply(200, () => {
-        calls++;
-        return {
-          status: "1",
-          message: "OK",
-          result: [
-            {
-              SourceCode: "contract A {}",
-              ABI: "[]",
-              ContractName: "AfterRetry",
-              CompilerVersion: "v0.8.20+commit.a1b79de6",
-              OptimizationUsed: "1",
-              Runs: "200",
-              ConstructorArguments: "",
-              EVMVersion: "paris",
-              Library: "",
-              LicenseType: "MIT",
-              Proxy: "0",
-              Implementation: "",
-              SwarmSource: "",
-            },
-          ],
-        };
-      });
+    const mock = mockFetchResponses(rateLimited, rateLimited, success);
+    restoreFetch = mock.restore;
 
     const res = await provider.request(NETWORK_NAME, CONTRACT_ADDRESS);
 
-    assert.equal(calls, 3);
+    assert.equal(mock.callCount(), 3);
     assert.equal(res.name, "AfterRetry");
   });
 
   it("throws when rate limit persists beyond max attempts", async () => {
-    nock(ETHERSCAN_HOST)
-      .get("/v2/api")
-      .query(true)
-      .times(MAX_ATTEMPTS + 1)
-      .reply(200, {
-        status: "0",
-        message: "NOTOK",
-        result: "Max rate limit reached",
-      });
+    const rateLimited = { status: "0", message: "NOTOK", result: "Max rate limit reached" };
+    const mock = mockFetchResponses(rateLimited); // always returns rate-limited
+    restoreFetch = mock.restore;
 
     await assert.isRejected(
       provider.request(NETWORK_NAME, CONTRACT_ADDRESS),
@@ -173,7 +180,8 @@ describe("EtherscanContractInfoProvider", () => {
       ],
     };
 
-    nock(ETHERSCAN_HOST).get("/v2/api").query(true).reply(200, response);
+    const mock = mockFetchResponses(response);
+    restoreFetch = mock.restore;
 
     const res = await provider.request(NETWORK_NAME, CONTRACT_ADDRESS);
     const parsed = JSON.parse(res.sourceCode);
@@ -185,11 +193,12 @@ describe("EtherscanContractInfoProvider", () => {
   });
 
   it("throws for unexpected etherscan response format", async () => {
-    nock(ETHERSCAN_HOST).get("/v2/api").query(true).reply(200, {
+    const mock = mockFetchResponses({
       status: "1",
       message: "OK",
       result: "Unexpected result format",
     });
+    restoreFetch = mock.restore;
 
     await assert.isRejected(provider.request(NETWORK_NAME, CONTRACT_ADDRESS), "Unexpected Etherscan Response");
   });
