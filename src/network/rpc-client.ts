@@ -92,8 +92,10 @@ export class RpcClient {
   >(
     { abi, address }: contract,
     functionName: functionName,
-    args: args,
+    // When the method has no parameters, `args` can be omitted.
+    ...rest: args extends readonly [] ? [args?: args] : [args: args]
   ): Promise<ReadContractReturnType<contract["abi"], functionName, args>> {
+    const args = (rest[0] ?? []) as args;
     return this.viemClient.readContract({
       abi: abi,
       functionName,
