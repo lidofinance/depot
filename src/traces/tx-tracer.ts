@@ -6,6 +6,8 @@ import { TraceStrategy } from "./types";
 import { NetworkName } from "../network";
 import { Contract, resolveContract } from "../contracts/contracts";
 
+export const tracerDeps = { resolveContract };
+
 export class TxTracer {
   constructor(private readonly traceStrategy: TraceStrategy) {}
 
@@ -53,7 +55,7 @@ export class TxTracer {
 
       let resolvedContracts: Contract[];
       try {
-        resolvedContracts = await resolveContract(networkName, normalizedAddress);
+        resolvedContracts = await tracerDeps.resolveContract(networkName, normalizedAddress);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.warn(
