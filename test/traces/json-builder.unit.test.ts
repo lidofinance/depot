@@ -107,7 +107,7 @@ describe("JsonBuilder", () => {
       );
 
       // prettier-ignore
-      let partialObjectBuilder = builder
+      const partialObjectBuilder = builder
       .openArray()
         .openObject()
           .key("foo").value("baz")
@@ -142,7 +142,7 @@ describe("JsonBuilder", () => {
       );
 
       // prettier-ignore
-      let partialArrayBuilder = builder
+      const partialArrayBuilder = builder
         .openArray()
         .openArray().closeArray()
         .openArray().closeArray()
@@ -160,7 +160,7 @@ describe("JsonBuilder", () => {
     it("nested objects", () => {
       const sample = { root: { child: { key1: "value1", key2: true } } };
       // prettier-ignore
-      let partialSampleBuilder = builder
+      const partialSampleBuilder = builder
         .openObject()
           .key("root")
             .openObject()

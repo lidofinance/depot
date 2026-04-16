@@ -8,7 +8,7 @@ import util from "node:util";
 import { Transform } from "node:stream";
 import os from "os";
 
-type ContainerRunResponse = [{ StatusCode: number }, Container, id: string, Record<string, {}>];
+type ContainerRunResponse = [{ StatusCode: number }, Container, id: string, Record<string, object>];
 
 const docker = new Docker();
 
@@ -199,7 +199,7 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
     console.error(`Error on retrieving build version: ${(error as Error).message}`);
   }
 
-  let imageTag = `depot/${repo}:${buildVersion}`;
+  const imageTag = `depot/${repo}:${buildVersion}`;
 
   const image = await docker.listImages().then(
     (images) =>

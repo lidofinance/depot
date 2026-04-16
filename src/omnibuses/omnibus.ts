@@ -555,7 +555,7 @@ export class Omnibus<
 
     let executeOmnibusReceipt: TransactionReceipt | null = null;
     let executeProposalReceipts: TransactionReceipt[] | null = null;
-    let submittedProposalIds: bigint[] = [];
+    const submittedProposalIds: bigint[] = [];
 
     async function passProposals(proposalIds: bigint[] = submittedProposalIds) {
       executeProposalReceipts = await processPendingProposals(client, proposalIds);
@@ -617,7 +617,7 @@ export class Omnibus<
 
     console.log(chalk.bold(`⏳Testing the Omnibus ${this.name} on the "${this.network}" network`));
 
-    let snapshot = await client.snapshot();
+    const snapshot = await client.snapshot();
     // ---
     // Execute & Test Aragon Vote Part
     // ---
@@ -1062,7 +1062,7 @@ export class Omnibus<
 }
 
 export function groupOmnibusTraceCalls(items: OmnibusCall[], trace: TxTrace) {
-  let voteCallIndices: number[] = [];
+  const voteCallIndices: number[] = [];
 
   const callTraces: TxTrace[] = [];
   for (let i = 0; i < items.length; ++i) {
@@ -1349,7 +1349,7 @@ function formatOmnibusCallEvent(event: OmnibusCallEvent, isSkipped: boolean) {
   const argsStatuses: string[] = [];
 
   for (let i = 0; i < event.args.length; ++i) {
-    let arg = event.args[i];
+    const arg = event.args[i];
 
     const status = isSkipped || arg === null ? chalk.yellow("skipped") : chalk.green("checked");
 
