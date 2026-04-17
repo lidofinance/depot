@@ -42,7 +42,7 @@ async function prepareDualGovernanceState(client: DevRpcClient) {
   ]);
 
   if (dgStateDetails.effectiveState === DgState.VetoSignallingDeactivation) {
-    await client.increaseTime(dgConfig.vetoSignallingDeactivationMaxDuration);
+    await client.advanceTime(dgConfig.vetoSignallingDeactivationMaxDuration);
   }
 
   if (dgStateDetails.effectiveState === DgState.VetoSignalling) {
@@ -51,7 +51,7 @@ async function prepareDualGovernanceState(client: DevRpcClient) {
     if (vetSignallingEndDate < currentTimestamp) {
       throw new Error("Invalid veto signalling duration or outdated DG state");
     }
-    await client.increaseTime(vetSignallingEndDate - currentTimestamp + 1);
+    await client.setTime(vetSignallingEndDate + 1);
   }
 
   const effectiveDgState = await client.read(dualGovernance, "getEffectiveState", []);
@@ -77,7 +77,7 @@ export async function processPendingProposals(client: DevRpcClient, proposalIds:
   const latestSubmitTimestamp = Math.max(...proposalsToSchedule.map((proposal) => proposal.submittedAt), 0);
 
   if (timestamp < latestSubmitTimestamp + afterSubmitDelay) {
-    await client.increaseTime(latestSubmitTimestamp + afterSubmitDelay - timestamp + 1);
+    await client.setTime(latestSubmitTimestamp + afterSubmitDelay + 1);
   }
 
   await prepareDualGovernanceState(client);
@@ -90,7 +90,7 @@ export async function processPendingProposals(client: DevRpcClient, proposalIds:
     await client.write(dualGovernance, "scheduleProposal", [proposal.id], { from: stranger });
   }
 
-  await client.increaseTime(afterScheduleDelay);
+  await client.advanceTime(afterScheduleDelay);
 
   const executeProposalReceipts: TransactionReceipt[] = [];
   for (const proposalId of proposalIds) {

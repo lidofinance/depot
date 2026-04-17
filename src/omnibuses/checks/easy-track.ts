@@ -89,7 +89,7 @@ const checkTopUpFactory = async ({ client }: CheckContext, input: CheckTopUpFact
 
   const newMotion = motionsAfter[motionsAfter.length - 1];
 
-  await client.increaseTime(newMotion.duration + 1n);
+  await client.advanceTime(newMotion.duration + 1n);
   await client.impersonate(DEFAULT_ENACTOR, 10n ** 18n);
 
   await client.write(easyTrack, "enactMotion", [newMotion.id, calldata], {
@@ -146,7 +146,7 @@ const checkAddRecipientFactory = async (
 
   const newMotion = motionsAfter[motionsAfter.length - 1];
 
-  await client.increaseTime(newMotion.duration + 1n);
+  await client.advanceTime(newMotion.duration + 1n);
 
   await client.impersonate(DEFAULT_ENACTOR, 10n ** 18n);
 
@@ -185,7 +185,7 @@ const checkRemoveRecipientFactory = async (
   assert.equal(motionsAfter.length, motionsBefore.length + 1);
   const newMotion = motionsAfter[motionsAfter.length - 1];
 
-  await client.increaseTime(newMotion.duration + 1n);
+  await client.advanceTime(newMotion.duration + 1n);
 
   await client.impersonate(DEFAULT_ENACTOR, 10n ** 18n);
 
