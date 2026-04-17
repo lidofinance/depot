@@ -531,7 +531,7 @@ defineTask("omnibus:schedule-proposal", "Schedule proposal into DG")
 
     const submittedAt = proposal.submittedAt;
     if (chainTime < submittedAt + afterSubmitDelay) {
-      await client.increaseTime(submittedAt - afterSubmitDelay + 1);
+      await client.setTime(submittedAt + afterSubmitDelay + 1);
     }
     await client.write(dualGovernance, "scheduleProposal", [parsedProposalId], { from: stranger });
   });
@@ -558,7 +558,7 @@ defineTask("omnibus:execute-proposal", "Executes proposal with a given id")
 
     const scheduledAt = proposal.scheduledAt;
     if (chainTime < scheduledAt + afterScheduleDelay) {
-      await client.increaseTime(scheduledAt - afterScheduleDelay + 1);
+      await client.setTime(scheduledAt + afterScheduleDelay + 1);
     }
     const executeReceipt = await client.write(timelock, "execute", [parsedProposalId], { from: stranger });
     console.log(`Proposal with id ${parsedProposalId} successfully executed at block ${executeReceipt.blockNumber}`);

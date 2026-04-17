@@ -51,7 +51,7 @@ export async function passAragonVote(client: DevRpcClient, voteId: bigint) {
     throw new Error("Can not vote");
   }
   const voteDuration = await client.read(voting, "voteTime", []);
-  await client.increaseTime(voteDuration);
+  await client.advanceTime(voteDuration);
 
   const receipt = await client.write(voting, "executeVote", [voteId], { from: whaleAddress });
 

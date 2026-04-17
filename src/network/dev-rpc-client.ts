@@ -80,10 +80,25 @@ export class DevRpcClient extends RpcClient {
     }
   }
 
-  async increaseTime(seconds: number | bigint): Promise<void> {
+  /**
+   * Mine a block with the given absolute timestamp. Drift-free: after this
+   * returns, `getChainTime()` equals `target` exactly. `target` must be
+   * greater than the current chain time (EVM rule).
+   */
+  async setTime(target: number | bigint): Promise<void> {
     const client = await this.#getTestClient();
-    await client.increaseTime({ seconds: Number(seconds) });
+    await client.setNextBlockTimestamp({ timestamp: BigInt(target) });
     await client.mine({ blocks: 1 });
+  }
+
+  /**
+   * Advance chain time by `seconds` relative to the current chain time and
+   * mine a block. Drift-free: uses an absolute target computed from the last
+   * block's timestamp.
+   */
+  async advanceTime(seconds: number | bigint): Promise<void> {
+    const current = await this.getChainTime();
+    await this.setTime(BigInt(current) + BigInt(seconds));
   }
 
   async reset(args?: ResetParameters) {
