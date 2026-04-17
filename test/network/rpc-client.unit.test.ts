@@ -16,7 +16,7 @@ function buildRpcClient(handler: RpcHandler, rpcUrl?: string): RpcClient {
   if (rpcUrl !== undefined) {
     (viemClient.transport as Record<string, unknown>)["url"] = rpcUrl;
   }
-  return new RpcClient("mainnet", viemClient as unknown as Parameters<typeof RpcClient>[1] as never);
+  return new RpcClient("mainnet", viemClient as unknown as ConstructorParameters<typeof RpcClient>[1]);
 }
 
 describe("RpcClient.getNodeInfo", () => {

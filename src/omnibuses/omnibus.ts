@@ -1,4 +1,4 @@
-import { AbiEvent, AbiFunction, Address, formatAbiItem } from "abitype";
+import { AbiEvent, Address } from "abitype";
 import {
   EvmScriptParser,
   getExecuteReceipt,
@@ -8,40 +8,28 @@ import {
 } from "../aragon-votes-tools";
 import bytes, { HexStrNonPrefixed, HexStrPrefixed } from "../common/bytes";
 import { DevRpcClient, NetworkName, RpcClient, WriteContractOptions } from "../network";
-import { TxTrace, TxTraceCallItem, TxTraceItem, TxTraceLogItem } from "../traces/tx-traces";
+import { TxTrace } from "../traces/tx-traces";
 import { OmnibusDirectCallFactory, OmnibusDirectCall } from "./calls/omnibus-direct-call";
 import { OmnibusExecuteCall, OmnibusExecuteCallFactory } from "./calls/omnibus-execute-call";
 import { OmnibusForwardCalls, OmnibusForwardCallsFactory } from "./calls/omnibus-forward-calls";
 import { OmnibusSubmitProposalCall, OmnibusSubmitProposalCallFactory } from "./calls/omnibus-submit-calls";
 import { OmnibusForwardCall, OmnibusForwardCallFactory } from "./calls/omnibus-forward-call";
-import { Contract, getEventAbi, getFunctionAbi, OmnibusBaseContract } from "../contracts";
+import { Contract, OmnibusBaseContract } from "../contracts";
 import blueprints, { Blueprints } from "./blueprints";
 import { Agent_ABI } from "../../abi/Agent.abi";
-import { FilterAbiEvents, FindEventAbiParams } from "../types/abi.types";
 import { Artifacts } from "hardhat/types";
 import { createTimedSpinner } from "../common/spinner";
-import {
-  decodeEventLog,
-  decodeFunctionData,
-  encodeEventTopics,
-  Log,
-  toFunctionSelector,
-  TransactionReceipt,
-} from "viem";
+import { decodeEventLog, decodeFunctionData, encodeEventTopics, Log, TransactionReceipt } from "viem";
 import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
 import { processPendingProposals, ProposalStatus } from "./dual-governance";
 import checks from "./checks";
 import chalk from "chalk";
 import { assert } from "chai";
-import deepEqual from "deep-eql";
 import { trace } from "../traces";
-import { CallEvmOpcodes, isCallOpcode, isLogOpcode } from "../traces/evm-opcodes";
-import { CallsScript_ABI } from "../../abi/CallsScript.abi";
-import { Voting_ABI } from "../../abi/Voting.abi";
-import { Executor_ABI } from "../../abi/Executor.abi";
-import { EmergencyProtectedTimelock_ABI } from "../../abi/EmergencyProtectedTimelock.abi";
 import fmt from "../common/format";
 import { getGovernanceContracts, GovernanceContracts } from "./governance-contracts";
+import { event, assertEventWithLog, getSubmittedProposalIds, formatOmnibusCallEvent } from "./event-helpers";
+import { groupOmnibusTraceCalls, filterOmnibusTrace } from "./trace-filters";
 
 export const DEFAULT_FORMAT_OPTIONS: FormatOptions = Object.freeze({
   padLength: 0,
@@ -1063,302 +1051,5 @@ export class Omnibus<
   }
 }
 
-export function groupOmnibusTraceCalls(items: OmnibusCall[], trace: TxTrace) {
-  const voteCallIndices: number[] = [];
-
-  const callTraces: TxTrace[] = [];
-  for (let i = 0; i < items.length; ++i) {
-    const item = items[i];
-    const startIndex = trace.calls.findIndex(
-      (opCode) =>
-        (opCode.type === "CALL" || opCode.type === "DELEGATECALL") &&
-        bytes.isEqual(opCode.address, item.getTarget()) &&
-        bytes.isEqual(opCode.input, item.getCalldata()),
-    );
-    voteCallIndices.push(startIndex);
-  }
-
-  for (let ind = 0; ind < voteCallIndices.length; ++ind) {
-    callTraces.push(trace.slice(voteCallIndices[ind], voteCallIndices[ind + 1]));
-  }
-
-  if (items.length !== callTraces.length) {
-    throw new Error("Unexpected call traces length");
-  }
-  const extraCallsTrace = voteCallIndices.length > 0 ? trace.slice(0, voteCallIndices[0]) : null;
-  return [extraCallsTrace, callTraces] as const;
-}
-
-interface CustomEventArgCheck<$ArgType> {
-  (arg: $ArgType): void;
-}
-
-type PartialArray<T extends readonly unknown[]> = T extends readonly [infer A, ...infer Tail]
-  ? [A | CustomEventArgCheck<A> | null, ...PartialArray<Tail>]
-  : T extends readonly []
-    ? []
-    : (T[number] | CustomEventArgCheck<T[number]> | null)[];
-
-export function event<$Contract extends Contract, $EventName extends FilterAbiEvents<$Contract["abi"]>["name"]>(
-  contract: $Contract,
-  eventName: $EventName,
-  args: PartialArray<FindEventAbiParams<$Contract["abi"], $EventName>>,
-  options: { emitter?: Address; isOptional?: boolean; allowMultiple?: boolean } = {},
-): OmnibusCallEvent {
-  return {
-    // TODO: consider case when contract have overloaded event
-    abi: getEventAbi(contract, eventName),
-    emitter: options.emitter ?? contract.address,
-    args: args as unknown[],
-    isOptional: options.isOptional ?? false,
-    allowMultiple: options.allowMultiple ?? false,
-  };
-}
-
-function getSubmittedProposalIds(receipt: TransactionReceipt) {
-  const submitProposalLogs = receipt.logs.filter((log) => {
-    const proposalSubmittedTopic = encodeEventTopics({ abi: DualGovernance_ABI, eventName: "ProposalSubmitted" })[0];
-    return log.topics[0] && bytes.isEqual(log.topics[0], proposalSubmittedTopic);
-  });
-
-  return submitProposalLogs.map(
-    (log) =>
-      decodeEventLog({
-        abi: DualGovernance_ABI,
-        eventName: "ProposalSubmitted",
-        topics: log.topics,
-        data: log.data,
-      }).args.proposalId,
-  );
-}
-
-function assertEventWithLog(actualLog: Log, expectedEvent: OmnibusCallEvent): { skipped: boolean } {
-  const [expectedTopic] = encodeEventTopics({ abi: [expectedEvent.abi], eventName: expectedEvent.abi.name });
-
-  if (!bytes.isEqual(actualLog.topics[0]!, expectedTopic)) {
-    if (expectedEvent.isOptional) {
-      return { skipped: true };
-    }
-    throw new Error(`Unexpected log for the "${formatAbiItem(expectedEvent.abi)}"`);
-  }
-  const decodedEvent = decodeEventLog({
-    abi: [expectedEvent.abi],
-    topics: actualLog.topics,
-    data: actualLog.data,
-  });
-
-  if (decodedEvent.eventName !== expectedEvent.abi.name) {
-    throw new Error(`Event name mismatch`);
-  }
-
-  const decodedArgNames = Object.keys(decodedEvent.args ?? {});
-  const decodedArgValues = Object.values(decodedEvent.args ?? {});
-
-  if (decodedArgNames.length !== expectedEvent.abi.inputs.length) {
-    throw new Error("Unexpected args length");
-  }
-
-  for (let k = 0; k < expectedEvent.abi.inputs.length; ++k) {
-    if (expectedEvent.args[k] === null) {
-      continue;
-    }
-    const input = expectedEvent.abi.inputs[k];
-    const argIndex = decodedArgNames.findIndex((argName) => argName === input.name);
-    if (argIndex === -1) {
-      throw new Error(`Arg with name "${input.name}" not found`);
-    }
-    const argValue = decodedArgValues[argIndex];
-
-    const eventArg = expectedEvent.args[k];
-    if (eventArg instanceof Function) {
-      // custom argument check
-      eventArg(argValue);
-    } else {
-      const isDeepEqual = bytes.isValid(argValue)
-        ? bytes.isEqual(argValue, expectedEvent.args[k] as string)
-        : deepEqual(argValue, expectedEvent.args[k], {
-            comparator: (leftHandOperand, rightHandOperand) => {
-              if (bytes.isValid(leftHandOperand) && bytes.isValid(rightHandOperand)) {
-                return bytes.isEqual(leftHandOperand, rightHandOperand);
-              }
-              return null;
-            },
-          });
-      if (!isDeepEqual) {
-        throw new Error(`${formatAbiItem(expectedEvent.abi)} args mismatch: ${argValue} != ${expectedEvent.args[k]}`);
-      }
-    }
-  }
-  return { skipped: false };
-}
-
-interface MethodCallConfig {
-  type: CallEvmOpcodes;
-  address: Address;
-  abi: AbiFunction;
-}
-
-export function filterOmnibusTrace(trace: TxTrace) {
-  // const impls = getLidoImpls(trace.network);
-  const contracts = getGovernanceContracts(trace.network);
-
-  return trace
-    .filter(omitProxyDelegateCalls())
-    .filter(
-      omitViewMethodCalls([
-        contracts.locator,
-        // impls.lidoLocator,
-        contracts.kernel,
-        // impls.kernel,
-        contracts.evmScriptRegistry,
-        // impls.evmScriptRegistry,
-        contracts.acl,
-        // impls.acl,
-        contracts.ldo,
-      ]),
-    )
-    .filter(
-      omitMethodCalls([
-        {
-          type: "DELEGATECALL",
-          address: contracts.callsScript.address,
-          abi: getFunctionAbi(contracts.callsScript, "execScript"),
-        },
-      ]),
-    )
-    .filter(omitStaticCalls())
-    .filter(omitAragonServiceLogs())
-    .filter(omitDualGovernanceServiceLogs());
-}
-
-function omitViewMethodCalls(contracts: Contract[]) {
-  return (traceItem: TxTraceItem) => {
-    if (!isCallOpcode(traceItem.type)) return true;
-
-    for (const { abi, address } of contracts) {
-      if (!bytes.isEqual(traceItem.address, address)) {
-        continue;
-      }
-
-      const viewAndPureAbiItems = abi.filter(
-        (abiItem) =>
-          abiItem.type === "function" && (abiItem.stateMutability === "pure" || abiItem.stateMutability === "view"),
-      );
-
-      const isSomeMatch = viewAndPureAbiItems.some((abiItem) =>
-        bytes.isEqual(
-          toFunctionSelector(abiItem as AbiFunction),
-          bytes.slice((traceItem as TxTraceCallItem).input, 0, 4),
-        ),
-      );
-      if (isSomeMatch) {
-        return false;
-      }
-    }
-
-    return true;
-  };
-}
-
-function omitStaticCalls() {
-  return (opCode: TxTraceItem) => {
-    return opCode.type !== "STATICCALL";
-  };
-}
-
-function omitProxyDelegateCalls() {
-  return (txTraceItem: TxTraceItem, i: number, txTraceItems: TxTraceItem[]) => {
-    if (txTraceItem.type !== "DELEGATECALL") return true;
-
-    let parentCallIndex = i - 1;
-    while (parentCallIndex >= 0) {
-      const prevCall = txTraceItems[parentCallIndex];
-      if (prevCall.depth < txTraceItem.depth - 1) {
-        parentCallIndex = -1;
-        break;
-      }
-      if ((prevCall.type === "CALL" || prevCall.type === "STATICCALL") && prevCall.depth === txTraceItem.depth - 1) {
-        break;
-      }
-      parentCallIndex -= 1;
-    }
-
-    if (parentCallIndex < 0) return true;
-
-    const parentTraceItem = txTraceItems[parentCallIndex];
-    if (parentTraceItem.type !== "CALL" && parentTraceItem.type !== "STATICCALL") return true;
-    return txTraceItem.input !== parentTraceItem.input && txTraceItem.output === parentTraceItem.output;
-  };
-}
-
-function omitMethodCalls(callsToOmit: MethodCallConfig[]) {
-  return (txTraceItem: TxTraceItem) => {
-    if (!isCallOpcode(txTraceItem.type)) {
-      return true;
-    }
-
-    return !callsToOmit.some((call) => {
-      return (
-        call.type === txTraceItem.type &&
-        bytes.isEqual(call.address, txTraceItem.address ?? "0x") &&
-        bytes.isEqual(toFunctionSelector(call.abi), bytes.slice(txTraceItem.input, 0, 4))
-      );
-    });
-  };
-}
-
-function omitAragonServiceLogs() {
-  return (txTraceItem: TxTraceItem) => {
-    if (!isLogOpcode(txTraceItem.type)) return true;
-
-    const { topics } = txTraceItem as TxTraceLogItem;
-
-    if (topics.length === 0) return true;
-
-    const logScriptCallTopics = encodeEventTopics({ abi: CallsScript_ABI, eventName: "LogScriptCall" });
-    const scriptResultTopics = encodeEventTopics({ abi: Voting_ABI, eventName: "ScriptResult" });
-    const executeVoteTopics = encodeEventTopics({ abi: Voting_ABI, eventName: "ExecuteVote" });
-
-    return bytes.isEqual(topics[0], logScriptCallTopics[0]) ||
-      bytes.isEqual(topics[0], scriptResultTopics[0]) ||
-      bytes.isEqual(topics[0], executeVoteTopics[0])
-      ? false
-      : true;
-  };
-}
-
-function omitDualGovernanceServiceLogs() {
-  return (txTraceItem: TxTraceItem) => {
-    if (!isLogOpcode(txTraceItem.type)) return true;
-
-    const { topics } = txTraceItem as TxTraceLogItem;
-
-    if (topics.length === 0) return true;
-
-    const executedTopics = encodeEventTopics({ abi: Executor_ABI, eventName: "Executed" });
-    const proposalExecutedTopics = encodeEventTopics({
-      abi: EmergencyProtectedTimelock_ABI,
-      eventName: "ProposalExecuted",
-    });
-
-    return bytes.isEqual(topics[0], executedTopics[0]) || bytes.isEqual(topics[0], proposalExecutedTopics[0])
-      ? false
-      : true;
-  };
-}
-
-function formatOmnibusCallEvent(event: OmnibusCallEvent, isSkipped: boolean) {
-  const argsStatuses: string[] = [];
-
-  for (let i = 0; i < event.args.length; ++i) {
-    const arg = event.args[i];
-
-    const status = isSkipped || arg === null ? chalk.yellow("skipped") : chalk.green("checked");
-
-    argsStatuses.push(`${chalk.gray(event.abi.inputs[i].name)}: ${status}`);
-  }
-
-  const eventName = isSkipped ? chalk.yellow(event.abi.name) : chalk.green(event.abi.name);
-  const strBuilder: string[] = [eventName, chalk.magenta("("), argsStatuses.join(", "), chalk.magenta(")")];
-  return strBuilder.join("");
-}
+export { event } from "./event-helpers";
+export { groupOmnibusTraceCalls, filterOmnibusTrace } from "./trace-filters";
