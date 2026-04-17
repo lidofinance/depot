@@ -96,7 +96,7 @@ const checkTopUpFactory = async ({ client }: CheckContext, input: CheckTopUpFact
     from: DEFAULT_ENACTOR,
   });
 
-  await client.mine(10);
+  await client.mine(10, 1);
 
   const agentTokenBalanceAfter = await client.read(erc20Token, "balanceOf", [agent.address]);
   const recipientBalancesAfter = await Promise.all(
