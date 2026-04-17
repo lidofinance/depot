@@ -20,11 +20,23 @@ type PublicTestWalletClient = PublicClient<HttpTransport | CustomTransport, Chai
   TestClient<DevTestClientMode, HttpTransport | CustomTransport, Chain | undefined, undefined>;
 
 export class DevRpcClient extends RpcClient {
-  #testClient: PublicTestWalletClient | null = null;
+  #testClientPromise: Promise<PublicTestWalletClient> | null = null;
 
+  /**
+   * Mine `blocks` blocks. When mining more than one block, `interval`
+   * (seconds between consecutive block timestamps) must be specified —
+   * otherwise hardhat clamps every block to `parent+1`, which rarely matches
+   * caller intent when combined with a prior `setTime`/`advanceTime`.
+   */
   async mine(blocks: number | bigint, interval?: number | bigint): Promise<void> {
-    const params: MineParameters = { blocks: Number(blocks) };
+    const blocksN = Number(blocks);
+    if (blocksN > 1 && interval === undefined) {
+      throw new Error(
+        "DevRpcClient.mine: `interval` (seconds between blocks) is required when mining more than one block",
+      );
+    }
 
+    const params: MineParameters = { blocks: blocksN };
     if (interval !== undefined) {
       params.interval = Number(interval);
     }
@@ -47,6 +59,11 @@ export class DevRpcClient extends RpcClient {
     }
   }
 
+  /**
+   * Stop impersonating `address`. If `balance` is provided, the account's
+   * balance is set to that value after stopping — useful to restore the
+   * pre-impersonation balance when `impersonate(addr, tmp)` boosted it.
+   */
   async stopImpersonating(address: Address, balance?: bigint) {
     const client = await this.#getTestClient();
     await client.stopImpersonatingAccount({ address });
@@ -110,14 +127,14 @@ export class DevRpcClient extends RpcClient {
     return this.send("eth_accounts", []);
   }
 
-  async #getTestClient() {
-    if (!this.#testClient) {
+  async #getTestClient(): Promise<PublicTestWalletClient> {
+    this.#testClientPromise ??= (async () => {
       const node = await this.getNodeInfo();
       if (node.name !== "hardhat" && node.name !== "anvil") {
         throw new Error(`Unsupported RPC node type ${node.name}`);
       }
-      this.#testClient = this.viemClient.extend(testActions({ mode: node.name })) as unknown as PublicTestWalletClient;
-    }
-    return this.#testClient;
+      return this.viemClient.extend(testActions({ mode: node.name })) as unknown as PublicTestWalletClient;
+    })();
+    return this.#testClientPromise;
   }
 }
