@@ -34,4 +34,4 @@ runs:
       run: npm run omnibus:ci-prepare
       working-directory: depot
       env:
-        ETH_LOCAL_RPC_URL: ${{ inputs.rpc-port }}
+        ETH_LOCAL_RPC_PORT: ${{ inputs.rpc-port }}
