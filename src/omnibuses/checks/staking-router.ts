@@ -1,44 +1,71 @@
-import { BigNumberish } from "ethers";
-import { assert } from "../../common/assert";
+import { Address } from "abitype";
 import { CheckContext } from "./checks";
+import { assert } from "../../common/assert";
+import { StakingRouter_ABI } from "../../../abi/StakingRouter.abi";
+import { Contract } from "../../contracts";
+import { NodeOperatorsRegistry_ABI } from "../../../abi/NodeOperatorsRegistry.abi";
+import { CSModule_ABI } from "../../../abi/CSModule.abi";
 
 export interface StakingModuleParams {
-  targetShare: bigint;
-  treasuryFee: bigint;
-  stakingModuleFee: bigint;
+  treasuryFee: number;
+  stakingModuleFee: number;
 }
 
-const checkStakingModule = async (
-  { contracts }: CheckContext,
-  stakingModuleID: BigNumberish,
-  params: StakingModuleParams,
+interface CheckStakingModuleFeeInput {
+  stakingModuleId: number | bigint;
+  treasuryFee: number | bigint;
+  stakingModuleFee: number | bigint;
+}
+
+const checkStakingModuleFee = async (
+  { client }: CheckContext,
+  { stakingRouter }: { stakingRouter: Contract<typeof StakingRouter_ABI> },
+  input: CheckStakingModuleFeeInput,
 ) => {
-  const stakingModule = await contracts.stakingRouter.getStakingModule(stakingModuleID);
+  const stakingModuleId = BigInt(input.stakingModuleId);
+  const stakingModuleInfo = await client.read(stakingRouter, "getStakingModule", [stakingModuleId]);
 
-  assert.equal(stakingModule.targetShare, params.targetShare);
-  assert.equal(stakingModule.treasuryFee, params.treasuryFee);
-  assert.equal(stakingModule.stakingModuleFee, params.stakingModuleFee);
+  assert.equal(stakingModuleInfo.treasuryFee, input.treasuryFee);
+  assert.equal(stakingModuleInfo.stakingModuleFee, input.stakingModuleFee);
 };
 
-const checkNodeOperator = async (
-  { contracts }: CheckContext,
-  nopID: BigNumberish,
-  name: string,
-  rewardAddress: `0x${string}`,
-) => {
-  const nopInfo = await contracts.curatedStakingModule.getNodeOperator(nopID, false);
+interface CheckNodeOperatorInput {
+  stakingModule: Contract<typeof NodeOperatorsRegistry_ABI>;
+  operatorId: bigint | number;
+  active?: boolean;
+  name?: string;
+  rewardAddress?: Address;
+}
 
-  assert.equal(nopInfo.rewardAddress, rewardAddress, `Operator ${name} not found`);
+const checkNodeOperator = async ({ client }: CheckContext, input: CheckNodeOperatorInput) => {
+  const { stakingModule, operatorId, ...expected } = input;
+
+  const [active, name, rewardAddress] = await client.read(stakingModule, "getNodeOperator", [BigInt(operatorId), true]);
+
+  if (expected.active !== undefined) {
+    assert.equal(active, expected.active);
+  }
+  if (expected.name !== undefined) {
+    assert.equal(name, expected.name);
+  }
+  if (expected.rewardAddress !== rewardAddress) {
+    assert.equal(expected.rewardAddress, rewardAddress);
+  }
 };
 
-const checkNodeOperatorsCount = async ({ contracts }: CheckContext, expectedCount: BigNumberish) => {
-  const nodeOperatorsCount = await contracts.curatedStakingModule.getNodeOperatorsCount();
+interface CheckNodeOperatorsCountInput {
+  stakingModule: Contract<typeof NodeOperatorsRegistry_ABI> | Contract<typeof CSModule_ABI>;
+  nodeOperatorsCount: bigint | number;
+}
 
-  assert.equal(nodeOperatorsCount, expectedCount);
-};
+async function checkNodeOperatorsCount(ctx: CheckContext, input: CheckNodeOperatorsCountInput) {
+  const nodeOperatorsCount = await ctx.client.read(input.stakingModule, "getNodeOperatorsCount", []);
+
+  assert.equal(nodeOperatorsCount, input.nodeOperatorsCount);
+}
 
 export default {
-  checkStakingModule,
+  checkStakingModuleFee,
   checkNodeOperator,
   checkNodeOperatorsCount,
 };

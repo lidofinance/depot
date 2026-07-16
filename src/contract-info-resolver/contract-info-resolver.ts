@@ -1,32 +1,38 @@
-import { ContractInfoInMemoryCache } from "./contract-info-cache";
-import type { ChainId, ContractInfo, ContractInfoProvider, ContractInfoCache } from "./types";
+import { ContractInfoInMemoryCache, ContractInfoPersistentJsonCache } from "./contract-info-cache";
+import type { ContractInfoCache } from "./types";
 import { Address } from "../common/types";
-
-interface AbiResolverOptions {
-  contractInfoProvider: ContractInfoProvider;
-  cache?: ContractInfoCache | undefined;
-}
+import { NetworkName } from "../network";
+import { EtherscanContractInfoProvider } from "./etherscan-contract-info-provider";
 
 export class ContractInfoResolver {
-  public readonly cache: ContractInfoCache | undefined;
-  public readonly provider: ContractInfoProvider;
+  public static cache: ContractInfoCache | undefined = undefined;
+  public static etherscanProvider: EtherscanContractInfoProvider | undefined = undefined;
 
-  constructor({ contractInfoProvider, cache }: AbiResolverOptions, cacheEnabled: boolean = false) {
-    this.provider = contractInfoProvider;
-    if (!cacheEnabled) return;
-    if (cache === undefined) {
-      this.cache = new ContractInfoInMemoryCache();
-    } else {
-      this.cache = cache;
-    }
+  public static disableCache() {
+    this.cache = undefined;
   }
 
-  async resolve(chainId: ChainId, address: Address): Promise<ContractInfo> {
-    const cacheRes = await this.cache?.get(chainId, address);
+  public static enableInMemoryCache() {
+    this.cache = new ContractInfoInMemoryCache();
+  }
+
+  public static enablePersistentJsonCache(cacheDirPath: string) {
+    this.cache = ContractInfoPersistentJsonCache.create(cacheDirPath);
+  }
+
+  public static setEtherscanToken(token: string) {
+    this.etherscanProvider = new EtherscanContractInfoProvider(token);
+  }
+
+  public static async resolve(networkName: NetworkName, address: Address) {
+    if (!this.etherscanProvider) {
+      throw new Error(`Etherscan Tokens wasn't set. Use "ContractInfoResolver.setEtherscanToken() to set token"`);
+    }
+    const cacheRes = await this.cache?.get(networkName, address);
     if (cacheRes) return cacheRes;
 
-    const res = await this.provider.request(chainId, address);
-    await this.cache?.set(chainId, address, res);
+    const res = await this.etherscanProvider.request(networkName, address);
+    await this.cache?.set(networkName, address, res);
     return res;
   }
 }

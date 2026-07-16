@@ -1,62 +1,75 @@
-import lido from "../lido";
-import providers from "../providers";
-import { call, evm } from "./vote-script";
-import { ContractTransactionResponse, Signer } from "ethers";
-import { NonPayableOverrides } from "../../typechain-types/common";
+import { decodeEventLog, encodeEventTopics, encodeFunctionData } from "viem";
+import { RpcClient, WriteContractOptions } from "../network";
+import { EvmScriptParser } from "./evm-script-parser";
+import { HexStrPrefixed } from "../common/bytes";
+import { getEventAbi } from "../contracts/contracts";
+import { Voting_ABI } from "../../abi/Voting.abi";
+import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
-export async function start(
-  creator: Signer,
-  evmScript: string,
+export const lifecycleDeps = { getGovernanceContracts };
+
+export async function startAragonVote(
+  client: RpcClient,
+  evmScript: HexStrPrefixed,
   description: string,
-  castVote: boolean = false,
-  overrides?: NonPayableOverrides,
+  txOptions: WriteContractOptions,
 ) {
-  console.log(`Sending the tx to start the vote...`);
-  const { voting, tokenManager } = lido.chainId(await providers.chainId(creator), creator);
+  const networkName = client.getNetworkName();
+  const { voting, tokenManager } = lifecycleDeps.getGovernanceContracts(networkName);
 
-  const startVoteScript = evm(
-    call(voting["newVote(bytes,string,bool,bool)"], [evmScript, description, castVote, false]),
-  );
-  const tx = await tokenManager.connect(creator).forward(startVoteScript, overrides ?? {});
-  console.log("Transaction successfully sent:", tx.hash);
-  return tx;
-}
+  const startVoteScript = EvmScriptParser.encode([
+    {
+      address: voting.address,
+      calldata: encodeFunctionData({
+        abi: voting.abi,
+        functionName: "newVote",
+        args: [evmScript, description, false, false],
+      }),
+    },
+  ]);
 
-export async function wait(tx: ContractTransactionResponse) {
-  console.log("Waiting transaction will be confirmed...");
-  const receipt = await tx.wait();
-  if (!receipt) {
-    throw new Error("Invalid confirmations value");
-  }
+  const receipt = await client.write(tokenManager, "forward", [startVoteScript], txOptions);
 
-  const { voting } = lido.chainId(await providers.chainId(tx));
+  const [startVoteTopic] = encodeEventTopics({
+    abi: Voting_ABI,
+    eventName: "StartVote",
+  });
+  const startVoteLog = receipt.logs.find((log) => log.topics[0] === startVoteTopic);
 
-  const startVoteLog = receipt.logs.find((log) => log.topics[0] === voting.interface.getEvent("StartVote")!.topicHash);
   if (!startVoteLog) {
     throw new Error("StartVote log not found");
   }
 
-  const startVoteEvent = voting.interface.parseLog({
-    data: startVoteLog?.data,
-    topics: [...startVoteLog?.topics],
-  })!;
+  const startVoteEvent = decodeEventLog({
+    abi: Voting_ABI,
+    eventName: "StartVote",
+    topics: startVoteLog.topics,
+    data: startVoteLog.data,
+  });
 
-  const voteId: bigint = startVoteEvent.args[0];
+  const voteId: bigint = startVoteEvent.args.voteId;
 
   return { voteId, receipt };
 }
 
-export async function execute<T extends Signer>(
-  executor: T,
-  voteId: number | bigint | string,
-  overrides?: NonPayableOverrides,
-) {
-  const { voting } = lido.chainId(await providers.chainId(executor), executor);
+export async function executeAragonVote(client: RpcClient, voteId: bigint, txOptions: WriteContractOptions) {
+  const { voting } = lifecycleDeps.getGovernanceContracts(client.getNetworkName());
+  return client.write(voting, "executeVote", [voteId], txOptions);
+}
 
-  const tx = await voting.executeVote(voteId, overrides ?? {});
-  const receipt = await tx.wait();
-  if (!receipt) {
-    throw new Error("transaction wait failed");
+export async function getExecuteReceipt(client: RpcClient, voteId: bigint, fromBlock?: number | bigint) {
+  const { voting } = lifecycleDeps.getGovernanceContracts(client.getNetworkName());
+  const executeVoteFilter = await client.createEventFilter({
+    address: voting.address,
+    event: getEventAbi(voting, "ExecuteVote"),
+    args: [voteId],
+    fromBlock: fromBlock ? BigInt(fromBlock) : undefined,
+  });
+  const executeLogs = await client.getFilterLogs({ filter: executeVoteFilter });
+  if (executeLogs.length === 0) {
+    throw new Error(`ExecuteVote event with id ${voteId} is not found at block ${fromBlock}`);
   }
-  return receipt;
+  return client.getTransactionReceipt({
+    hash: executeLogs[0].transactionHash,
+  });
 }

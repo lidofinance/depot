@@ -12,7 +12,7 @@ export const isCidUploaded = async (cid: string) => {
   try {
     const resp = await fetch(getUrlByCidV1(cid), { signal: AbortSignal.timeout(8000) });
     return resp.status < 300;
-  } catch (e) {
+  } catch (_e) {
     return false;
   }
 };

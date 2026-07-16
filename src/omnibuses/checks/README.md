@@ -67,3 +67,35 @@ describe("Check total supply", () => {
   });
 });
 ```
+
+## Access control checks
+
+Use built-in access control checks instead of ad-hoc role assertions:
+
+- `checks.accessControl.checkOzRoleGranted(...)`
+- `checks.accessControl.checkOzRoleNotGranted(...)`
+- `checks.accessControl.checkAragonPermissionGranted(...)`
+- `checks.accessControl.checkAragonPermissionNotGranted(...)`
+
+Examples:
+
+```typescript
+await checks.accessControl.checkOzRoleGranted(
+  { client },
+  {
+    contracts: { accessControl: contracts.operatorGrid },
+    role: SOME_ROLE,
+    account: SOME_ACCOUNT,
+  },
+);
+
+await checks.accessControl.checkAragonPermissionNotGranted(
+  { client },
+  {
+    contracts: { acl: contracts.acl },
+    entity: contracts.agent.address,
+    app: contracts.lido.address,
+    role: STAKING_CONTROL_ROLE,
+  },
+);
+```

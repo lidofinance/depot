@@ -1,7 +1,7 @@
 import * as env from "../common/env";
 import pinata from "./pinata";
 
-export const getIpfsProvider = async () => {
+export const getIpfsProvider = () => {
   if (env.PINATA_JWT()) {
     return pinata.getProvider();
   }

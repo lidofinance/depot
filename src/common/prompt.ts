@@ -85,7 +85,7 @@ async function secret(message: string, options?: SecretOptions): Promise<string>
 }
 
 async function password(message: string, options: PasswordOptions): Promise<string> {
-  const password = await secret(message ?? "Enter the password:", {
+  const password = await secret(message, {
     invisible: true,
   });
 
@@ -114,7 +114,17 @@ async function sigint() {
   await sigintPromise;
 }
 
+async function text(message: string): Promise<string> {
+  const { value } = await prompts({
+    name: "value",
+    type: "text",
+    message,
+  });
+  return value;
+}
+
 export default {
+  text,
   secret,
   select,
   confirm,

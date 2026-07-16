@@ -1,48 +1,83 @@
 import "dotenv/config";
 import { HardhatUserConfig } from "hardhat/config";
-import "@typechain/hardhat";
-import "@nomicfoundation/hardhat-ethers";
 
-if (!process.env.SKIP_TYPECHAIN) {
-  // this is required to allow build the typechain types at the first launch
-  require("./tasks/omnibuses");
+import * as env from "./src/common/env";
+import { omnibusTaskBuilders } from "./tasks/omnibuses";
+import { keystoreTaskBuilders } from "./src/hardhat-keystores/tasks";
+
+import { ContractInfoResolver } from "./src/contract-info-resolver/contract-info-resolver";
+import { findContainerByName, stopContainer } from "./src/docker";
+
+const etherscanToken = env.ETHERSCAN_TOKEN();
+
+if (etherscanToken) {
+  ContractInfoResolver.setEtherscanToken(etherscanToken);
+} else {
+  console.warn(`⚠️  "ETHERSCAN_TOKEN" env variable wasn't set. Some methods may work incorrectly or fail.\n`);
 }
-import "./src/hardhat-keystores";
+ContractInfoResolver.enableInMemoryCache();
 
-import traces from "./src/traces";
-import networks from "./src/networks";
+let isShuttingDown = false;
 
-traces.hardhat.setup();
+process.on("SIGINT", () => {
+  console.log("SIGINT");
+  if (!isShuttingDown) {
+    isShuttingDown = true;
+    void stopDockerContainers();
+  }
+});
+
+process.on("SIGTERM", () => {
+  console.log("SIGTERM");
+  if (!isShuttingDown) {
+    isShuttingDown = true;
+    void stopDockerContainers();
+  }
+});
+
+async function stopDockerContainers() {
+  const containerNames = ["lido-core", "lido-scripts", "lido-scripts-1", "lido-dual-governance", "hh-rpc-node"];
+  const containers = await Promise.all(containerNames.map((name) => findContainerByName(name)));
+
+  const stopContainerPromises: Promise<unknown>[] = [];
+  for (let i = 0; i < containerNames.length; ++i) {
+    const name = containerNames[i];
+    const container = containers[i];
+    if (container) {
+      console.log(`Stopping container ${name} initiated`);
+      stopContainerPromises.push(stopContainer(container, name));
+    }
+  }
+
+  console.log("Waiting for containers stopped...");
+  await Promise.allSettled(stopContainerPromises);
+}
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.23",
-  networks: {
-    hardhat: {
-      hardfork: "merge",
-      chainId: 1,
-      forking: {
-        url: networks.rpcUrl("eth", "mainnet"),
+  tasks: [
+    ...omnibusTaskBuilders.map((taskBuilder) => taskBuilder.build()),
+    ...keystoreTaskBuilders.map((taskBuilder) => taskBuilder.build()),
+  ],
+  paths: {
+    sources: {
+      solidity: ["contracts", "omnibuses"],
+    },
+  },
+  solidity: {
+    version: "0.8.26",
+    settings: {
+      viaIR: true,
+      optimizer: {
+        enabled: true,
+        details: {
+          yulDetails: {
+            optimizerSteps: "u",
+          },
+        },
       },
     },
-    "holesky-fork": {
-      hardfork: "merge",
-      chainId: 17000,
-      url: networks.rpcUrl("eth", "holesky"),
-    },
-    holesky: {
-      chainId: 17000,
-      url: networks.rpcUrl("eth", "holesky"),
-    },
   },
-  typechain: {
-    externalArtifacts: ["interfaces/*.json"],
-  },
-  mocha: {
-    timeout: 5 * 60 * 10000,
-  },
-  keystores: {
-    path: "keystores",
-  },
+  networks: {},
 };
 
 export default config;

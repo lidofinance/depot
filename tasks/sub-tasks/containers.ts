@@ -1,71 +1,128 @@
-import { runImageInBackground, runTestsFromRepo } from "../../src/docker";
+import { buildRepo, Repos, runTestsFromRepo } from "../../src/docker";
 import * as env from "../../src/common/env";
 import { logBlue } from "../../src/common/color";
 import Docker from "dockerode";
-import { NetworkName } from "../../src/networks";
-import { revertCurrentNode } from "../../src/rpc";
-export const runDepotTests = async (name: string, hideDebug = false) => {
-  const repo = "depot";
-  const cmd = ["pnpm", "omnibus:test", name, "--rpc", "local"];
-  logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
-  await runTestsFromRepo(repo, "", cmd, hideDebug, {
-    HostConfig: {
-      Mounts: [{ Source: process.cwd(), Target: "/usr/src/app", Type: "bind" }],
-    },
-  });
-  logBlue("Reset node state");
-};
+import type { ContainerCreateOptions } from "dockerode";
 
-export const prepareLocalRpcNode = async (name: string, network: NetworkName) => {
-  const canUseCurrentNode = await revertCurrentNode(network);
-  if (canUseCurrentNode) {
-    console.log(`Local node works on network "${network}" and not modified by other tasks`);
-    return;
+function getDockerLocalRpcUrl() {
+  const localRpc = String(env.ETH_LOCAL_RPC_PORT());
+  const hostRpcUrl = /^https?:\/\//i.test(localRpc) ? localRpc : `http://localhost:${localRpc}`;
+  return hostRpcUrl.replace("://localhost", "://host.docker.internal").replace("://127.0.0.1", "://host.docker.internal");
+}
+
+export async function runRepoTests(
+  repo: "core" | "dual-governance" | "scripts",
+  pattern?: string,
+  hideDebug = false,
+  shouldMountTests = false,
+) {
+  if (repo === "core") {
+    return runCoreTests(pattern, hideDebug, shouldMountTests);
+  } else if (repo === "dual-governance") {
+    return runDgTests(pattern, hideDebug, shouldMountTests);
+  } else if (repo === "scripts") {
+    return runScriptsTests(pattern, hideDebug, shouldMountTests);
   }
-  const port = env.LOCAL_ETH_RPC_PORT();
-  const networkSuffix = network === "holesky" ? "-holesky-fork" : "";
-  const image = `${env.HH_NODE_IMAGE()}${networkSuffix}`;
-  const cmd = ["pnpm", "start"];
+  throw new Error(`Unsupported repo "${repo}"`);
+}
 
-  await runImageInBackground(name, image, cmd, true, {
-    Env: [`ALCHEMY_TOKEN=${env.ALCHEMY_TOKEN()}`],
-    HostConfig: { PortBindings: { "8545/tcp": [{ HostPort: port }] } },
-  });
-};
+const runCoreTests = async (
+  pattern: string = "test/integration/**/*.ts",
+  hideDebug = false,
+  shouldMountTests = false,
+) => {
+  const repo: Repos = "core";
 
-export const runCoreTests = async (pattern?: string, hideDebug = false, shouldMountTests = false) => {
-  const repo = "core";
-  const cmd = !pattern
-    ? ["yarn", "run", "test:integration:fork:mainnet"]
-    : ["yarn", "run", `test:integration:fork:mainnet:custom`, pattern];
-  const config: Docker.ContainerCreateOptions = {};
+  const cmd = ["sh", "-c", `MODE=forking yarn run hardhat test ${pattern} --network hardhat`];
+
+  const config: Docker.ContainerCreateOptions = {
+    Env: [`FORK_RPC_URL=${getDockerLocalRpcUrl()}`],
+  };
+
   if (shouldMountTests) {
     config.HostConfig = {
       Mounts: [{ Source: `${process.cwd()}/mount/core`, Target: "/usr/src/app/test/custom", Type: "bind" }],
     };
   }
-  console.log(config);
-  logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
-  await runTestsFromRepo("core", env.GIT_BRANCH_CORE(), cmd, hideDebug, config);
+
+  const imageTag = await buildRepo(repo, env.GIT_BRANCH_CORE(), hideDebug);
+  await runTests(repo, imageTag, cmd, config, hideDebug);
 };
 
-export const runScriptsTests = async (
-  voteId: number,
-  pattern?: string,
-  hideDebug = false,
-  shouldMountTests = false,
-) => {
-  const repo = "scripts";
-  const cmd = !pattern ? ["poetry", "run", "brownie", "test"] : ["poetry", "run", "brownie", "test", pattern];
-  logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
-  const config: Docker.ContainerCreateOptions = {
-    Env: [`PINATA_CLOUD_TOKEN=${env.PINATA_JWT()}`, `OMNIBUS_VOTE_IDS=${voteId}`],
-  };
+const runScriptsTests = async (pattern?: string, hideDebug = false, shouldMountTests = false) => {
+  const repo: Repos = "scripts";
+
+  // TODO: remove default option before prod
+  const extraPattern = pattern !== "default" ? pattern : "tests/custom/_example_omnibus_test_for_scripts_repo.py";
+
+  const cmd0 = !extraPattern ? ["make", "test-1/2"] : ["poetry", "run", "brownie", "test", extraPattern];
+  const cmd1 = !extraPattern ? ["make", "test-2/2"] : ["poetry", "run", "brownie", "test", extraPattern];
+
+  const Env: string[] = [
+    `PINATA_CLOUD_TOKEN=${env.PINATA_JWT()}`,
+    `ETHERSCAN_TOKEN=${env.ETHERSCAN_TOKEN()}`,
+    `SECONDARY_NETWORK=mfh-1`,
+    `MAX_GET_LOGS_RANGE=10000`,
+  ];
+  const config: Docker.ContainerCreateOptions = { Env };
   if (shouldMountTests) {
     config.HostConfig = {
       Mounts: [{ Source: `${process.cwd()}/mount/scripts`, Target: "/root/scripts/tests/custom", Type: "bind" }],
     };
   }
 
-  await runTestsFromRepo(repo, env.GIT_BRANCH_SCRIPTS(), cmd, hideDebug, config);
+  const config0 = { ...config, Env: [...Env, `ETH_RPC_URL=${getDockerLocalRpcUrl()}`] };
+  const config1 = { ...config, Env: [...Env, `ETH_RPC_URL=${getDockerLocalRpcUrl()}`] };
+
+  const imageTag = await buildRepo(repo, env.GIT_BRANCH_SCRIPTS(), hideDebug);
+  await Promise.all([
+    runTests(repo, imageTag, cmd0, config0, hideDebug),
+    runTests(repo, imageTag, cmd1, config1, hideDebug, 1),
+  ]);
+};
+
+const runDgTests = async (pattern?: string, hideDebug = false, shouldMountTests = false) => {
+  const repo: Repos = "dual-governance";
+
+  const cmd = !pattern
+    ? ["npm", "run", "test:regressions", "--", "--load-accounts"]
+    : ["npm", "run", "test", "--match-path", pattern];
+
+  const config: Docker.ContainerCreateOptions = {
+    Env: [
+      `MAINNET_RPC_URL=${getDockerLocalRpcUrl()}`,
+      `DEPLOY_ARTIFACT_FILE_NAME=deploy-artifact-mainnet.toml`,
+    ],
+  };
+  if (shouldMountTests) {
+    config.HostConfig = {
+      Mounts: [
+        {
+          Source: `${process.cwd()}/mount/dual-governance`,
+          Target: "/root/dual-governance/test/custom",
+          Type: "bind",
+        },
+      ],
+    };
+  }
+  const imageTag = await buildRepo(repo, env.GIT_BRANCH_DG(), hideDebug);
+  await runTests(repo, imageTag, cmd, config, hideDebug);
+};
+
+const runTests = async (
+  repo: Repos,
+  imageTag: string,
+  cmd: string[],
+  config: ContainerCreateOptions,
+  hideDebug = false,
+  instance = 0,
+) => {
+  try {
+    logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
+    await runTestsFromRepo(repo, imageTag, cmd, config, hideDebug, instance);
+    logBlue(`Success tests from ${repo} repo: \n"${cmd.join(" ")}"`);
+  } catch (err) {
+    logBlue(`Failed tests from ${repo} repo: \n"${cmd.join(" ")}"`);
+    throw err;
+  }
 };

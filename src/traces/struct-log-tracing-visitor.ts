@@ -23,16 +23,10 @@ import {
   TxTraceCtxSpawningItem,
 } from "./tx-traces";
 import { RawStructLog } from "./types";
+import { Stack } from "./stack";
+import { ReadOnlyEVMMemory, ReadOnlyEVMStack, EVMMemoryReader, EVMStackReader } from "./evm-runtime";
 
-interface EVMMemoryReader {
-  read(offset: number, size: number): HexStrPrefixed;
-}
-
-interface EVMStackReader {
-  peek(offset?: number): HexStrPrefixed;
-}
-
-interface FormattedStructLog<OpCode = EvmOpcode, Stack = EVMStackReader, Memory = EVMMemoryReader> {
+interface FormattedStructLog<OpCode = EvmOpcode, StackT = EVMStackReader, Memory = EVMMemoryReader> {
   depth: number;
   error?: string;
   gas: number;
@@ -40,7 +34,7 @@ interface FormattedStructLog<OpCode = EvmOpcode, Stack = EVMStackReader, Memory 
   op: OpCode;
   pc: number;
   memory: Memory;
-  stack: Stack;
+  stack: StackT;
 }
 
 interface CtxGasInfo {
@@ -192,26 +186,38 @@ export class StructLogsTracingVisitor {
 
   private handleLog(log: RawStructLog<LogEvmOpcodes>) {
     const flog = this.formatRawStructLog(log);
-    const result: TxTraceLogItem = {
+    const result = {
       type: flog.op,
       depth: flog.depth,
+      topics: [],
       data: flog.memory.read(bytes.toInt(flog.stack.peek(0)), bytes.toInt(flog.stack.peek(1))),
-    };
+    } as TxTraceLogItem;
 
     // lexicographic order works there
     if (flog.op >= OPCODES.LOG1) {
-      result.topic1 = flog.stack.peek(2);
+      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(2));
     }
     if (flog.op >= OPCODES.LOG2) {
-      result.topic2 = flog.stack.peek(3);
+      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(3));
     }
     if (flog.op >= OPCODES.LOG3) {
-      result.topic3 = flog.stack.peek(4);
+      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(4));
     }
     if (flog.op === OPCODES.LOG4) {
-      result.topic4 = flog.stack.peek(5);
+      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(5));
     }
     this.items.push(result);
+
+    const stackHeight = this.stack.length;
+
+    for (let i = 0; i < stackHeight; ++i) {
+      const item = this.stack.peek(i);
+      if (item.type === "CALL" || item.type === "CREATE" || item.type === "CREATE2") {
+        result.address = item.address;
+        return;
+      }
+    }
+    throw new Error("Invalid stack: CALL, CREATE or CREATE2 item associated with LOG item not found");
   }
 
   private handleSelfDestruct(log: RawStructLog<SelfDestructEvmOpcodes>) {
@@ -339,77 +345,5 @@ export class StructLogsTracingVisitor {
       res.error = structLog.error;
     }
     return res;
-  }
-}
-
-class Stack<T> {
-  private readonly items: T[] = [];
-
-  peek(offset: number = 0): T {
-    if (this.items.length === 0) {
-      throw new Error("stack is empty");
-    }
-
-    const minAllowedIndex = -this.items.length;
-    const maxAllowedIndex = this.items.length - 1;
-
-    if (offset < minAllowedIndex && offset > maxAllowedIndex) {
-      throw new Error(`Offset out of bounds`);
-    }
-
-    const index = (this.items.length + offset) % this.items.length;
-
-    return this.items[this.items.length - index - 1];
-  }
-
-  pop(): T {
-    if (this.items.length === 0) {
-      throw new Error("stack is empty");
-    }
-    return this.items.pop()!;
-  }
-
-  push(item: T) {
-    this.items.push(item);
-  }
-
-  get length(): number {
-    return this.items.length;
-  }
-}
-
-class ReadOnlyEVMMemory {
-  private readonly memory: string;
-
-  constructor(memory: string[]) {
-    this.memory = memory.join("");
-  }
-
-  read(offset: number, size: number): HexStrPrefixed {
-    // TODO: maybe throw an error when offset is exceeds memory length
-    return bytes.normalize(this.memory.slice(2 * offset, 2 * (offset + size)));
-  }
-}
-
-class ReadOnlyEVMStack {
-  private readonly stack: string[];
-
-  constructor(stack: string[]) {
-    this.stack = stack;
-  }
-
-  get size(): number {
-    return this.stack.length;
-  }
-
-  peek(offset: number = 0): HexStrPrefixed {
-    if (offset >= this.stack.length) {
-      throw new Error(`offset: ${offset} exceeds the stack size: ${this.stack.length}`);
-    }
-    const item = this.stack[this.stack.length - 1 - offset];
-    if (item === undefined) {
-      throw new Error(`Stack item is undefined`);
-    }
-    return bytes.normalize(bytes.padStart(item, 32));
   }
 }

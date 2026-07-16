@@ -1,84 +1,72 @@
-import { BigNumberish } from "ethers";
-import { StakingModule } from "../../lido/lido";
-import { call, event, forward } from "../../aragon-votes-tools";
-import { Contracts } from "../../contracts/contracts";
-import { Lido } from "../../../configs/types";
-import { OmnibusItem } from "../omnibuses";
-import { Address } from "../../common/types";
+import { StakingRouter_ABI } from "../../../abi/StakingRouter.abi";
+import { Contract } from "../../contracts";
+import { OmnibusDirectCall } from "../calls/omnibus-direct-call";
+import { BlueprintCtx } from "../omnibus";
+
+type StakingRouterContract = Contract<typeof StakingRouter_ABI>;
+
+export enum StakingModule {
+  CuratedStakingModule = 1,
+  SimpleDVT = 2,
+  CSModule = 3,
+}
 
 interface UpdateStakingModuleInput {
   title: string;
-  stakingModuleId: StakingModule;
-  targetShare: BigNumberish;
-  treasuryFee: BigNumberish;
-  stakingModuleFee: BigNumberish;
+  stakingModuleId: bigint;
+  stakeShareLimit: bigint;
+  priorityExitShareThreshold: bigint;
+  stakingModuleFee: bigint;
+  treasuryFee: bigint;
+  maxDepositsPerBlock: bigint;
+  minDepositBlockDistance: bigint;
 }
 
-interface NewNodeOperatorInput {
-  name: string;
-  rewardAddress: Address;
-}
+function updateStakingModule(
+  ctx: BlueprintCtx,
+  { stakingRouter }: { stakingRouter: StakingRouterContract },
+  input: UpdateStakingModuleInput,
+): OmnibusDirectCall {
+  const {
+    stakingModuleId,
+    stakeShareLimit,
+    priorityExitShareThreshold,
+    stakingModuleFee,
+    treasuryFee,
+    maxDepositsPerBlock,
+    minDepositBlockDistance,
+  } = input;
 
-interface AddNodeOperatorsInput {
-  operators: NewNodeOperatorInput[];
-}
-
-function updateStakingModule(contracts: Contracts<Lido>, input: UpdateStakingModuleInput): OmnibusItem {
-  const { callsScript, agent, voting, stakingRouter } = contracts;
-  const { stakingModuleId, targetShare, stakingModuleFee, treasuryFee } = input;
-
-  return {
-    title: `Update "${StakingModule[stakingModuleId]}" staking module`,
-    evmCall: forward(agent, [
-      call(stakingRouter.updateStakingModule, [stakingModuleId, targetShare, stakingModuleFee, treasuryFee]),
-    ]),
-    expectedEvents: [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
-      event(callsScript, "LogScriptCall", { emitter: agent }),
-      event(stakingRouter, "StakingModuleTargetShareSet", {
-        args: [stakingModuleId, targetShare, agent],
-      }),
-      event(stakingRouter, "StakingModuleFeesSet", {
-        args: [stakingModuleId, stakingModuleFee, treasuryFee, agent],
-      }),
-      event(agent, "ScriptResult"),
+  return ctx.directCall(input.title, {
+    on: stakingRouter,
+    fn: "updateStakingModule",
+    args: [
+      stakingModuleId,
+      stakeShareLimit,
+      priorityExitShareThreshold,
+      stakingModuleFee,
+      treasuryFee,
+      maxDepositsPerBlock,
+      minDepositBlockDistance,
     ],
-  };
-}
-
-function addNodeOperators(contracts: Contracts<Lido>, input: AddNodeOperatorsInput): OmnibusItem {
-  const { callsScript, curatedStakingModule, agent, voting } = contracts;
-  const { operators } = input;
-
-  const calls = operators.map((item) => {
-    const { name, rewardAddress } = item;
-    return call(curatedStakingModule.addNodeOperator, [name, rewardAddress]);
-  });
-
-  const subItemEvents = operators.flatMap((operator) => {
-    const { name, rewardAddress } = operator;
-    return [
-      event(callsScript, "LogScriptCall", { emitter: agent }),
-      event(curatedStakingModule, "NodeOperatorAdded", {
-        args: [undefined, name, rewardAddress, 0],
-      }),
-    ];
-  });
-
-  return {
-    title:
-      `Add ${input.operators.length} node operators:\n` +
-      input.operators.flatMap((item) => ` - ${item.name}`).join("\n"),
-    evmCall: forward(agent, calls),
-    expectedEvents: [
-      event(callsScript, "LogScriptCall", { emitter: voting }),
-      ...subItemEvents,
-      event(agent, "ScriptResult"),
+    events: [
+      ctx.event(stakingRouter, "StakingModuleShareLimitSet", [
+        stakingModuleId,
+        stakeShareLimit,
+        priorityExitShareThreshold,
+        null,
+      ]),
+      ctx.event(stakingRouter, "StakingModuleFeesSet", [stakingModuleId, stakingModuleFee, treasuryFee, null]),
+      ctx.event(stakingRouter, "StakingModuleMaxDepositsPerBlockSet", [stakingModuleId, maxDepositsPerBlock, null]),
+      ctx.event(stakingRouter, "StakingModuleMinDepositBlockDistanceSet", [
+        stakingModuleId,
+        minDepositBlockDistance,
+        null,
+      ]),
     ],
-  };
+  });
 }
 
 export default {
-  addNodeOperators,
   updateStakingModule,
 };

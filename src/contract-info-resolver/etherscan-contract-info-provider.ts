@@ -1,10 +1,8 @@
-import fetch from "node-fetch";
-
 import { ContractInfoProvider, ContractInfo } from "./types";
 
 import bytes from "../common/bytes";
-import { Address, ChainId } from "../common/types";
-import { BUILTIN_ETHERSCAN_CHAINS, EtherscanChainConfig } from "./etherscan-chains-config";
+import { Address } from "../common/types";
+import { getChainIdByNetworkName, NetworkName } from "../network";
 
 interface EtherscanResponse<T = unknown> {
   status: "0" | "1";
@@ -38,25 +36,14 @@ interface EtherscanGetSourceCodeResult {
 }
 
 export class EtherscanContractInfoProvider implements ContractInfoProvider {
-  private readonly chains: EtherscanChainConfig[];
   private readonly etherscanToken: string;
 
-  private apiUrl(chainId: ChainId): string {
-    for (let config of this.chains) {
-      if (config.chainId.toString() === chainId.toString()) {
-        return config.urls.apiURL;
-      }
-    }
-    throw new Error(`Unsupported chain id "${chainId}"`);
-  }
-
-  constructor(etherscanToken: string, customChains: EtherscanChainConfig[] = []) {
+  constructor(etherscanToken: string) {
     this.etherscanToken = etherscanToken;
-    this.chains = [...customChains, ...BUILTIN_ETHERSCAN_CHAINS];
   }
 
-  async request(chainId: ChainId, address: Address): Promise<ContractInfo> {
-    const res = await this.getContractInfo(chainId, address);
+  async request(network: NetworkName, address: Address): Promise<ContractInfo> {
+    const res = await this.getContractInfo(network, address);
 
     return {
       name: res.ContractName,
@@ -70,44 +57,61 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
   }
 
   private async getContractInfo(
-    chainId: ChainId,
+    networkName: NetworkName,
     address: Address,
     attempts: number = 0,
   ): Promise<EtherscanGetSourceCodeResult> {
-    const apiUrl = this.apiUrl(chainId);
-
-    const getSourceCodeUrl = new URL(apiUrl);
-    const params = new URLSearchParams({
-      module: "contract",
+    const getSourceCodeUrl = `https://api.etherscan.io/v2/api?${new URLSearchParams({
+      chainid: getChainIdByNetworkName(networkName).toString(),
       action: "getsourcecode",
+      module: "contract",
       address: address,
       apikey: this.etherscanToken,
-    });
-    getSourceCodeUrl.search = params.toString();
+    }).toString()}`;
 
     const request = await fetch(getSourceCodeUrl);
-    const response = (await request.json()) as EtherscanResponse<EtherscanGetSourceCodeResult[] | string>;
+    const response = await this.parseEtherscanResponse(request);
 
     if (response.message === "OK" && Array.isArray(response.result)) {
       return response.result[0];
     }
-    if (response.result.toString().includes("rate limit reached")) {
+    if (response.result.toString().toLowerCase().includes("rate limit reached")) {
       if (attempts >= MAX_ATTEMPTS) {
         throw new RateLimitError(response.result.toString());
       }
       await new Promise((resolve) => setTimeout(resolve, DELAY * attempts ** 2));
-      return this.getContractInfo(chainId, address, attempts + 1);
+      return this.getContractInfo(networkName, address, attempts + 1);
     }
-    if (response.result.toString().includes("Contract source code not verified")) {
+    if (response.result.toString().toLowerCase().includes("contract source code not verified")) {
       throw new Error("Contract is not verified");
     }
     throw new Error(`Unexpected Etherscan Response: ${JSON.stringify(response)}`);
   }
 
+  private async parseEtherscanResponse(
+    response: Response,
+  ): Promise<EtherscanResponse<EtherscanGetSourceCodeResult[] | string>> {
+    const text = await response.text();
+
+    try {
+      return JSON.parse(text) as EtherscanResponse<EtherscanGetSourceCodeResult[] | string>;
+    } catch {
+      const message = text.trim();
+      if (message.toLowerCase().includes("contract source code not verified")) {
+        throw new Error("Contract is not verified");
+      }
+
+      const shortMessage = message.length > 300 ? `${message.slice(0, 300)}...` : message;
+      throw new Error(
+        `Unexpected Etherscan response format (expected JSON, got ${response.status} ${response.statusText}): ${shortMessage}`,
+      );
+    }
+  }
+
   private processSourceCode(response: EtherscanGetSourceCodeResult): string {
     const rawSourceCode = response.SourceCode;
     if (this.isVyperContract(response)) {
-      JSON.stringify({
+      return JSON.stringify({
         language: "Vyper",
         sources: response.SourceCode,
         // TODO: add real settings

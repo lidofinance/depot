@@ -1,10 +1,14 @@
 import chai from "chai";
-import { BigNumberish } from "ethers";
 
 chai.util.addMethod(
   chai.assert,
   "approximately",
-  function approximately(act: BigNumberish, exp: BigNumberish, delta: BigNumberish, message?: string | undefined) {
+  function approximately(
+    act: bigint | number,
+    exp: bigint | number,
+    delta: bigint | number,
+    message?: string | undefined,
+  ) {
     act = BigInt(act);
     exp = BigInt(exp);
     delta = BigInt(delta);
@@ -15,7 +19,7 @@ chai.util.addMethod(
 );
 
 chai.util.addMethod(chai.assert, "contains", function contains<
-  T = any,
+  T = unknown,
 >(collection: Iterable<T>, item: T, comparator: (a: T, b: T) => boolean = (a, b) => a === b) {
   for (const colItem of collection) {
     if (comparator(colItem, item)) {
@@ -29,7 +33,7 @@ export { assert } from "chai";
 
 chai.util.addMethod(chai.assert, "reverts", reverts);
 
-async function reverts(promise: Promise<unknown>, error?: string, args?: any[]): Promise<void> {
+async function reverts(promise: Promise<unknown>, error?: string, _args?: unknown[]): Promise<void> {
   await promise
     .then(() => chai.assert.fail("Transaction hasn't reverted"))
     .catch((err: Error) => {
