@@ -36,11 +36,15 @@ Recommended flow when using agents:
    npm run omnibus:create
    ```
 3. Open `omnibuses/<omnibus_name>/<omnibus_name>.md` and fill description in block:
+
    ```md
    <!-- OMNIBUS_DESCRIPTION -->
+
    ... free-form action list and context ...
+
    <!-- OMNIBUS_DESCRIPTION -->
    ```
+
 4. Ask the agent to transform that description into concrete omnibus items in `<omnibus_name>.ts`.
 5. Decide contract mode:
    - no contract: keep regular omnibus script
@@ -56,11 +60,12 @@ Recommended flow when using agents:
    ```
 9. For contract mode, ensure omnibus `.ts` has `deploy()` (returning `omnibus`) or explicit `deployment` mapping.
 10. Finalize calls/events/tests with the agent, then validate and run:
-   ```bash
-   npm run omnibus:test -- <omnibus_name>
-   npm run omnibus:simulate -- <omnibus_name>
-   npm run omnibus:run -- <omnibus_name>
-   ```
+
+```bash
+npm run omnibus:test -- <omnibus_name>
+npm run omnibus:simulate -- <omnibus_name>
+npm run omnibus:run -- <omnibus_name>
+```
 
 ## Omnibus Item
 

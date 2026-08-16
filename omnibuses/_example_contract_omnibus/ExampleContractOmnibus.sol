@@ -76,8 +76,9 @@ contract ExampleContractOmnibus is OmnibusBase {
     }
 
     function getOmnibusCalls() public view override returns (VoteCall[] memory) {
-        return VoteCallsBuilderUtils.create({callsCount: VOTE_ITEMS_COUNT})
-            .directCall(
+        return VoteCallsBuilderUtils.create({
+            callsCount: VOTE_ITEMS_COUNT
+        }).directCall(
                 "1. Capture LDO balance before vote execution",
                 ACTION_VALIDATOR,
                 abi.encodeCall(IOmnibusVoteStateValidator.validateStateBeforeVote, ())
@@ -169,8 +170,9 @@ contract ExampleContractOmnibus is OmnibusBase {
             .submitCalls(
                 "11. Submit proposal to Dual Governance with the following calls:",
                 DUAL_GOVERNANCE,
-                ProposalCallsBuilderUtils.create({callsCount: DG_PROPOSAL_CALLS_COUNT})
-                    .forwardCall(
+                ProposalCallsBuilderUtils.create({
+                    callsCount: DG_PROPOSAL_CALLS_COUNT
+                }).forwardCall(
                         "11.1. Forward call to Agent update staking limit on",
                         AGENT,
                         STAKING_ROUTER,
@@ -189,8 +191,9 @@ contract ExampleContractOmnibus is OmnibusBase {
                     .forwardCalls(
                         "11.3. Forward 7 calls via Aragon Agent to add new Node Operators to the Curated Module",
                         AGENT,
-                        ForwardedCallsBuilderUtils.create({callsCount: 7})
-                            .directCall(
+                        ForwardedCallsBuilderUtils.create({
+                            callsCount: 7
+                        }).directCall(
                                 "11.3.1. Add node operator \"A41\" with the reward address 0x2A64944eBFaFF8b6A0d07B222D3d83ac29c241a7 to Curated module",
                                 CURATED_MODULE,
                                 abi.encodeCall(
@@ -247,7 +250,6 @@ contract ExampleContractOmnibus is OmnibusBase {
                                 )
                             )
                     )
-            )
-            .getCalls();
+            ).getCalls();
     }
 }

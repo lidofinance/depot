@@ -20,8 +20,7 @@ contract EasyTrackPermissionsTest is Test {
 
     function test_SinglePermissionIsAddressFollowedBySelector() external pure {
         bytes memory permissions = EasyTrackPermissionsUtils.permission(
-            LOL_STABLES_REGISTRY,
-            IAllowedRecipientsRegistry.addRecipient.selector
+            LOL_STABLES_REGISTRY, IAllowedRecipientsRegistry.addRecipient.selector
         );
 
         assertEq(permissions.length, 24);
@@ -29,9 +28,9 @@ contract EasyTrackPermissionsTest is Test {
     }
 
     function test_PermissionsAreConcatenatedInOrder() external pure {
-        bytes memory permissions = EasyTrackPermissionsUtils
-            .permission(Addresses.FINANCE, IFinance.newImmediatePayment.selector)
-            .and(LOL_STABLES_REGISTRY, IAllowedRecipientsRegistry.updateSpentAmount.selector);
+        bytes memory permissions = EasyTrackPermissionsUtils.permission(
+                Addresses.FINANCE, IFinance.newImmediatePayment.selector
+            ).and(LOL_STABLES_REGISTRY, IAllowedRecipientsRegistry.updateSpentAmount.selector);
 
         assertEq(permissions.length, 48);
         assertEq(
@@ -41,12 +40,9 @@ contract EasyTrackPermissionsTest is Test {
     }
 
     function test_PermissionsAcrossTwoDifferentContracts() external pure {
-        bytes memory permissions = EasyTrackPermissionsUtils
-            .permission(
-                UPDATE_STAKING_MODULE_SHARE_LIMITS_FACTORY,
-                IUpdateStakingModuleShareLimits.validateParams.selector
-            )
-            .and(Addresses.STAKING_ROUTER, IStakingRouter.updateModuleShares.selector);
+        bytes memory permissions = EasyTrackPermissionsUtils.permission(
+                UPDATE_STAKING_MODULE_SHARE_LIMITS_FACTORY, IUpdateStakingModuleShareLimits.validateParams.selector
+            ).and(Addresses.STAKING_ROUTER, IStakingRouter.updateModuleShares.selector);
 
         assertEq(
             permissions,

@@ -3,6 +3,7 @@
 ## Omnibus Description
 
 <!-- OMNIBUS_DESCRIPTION -->
+
 ### Aragon Vote
 
 1. **Expanding the Simple DVT Module:** Increase the Simple DVT module's staking share limit from 0.5% to 4%, as decided in the [Snapshot vote](https://snapshot.org/#/lido-snapshot.eth/proposal/0xaca2da3c932542e030db8bf5b6e4420bf4aa98bd57bd62b9b8008a4b7398abb2).

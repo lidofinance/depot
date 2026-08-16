@@ -18,7 +18,13 @@ describe("keystore plugin", () => {
   });
 
   it("keystore tasks registered in hre", () => {
-    const expectedTasks = ["keystore:list", "keystore:add", "keystore:generate", "keystore:delete", "keystore:password"];
+    const expectedTasks = [
+      "keystore:list",
+      "keystore:add",
+      "keystore:generate",
+      "keystore:delete",
+      "keystore:password",
+    ];
     for (const taskName of expectedTasks) {
       expect(() => hre.tasks.getTask(taskName), `task ${taskName} should be registered`).to.not.throw();
     }
