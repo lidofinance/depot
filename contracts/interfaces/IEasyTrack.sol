@@ -4,4 +4,6 @@ pragma solidity 0.8.26;
 interface IEasyTrack {
     function removeEVMScriptFactory(address _evmScriptFactory) external;
     function addEVMScriptFactory(address _evmScriptFactory, bytes memory _permissions) external;
+    function isEVMScriptFactory(address _maybeEVMScriptFactory) external view returns (bool);
+    function getEVMScriptFactories() external view returns (address[] memory);
 }
