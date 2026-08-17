@@ -9,12 +9,9 @@ const FENCE_PATTERN = /^```/;
 const NUMBERED_TITLE_PATTERN = /^\s*\d+\s*[.)]/;
 
 /**
- * Builds the description of the Aragon vote out of the titles of its items. The item numbers are
- * added here rather than written by the author: a number baked into the title breaks as soon as an
- * item is inserted in the middle, and the titles are also how the tests address groups of logs.
- *
- * The shape of the result repeats the one the `scripts` repository produced, so the text the voters
- * see doesn't change with the migration.
+ * Builds the description of the Aragon vote out of the titles of its items, in the shape the
+ * `scripts` repository produced. The numbers are added here rather than written by the author: a
+ * number baked into a title goes stale as soon as an item is inserted in the middle.
  */
 export function formatVoteDescription(itemTitles: string[], ipfsLink?: string): string {
   itemTitles.forEach((title, index) => {
@@ -41,11 +38,10 @@ export function formatVoteDescription(itemTitles: string[], ipfsLink?: string): 
 }
 
 /**
- * Reads the descriptions of the Dual Governance proposals from the omnibus Markdown file. Each entry
- * is a fenced block headed by the number of the vote item submitting the proposal.
+ * Reads the proposal descriptions from the omnibus Markdown file, where each entry is a fenced block
+ * headed by the number of the vote item submitting the proposal.
  *
- * @returns descriptions by the number of the submitting vote item, empty when the file has no such
- *   section
+ * @returns descriptions by the number of the submitting item, empty when the file has no such section
  */
 export function parseDgProposalDescriptions(markdown: string): Map<number, string> {
   const descriptions = new Map<number, string>();
@@ -117,10 +113,9 @@ export function parseDgProposalDescriptions(markdown: string): Map<number, strin
 }
 
 /**
- * Makes sure the descriptions of the Dual Governance proposals in the omnibus contract are the ones
- * written in the Markdown file, character for character. The description is an argument of
- * `submitProposal`, so it is part of the payload the DAO votes on: tidying it up on the way to the
- * contract changes what is voted on, and nothing else would notice.
+ * Compares the proposal descriptions in the contract with the ones in the Markdown file, character
+ * for character. They are arguments of `submitProposal`, so tidying one up on the way to the contract
+ * changes what the DAO votes on, and nothing else would notice.
  */
 export function assertDgProposalDescriptions(calls: VoteCall[], governance: Address, markdown: string): void {
   const descriptions = parseDgProposalDescriptions(markdown);

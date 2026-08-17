@@ -8,11 +8,6 @@ import { OmnibusBaseContract } from "../contracts";
 import { RpcClient } from "../network";
 import { VoteCall } from "./omnibus-types";
 
-/**
- * Selector of the only method the omnibus uses to submit a Dual Governance proposal. Vote items
- * calling it are the ones that produce proposals, and the core has to know which they are to match
- * the submitted proposals with their execution receipts.
- */
 export const SUBMIT_PROPOSAL_SELECTOR = toFunctionSelector(
   getAbiItem({ abi: IGovernance_ABI, name: "submitProposal" }),
 );
@@ -23,8 +18,8 @@ export interface OmnibusContractCalls {
 }
 
 /**
- * Reads the list of vote items from the deployed omnibus contract and makes sure the EVM script the
- * contract returns is the one built from that very list.
+ * Reads the vote items from the deployed contract, making sure the EVM script it returns is the one
+ * built from those very items.
  */
 export async function readOmnibusContractCalls(
   client: RpcClient,
@@ -51,9 +46,8 @@ export async function readOmnibusContractCalls(
 }
 
 /**
- * A vote item submits a Dual Governance proposal when it calls `submitProposal` on the governance
- * contract. The target is part of the check on purpose: the selector alone would also match a call
- * of the same name on an unrelated contract.
+ * The target is part of the check on purpose: the selector alone would also match a call of the same
+ * name on an unrelated contract.
  */
 export function isSubmitProposalCall(call: VoteCall, governance: Address): boolean {
   return (
@@ -62,8 +56,7 @@ export function isSubmitProposalCall(call: VoteCall, governance: Address): boole
 }
 
 /**
- * @returns indexes of the vote items submitting Dual Governance proposals, in the order the items
- *   appear in the vote
+ * @returns indexes of the items submitting proposals, in the order they appear in the vote
  */
 export function getSubmitProposalCallIndexes(calls: VoteCall[], governance: Address): number[] {
   return calls.reduce<number[]>((indexes, call, index) => {
@@ -75,8 +68,7 @@ export function getSubmitProposalCallIndexes(calls: VoteCall[], governance: Addr
 }
 
 /**
- * @returns the `metadata` argument of `submitProposal` — the description of the proposal, which is
- *   part of the payload the DAO votes on
+ * @returns the `metadata` argument of `submitProposal` — the description of the proposal
  */
 export function decodeSubmitProposalMetadata(call: VoteCall): string {
   const decoded = decodeFunctionData({ abi: IGovernance_ABI, data: call.payload });

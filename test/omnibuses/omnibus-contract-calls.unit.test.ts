@@ -1,3 +1,4 @@
+import { Address } from "abitype";
 import { assert } from "chai";
 import { encodeFunctionData } from "viem";
 
@@ -9,8 +10,9 @@ import {
 } from "../../src/omnibuses/omnibus-contract-calls";
 import { VoteCall } from "../../src/omnibuses/omnibus-types";
 
-const GOVERNANCE = "0xC1db28B3301331277e307FDCfF8DE28242A4486E";
-const AGENT = "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c";
+const GOVERNANCE: Address = "0xC1db28B3301331277e307FDCfF8DE28242A4486E";
+const GOVERNANCE_LOWERCASE: Address = "0xc1db28b3301331277e307fdcff8de28242a4486e";
+const AGENT: Address = "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c";
 
 function createSubmitProposalCall(metadata: string, title = "Submit proposal to Dual Governance"): VoteCall {
   return {
@@ -39,7 +41,7 @@ describe("omnibus contract calls", () => {
     });
 
     it("ignores the case of the target address", () => {
-      const call = { ...createSubmitProposalCall("Proposal description"), target: GOVERNANCE.toLowerCase() as const };
+      const call = { ...createSubmitProposalCall("Proposal description"), target: GOVERNANCE_LOWERCASE };
       assert.isTrue(isSubmitProposalCall(call, GOVERNANCE));
     });
 

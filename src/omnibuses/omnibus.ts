@@ -1,4 +1,4 @@
-import { Address } from "abitype";
+import { Abi, Address } from "abitype";
 import {
   EvmScriptParser,
   getExecuteReceipt,
@@ -169,9 +169,6 @@ export class Omnibus<
     return this.#deployment;
   }
 
-  /**
-   * A Solidity-first omnibus describes its calls in the contract only and has no "calls" section.
-   */
   hasCalls() {
     return !!this.#config.calls;
   }
@@ -194,9 +191,6 @@ export class Omnibus<
     return this.#calls;
   }
 
-  /**
-   * @returns the vote items as the deployed omnibus contract returns them
-   */
   getContractVoteCalls(): VoteCall[] {
     if (!this.#contractVoteCalls) {
       throw new Error(
@@ -218,6 +212,13 @@ export class Omnibus<
       return this.#contractEVMScript;
     }
 
+    if (!this.hasCalls()) {
+      throw new Error(
+        `Omnibus "${this.name}" has no "calls" section, and its contract is not deployed yet. ` +
+          `Make sure "prepareOmnibus()" was called before usage`,
+      );
+    }
+
     return EvmScriptParser.encode(
       this.getCalls().map((call) => ({
         address: call.getTarget(),
@@ -231,8 +232,7 @@ export class Omnibus<
 
     if (!this.hasCalls()) {
       throw new Error(
-        `Omnibus "${this.name}" has no "calls" section, and the expected events are still declared there. ` +
-          `Events of a Solidity-first omnibus are asserted by its test instead, which is not implemented yet`,
+        `Omnibus "${this.name}" has no "calls" section, and the expected events are still declared there`,
       );
     }
 
@@ -251,10 +251,6 @@ export class Omnibus<
   }
 
   getOmnibusContract() {
-    if (!this.#config.deploy) {
-      // if omnibus doesn't define deploy function, it can't be launched from contract
-      return undefined;
-    }
     if (!this.#deployment) {
       throw new Error(`Omnibus contracts is not deployed`);
     }
@@ -281,32 +277,49 @@ export class Omnibus<
       return this.#deployment;
     }
 
-    const deployContract = async <T extends Contract>(name: string, args: unknown[]): Promise<T> => {
-      const artifact = await artifacts.readArtifact(name);
-      console.log(fmt.padded(`⏳Deploying contract ${name}...`, formatOptions.padLength));
-
-      const address = await client.deployContract(
-        {
-          args,
-          abi: artifact.abi,
-          bytecode: bytes.normalize(artifact.bytecode),
-        },
-        txOptions,
-      );
-
-      console.log(
-        fmt.padded(fmt.success(`Contract "${name}" was successfully deployed at ${address}`), formatOptions.padLength),
-      );
-
-      const contract = { abi: artifact.abi, address: address, label: artifact.contractName };
-      this.#deployedContracts[bytes.normalize(address)] = contract;
-      return contract as unknown as T;
-    };
-
     this.#deployment = await this.#config.deploy({
       client,
-      deployContract,
+      deployContract: <T extends Contract>(name: string, args: unknown[]) =>
+        this.#deployContract<T>(artifacts, client, name, args, txOptions, formatOptions),
     });
+
+    return this.#deployment;
+  }
+
+  /**
+   * Deploys the contract of an omnibus which has no "deploy" section of its own.
+   */
+  async deployOmnibusContract(
+    artifacts: Artifacts,
+    client: RpcClient,
+    contractName: string,
+    txOptions: WriteContractOptions,
+    formatOptions: Omit<FormatOptions, "trace"> = { padLength: 0 },
+  ) {
+    if (this.#config.deploy) {
+      throw new Error(`Omnibus "${this.name}" deploys its contracts itself. Use "deployOmnibusContracts()" instead`);
+    }
+
+    const { abi }: { abi: Abi } = await artifacts.readArtifact(contractName);
+    const constructorAbi = abi.find((abiItem) => abiItem.type === "constructor");
+
+    if (constructorAbi && constructorAbi.inputs.length > 0) {
+      throw new Error(
+        `Constructor of the contract "${contractName}" takes arguments, so the omnibus has to deploy it in its ` +
+          `"deploy" section`,
+      );
+    }
+
+    const omnibus = await this.#deployContract<OmnibusBaseContract>(
+      artifacts,
+      client,
+      contractName,
+      [],
+      txOptions,
+      formatOptions,
+    );
+
+    this.#deployment = { omnibus } as unknown as $DeployedContracts;
 
     return this.#deployment;
   }
@@ -328,11 +341,6 @@ export class Omnibus<
     }
   }
 
-  /**
-   * Makes sure the descriptions of the submitted Dual Governance proposals match the ones written in
-   * the omnibus Markdown file. They are arguments of `submitProposal`, so they are part of the
-   * payload the DAO votes on, and nothing but this check compares them with what the author wrote.
-   */
   validateDgProposalDescriptions(markdown: string) {
     assertDgProposalDescriptions(this.getContractVoteCalls(), this.#contracts.dualGovernance.address, markdown);
   }
@@ -470,7 +478,7 @@ export class Omnibus<
     if (!this.hasCalls()) {
       throw new Error(
         `Omnibus "${this.name}" has no "calls" section, and both the expected events and the domain checks are ` +
-          `still taken from it. The test of a Solidity-first omnibus is not implemented yet`,
+          `still taken from it`,
       );
     }
 
@@ -719,9 +727,40 @@ export class Omnibus<
   // Private Methods
   // ---
 
+  async #deployContract<T extends Contract>(
+    artifacts: Artifacts,
+    client: RpcClient,
+    contractName: string,
+    args: unknown[],
+    txOptions: WriteContractOptions,
+    formatOptions: Omit<FormatOptions, "trace">,
+  ): Promise<T> {
+    const artifact = await artifacts.readArtifact(contractName);
+    console.log(fmt.padded(`⏳Deploying contract ${contractName}...`, formatOptions.padLength));
+
+    const address = await client.deployContract(
+      {
+        args,
+        abi: artifact.abi,
+        bytecode: bytes.normalize(artifact.bytecode),
+      },
+      txOptions,
+    );
+
+    console.log(
+      fmt.padded(
+        fmt.success(`Contract "${contractName}" was successfully deployed at ${address}`),
+        formatOptions.padLength,
+      ),
+    );
+
+    const contract = { abi: artifact.abi, address: address, label: artifact.contractName };
+    this.#deployedContracts[bytes.normalize(address)] = contract;
+    return contract as unknown as T;
+  }
+
   /**
-   * Flat listing of the vote items read from the contract. Decoding the payloads into a tree of
-   * calls is a separate piece of work, so until then the payload is printed as is.
+   * Prints the payloads as is: decoding them into a tree of calls is a separate piece of work.
    */
   #formatContractVoteCalls(padLength: number) {
     const strBuilder: string[] = [];

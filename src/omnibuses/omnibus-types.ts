@@ -94,8 +94,7 @@ export interface OmnibusConfig<$Network extends NetworkName, $DeployedContracts 
   executedAt?: number | undefined;
 
   /**
-   * Describes the calls of the vote in TypeScript. Omitted by a Solidity-first omnibus, which
-   * describes them in its contract only — then the calls are read from the deployed contract.
+   * When omitted, the calls of the vote are read from the omnibus contract.
    */
   calls?: (ctx: OmnibusConfigCtx<$DeployedContracts>) => OmnibusCall[];
   testVote: TestVoteFn<$DeployedContracts>;

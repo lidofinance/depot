@@ -685,10 +685,14 @@ export async function prepareOmnibus(
 ) {
   console.log(`⏳Preparing omnibus "${omnibus.name}"...`);
 
-  if (omnibus.hasDeployMethod()) {
-    console.log(`Omnibus "${omnibus.name}" has deploy() method, preparing contracts required for omnibus launch...`);
+  const defaultContractName = omnibus.hasDeployMethod()
+    ? undefined
+    : await findDefaultOmnibusContractName(omnibus.name);
+
+  if (omnibus.hasDeployMethod() || defaultContractName) {
+    console.log(`Omnibus "${omnibus.name}" is launched from a contract, preparing it for the launch...`);
     let deployment = omnibus.getDeployment();
-    if (deployment) {
+    if (deployment && Object.keys(deployment).length > 0) {
       console.log(`Contracts already deployed:`);
       for (const [name, contract] of Object.entries(deployment)) {
         console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
@@ -700,7 +704,15 @@ export async function prepareOmnibus(
 
       const [deployer] = await client.getAccounts();
       console.log(fmt.padded(`Deploying omnibus contracts using test account ${deployer}`, 3));
-      deployment = await omnibus.deployOmnibusContracts(hre.artifacts, client, { from: deployer }, { padLength: 4 });
+      deployment = defaultContractName
+        ? await omnibus.deployOmnibusContract(
+            hre.artifacts,
+            client,
+            defaultContractName,
+            { from: deployer },
+            { padLength: 4 },
+          )
+        : await omnibus.deployOmnibusContracts(hre.artifacts, client, { from: deployer }, { padLength: 4 });
       console.log(fmt.padded(fmt.success(`All contracts successfully deployed:`), 3));
       for (const [name, contract] of Object.entries(deployment)) {
         console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
@@ -728,13 +740,39 @@ export async function prepareOmnibus(
   return omnibus;
 }
 
-async function buildOmnibusContracts(hre: HardhatRuntimeEnvironment, omnibusName: string, quiet = false) {
+async function collectOmnibusSolidityFiles(omnibusName: string): Promise<string[]> {
   const omnibusDirPath = path.resolve(__dirname, "..", "omnibuses", omnibusName);
 
-  const omnibusSolidityFiles = await fs
+  return fs
     .readdir(omnibusDirPath)
     .then((entries) => entries.filter((entry) => entry.endsWith(".sol") && !entry.endsWith(".t.sol")))
     .then((entries) => entries.map((entry) => path.relative(process.cwd(), path.join(omnibusDirPath, entry))));
+}
+
+/**
+ * @returns name of the contract to deploy for an omnibus without a "deploy" section, `undefined` when
+ *   the omnibus has no contracts and is launched from an EVM script built off-chain
+ */
+async function findDefaultOmnibusContractName(omnibusName: string): Promise<string | undefined> {
+  const omnibusSolidityFiles = await collectOmnibusSolidityFiles(omnibusName);
+
+  if (omnibusSolidityFiles.length === 0) {
+    return undefined;
+  }
+
+  if (omnibusSolidityFiles.length > 1) {
+    throw new Error(
+      `Omnibus "${omnibusName}" contains more than one Solidity contract, so it has to deploy them in its ` +
+        `"deploy" section: ${omnibusSolidityFiles.join(", ")}`,
+    );
+  }
+
+  return path.basename(omnibusSolidityFiles[0], ".sol");
+}
+
+async function buildOmnibusContracts(hre: HardhatRuntimeEnvironment, omnibusName: string, quiet = false) {
+  const omnibusDirPath = path.resolve(__dirname, "..", "omnibuses", omnibusName);
+  const omnibusSolidityFiles = await collectOmnibusSolidityFiles(omnibusName);
 
   if (omnibusSolidityFiles.length === 0) {
     throw new Error(`No Solidity contracts found in omnibus folder: ${omnibusDirPath}`);
