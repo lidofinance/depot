@@ -30,6 +30,8 @@ import { getGovernanceContracts, GovernanceContracts } from "./governance-contra
 import { event, assertEventWithLog, getSubmittedProposalIds, formatOmnibusCallEvent } from "./event-helpers";
 import { groupOmnibusTraceCalls, filterOmnibusTrace } from "./trace-filters";
 import { validateVoteCalls } from "./omnibus-validate";
+import { readOmnibusContractCalls } from "./omnibus-contract-calls";
+import { assertDgProposalDescriptions, formatVoteDescription } from "./omnibus-description";
 import {
   BlueprintCtx,
   BoundChecks,
@@ -167,16 +169,41 @@ export class Omnibus<
     return this.#deployment;
   }
 
+  /**
+   * A Solidity-first omnibus describes its calls in the contract only and has no "calls" section.
+   */
+  hasCalls() {
+    return !!this.#config.calls;
+  }
+
   getCalls() {
+    const { calls } = this.#config;
+    if (!calls) {
+      throw new Error(
+        `Omnibus "${this.name}" has no "calls" section. Use "getContractVoteCalls()" to read the calls of the vote`,
+      );
+    }
     if (!this.#deployment) {
       throw new Error(
         `Contract was not properly prepared for launch. Make sure "prepareOmnibus()" was called before usage`,
       );
     }
     if (!this.#calls) {
-      this.#calls = this.#config.calls({ ...this.#ctx, deployment: this.#deployment });
+      this.#calls = calls({ ...this.#ctx, deployment: this.#deployment });
     }
     return this.#calls;
+  }
+
+  /**
+   * @returns the vote items as the deployed omnibus contract returns them
+   */
+  getContractVoteCalls(): VoteCall[] {
+    if (!this.#contractVoteCalls) {
+      throw new Error(
+        `Vote calls are not loaded from the omnibus contract. Make sure "prepareOmnibus()" was called before usage`,
+      );
+    }
+    return this.#contractVoteCalls;
   }
 
   setName(newName: string) {
@@ -201,6 +228,13 @@ export class Omnibus<
 
   getVoteEvents(): OmnibusCallEvent[] {
     const { voting, callsScript } = this.#contracts;
+
+    if (!this.hasCalls()) {
+      throw new Error(
+        `Omnibus "${this.name}" has no "calls" section, and the expected events are still declared there. ` +
+          `Events of a Solidity-first omnibus are asserted by its test instead, which is not implemented yet`,
+      );
+    }
 
     return [
       ...this.getCalls()
@@ -284,27 +318,23 @@ export class Omnibus<
       throw new Error(`Omnibus doesn't contain "contract" property`);
     }
 
-    if (!omnibusContract.address) {
-      throw new Error(`Omnibus contract is not deployed. Make sure "contract.address" property is set.`);
-    }
+    const { calls, evmScript } = await readOmnibusContractCalls(client, omnibusContract);
 
-    const [calls, evmScript] = await Promise.all([
-      client.read(omnibusContract, "getOmnibusCalls", []),
-      client.read(omnibusContract, "getEVMScript", []),
-    ]);
-
-    const expectedEvmScript = EvmScriptParser.encode(
-      calls.map((call) => ({ address: call.target, calldata: call.payload })),
-    );
-
-    if (!bytes.isEqual(expectedEvmScript, evmScript)) {
-      throw new Error(`Unexpected EVM script`);
-    }
-
-    this.#contractVoteCalls = calls as VoteCall[];
+    this.#contractVoteCalls = calls;
     this.#contractEVMScript = evmScript;
 
-    this.#validateVoteCalls();
+    if (this.hasCalls()) {
+      this.#validateVoteCalls();
+    }
+  }
+
+  /**
+   * Makes sure the descriptions of the submitted Dual Governance proposals match the ones written in
+   * the omnibus Markdown file. They are arguments of `submitProposal`, so they are part of the
+   * payload the DAO votes on, and nothing but this check compares them with what the author wrote.
+   */
+  validateDgProposalDescriptions(markdown: string) {
+    assertDgProposalDescriptions(this.getContractVoteCalls(), this.#contracts.dualGovernance.address, markdown);
   }
 
   async trace(client: DevRpcClient) {
@@ -434,6 +464,13 @@ export class Omnibus<
     if (this.network !== client.getNetworkName()) {
       throw new Error(
         `Invalid network: Omnibus network is "${this.network}" but RPC connected to "${client.getNetworkName()}"`,
+      );
+    }
+
+    if (!this.hasCalls()) {
+      throw new Error(
+        `Omnibus "${this.name}" has no "calls" section, and both the expected events and the domain checks are ` +
+          `still taken from it. The test of a Solidity-first omnibus is not implemented yet`,
       );
     }
 
@@ -641,11 +678,22 @@ export class Omnibus<
   // ---
 
   formatDescription(ipfsLink?: string, { padLength }: FormatOptions = DEFAULT_FORMAT_OPTIONS) {
+    if (!this.hasCalls()) {
+      return formatVoteDescription(
+        this.getContractVoteCalls().map((call) => call.title),
+        ipfsLink,
+      );
+    }
+
     const descriptionItems = this.getCalls().map((call) => call.formatTitle({ padLength }));
     return ipfsLink ? [...descriptionItems, "", ipfsLink].join("\n") : descriptionItems.join("\n");
   }
 
   format({ executeOmnibusTrace, executeProposalTraces = [], padLength = 0 }: OmnibusFormatParams) {
+    if (!this.hasCalls()) {
+      return this.#formatContractVoteCalls(padLength);
+    }
+
     const strBuilder: string[] = [];
     const [, callTraces] = executeOmnibusTrace
       ? groupOmnibusTraceCalls(this.getCalls(), executeOmnibusTrace)
@@ -670,6 +718,23 @@ export class Omnibus<
   // ---
   // Private Methods
   // ---
+
+  /**
+   * Flat listing of the vote items read from the contract. Decoding the payloads into a tree of
+   * calls is a separate piece of work, so until then the payload is printed as is.
+   */
+  #formatContractVoteCalls(padLength: number) {
+    const strBuilder: string[] = [];
+
+    this.getContractVoteCalls().forEach((call, index) => {
+      strBuilder.push(fmt.padded(chalk.green.bold(`${index + 1}. ${call.title}`), padLength));
+      strBuilder.push(fmt.padded(`target: ${fmt.address(call.target)}`, padLength + 1));
+      strBuilder.push(fmt.padded(`payload: ${call.payload}`, padLength + 1));
+      strBuilder.push("");
+    });
+
+    return strBuilder.join("\n");
+  }
 
   async #passOmnibus(
     client: DevRpcClient,

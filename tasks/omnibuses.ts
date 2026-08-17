@@ -424,10 +424,10 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
 
     await prepareOmnibus(hre, client, omnibus);
 
-    const descriptionFilePath = path.join(__dirname, "..", "omnibuses", name, `${name}.md`);
-    const description = await fs.readFile(descriptionFilePath, { encoding: "utf-8" });
+    const description = await readOmnibusDescriptionFile(name);
 
     const descriptionUrl = await uploadDescription(name, description, false);
+    const voteDescription = omnibus.formatDescription(descriptionUrl);
     const evmScript = omnibus.getEvmScript();
 
     console.log();
@@ -437,7 +437,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
     console.log();
 
     console.log(chalk.bold.underline("Omnibus Aragon Vote description:\n"));
-    console.log(chalk.gray(omnibus.formatDescription(descriptionUrl)));
+    console.log(chalk.gray(voteDescription));
     console.log();
 
     console.log(chalk.bold.underline("Omnibus IPFS description:\n"));
@@ -488,7 +488,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
 
     await prompt.confirmOrAbort(`Proceed?`);
 
-    const { receipt, voteId } = await startAragonVote(client, evmScript, omnibus.formatDescription(), {
+    const { receipt, voteId } = await startAragonVote(client, evmScript, voteDescription, {
       from: pilot,
     });
 
@@ -564,6 +564,11 @@ defineTask("omnibus:execute-proposal", "Executes proposal with a given id")
     console.log(`Proposal with id ${parsedProposalId} successfully executed at block ${executeReceipt.blockNumber}`);
     console.log(` - tx hash: ${executeReceipt.transactionHash}`);
   });
+
+async function readOmnibusDescriptionFile(name: string): Promise<string> {
+  const descriptionFilePath = path.join(__dirname, "..", "omnibuses", name, `${name}.md`);
+  return fs.readFile(descriptionFilePath, { encoding: "utf-8" });
+}
 
 async function loadOmnibus(name: string): Promise<Omnibus> {
   const omnibusModulePath = path.resolve(__dirname, "..", "omnibuses", name, `${name}.ts`);
@@ -710,6 +715,12 @@ export async function prepareOmnibus(
       console.log(fmt.padded(`Loading and validating omnibus calls from the contract...`, 2));
       await omnibus.loadAndValidateOmnibusContractCalls(client);
       console.log(fmt.padded(fmt.success(`Omnibus calls successfully validated`), 2));
+
+      if (!omnibus.hasCalls()) {
+        console.log(fmt.padded(`Validating Dual Governance proposal descriptions...`, 2));
+        omnibus.validateDgProposalDescriptions(await readOmnibusDescriptionFile(omnibus.name));
+        console.log(fmt.padded(fmt.success(`Proposal descriptions match the description file`), 2));
+      }
     }
   }
   console.log(fmt.success("Omnibus prepared\n"));
