@@ -18,7 +18,7 @@ import { OmnibusSubmitProposalCall, OmnibusSubmitProposalCallFactory } from "./c
 import blueprints, { Blueprints } from "./blueprints";
 import { Artifacts } from "hardhat/types";
 import { createTimedSpinner } from "../common/spinner";
-import { decodeEventLog, encodeEventTopics, Log, TransactionReceipt } from "viem";
+import { decodeEventLog, encodeEventTopics, TransactionReceipt } from "viem";
 import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
 import { processPendingProposals, ProposalStatus } from "./dual-governance";
 import checks from "./checks";
@@ -27,11 +27,12 @@ import { assert } from "chai";
 import { trace } from "../traces";
 import fmt from "../common/format";
 import { getGovernanceContracts, GovernanceContracts } from "./governance-contracts";
-import { event, assertEventWithLog, getSubmittedProposalIds, formatOmnibusCallEvent } from "./event-helpers";
+import { event, getSubmittedProposalIds } from "./event-helpers";
 import { groupOmnibusTraceCalls, filterOmnibusTrace } from "./trace-filters";
 import { validateVoteCalls } from "./omnibus-validate";
-import { readOmnibusContractCalls } from "./omnibus-contract-calls";
+import { getSubmitProposalCallIndexes, readOmnibusContractCalls } from "./omnibus-contract-calls";
 import { assertDgProposalDescriptions, formatVoteDescription } from "./omnibus-description";
+import { LogCollector } from "./log-collector";
 import {
   BlueprintCtx,
   BoundChecks,
@@ -42,6 +43,7 @@ import {
   OmnibusConfig,
   OmnibusConfigCtx,
   OmnibusFormatParams,
+  PassVoteResult,
   VoteCall,
 } from "./omnibus-types";
 
@@ -475,61 +477,33 @@ export class Omnibus<
       );
     }
 
-    if (!this.hasCalls()) {
-      throw new Error(
-        `Omnibus "${this.name}" has no "calls" section, and both the expected events and the domain checks are ` +
-          `still taken from it`,
-      );
-    }
-
     let voteId: number | bigint | undefined = this.#config.voteId;
 
-    let executeOmnibusReceipt: TransactionReceipt | null = null;
-    let executeProposalReceipts: TransactionReceipt[] | null = null;
+    // the collectors are shared with the test, which marks the logs it explains itself, so they are
+    // kept on an object: narrowing of a local variable assigned from a callback doesn't survive
+    const passed: {
+      voteLogs: LogCollector | null;
+      proposalReceipts: TransactionReceipt[] | null;
+      proposalLogs: LogCollector[] | null;
+    } = { voteLogs: null, proposalReceipts: null, proposalLogs: null };
+
     const submittedProposalIds: bigint[] = [];
 
+    const handleOmnibusPassed = (result: PassVoteResult) => {
+      voteId = result.voteId;
+      passed.voteLogs = result.logs;
+      if (result.submittedProposalIds.length === 0) {
+        passed.proposalReceipts = [];
+        passed.proposalLogs = [];
+      }
+      submittedProposalIds.push(...result.submittedProposalIds);
+    };
+
     async function passProposals(proposalIds: bigint[] = submittedProposalIds) {
-      executeProposalReceipts = await processPendingProposals(client, proposalIds);
-      return { executeReceipts: executeProposalReceipts };
-    }
-
-    function testEmittedEvents(logItems: Log[], omnibusEvents: OmnibusCallEvent[]) {
-      let logIndex = 0;
-      let eventIndex = 0;
-      const matchedEventCounts = new Array(omnibusEvents.length).fill(0);
-
-      while (eventIndex < omnibusEvents.length) {
-        const event = omnibusEvents[eventIndex];
-        const { skipped } = assertEventWithLog(logItems[logIndex], event);
-        const hadMatchedBefore = matchedEventCounts[eventIndex] > 0;
-
-        // if optional event may be emitted multiple times, try to match it with log until it allows
-        if (skipped || !event.allowMultiple) {
-          eventIndex++;
-        }
-
-        if (skipped) {
-          // For allowMultiple events that were already matched at least once,
-          // a final mismatch simply means "no more of this event".
-          if (event.allowMultiple && hadMatchedBefore) {
-            continue;
-          }
-          console.log(
-            fmt.padded(`${chalk.yellowBright("✗")} ${eventIndex}. ${formatOmnibusCallEvent(event, skipped)}`, 3),
-          );
-        } else {
-          matchedEventCounts[eventIndex]++;
-          logIndex++;
-          console.log(
-            fmt.padded(`${chalk.greenBright("✔")} ${eventIndex}. ${formatOmnibusCallEvent(event, skipped)}`, 3),
-          );
-        }
-      }
-
-      if (logIndex !== logItems.length) {
-        throw new Error(`Unchecked log items left`);
-      }
-      console.log(fmt.padded(`${chalk.greenBright("✔")} All events validated`, 3));
+      const executeReceipts = await processPendingProposals(client, proposalIds);
+      passed.proposalReceipts = executeReceipts;
+      passed.proposalLogs = executeReceipts.map((receipt) => new LogCollector(receipt.logs));
+      return { executeReceipts, logs: passed.proposalLogs };
     }
 
     const checksBound: Record<string, Record<string, CallableFunction>> = {};
@@ -559,15 +533,7 @@ export class Omnibus<
         if (!this.#config.executedAt) {
           await this.#config.testVote({
             client,
-            passOmnibus: async () =>
-              this.#passOmnibus(client, (res) => {
-                voteId = res.voteId;
-                executeOmnibusReceipt = res.executeReceipt;
-                if (submittedProposalIds.length === 0) {
-                  executeProposalReceipts = [];
-                }
-                submittedProposalIds.push(...res.submittedProposalIds);
-              }),
+            passOmnibus: async () => this.#passOmnibus(client, handleOmnibusPassed),
             checks: checksBound as BoundChecks,
             // TODO: fixme, check deployment is not null if the deploy logic contained in the config
             deployment: this.#deployment!,
@@ -576,21 +542,18 @@ export class Omnibus<
             fmt.padded(`${chalk.greenBright("✔")} Aragon Vote test successfully passed. Executed vote id ${voteId}`, 2),
           );
         } else {
-          await this.#passOmnibus(client, (res) => {
-            voteId = res.voteId;
-            executeOmnibusReceipt = res.executeReceipt;
-            if (submittedProposalIds.length === 0) {
-              executeProposalReceipts = [];
-            }
-            submittedProposalIds.push(...res.submittedProposalIds);
-          });
+          await this.#passOmnibus(client, handleOmnibusPassed);
         }
 
         console.log(fmt.padded("Testing emitted events by the Aragon vote", 2));
-        if (!executeOmnibusReceipt) {
-          throw new Error(`executeOmnibusReceipt is null. Make sure "testVote" method calls passOmnibus()`);
+        const { voteLogs } = passed;
+        if (!voteLogs) {
+          throw new Error(`Vote is not executed. Make sure "testVote" method calls passOmnibus()`);
         }
-        testEmittedEvents((executeOmnibusReceipt as TransactionReceipt).logs, this.getVoteEvents());
+        if (this.hasCalls()) {
+          voteLogs.assertEvents(this.getVoteEvents());
+        }
+        voteLogs.assertNothingLeft();
       } catch (error) {
         console.log(`${chalk.redBright("✗")} Aragon Vote test failed`);
         throw error;
@@ -600,18 +563,24 @@ export class Omnibus<
       // Execute & Test Submitted Proposals
       // ---
 
-      const submitProposalCalls = this.getCalls().filter((call) => call instanceof OmnibusSubmitProposalCall);
+      const submitProposalCalls = this.hasCalls()
+        ? this.getCalls().filter((call) => call instanceof OmnibusSubmitProposalCall)
+        : [];
+      const submitProposalCallsCount = this.hasCalls()
+        ? submitProposalCalls.length
+        : getSubmitProposalCallIndexes(this.getContractVoteCalls(), this.#contracts.dualGovernance.address).length;
+
       const submittedProposals = await Promise.all(
         submittedProposalIds.map((proposalId) =>
           client.read(this.#contracts.timelock, "getProposalDetails", [proposalId]),
         ),
       );
 
-      if (submitProposalCalls.length > 0 || submittedProposals.length > 0) {
+      if (submitProposalCallsCount > 0 || submittedProposals.length > 0) {
         console.log(fmt.padded(`Testing submitted proposal during Aragon vote ${voteId}...`));
       }
 
-      if (submitProposalCalls.length !== submittedProposals.length) {
+      if (submitProposalCallsCount !== submittedProposals.length) {
         throw new Error(`Unexpected count of proposal calls`);
       }
 
@@ -630,7 +599,7 @@ export class Omnibus<
       );
       if (isAllProposalsExecute) {
         console.log(fmt.padded(`Proposals [${submittedProposalIds}] already executed, retrieving receipts...`, 2));
-        executeProposalReceipts = await processPendingProposals(client, submittedProposalIds);
+        await passProposals(submittedProposalIds);
       }
 
       if (!isAllProposalsExecute && submittedProposalIds.length > 0) {
@@ -657,21 +626,25 @@ export class Omnibus<
         }
       }
 
-      if (!executeProposalReceipts) {
+      const { proposalReceipts, proposalLogs } = passed;
+      if (!proposalReceipts || !proposalLogs) {
         throw new Error(`Proposals is not executed`);
       }
 
       console.log(fmt.padded("Validating events emitted by the proposals execution...", 2));
 
-      for (let i = 0; i < executeProposalReceipts.length; ++i) {
-        const logs = executeProposalReceipts[i].logs;
+      for (let proposalIndex = 0; proposalIndex < proposalLogs.length; ++proposalIndex) {
+        if (this.hasCalls()) {
+          const events = submitProposalCalls[proposalIndex].getExpectedEvents("proposal");
+          const optionalEventsCount = events.filter((event) => event.isOptional).length;
+          const logsCount = proposalReceipts[proposalIndex].logs.length;
 
-        const events = submitProposalCalls[i].getExpectedEvents("proposal");
+          assert.isTrue(logsCount >= events.length - optionalEventsCount, "Count of logs is too low");
 
-        const optionalEventsCount = events.filter((event) => event.isOptional).length;
-        assert.isTrue(logs.length >= events.length - optionalEventsCount, "Count of logs is too low");
+          proposalLogs[proposalIndex].assertEvents(events);
+        }
 
-        testEmittedEvents(logs, events);
+        proposalLogs[proposalIndex].assertNothingLeft();
       }
       console.log(fmt.success(`All tests for omnibus "${this.name}" have passed successfully`));
     } catch (error) {
@@ -777,12 +750,8 @@ export class Omnibus<
 
   async #passOmnibus(
     client: DevRpcClient,
-    handleOmnibusPassed?: (params: {
-      voteId: bigint;
-      submittedProposalIds: bigint[];
-      executeReceipt: TransactionReceipt;
-    }) => void,
-  ) {
+    handleOmnibusPassed?: (result: PassVoteResult) => void,
+  ): Promise<PassVoteResult> {
     let voteId: number | bigint | undefined = this.#config.voteId;
 
     let submittedProposalIds: bigint[] | null = null;
@@ -809,19 +778,18 @@ export class Omnibus<
       throw new Error(`Unexpected state`);
     }
 
-    if (handleOmnibusPassed) {
-      handleOmnibusPassed({
-        voteId: BigInt(voteId),
-        submittedProposalIds,
-        executeReceipt: executeOmnibusReceipt,
-      });
-    }
-
-    return {
+    const result: PassVoteResult = {
       voteId: BigInt(voteId),
       submittedProposalIds,
       executeReceipt: executeOmnibusReceipt,
+      logs: new LogCollector(executeOmnibusReceipt.logs),
     };
+
+    if (handleOmnibusPassed) {
+      handleOmnibusPassed(result);
+    }
+
+    return result;
   }
 
   #validateVoteCalls() {

@@ -13,6 +13,7 @@ import { OmnibusSubmitProposalCall, OmnibusSubmitProposalCallFactory } from "./c
 import { Blueprints } from "./blueprints";
 import type checks from "./checks";
 import type { event } from "./event-helpers";
+import type { LogCollector } from "./log-collector";
 
 export const DEFAULT_FORMAT_OPTIONS: FormatOptions = Object.freeze({
   padLength: 0,
@@ -116,6 +117,7 @@ export interface TestVoteFn<$DeployedContracts extends Record<string, Contract>>
 
 export interface PassProposalResult {
   executeReceipts: TransactionReceipt[];
+  logs: LogCollector[];
 }
 
 export interface TestFnCommonCtx<$DeployedContracts extends Record<string, Contract>> {
@@ -155,4 +157,5 @@ export interface PassVoteResult {
   voteId: bigint;
   executeReceipt: TransactionReceipt;
   submittedProposalIds: bigint[];
+  logs: LogCollector;
 }
