@@ -14,6 +14,7 @@ import { Blueprints } from "./blueprints";
 import type checks from "./checks";
 import type { event } from "./event-helpers";
 import type { LogCollector } from "./log-collector";
+import type { ProposalEvents, VoteEvents } from "./vote-events";
 
 export const DEFAULT_FORMAT_OPTIONS: FormatOptions = Object.freeze({
   padLength: 0,
@@ -118,6 +119,7 @@ export interface TestVoteFn<$DeployedContracts extends Record<string, Contract>>
 export interface PassProposalResult {
   executeReceipts: TransactionReceipt[];
   logs: LogCollector[];
+  proposalEvents: ProposalEvents[];
 }
 
 export interface TestFnCommonCtx<$DeployedContracts extends Record<string, Contract>> {
@@ -158,4 +160,5 @@ export interface PassVoteResult {
   executeReceipt: TransactionReceipt;
   submittedProposalIds: bigint[];
   logs: LogCollector;
+  voteEvents: VoteEvents;
 }

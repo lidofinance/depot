@@ -33,6 +33,7 @@ import { validateVoteCalls } from "./omnibus-validate";
 import { getSubmitProposalCallIndexes, readOmnibusContractCalls } from "./omnibus-contract-calls";
 import { assertDgProposalDescriptions, formatVoteDescription } from "./omnibus-description";
 import { LogCollector } from "./log-collector";
+import { decodeSubmitProposal, ProposalEvents, VoteEvents } from "./vote-events";
 import {
   BlueprintCtx,
   BoundChecks,
@@ -483,28 +484,33 @@ export class Omnibus<
     // kept on an object: narrowing of a local variable assigned from a callback doesn't survive
     const passed: {
       voteLogs: LogCollector | null;
+      voteEvents: VoteEvents | null;
       proposalReceipts: TransactionReceipt[] | null;
       proposalLogs: LogCollector[] | null;
-    } = { voteLogs: null, proposalReceipts: null, proposalLogs: null };
+      proposalEvents: ProposalEvents[] | null;
+    } = { voteLogs: null, voteEvents: null, proposalReceipts: null, proposalLogs: null, proposalEvents: null };
 
     const submittedProposalIds: bigint[] = [];
 
     const handleOmnibusPassed = (result: PassVoteResult) => {
       voteId = result.voteId;
       passed.voteLogs = result.logs;
+      passed.voteEvents = result.voteEvents;
       if (result.submittedProposalIds.length === 0) {
         passed.proposalReceipts = [];
         passed.proposalLogs = [];
+        passed.proposalEvents = [];
       }
       submittedProposalIds.push(...result.submittedProposalIds);
     };
 
-    async function passProposals(proposalIds: bigint[] = submittedProposalIds) {
+    const passProposals = async (proposalIds: bigint[] = submittedProposalIds) => {
       const executeReceipts = await processPendingProposals(client, proposalIds);
       passed.proposalReceipts = executeReceipts;
       passed.proposalLogs = executeReceipts.map((receipt) => new LogCollector(receipt.logs));
-      return { executeReceipts, logs: passed.proposalLogs };
-    }
+      passed.proposalEvents = this.#createProposalEvents(passed.proposalLogs);
+      return { executeReceipts, logs: passed.proposalLogs, proposalEvents: passed.proposalEvents };
+    };
 
     const checksBound: Record<string, Record<string, CallableFunction>> = {};
     for (const [checksNamespace, checksMethods] of Object.entries(checks)) {
@@ -546,12 +552,14 @@ export class Omnibus<
         }
 
         console.log(fmt.padded("Testing emitted events by the Aragon vote", 2));
-        const { voteLogs } = passed;
-        if (!voteLogs) {
+        const { voteLogs, voteEvents } = passed;
+        if (!voteLogs || !voteEvents) {
           throw new Error(`Vote is not executed. Make sure "testVote" method calls passOmnibus()`);
         }
         if (this.hasCalls()) {
           voteLogs.assertEvents(this.getVoteEvents());
+        } else {
+          voteEvents.assertTail();
         }
         voteLogs.assertNothingLeft();
       } catch (error) {
@@ -626,8 +634,8 @@ export class Omnibus<
         }
       }
 
-      const { proposalReceipts, proposalLogs } = passed;
-      if (!proposalReceipts || !proposalLogs) {
+      const { proposalReceipts, proposalLogs, proposalEvents } = passed;
+      if (!proposalReceipts || !proposalLogs || !proposalEvents) {
         throw new Error(`Proposals is not executed`);
       }
 
@@ -642,6 +650,8 @@ export class Omnibus<
           assert.isTrue(logsCount >= events.length - optionalEventsCount, "Count of logs is too low");
 
           proposalLogs[proposalIndex].assertEvents(events);
+        } else {
+          proposalEvents[proposalIndex].assertTail();
         }
 
         proposalLogs[proposalIndex].assertNothingLeft();
@@ -778,11 +788,13 @@ export class Omnibus<
       throw new Error(`Unexpected state`);
     }
 
+    const logs = new LogCollector(executeOmnibusReceipt.logs);
     const result: PassVoteResult = {
       voteId: BigInt(voteId),
       submittedProposalIds,
       executeReceipt: executeOmnibusReceipt,
-      logs: new LogCollector(executeOmnibusReceipt.logs),
+      logs,
+      voteEvents: new VoteEvents(logs, this.#voteCallsForEvents(), this.#contracts, this.getEvmScript()),
     };
 
     if (handleOmnibusPassed) {
@@ -790,6 +802,29 @@ export class Omnibus<
     }
 
     return result;
+  }
+
+  #voteCallsForEvents(): VoteCall[] {
+    if (this.#contractVoteCalls) {
+      return this.#contractVoteCalls;
+    }
+    return this.getCalls().map((call) => ({
+      title: call.formatTitle(),
+      target: call.getTarget(),
+      payload: bytes.normalize(call.getCalldata()),
+    }));
+  }
+
+  #createProposalEvents(proposalLogs: LogCollector[]): ProposalEvents[] {
+    const voteCalls = this.#voteCallsForEvents();
+    const submitProposalIndexes = getSubmitProposalCallIndexes(voteCalls, this.#contracts.dualGovernance.address);
+    return proposalLogs.map((logs, proposalIndex) => {
+      const submitCall = voteCalls[submitProposalIndexes[proposalIndex]];
+      if (!submitCall) {
+        throw new Error(`Proposal #${proposalIndex + 1} executed, but the vote has no matching "submitProposal" item`);
+      }
+      return new ProposalEvents(logs, decodeSubmitProposal(submitCall).calls, this.#contracts);
+    });
   }
 
   #validateVoteCalls() {

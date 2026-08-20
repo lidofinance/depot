@@ -6,6 +6,11 @@ import fmt from "../common/format";
 import { assertEventWithLog, formatOmnibusCallEvent } from "./event-helpers";
 import type { OmnibusCallEvent } from "./omnibus-types";
 
+export interface LogWindow {
+  from: number;
+  to: number;
+}
+
 /**
  * Keeps the logs of an executed transaction together with the marks of which of them are already
  * explained by an assertion. A log left unexplained by the end of the test fails it: the test can
@@ -20,14 +25,21 @@ export class LogCollector {
     this.#consumedFlags = new Array(logs.length).fill(false);
   }
 
-  /**
-   * Matches the expected events against the logs not consumed yet, in the order they were emitted,
-   * and marks the matched ones consumed.
-   */
-  assertEvents(expectedEvents: OmnibusCallEvent[]) {
+  get logs(): readonly Log[] {
+    return this.#logs;
+  }
+
+  findLogIndexes(predicate: (log: Log) => boolean): number[] {
+    return this.#logs.flatMap((log, logIndex) => (predicate(log) ? [logIndex] : []));
+  }
+
+  /** Matches expected events against the unconsumed logs, optionally within a `[from, to)` window. */
+  assertEvents(expectedEvents: OmnibusCallEvent[], window?: LogWindow) {
+    const from = window?.from ?? 0;
+    const to = window?.to ?? this.#logs.length;
     const pendingLogIndexes = this.#logs
       .map((_, logIndex) => logIndex)
-      .filter((logIndex) => !this.#consumedFlags[logIndex]);
+      .filter((logIndex) => logIndex >= from && logIndex < to && !this.#consumedFlags[logIndex]);
 
     let pendingCursor = 0;
     let eventIndex = 0;
