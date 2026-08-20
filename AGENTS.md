@@ -23,6 +23,11 @@ npm run omnibus:run -- <name>       # launch omnibus on mainnet/testnet
 npm run omnibus:contract -- <name>  # generate Solidity contract (opt-in)
 npm run omnibus:build -- <name>     # compile generated Solidity contract
 
+# Contract surfaces
+npm run abi:sync -- <Name> [--address 0x…] [--methods a,b] [--from-file abi.json] [--skipSol]
+                                    # regenerate abi/<Name>.abi.ts + contracts/interfaces/I<Name>.sol
+                                    # from the verified Etherscan ABI (address defaults to contracts/addresses/)
+
 # Quality
 npm run lint                        # ESLint (0 errors, 0 warnings expected)
 npm run lint:fix                    # auto-fix

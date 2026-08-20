@@ -10,8 +10,19 @@ interface EtherscanResponse<T = unknown> {
   result: T;
 }
 
-export const MAX_ATTEMPTS = 5;
-const DELAY = 100;
+export const MAX_ATTEMPTS = 6;
+// Etherscan free tier is 5 req/s; back off 0.5s, 1s, 2s, 4s, 8s.
+const BASE_DELAY_MS = 500;
+const MAX_DELAY_MS = 8_000;
+
+export const deps = {
+  sleep: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
+};
+
+function isRateLimitMessage(message: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes("rate limit") || normalized.includes("max calls per sec");
+}
 
 class RateLimitError extends Error {
   constructor(msg: string) {
@@ -70,22 +81,34 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
     }).toString()}`;
 
     const request = await fetch(getSourceCodeUrl);
+    if (request.status === 429) {
+      return this.retryAfterRateLimit(networkName, address, attempts, `HTTP 429 ${request.statusText}`);
+    }
     const response = await this.parseEtherscanResponse(request);
 
     if (response.message === "OK" && Array.isArray(response.result)) {
       return response.result[0];
     }
-    if (response.result.toString().toLowerCase().includes("rate limit reached")) {
-      if (attempts >= MAX_ATTEMPTS) {
-        throw new RateLimitError(response.result.toString());
-      }
-      await new Promise((resolve) => setTimeout(resolve, DELAY * attempts ** 2));
-      return this.getContractInfo(networkName, address, attempts + 1);
+    if (isRateLimitMessage(response.result.toString())) {
+      return this.retryAfterRateLimit(networkName, address, attempts, response.result.toString());
     }
     if (response.result.toString().toLowerCase().includes("contract source code not verified")) {
       throw new Error("Contract is not verified");
     }
     throw new Error(`Unexpected Etherscan Response: ${JSON.stringify(response)}`);
+  }
+
+  private async retryAfterRateLimit(
+    networkName: NetworkName,
+    address: Address,
+    attempts: number,
+    message: string,
+  ): Promise<EtherscanGetSourceCodeResult> {
+    if (attempts >= MAX_ATTEMPTS - 1) {
+      throw new RateLimitError(message);
+    }
+    await deps.sleep(Math.min(BASE_DELAY_MS * 2 ** attempts, MAX_DELAY_MS));
+    return this.getContractInfo(networkName, address, attempts + 1);
   }
 
   private async parseEtherscanResponse(
