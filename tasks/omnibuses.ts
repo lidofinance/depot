@@ -7,7 +7,8 @@ import * as env from "../src/common/env";
 import fs from "node:fs/promises";
 import fmt from "../src/common/format";
 
-import { EthereumProvider, HardhatRuntimeEnvironment } from "hardhat/types";
+import { EthereumProvider } from "hardhat/types/providers";
+import { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 import { Repos, runImageInBackground } from "../src/docker";
 import { runRepoTests } from "./sub-tasks/containers";
 import { formatEther } from "viem";

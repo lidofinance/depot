@@ -16,7 +16,7 @@ import { OmnibusForwardCallFactory } from "./calls/omnibus-forward-call";
 import { OmnibusForwardCallsFactory } from "./calls/omnibus-forward-calls";
 import { OmnibusSubmitProposalCall, OmnibusSubmitProposalCallFactory } from "./calls/omnibus-submit-calls";
 import blueprints, { Blueprints } from "./blueprints";
-import { Artifacts } from "hardhat/types";
+import { ArtifactManager as Artifacts } from "hardhat/types/artifacts";
 import { createTimedSpinner } from "../common/spinner";
 import { decodeEventLog, encodeEventTopics, TransactionReceipt } from "viem";
 import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
