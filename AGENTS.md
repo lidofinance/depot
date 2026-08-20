@@ -18,6 +18,7 @@ Hardhat 3 + TypeScript + Viem project for building, testing, and launching Lido 
 # Omnibus lifecycle
 npm run omnibus:create              # scaffold new omnibus from template
 npm run omnibus:test -- <name>      # run omnibus tests on local hardhat node
+npm run omnibus:test -- <name> --fork-block <n>  # same, fork pinned to block n
 npm run omnibus:simulate -- <name>  # simulate omnibus execution
 npm run omnibus:run -- <name>       # launch omnibus on mainnet/testnet
 npm run omnibus:contract -- <name>  # generate Solidity contract (opt-in)

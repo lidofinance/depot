@@ -38,6 +38,8 @@ import { adoptAragonVoting } from "../src/aragon-votes-tools";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const FORK_BLOCK_DESCRIPTION = "Fork block number; defaults to the latest block";
+
 export const omnibusTaskBuilders: Array<ReturnType<typeof task>> = [];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TaskAction = (taskArguments: any, hre: HardhatRuntimeEnvironment) => any;
@@ -270,10 +272,11 @@ defineTask("omnibus:deploy", "Run deploy method on an omnibus script")
 
 defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to test" })
-  .setAction(async (taskArgs: { name: string }, hre: HardhatRuntimeEnvironment) => {
+  .addOption({ name: "forkBlock", description: FORK_BLOCK_DESCRIPTION, defaultValue: "" })
+  .setAction(async (taskArgs: { name: string; forkBlock: string }, hre: HardhatRuntimeEnvironment) => {
     const { name } = taskArgs;
     const omnibus = await loadOmnibus(name);
-    const client = await prepareDevRpcClient(omnibus.network, hre);
+    const client = await prepareDevRpcClient(omnibus.network, hre, resolveForkBlock(taskArgs.forkBlock));
     await prepareOmnibus(hre, client, omnibus);
     await omnibus.test(client);
   });
@@ -327,12 +330,14 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
     defaultValue: "",
   })
   .addFlag({ name: "mountTests", description: "Mount test files from /mount/<repo> to external repo test dir" })
+  .addOption({ name: "forkBlock", description: FORK_BLOCK_DESCRIPTION, defaultValue: "" })
   .setAction(
     async (
-      taskArgs: { name: string; repo: string; pattern: string; mountTests: boolean },
+      taskArgs: { name: string; repo: string; pattern: string; mountTests: boolean; forkBlock: string },
       hre: HardhatRuntimeEnvironment,
     ) => {
       const { name, repo, pattern, mountTests } = taskArgs;
+      const forkBlock = resolveForkBlock(taskArgs.forkBlock);
       const normalizedName = name || undefined;
       const normalizedRepo = repo || undefined;
       const normalizedPattern = pattern || undefined;
@@ -342,14 +347,14 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
       if (normalizedName) {
         const omnibus = await loadOmnibus(normalizedName);
 
-        client = await prepareLocalRpcNode(omnibus.network);
+        client = await prepareLocalRpcNode(omnibus.network, forkBlock);
         snapshotId = await client.snapshot();
 
         await prepareOmnibus(hre, client, omnibus);
         await omnibus.passOmnibus(client);
       } else {
         console.log("Omnibus name doesn't pass. Run tests without passing any omnibuses");
-        client = await prepareLocalRpcNode("mainnet");
+        client = await prepareLocalRpcNode("mainnet", forkBlock);
         snapshotId = await client.snapshot();
       }
 
@@ -578,45 +583,81 @@ async function loadOmnibus(name: string): Promise<Omnibus> {
   return omnibus;
 }
 
-async function prepareLocalRpcNode(network: NetworkName) {
+async function prepareLocalRpcNode(network: NetworkName, forkBlock?: bigint) {
   const name = "hh-rpc-node";
-  const cmd = ["npm", "start"];
+  // the image starts `hardhat node` forking from the latest block; the pin goes through the CLI flag
+  const cmd = forkBlock ? ["npx", "hardhat", "node", "--fork-block-number", forkBlock.toString()] : ["npm", "start"];
   const image = `ghcr.io/lidofinance/hardhat-node:2.26.0`;
 
   const port = env.ETH_LOCAL_RPC_PORT();
   const localRpcUrl = getLocalRpcUrl(port);
 
+  let runningNodeClient: DevRpcClient | undefined;
   try {
     console.log(fmt.padded(`Trying to connect to the local RPC node at: ${localRpcUrl}...`, 2));
-    const client = await createDevRpcClient(network, localRpcUrl);
+    runningNodeClient = await createDevRpcClient(network, localRpcUrl);
     console.log(fmt.success(`Successfully connected to the RPC node at ${localRpcUrl}\n`));
-    return client;
   } catch (error) {
     console.log(fmt.padded(`Failed to connect to local RPC: "${(error as Error).message.split("\n")[0]}"`, 4));
   }
+  if (runningNodeClient) {
+    await assertForkBlock(runningNodeClient, forkBlock);
+    return runningNodeClient;
+  }
 
-  logBlue(`Run ${name} container`);
+  logBlue(`Run ${name} container${forkBlock ? ` pinned to block ${forkBlock}` : ""}`);
   await runImageInBackground(name, image, cmd, false, {
     Env: [`ETH_RPC_URL=${getRpcUrl(network)}`],
     HostConfig: { PortBindings: { "8545/tcp": [{ HostPort: port }] } },
   });
 
-  return createDevRpcClient(network, getLocalRpcUrl(port));
+  const client = await createDevRpcClient(network, getLocalRpcUrl(port));
+  await assertForkBlock(client, forkBlock);
+  return client;
 }
 
-async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntimeEnvironment) {
+function resolveForkBlock(taskArg: string): bigint | undefined {
+  if (!taskArg) {
+    return undefined;
+  }
+  if (!/^\d+$/.test(taskArg)) {
+    throw new Error(`Fork block must be a positive integer, got "${taskArg}"`);
+  }
+  return BigInt(taskArg);
+}
+
+/** A node started elsewhere keeps its own block — refuse to test on a wrong one instead of passing silently. */
+async function assertForkBlock(client: DevRpcClient, forkBlock?: bigint) {
+  if (forkBlock === undefined) {
+    return;
+  }
+  const blockNumber = await client.getBlockNumber();
+  if (blockNumber !== forkBlock) {
+    throw new Error(
+      `The RPC node at ${client.getRpcUrl()} is at block ${blockNumber}, but fork block ${forkBlock} was requested. ` +
+        `Restart the node at that block or drop the --fork-block pin.`,
+    );
+  }
+  console.log(fmt.padded(`Fork pinned to block ${forkBlock}`, 2));
+}
+
+async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntimeEnvironment, forkBlock?: bigint) {
   console.log("⏳Preparing local dev RPC client...");
   const localDevRpcUrl = getLocalRpcUrl(env.ETH_LOCAL_RPC_PORT());
   const targetRpcUrl = getRpcUrl(networkName);
 
+  let standaloneClient: DevRpcClient | undefined;
   try {
     console.log(fmt.padded(`Trying to connect to the local RPC node at: ${localDevRpcUrl}...`, 2));
-    const standaloneClient = await createDevRpcClient(networkName, localDevRpcUrl);
+    standaloneClient = await createDevRpcClient(networkName, localDevRpcUrl);
     console.log(fmt.success(`Successfully connected to the RPC node at ${localDevRpcUrl}\n`));
-    return standaloneClient;
   } catch (error) {
     console.log(fmt.padded(`Failed to connect to local RPC: "${(error as Error).message.split("\n")[0]}"`, 4));
     console.log(fmt.padded(`Trying to connect the in-process hardhat dev RPC node...`, 2));
+  }
+  if (standaloneClient) {
+    await assertForkBlock(standaloneClient, forkBlock);
+    return standaloneClient;
   }
 
   const connectLocalDevNetwork = () => {
@@ -642,6 +683,7 @@ async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntime
         forking: {
           enabled: true,
           url: targetRpcUrl,
+          ...(forkBlock === undefined ? {} : { blockNumber: Number(forkBlock) }),
         },
       },
     });
@@ -674,6 +716,7 @@ async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntime
   }
 
   console.log(fmt.success(`Successfully connected to the in-process hardhat dev RPC node\n`));
+  await assertForkBlock(builtinHardhatClient, forkBlock);
 
   return builtinHardhatClient;
 }
