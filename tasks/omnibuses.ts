@@ -9,7 +9,7 @@ import fmt from "../src/common/format";
 
 import { EthereumProvider } from "hardhat/types/providers";
 import { HardhatRuntimeEnvironment } from "hardhat/types/hre";
-import { Repos, runImageInBackground } from "../src/docker";
+import { findContainerByName, Repos, runImageInBackground, stopContainer } from "../src/docker";
 import { runRepoTests } from "./sub-tasks/containers";
 import { formatEther } from "viem";
 import {
@@ -280,9 +280,7 @@ defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
     const client = await prepareDevRpcClient(omnibus.network, hre, resolveForkBlock(taskArgs.forkBlock));
     await prepareOmnibus(hre, client, omnibus);
 
-    console.log(chalk.bold.underline("\nOmnibus EVM script:\n"));
-    console.log(chalk.greenBright(omnibus.getEvmScript()));
-    console.log();
+    await printEvmScript(name, omnibus.getEvmScript());
 
     await omnibus.test(client);
   });
@@ -320,9 +318,9 @@ defineTask("omnibus:trace", "Trace the omnibus with given name and shows the exe
   });
 
 defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
-  .addOption({
+  .addPositionalArgument({
     name: "name",
-    description: "Name of the omnibus to run",
+    description: "Name of the omnibus to run; omit to run the suites on a bare fork",
     defaultValue: "",
   })
   .addOption({
@@ -347,21 +345,21 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
       const normalizedName = name || undefined;
       const normalizedRepo = repo || undefined;
       const normalizedPattern = pattern || undefined;
-      let client: DevRpcClient;
+      let node: LocalRpcNode;
 
       let snapshotId;
       if (normalizedName) {
         const omnibus = await loadOmnibus(normalizedName);
 
-        client = await prepareLocalRpcNode(omnibus.network, forkBlock);
-        snapshotId = await client.snapshot();
+        node = await prepareLocalRpcNode(omnibus.network, forkBlock);
+        snapshotId = await node.client.snapshot();
 
-        await prepareOmnibus(hre, client, omnibus);
-        await omnibus.passOmnibus(client);
+        await prepareOmnibus(hre, node.client, omnibus);
+        await omnibus.passOmnibus(node.client);
       } else {
         console.log("Omnibus name doesn't pass. Run tests without passing any omnibuses");
-        client = await prepareLocalRpcNode("mainnet", forkBlock);
-        snapshotId = await client.snapshot();
+        node = await prepareLocalRpcNode("mainnet", forkBlock);
+        snapshotId = await node.client.snapshot();
       }
 
       try {
@@ -399,7 +397,10 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
           }
         }
       } finally {
-        await client.revert(snapshotId);
+        await node.client.revert(snapshotId);
+        if (node.startedByUs) {
+          await stopLocalRpcNode();
+        }
       }
     },
   );
@@ -455,9 +456,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
     console.log(chalk.gray(description));
     console.log();
 
-    console.log(chalk.bold.underline("Omnibus EVM script:\n"));
-    console.log(chalk.greenBright(evmScript));
-    console.log();
+    await printEvmScript(name, evmScript);
 
     if (broadcast) {
       console.log(
@@ -576,6 +575,15 @@ defineTask("omnibus:execute-proposal", "Executes proposal with a given id")
     console.log(` - tx hash: ${executeReceipt.transactionHash}`);
   });
 
+async function printEvmScript(name: string, evmScript: string) {
+  const evmScriptPath = path.join(__dirname, "..", "omnibuses", name, `${name}.evm-script.hex`);
+  await fs.writeFile(evmScriptPath, evmScript + "\n");
+
+  console.log(chalk.bold.underline("Omnibus EVM script:\n"));
+  console.log(chalk.greenBright(evmScript));
+  console.log(chalk.gray(`\nSaved to ${path.relative(process.cwd(), evmScriptPath)}\n`));
+}
+
 async function readOmnibusDescriptionFile(name: string): Promise<string> {
   const descriptionFilePath = path.join(__dirname, "..", "omnibuses", name, `${name}.md`);
   return fs.readFile(descriptionFilePath, { encoding: "utf-8" });
@@ -589,11 +597,26 @@ async function loadOmnibus(name: string): Promise<Omnibus> {
   return omnibus;
 }
 
-async function prepareLocalRpcNode(network: NetworkName, forkBlock?: bigint) {
-  const name = "hh-rpc-node";
+const LOCAL_RPC_NODE_CONTAINER = "hh-rpc-node";
+
+interface LocalRpcNode {
+  client: DevRpcClient;
+  /** only a node started by us is stopped at the end */
+  startedByUs: boolean;
+}
+
+async function stopLocalRpcNode() {
+  const container = await findContainerByName(LOCAL_RPC_NODE_CONTAINER);
+  if (container) {
+    await stopContainer(container, LOCAL_RPC_NODE_CONTAINER, true);
+  }
+}
+
+async function prepareLocalRpcNode(network: NetworkName, forkBlock?: bigint): Promise<LocalRpcNode> {
+  const name = LOCAL_RPC_NODE_CONTAINER;
   // the image starts `hardhat node` forking from the latest block; the pin goes through the CLI flag
   const cmd = forkBlock ? ["npx", "hardhat", "node", "--fork-block-number", forkBlock.toString()] : ["npm", "start"];
-  const image = `ghcr.io/lidofinance/hardhat-node:2.26.0`;
+  const image = env.HH_NODE_IMAGE();
 
   const port = env.ETH_LOCAL_RPC_PORT();
   const localRpcUrl = getLocalRpcUrl(port);
@@ -608,7 +631,7 @@ async function prepareLocalRpcNode(network: NetworkName, forkBlock?: bigint) {
   }
   if (runningNodeClient) {
     await assertForkBlock(runningNodeClient, forkBlock);
-    return runningNodeClient;
+    return { client: runningNodeClient, startedByUs: false };
   }
 
   logBlue(`Run ${name} container${forkBlock ? ` pinned to block ${forkBlock}` : ""}`);
@@ -619,7 +642,7 @@ async function prepareLocalRpcNode(network: NetworkName, forkBlock?: bigint) {
 
   const client = await createDevRpcClient(network, getLocalRpcUrl(port));
   await assertForkBlock(client, forkBlock);
-  return client;
+  return { client, startedByUs: true };
 }
 
 function resolveForkBlock(taskArg: string): bigint | undefined {

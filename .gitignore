@@ -28,3 +28,6 @@ etherscan-cache
 .envrc
 cache_forge/
 out_forge/
+
+# python bytecode from the mounted scripts tests
+__pycache__/

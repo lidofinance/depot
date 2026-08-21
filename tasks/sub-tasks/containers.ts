@@ -35,10 +35,27 @@ const runCoreTests = async (
 ) => {
   const repo: Repos = "core";
 
-  const cmd = ["sh", "-c", `MODE=forking yarn run hardhat test ${pattern} --network hardhat`];
+  // same as core's scripts/run-test-integration.sh, but with a custom test pattern
+  const cmd = [
+    "bash",
+    "-c",
+    `. scripts/utils/migration-env.sh && prepare_migration_env test && yarn hardhat --network "$RUN_NETWORK" test ${pattern} --disabletracer`,
+  ];
 
   const config: Docker.ContainerCreateOptions = {
-    Env: [`FORK_RPC_URL=${getDockerLocalRpcUrl()}`],
+    Env: [
+      `LOCAL_RPC_URL=${getDockerLocalRpcUrl()}`,
+      `RPC_URL=${getDockerLocalRpcUrl()}`,
+      "NETWORK=mainnet",
+      "RUN_NETWORK=local",
+      "MODE=forking",
+      "AUTO_CONFIRM=true",
+      "ALLOW_SKIP_STEPS=true",
+      "SKIP_INTERFACES_CHECK=true",
+      "SKIP_CONTRACT_SIZE=true",
+      "SKIP_GAS_REPORT=true",
+      "SKIP_LINT_SOLIDITY=true",
+    ],
   };
 
   if (shouldMountTests) {
@@ -48,7 +65,7 @@ const runCoreTests = async (
   }
 
   const imageTag = await buildRepo(repo, env.GIT_BRANCH_CORE(), hideDebug);
-  await runTests(repo, imageTag, cmd, config, hideDebug);
+  await runTests(repo, imageTag, cmd, config);
 };
 
 const runScriptsTests = async (pattern?: string, hideDebug = false, shouldMountTests = false) => {
@@ -77,10 +94,7 @@ const runScriptsTests = async (pattern?: string, hideDebug = false, shouldMountT
   const config1 = { ...config, Env: [...Env, `ETH_RPC_URL=${getDockerLocalRpcUrl()}`] };
 
   const imageTag = await buildRepo(repo, env.GIT_BRANCH_SCRIPTS(), hideDebug);
-  await Promise.all([
-    runTests(repo, imageTag, cmd0, config0, hideDebug),
-    runTests(repo, imageTag, cmd1, config1, hideDebug, 1),
-  ]);
+  await Promise.all([runTests(repo, imageTag, cmd0, config0), runTests(repo, imageTag, cmd1, config1, 1)]);
 };
 
 const runDgTests = async (pattern?: string, hideDebug = false, shouldMountTests = false) => {
@@ -88,7 +102,7 @@ const runDgTests = async (pattern?: string, hideDebug = false, shouldMountTests 
 
   const cmd = !pattern
     ? ["npm", "run", "test:regressions", "--", "--load-accounts"]
-    : ["npm", "run", "test", "--match-path", pattern];
+    : ["npm", "run", "test", "--", "--match-path", pattern];
 
   const config: Docker.ContainerCreateOptions = {
     Env: [`MAINNET_RPC_URL=${getDockerLocalRpcUrl()}`, `DEPLOY_ARTIFACT_FILE_NAME=deploy-artifact-mainnet.toml`],
@@ -105,23 +119,10 @@ const runDgTests = async (pattern?: string, hideDebug = false, shouldMountTests 
     };
   }
   const imageTag = await buildRepo(repo, env.GIT_BRANCH_DG(), hideDebug);
-  await runTests(repo, imageTag, cmd, config, hideDebug);
+  await runTests(repo, imageTag, cmd, config);
 };
 
-const runTests = async (
-  repo: Repos,
-  imageTag: string,
-  cmd: string[],
-  config: ContainerCreateOptions,
-  hideDebug = false,
-  instance = 0,
-) => {
-  try {
-    logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
-    await runTestsFromRepo(repo, imageTag, cmd, config, hideDebug, instance);
-    logBlue(`Success tests from ${repo} repo: \n"${cmd.join(" ")}"`);
-  } catch (err) {
-    logBlue(`Failed tests from ${repo} repo: \n"${cmd.join(" ")}"`);
-    throw err;
-  }
+const runTests = async (repo: Repos, imageTag: string, cmd: string[], config: ContainerCreateOptions, instance = 0) => {
+  logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
+  await runTestsFromRepo(repo, imageTag, cmd, config, instance);
 };

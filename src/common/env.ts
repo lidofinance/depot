@@ -21,6 +21,10 @@ export const GIT_SHA_DG = () => process.env.GIT_SHA_DG || "";
 export const GIT_SHA_CORE = () => process.env.GIT_SHA_CORE || "";
 
 export const HH_NODE_IMAGE = () => process.env.HH_NODE_IMAGE || "ghcr.io/lidofinance/hardhat-node:2.26.0";
+export const SCRIPTS_IMAGE = () => process.env.SCRIPTS_IMAGE || "ghcr.io/lidofinance/scripts:v22";
+/** e.g. `linux/amd64`; empty = host architecture */
+export const IMAGE_PLATFORM = (repo: string) =>
+  process.env[`IMAGE_PLATFORM_${repo.toUpperCase().replace(/-/g, "_")}`] || "";
 
 export function getRequiredEnvVar(name: string) {
   const value = process.env[name];
