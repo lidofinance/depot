@@ -279,6 +279,11 @@ defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
     const omnibus = await loadOmnibus(name);
     const client = await prepareDevRpcClient(omnibus.network, hre, resolveForkBlock(taskArgs.forkBlock));
     await prepareOmnibus(hre, client, omnibus);
+
+    console.log(chalk.bold.underline("\nOmnibus EVM script:\n"));
+    console.log(chalk.greenBright(omnibus.getEvmScript()));
+    console.log();
+
     await omnibus.test(client);
   });
 
