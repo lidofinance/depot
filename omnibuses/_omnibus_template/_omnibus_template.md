@@ -5,7 +5,8 @@
 Number the vote items the way they must appear in the vote, and nest the calls of a Dual Governance
 proposal under the item that submits it. Ordering is part of the payload, so write it as an
 instruction rather than as prose. Name every address, amount, and limit explicitly — the author of
-the vote is the only source for them.
+the vote is the only source for them. Every numbered item is exactly one call; if several calls
+must go through the Aragon Agent as one forward, list them under a single item and say so.
 
 <!-- OMNIBUS_DESCRIPTION -->
 
