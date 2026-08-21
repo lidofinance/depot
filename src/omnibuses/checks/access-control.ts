@@ -2,6 +2,7 @@ import { AccessControl_ABI } from "../../../abi/AccessControl.abi";
 import { ACL_ABI } from "../../../abi/ACL.abi";
 import { assert } from "../../common/assert";
 import { Contract } from "../../contracts";
+import { AclParam, formatAclParam } from "../acl-permission-params";
 import { CheckContext } from "./checks";
 import { Address, Hex } from "viem";
 
@@ -67,7 +68,26 @@ async function checkAragonPermissionNotGranted(
   );
 }
 
+/** Reads the stored params back and compares them node by node with what the vote meant to grant. */
+async function checkAragonPermissionParams(
+  { client }: CheckContext,
+  { contracts, entity, app, role, params }: CheckAragonPermissionInput & { params: AclParam[] },
+): Promise<void> {
+  const length = await client.read(contracts.acl, "getPermissionParamsLength", [entity, app, role]);
+  const stored: AclParam[] = [];
+  for (let index = 0n; index < length; index++) {
+    const [argId, op, value] = await client.read(contracts.acl, "getPermissionParam", [entity, app, role, index]);
+    stored.push({ argId, op, value });
+  }
+  assert.deepEqual(
+    stored.map(formatAclParam),
+    params.map(formatAclParam),
+    `Permission ${role} of ${entity} on app ${app} has different params`,
+  );
+}
+
 export default {
+  checkAragonPermissionParams,
   checkOzRoleGranted,
   checkOzRoleNotGranted,
   checkAragonPermissionGranted,
