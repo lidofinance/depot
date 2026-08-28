@@ -8,6 +8,7 @@ import { LogCollector } from "../../src/omnibuses/log-collector";
 import { event } from "../../src/omnibuses/event-helpers";
 
 const TOKEN: Address = "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32";
+const OTHER_TOKEN: Address = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
 const HOLDER: Address = "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c";
 const RECIPIENT: Address = "0xC1db28B3301331277e307FDCfF8DE28242A4486E";
 
@@ -15,11 +16,11 @@ const token = contract(ERC20_ABI, TOKEN);
 
 const TRANSFER_TOPIC = toEventSelector(getAbiItem({ abi: ERC20_ABI, name: "Transfer" }));
 
-function createTransferLog(value: bigint, logIndex: number): Log {
+function createTransferLog(value: bigint, logIndex: number, emitter: Address = TOKEN): Log {
   const topics: [Hex, Hex, Hex] = [TRANSFER_TOPIC, pad(HOLDER), pad(RECIPIENT)];
 
   return {
-    address: TOKEN,
+    address: emitter,
     topics,
     data: encodeAbiParameters([{ name: "value", type: "uint256" }], [value]),
     logIndex,
@@ -71,6 +72,15 @@ describe("LogCollector", () => {
     const collector = new LogCollector([createTransferLog(1n, 0)]);
 
     assert.throws(() => collector.assertEvents([transferEvent(500n)]));
+  });
+
+  it("fails when the event was emitted by another contract", () => {
+    const collector = new LogCollector([createTransferLog(1n, 0, OTHER_TOKEN)]);
+
+    assert.throws(
+      () => collector.assertEvents([transferEvent(1n)]),
+      new RegExp(`Unexpected emitter.*${OTHER_TOKEN} != ${TOKEN}`, "i"),
+    );
   });
 
   it("skips an optional event without consuming a log", () => {

@@ -265,7 +265,7 @@ defineTask("omnibus:deploy", "Run deploy method on an omnibus script")
     console.log(`Deployer: ${deployer.address}`);
     console.log(`Balance: ${await client.getBalance(deployer.address)}`);
 
-    await prompt.confirm(`Deploy omnibus contract(s)?`);
+    await prompt.confirmOrAbort(`Deploy omnibus contract(s)?`);
     const deployedOmnibusContract = await omnibus.deployOmnibusContracts(hre.artifacts, client, { from: deployer });
 
     console.log(`Omnibus contract ${deployedOmnibusContract.label} was deployed at ${deployedOmnibusContract.address}`);
