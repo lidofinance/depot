@@ -11,7 +11,7 @@ import { EthereumProvider } from "hardhat/types/providers";
 import { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 import { findContainerByName, Repos, runImageInBackground, stopContainer } from "../src/docker";
 import { runRepoTests } from "./sub-tasks/containers";
-import { formatEther } from "viem";
+import { Address, formatEther } from "viem";
 import {
   createDevRpcClient,
   createRpcClient,
@@ -27,7 +27,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { getRpcUrl } from "../src/network/network";
 import files from "../src/common/files";
 import { uploadDescription } from "./sub-tasks/upload-description";
-import { DevRpcClient, RpcClient } from "../src/network";
+import { DevRpcClient, RpcClient, WriteContractOptions } from "../src/network";
 import { createTimedSpinner } from "../src/common/spinner";
 import { ProposalStatus } from "../src/omnibuses/dual-governance";
 import { logBlue } from "../src/common/color";
@@ -36,6 +36,7 @@ import { generateOmnibusContractFile } from "../src/omnibuses/contract-generator
 import { getKeystores } from "../src/hardhat-keystores";
 import { runHardhatTask } from "../src/hardhat/run-task";
 import { adoptAragonVoting } from "../src/aragon-votes-tools";
+import { renderDefaultOmnibusDeployment } from "../src/omnibuses/omnibus-deployment";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -223,24 +224,29 @@ function omnibusNameToDescriptionHeader(omnibusName: string) {
     .replace(/(\d{4}) (\d{2}) (\d{2})/g, "$1-$2-$3");
 }
 
-defineTask("omnibus:deploy", "Run deploy method on an omnibus script")
-  .addPositionalArgument({ name: "name", description: "Name of the omnibus script with the deploy() method to run" })
+defineTask("omnibus:deploy", "Deploy the contracts of an omnibus")
+  .addPositionalArgument({ name: "name", description: "Name of the omnibus to deploy" })
   .addFlag({ name: "broadcast", description: "broadcast the transaction to the network" })
   .setAction(async (taskArgs: { name: string; broadcast: boolean }, hre: HardhatRuntimeEnvironment) => {
     const { name, broadcast = false } = taskArgs;
     const omnibus = await loadOmnibus(name);
+    const defaultContractName = omnibus.hasDeployMethod() ? undefined : await findDefaultOmnibusContractName(name);
 
-    if (!omnibus.hasDeployMethod()) {
-      throw new Error(`Omnibus "${name}" doesn't have deploy method`);
+    if (!omnibus.hasDeployMethod() && !defaultContractName) {
+      throw new Error(`Omnibus "${name}" has neither a "deploy" section nor a default Solidity contract`);
     }
 
     const deployment = omnibus.getDeployment();
 
-    if (deployment) {
+    if (deployment && Object.keys(deployment).length > 0) {
       const deployedAddresses = Object.fromEntries(
         Object.entries(deployment).map(([name, contract]) => [name, contract.address]),
       );
       throw new Error(`Omnibus contracts already deployed at ${JSON.stringify(deployedAddresses)}`);
+    }
+
+    if (broadcast && defaultContractName) {
+      await validateDefaultOmnibusDeploymentCanBeRecorded(name);
     }
 
     await buildOmnibusContracts(hre, name);
@@ -266,9 +272,24 @@ defineTask("omnibus:deploy", "Run deploy method on an omnibus script")
     console.log(`Balance: ${await client.getBalance(deployer.address)}`);
 
     await prompt.confirmOrAbort(`Deploy omnibus contract(s)?`);
-    const deployedOmnibusContract = await omnibus.deployOmnibusContracts(hre.artifacts, client, { from: deployer });
+    const deployedContracts = await deployOmnibusForLaunch(hre, client, omnibus, defaultContractName, {
+      from: deployer,
+    });
 
-    console.log(`Omnibus contract ${deployedOmnibusContract.label} was deployed at ${deployedOmnibusContract.address}`);
+    console.log(`Deployed omnibus contracts:`);
+    for (const [contractName, deployedContract] of Object.entries(deployedContracts)) {
+      console.log(`  - "${contractName}" - ${deployedContract.label}[${deployedContract.address}]`);
+    }
+
+    if (broadcast && defaultContractName) {
+      const deployedOmnibusContract = deployedContracts.omnibus;
+      if (!deployedOmnibusContract) {
+        throw new Error(`Default omnibus deployment didn't return an "omnibus" contract`);
+      }
+      const omnibusScriptPath = getOmnibusScriptPath(name);
+      await recordDefaultOmnibusDeployment(omnibusScriptPath, deployedOmnibusContract.address);
+      console.log(`Saved deployment.omnibus to ${path.relative(process.cwd(), omnibusScriptPath)}`);
+    }
   });
 
 defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
@@ -590,11 +611,38 @@ async function readOmnibusDescriptionFile(name: string): Promise<string> {
 }
 
 async function loadOmnibus(name: string): Promise<Omnibus> {
-  const omnibusModulePath = path.resolve(__dirname, "..", "omnibuses", name, `${name}.ts`);
+  const omnibusModulePath = getOmnibusScriptPath(name);
   const omnibusModule = await import(pathToFileURL(omnibusModulePath).href);
   const omnibus: Omnibus = omnibusModule.default;
   omnibus.setName(name);
   return omnibus;
+}
+
+function getOmnibusScriptPath(name: string): string {
+  return path.resolve(__dirname, "..", "omnibuses", name, `${name}.ts`);
+}
+
+async function validateDefaultOmnibusDeploymentCanBeRecorded(name: string): Promise<void> {
+  const source = await fs.readFile(getOmnibusScriptPath(name), "utf-8");
+  renderDefaultOmnibusDeployment(source, "0x0000000000000000000000000000000000000000");
+}
+
+export async function recordDefaultOmnibusDeployment(omnibusScriptPath: string, address: Address): Promise<void> {
+  const source = await fs.readFile(omnibusScriptPath, "utf-8");
+  const updatedSource = renderDefaultOmnibusDeployment(source, address);
+  await fs.writeFile(omnibusScriptPath, updatedSource, "utf-8");
+}
+
+export function deployOmnibusForLaunch(
+  hre: HardhatRuntimeEnvironment,
+  client: RpcClient,
+  omnibus: Omnibus,
+  defaultContractName: string | undefined,
+  txOptions: WriteContractOptions,
+) {
+  return defaultContractName
+    ? omnibus.deployOmnibusContract(hre.artifacts, client, defaultContractName, txOptions)
+    : omnibus.deployOmnibusContracts(hre.artifacts, client, txOptions);
 }
 
 const LOCAL_RPC_NODE_CONTAINER = "hh-rpc-node";

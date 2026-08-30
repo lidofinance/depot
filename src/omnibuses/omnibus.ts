@@ -9,7 +9,7 @@ import {
 import bytes, { HexStrPrefixed } from "../common/bytes";
 import { DevRpcClient, NetworkName, RpcClient, WriteContractOptions } from "../network";
 import { TxTrace } from "../traces/tx-traces";
-import { Contract, OmnibusBaseContract } from "../contracts";
+import { contract, Contract, OmnibusBaseContract } from "../contracts";
 import { OmnibusDirectCallFactory } from "./calls/omnibus-direct-call";
 import { OmnibusExecuteCallFactory } from "./calls/omnibus-execute-call";
 import { OmnibusForwardCallFactory } from "./calls/omnibus-forward-call";
@@ -20,6 +20,7 @@ import { ArtifactManager as Artifacts } from "hardhat/types/artifacts";
 import { createTimedSpinner } from "../common/spinner";
 import { decodeEventLog, encodeEventTopics, TransactionReceipt } from "viem";
 import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
+import { OmnibusBase_ABI } from "../../abi/OmnibusBase.abi";
 import { processPendingProposals, ProposalStatus } from "./dual-governance";
 import checks from "./checks";
 import chalk from "chalk";
@@ -94,6 +95,10 @@ export class Omnibus<
     $DeployedContracts extends Record<string, Contract> = Record<string, Contract>,
   >(config: OmnibusConfig<$Network, $DeployedContracts>) {
     return new Omnibus(config);
+  }
+
+  static deployedContract(address: Address): OmnibusBaseContract {
+    return contract(OmnibusBase_ABI, address, "OmnibusBase");
   }
 
   constructor(config: OmnibusConfig<$Network, $DeployedContracts>) {
