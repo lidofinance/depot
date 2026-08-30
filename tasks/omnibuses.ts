@@ -338,6 +338,19 @@ defineTask("omnibus:trace", "Trace the omnibus with given name and shows the exe
     await omnibus.trace(client);
   });
 
+type RepositorySuite = Exclude<Repos, "depot">;
+
+export async function runRepositorySuites(
+  client: Pick<DevRpcClient, "withSnapshot">,
+  repositories: readonly RepositorySuite[],
+  runSuite: (repository: RepositorySuite) => Promise<void>,
+): Promise<void> {
+  for (const repository of repositories) {
+    await client.withSnapshot(() => runSuite(repository));
+    console.log(`Tests run for repo "${repository}" has finished successfully`);
+  }
+}
+
 defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
   .addPositionalArgument({
     name: "name",
@@ -397,26 +410,9 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
 
         const hideDebug = repoNamesToTest.length > 1;
 
-        const testRunResults = await Promise.all(
-          repoNamesToTest.map((repo) =>
-            runRepoTests(repo, normalizedPattern, hideDebug, mountTests)
-              .then((result) => ({ status: "fulfilled" as const, result }))
-              .catch((error) => {
-                console.error(`Tests run for repo "${repo}" has failed with error: ${error}`);
-                return { status: "rejected" as const, error };
-              }),
-          ),
+        await runRepositorySuites(node.client, repoNamesToTest, (repository) =>
+          runRepoTests(repository, normalizedPattern, hideDebug, mountTests),
         );
-
-        for (let i = 0; i < repoNamesToTest.length; ++i) {
-          const repoName = repoNamesToTest[i];
-          const testRunResult = testRunResults[i];
-          if (testRunResult.status === "rejected") {
-            console.log(`Tests run for repo "${repoName}" has finished with error: ${testRunResult.error}`);
-          } else {
-            console.log(`Tests run for repo "${repoName} has finished successfully"`);
-          }
-        }
       } finally {
         await node.client.revert(snapshotId);
         if (node.startedByUs) {
