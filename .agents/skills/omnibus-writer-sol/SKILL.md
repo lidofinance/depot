@@ -110,22 +110,23 @@ deploys, or new ones absent from the registry, become named constants at the top
 taken from the description. Address literals are allowed **only** in a constant declaration, never
 inside a call. See `contracts/addresses/README.md`.
 
-**Method signatures.** From the interfaces in `contracts/interfaces/`. An interface that is absent,
-or present but without the exact method needed, is a phase 1 report entry and a stop — name the
-contract, its address, and what you need to call on it.
+**Method signatures.** From the interfaces in `contracts/interfaces/`. Every contract the 2025–2026
+votes touched already has one, so a missing interface means a contract new to governance. That is
+a phase 1 report entry and a stop — name the contract, its address, and what you need to call on it.
 
 Producing the missing interface is phase 2 work, and only for the contracts the answer to your report
 approves. Do not write it by hand — generate it from the verified ABI of that exact deployed address:
 
 ```bash
-npm run abi:sync -- <Name> --address <0x…> --methods <method1,method2>
+npm run abi:sync -- <Name> --address <0x…>
 ```
 
-The command writes `contracts/interfaces/I<Name>.sol` (state-changing methods only, narrowed to
-`--methods` when given) and refreshes `abi/<Name>.abi.ts` for the TypeScript side. `--address` may be
-omitted when `contracts/addresses/` already has a constant of the same name; `--from-file <abi.json>`
-replaces Etherscan for an unverified contract when the answer hands you its ABI. Both generated files
-go into the same change as the contract, so the reviewer sees the ABI diff next to the vote.
+The command writes `contracts/interfaces/I<Name>.sol` with every state-changing method of the
+deployed contract and refreshes `abi/<Name>.abi.ts` for the TypeScript side. Use `--network-name hoodi`
+for Hoodi or `--methods <a,b>` to restrict the Solidity interface. For an unverified contract whose
+ABI the answer hands you, use `--from-file <abi.json>`. A proxy is followed to its implementation as
+read from the chain; add `--proxy-abi` when the vote calls the proxy's own surface instead. The generated
+files go into the same change as the contract, so the reviewer sees the ABI diff next to the vote.
 
 **Selectors.** Always `IContract.method.selector`. Never a hex literal — a literal is checked by
 nothing.
@@ -298,13 +299,13 @@ The test never restates the payload: no targets, no calldata, no addresses of th
 calls beyond the contracts it needs for reading. If a check seems to need one, read it from the
 deployed contract or from the chain.
 
-## Interfaces carry only what the calls need
+## Interfaces carry only state-changing methods
 
-Declare the methods this vote calls and nothing else. View methods for reading state belong to the
-test, and the test is written elsewhere, in TypeScript, against the ABIs that side already has.
-An interface padded with getters nobody calls is dead weight in a file a reviewer has to read.
-`abi:sync` enforces this by default; pass `--methods` to narrow it further to exactly the calls of
-this vote.
+An interface declares the state-changing methods of the deployed contract and nothing else. View
+methods for reading state belong to the test, and the test is written elsewhere, in TypeScript,
+against the ABIs that side already has. An interface padded with getters nobody calls is dead weight
+in a file a reviewer has to read. `abi:sync` enforces this by default; the vote contract imports the
+interface and calls what it needs.
 
 ## Work only from the description
 

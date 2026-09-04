@@ -24,10 +24,32 @@ function isRateLimitMessage(message: string) {
   return normalized.includes("rate limit") || normalized.includes("max calls per sec");
 }
 
+function isNotVerifiedMessage(message: string) {
+  return message.toLowerCase().includes("contract source code not verified");
+}
+
+function describeMalformedResponse(text: string, response: Response) {
+  const message = text.trim();
+  const shortMessage = message.length > 300 ? `${message.slice(0, 300)}...` : message;
+  return `Unexpected Etherscan response format (expected JSON, got ${response.status} ${response.statusText}): ${shortMessage}`;
+}
+
 class RateLimitError extends Error {
   constructor(msg: string) {
     super(`Rate limit reached, tried ${MAX_ATTEMPTS} times:\n${msg}`);
   }
+}
+
+class EtherscanUnavailableError extends Error {
+  constructor(msg: string) {
+    super(`Etherscan is unavailable, tried ${MAX_ATTEMPTS} times:\n${msg}`);
+  }
+}
+
+type RetryReason = "rate limit" | "transient error";
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 interface EtherscanGetSourceCodeResult {
@@ -80,54 +102,82 @@ export class EtherscanContractInfoProvider implements ContractInfoProvider {
       apikey: this.etherscanToken,
     }).toString()}`;
 
-    const request = await fetch(getSourceCodeUrl);
-    if (request.status === 429) {
-      return this.retryAfterRateLimit(networkName, address, attempts, `HTTP 429 ${request.statusText}`);
+    let request: Response;
+    try {
+      request = await fetch(getSourceCodeUrl);
+    } catch (error: unknown) {
+      return this.retry(networkName, address, attempts, "transient error", errorMessage(error));
     }
-    const response = await this.parseEtherscanResponse(request);
+    if (request.status === 429) {
+      return this.retry(networkName, address, attempts, "rate limit", `HTTP 429 ${request.statusText}`);
+    }
+    if (request.status >= 500) {
+      return this.retry(
+        networkName,
+        address,
+        attempts,
+        "transient error",
+        `HTTP ${request.status} ${request.statusText}`,
+      );
+    }
+
+    const text = await request.text();
+    const response = this.parseEtherscanResponse(text, networkName, address);
+    if (response === null) {
+      return this.retry(networkName, address, attempts, "transient error", describeMalformedResponse(text, request));
+    }
 
     if (response.message === "OK" && Array.isArray(response.result)) {
-      return response.result[0];
+      const [contract] = response.result;
+      if (!contract) {
+        throw new Error(`Etherscan returned no contract info for ${networkName} ${address}`);
+      }
+      // Etherscan v2 answers "OK" for an unverified address and puts the notice into the ABI field.
+      if (isNotVerifiedMessage(contract.ABI)) {
+        throw new Error(`Contract is not verified: ${networkName} ${address}`);
+      }
+      return contract;
     }
-    if (isRateLimitMessage(response.result.toString())) {
-      return this.retryAfterRateLimit(networkName, address, attempts, response.result.toString());
+    const result = response.result.toString();
+    if (isRateLimitMessage(result)) {
+      return this.retry(networkName, address, attempts, "rate limit", result);
     }
-    if (response.result.toString().toLowerCase().includes("contract source code not verified")) {
-      throw new Error("Contract is not verified");
+    if (isNotVerifiedMessage(result)) {
+      throw new Error(`Contract is not verified: ${networkName} ${address}`);
+    }
+    if (result.toLowerCase().includes("api key")) {
+      throw new Error(`Etherscan rejected the API key (ETHERSCAN_TOKEN): ${result}`);
     }
     throw new Error(`Unexpected Etherscan Response: ${JSON.stringify(response)}`);
   }
 
-  private async retryAfterRateLimit(
+  private async retry(
     networkName: NetworkName,
     address: Address,
     attempts: number,
+    reason: RetryReason,
     message: string,
   ): Promise<EtherscanGetSourceCodeResult> {
     if (attempts >= MAX_ATTEMPTS - 1) {
-      throw new RateLimitError(message);
+      throw reason === "rate limit" ? new RateLimitError(message) : new EtherscanUnavailableError(message);
     }
     await deps.sleep(Math.min(BASE_DELAY_MS * 2 ** attempts, MAX_DELAY_MS));
     return this.getContractInfo(networkName, address, attempts + 1);
   }
 
-  private async parseEtherscanResponse(
-    response: Response,
-  ): Promise<EtherscanResponse<EtherscanGetSourceCodeResult[] | string>> {
-    const text = await response.text();
-
+  /** `null` when the body is not JSON (an HTML error page from a proxy in front of Etherscan): the caller retries. */
+  private parseEtherscanResponse(
+    text: string,
+    networkName: NetworkName,
+    address: Address,
+  ): EtherscanResponse<EtherscanGetSourceCodeResult[] | string> | null {
     try {
       return JSON.parse(text) as EtherscanResponse<EtherscanGetSourceCodeResult[] | string>;
     } catch {
-      const message = text.trim();
-      if (message.toLowerCase().includes("contract source code not verified")) {
-        throw new Error("Contract is not verified");
+      if (isNotVerifiedMessage(text)) {
+        throw new Error(`Contract is not verified: ${networkName} ${address}`);
       }
-
-      const shortMessage = message.length > 300 ? `${message.slice(0, 300)}...` : message;
-      throw new Error(
-        `Unexpected Etherscan response format (expected JSON, got ${response.status} ${response.statusText}): ${shortMessage}`,
-      );
+      return null;
     }
   }
 

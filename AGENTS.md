@@ -24,10 +24,12 @@ npm run omnibus:run -- <name>       # launch omnibus on mainnet/testnet
 npm run omnibus:contract -- <name>  # generate Solidity contract (opt-in)
 npm run omnibus:build -- <name>     # compile generated Solidity contract
 
-# Contract surfaces
-npm run abi:sync -- <Name> [--address 0x…] [--methods a,b] [--from-file abi.json] [--skipSol]
+# Contract surfaces (need Foundry for `forge fmt`, ETHERSCAN_TOKEN and the network's ETH_*_RPC_URL)
+npm run abi:sync -- <Name> [--address 0x…] [--network-name hoodi] [--methods a,b] [--from-file abi.json] [--skip-sol] [--proxy-abi]
                                     # regenerate abi/<Name>.abi.ts + contracts/interfaces/I<Name>.sol
-                                    # from the verified Etherscan ABI (address defaults to contracts/addresses/)
+                                    # from the verified Etherscan ABI (address defaults to contracts/addresses/);
+                                    # a proxy is followed to the implementation read from the chain, never
+                                    # from Etherscan's stale "Implementation" field
 
 # Quality
 npm run lint                        # ESLint (0 errors, 0 warnings expected)

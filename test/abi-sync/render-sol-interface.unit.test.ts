@@ -98,8 +98,8 @@ const NESTED_STRUCT_ABI: Abi = [
 ];
 
 describe("renderSolInterface", () => {
-  it("declares only state-changing functions with calldata/memory locations", async () => {
-    const rendered = await renderSolInterface("IStakingRouter", STAKING_ROUTER_LIKE_ABI, { source: SOURCE });
+  it("declares only state-changing functions with calldata/memory locations", () => {
+    const rendered = renderSolInterface("IStakingRouter", STAKING_ROUTER_LIKE_ABI, { source: SOURCE });
     const code = flatten(rendered);
 
     assert.include(code, "pragma solidity 0.8.26;");
@@ -115,8 +115,8 @@ describe("renderSolInterface", () => {
     assert.include(code, `/// @dev Source: ${SOURCE}`);
   });
 
-  it("restricts the interface to requested methods", async () => {
-    const code = await renderSolInterface("IStakingRouter", STAKING_ROUTER_LIKE_ABI, {
+  it("restricts the interface to requested methods", () => {
+    const code = renderSolInterface("IStakingRouter", STAKING_ROUTER_LIKE_ABI, {
       source: SOURCE,
       methods: ["deposit"],
     });
@@ -126,18 +126,19 @@ describe("renderSolInterface", () => {
     assert.notInclude(code, "addStakingModule");
   });
 
-  it("fails on a requested method that is not state-changing or does not exist", async () => {
-    await assert.isRejected(
-      renderSolInterface("IStakingRouter", STAKING_ROUTER_LIKE_ABI, {
-        source: SOURCE,
-        methods: ["getStakingModule", "nope"],
-      }),
+  it("fails on a requested method that is not state-changing or does not exist", () => {
+    assert.throws(
+      () =>
+        renderSolInterface("IStakingRouter", STAKING_ROUTER_LIKE_ABI, {
+          source: SOURCE,
+          methods: ["getStakingModule", "nope"],
+        }),
       /Methods not found among state-changing functions of the ABI: getStakingModule, nope/,
     );
   });
 
-  it("renders tuples as structs, nested structs first, enums as their storage type", async () => {
-    const code = flatten(await renderSolInterface("IDualGovernance", NESTED_STRUCT_ABI, { source: SOURCE }));
+  it("renders tuples as structs, nested structs first, enums as their storage type", () => {
+    const code = flatten(renderSolInterface("IDualGovernance", NESTED_STRUCT_ABI, { source: SOURCE }));
 
     const externalCallIndex = code.indexOf("struct ExternalCall {");
     const metadataIndex = code.indexOf("struct Metadata {");
@@ -154,7 +155,7 @@ describe("renderSolInterface", () => {
     assert.include(code, "function setState(uint8 _state) external;");
   });
 
-  it("fails when two different structs share a name", async () => {
+  it("fails when two different structs share a name", () => {
     const abi: Abi = [
       {
         type: "function",
@@ -186,6 +187,6 @@ describe("renderSolInterface", () => {
       },
     ];
 
-    await assert.isRejected(renderSolInterface("IFoo", abi, { source: SOURCE }), /Two different structs named "Item"/);
+    assert.throws(() => renderSolInterface("IFoo", abi, { source: SOURCE }), /Two different structs named "Item"/);
   });
 });

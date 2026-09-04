@@ -1,6 +1,3 @@
-import path from "node:path";
-import prettier from "prettier";
-import solidityPlugin from "prettier-plugin-solidity";
 import { Abi, AbiFunction, AbiParameter } from "abitype";
 
 export const SOLIDITY_VERSION = "0.8.26";
@@ -24,19 +21,16 @@ const REFERENCE_TYPE_PATTERN = /(\[\d*\]$)|^(bytes|string|tuple)$/;
 /**
  * Only state-changing methods are declared: an omnibus calls them, while view methods are read
  * by the TypeScript test through `abi/*.abi.ts`. Keeps the interface reviewable at a glance.
+ * The output is valid Solidity; `syncAbi` runs it through `forge fmt` before writing.
  */
-export async function renderSolInterface(
-  interfaceName: string,
-  abi: Abi,
-  options: SolInterfaceOptions,
-): Promise<string> {
+export function renderSolInterface(interfaceName: string, abi: Abi, options: SolInterfaceOptions): string {
   const functions = selectFunctions(abi, options.methods);
   const structs = new Map<string, StructDefinition>();
 
   const functionLines = functions.map((fn) => renderFunction(fn, structs));
   const structLines = orderStructs(structs).map(renderStruct);
 
-  const code = [
+  return [
     `// SPDX-License-Identifier: MIT`,
     `pragma solidity ${SOLIDITY_VERSION};`,
     ``,
@@ -50,10 +44,6 @@ export async function renderSolInterface(
     `}`,
     ``,
   ].join("\n");
-
-  const prettierOptions = (await prettier.resolveConfig(path.resolve("package.json"))) ?? {};
-  // Solidity in this repo is formatted with 4-space indent (forge fmt), not the repo-wide prettier tabWidth.
-  return prettier.format(code, { ...prettierOptions, tabWidth: 4, parser: "slang", plugins: [solidityPlugin] });
 }
 
 function selectFunctions(abi: Abi, methods?: string[]): AbiFunction[] {

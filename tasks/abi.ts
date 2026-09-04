@@ -1,11 +1,8 @@
 import chalk from "chalk";
 import { task } from "hardhat/config";
 
-import { syncAbi } from "../src/abi-sync";
+import { isSupportedNetwork, SUPPORTED_NETWORKS, syncAbi } from "../src/abi-sync";
 import { parseAddress } from "../src/abi-sync/abi-source";
-import { NetworkName } from "../src/network/network";
-
-const NETWORKS: NetworkName[] = ["mainnet", "hoodi"];
 
 interface AbiSyncTaskArgs {
   name: string;
@@ -14,20 +11,23 @@ interface AbiSyncTaskArgs {
   fromFile: string;
   methods: string;
   skipSol: boolean;
+  proxyAbi: boolean;
 }
 
 async function abiSyncAction(taskArgs: AbiSyncTaskArgs) {
-  if (!NETWORKS.includes(taskArgs.networkName as NetworkName)) {
-    throw new Error(`Unknown network "${taskArgs.networkName}", expected one of: ${NETWORKS.join(", ")}`);
+  const { networkName } = taskArgs;
+  if (!isSupportedNetwork(networkName)) {
+    throw new Error(`Unknown network "${networkName}", expected one of: ${SUPPORTED_NETWORKS.join(", ")}`);
   }
 
   const result = await syncAbi({
     name: taskArgs.name,
-    networkName: taskArgs.networkName as NetworkName,
+    networkName,
     address: taskArgs.address ? parseAddress(taskArgs.address) : undefined,
     fromFile: taskArgs.fromFile || undefined,
     methods: taskArgs.methods ? taskArgs.methods.split(",").map((method) => method.trim()) : undefined,
     skipSol: taskArgs.skipSol,
+    proxyAbi: taskArgs.proxyAbi,
   });
 
   console.log(`${chalk.green("✔")} ${result.contractName} — ${result.source}`);
@@ -57,5 +57,6 @@ export const abiTaskBuilders = [
       defaultValue: "",
     })
     .addFlag({ name: "skipSol", description: "Only write the TypeScript ABI, no Solidity interface" })
+    .addFlag({ name: "proxyAbi", description: "Use the proxy's own ABI instead of following it to the implementation" })
     .setAction(() => Promise.resolve({ default: abiSyncAction })),
 ];
