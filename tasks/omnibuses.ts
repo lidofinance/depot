@@ -40,6 +40,9 @@ import { renderDefaultOmnibusDeployment } from "../src/omnibuses/omnibus-deploym
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const OMNIBUSES_DIR = path.resolve(__dirname, "..", "omnibuses");
+const ARCHIVE_DIR = path.join(OMNIBUSES_DIR, "_archive");
+
 const FORK_BLOCK_DESCRIPTION = "Fork block number; defaults to the latest block";
 
 export const omnibusTaskBuilders: Array<ReturnType<typeof task>> = [];
@@ -89,15 +92,19 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
       throw new Error("Invalid name. Omnibus name should match patter: yyyy_dd_mm_some_optional_info");
     }
 
-    const omnibusesDir = path.join(__dirname, "..", "omnibuses");
-    const newOmnibusDir = path.join(omnibusesDir, omnibusName);
+    const newOmnibusDir = path.join(OMNIBUSES_DIR, omnibusName);
+    const archivedOmnibusDir = await findArchivedOmnibusDir(omnibusName);
+
+    if (archivedOmnibusDir) {
+      throw new Error(`Omnibus ${omnibusName} is already archived at ${archivedOmnibusDir}`);
+    }
 
     if (await files.touchDir(newOmnibusDir)) {
       throw new Error(`Omnibus ${newOmnibusDir} already exist`);
     }
 
     const templateDirName = "_omnibus_template";
-    const templatePath = path.join(omnibusesDir, templateDirName);
+    const templatePath = path.join(OMNIBUSES_DIR, templateDirName);
 
     await fs.cp(templatePath, newOmnibusDir, { recursive: true });
 
@@ -149,8 +156,8 @@ defineTask("omnibus:archive", "Move launched omnibus to archive folder")
       throw new Error(`Omnibus doesn't have "executedAt" property set and "quorumReached" is not false`);
     }
 
-    const omnibusPath = path.resolve(__dirname, "..", "omnibuses", name);
-    const archivePath = path.resolve(__dirname, "..", "omnibuses", "_archive", omnibus.network, name);
+    const omnibusPath = path.join(OMNIBUSES_DIR, name);
+    const archivePath = path.join(ARCHIVE_DIR, omnibus.network, name);
 
     await fs.cp(omnibusPath, archivePath, { errorOnExist: true, recursive: true });
     await fs.rm(omnibusPath, { recursive: true });
@@ -286,7 +293,7 @@ defineTask("omnibus:deploy", "Deploy the contracts of an omnibus")
       if (!deployedOmnibusContract) {
         throw new Error(`Default omnibus deployment didn't return an "omnibus" contract`);
       }
-      const omnibusScriptPath = getOmnibusScriptPath(name);
+      const omnibusScriptPath = await getOmnibusScriptPath(name);
       await recordDefaultOmnibusDeployment(omnibusScriptPath, deployedOmnibusContract.address);
       console.log(`Saved deployment.omnibus to ${path.relative(process.cwd(), omnibusScriptPath)}`);
     }
@@ -593,7 +600,7 @@ defineTask("omnibus:execute-proposal", "Executes proposal with a given id")
   });
 
 async function printEvmScript(name: string, evmScript: string) {
-  const evmScriptPath = path.join(__dirname, "..", "omnibuses", name, `${name}.evm-script.hex`);
+  const evmScriptPath = path.join(await resolveOmnibusDir(name), `${name}.evm-script.hex`);
   await fs.writeFile(evmScriptPath, evmScript + "\n");
 
   console.log(chalk.bold.underline("Omnibus EVM script:\n"));
@@ -602,24 +609,66 @@ async function printEvmScript(name: string, evmScript: string) {
 }
 
 async function readOmnibusDescriptionFile(name: string): Promise<string> {
-  const descriptionFilePath = path.join(__dirname, "..", "omnibuses", name, `${name}.md`);
+  const descriptionFilePath = path.join(await resolveOmnibusDir(name), `${name}.md`);
   return fs.readFile(descriptionFilePath, { encoding: "utf-8" });
 }
 
 async function loadOmnibus(name: string): Promise<Omnibus> {
-  const omnibusModulePath = getOmnibusScriptPath(name);
+  const omnibusModulePath = await getOmnibusScriptPath(name);
   const omnibusModule = await import(pathToFileURL(omnibusModulePath).href);
   const omnibus: Omnibus = omnibusModule.default;
   omnibus.setName(name);
   return omnibus;
 }
 
-function getOmnibusScriptPath(name: string): string {
-  return path.resolve(__dirname, "..", "omnibuses", name, `${name}.ts`);
+async function isDirectory(dirPath: string): Promise<boolean> {
+  try {
+    return (await fs.stat(dirPath)).isDirectory();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+/** `omnibuses/_archive/<network>/<name>`, or `undefined` when the omnibus is not archived. */
+async function findArchivedOmnibusDir(name: string): Promise<string | undefined> {
+  const networkDirs = (await isDirectory(ARCHIVE_DIR)) ? await fs.readdir(ARCHIVE_DIR) : [];
+  const archivedDirs: string[] = [];
+  for (const networkDir of networkDirs) {
+    const archivedDir = path.join(ARCHIVE_DIR, networkDir, name);
+    if (await isDirectory(archivedDir)) {
+      archivedDirs.push(archivedDir);
+    }
+  }
+
+  if (archivedDirs.length > 1) {
+    throw new Error(`Omnibus "${name}" is archived for several networks: ${archivedDirs.join(", ")}`);
+  }
+  return archivedDirs[0];
+}
+
+/** An omnibus lives in `omnibuses/<name>` until it is archived to `omnibuses/_archive/<network>/<name>`. */
+async function resolveOmnibusDir(name: string): Promise<string> {
+  const activeDir = path.join(OMNIBUSES_DIR, name);
+  if (await isDirectory(activeDir)) {
+    return activeDir;
+  }
+
+  const archivedDir = await findArchivedOmnibusDir(name);
+  if (!archivedDir) {
+    throw new Error(`Omnibus "${name}" not found in ${activeDir} or ${path.join(ARCHIVE_DIR, "<network>", name)}`);
+  }
+  return archivedDir;
+}
+
+async function getOmnibusScriptPath(name: string): Promise<string> {
+  return path.join(await resolveOmnibusDir(name), `${name}.ts`);
 }
 
 async function validateDefaultOmnibusDeploymentCanBeRecorded(name: string): Promise<void> {
-  const source = await fs.readFile(getOmnibusScriptPath(name), "utf-8");
+  const source = await fs.readFile(await getOmnibusScriptPath(name), "utf-8");
   renderDefaultOmnibusDeployment(source, "0x0000000000000000000000000000000000000000");
 }
 
@@ -856,9 +905,7 @@ export async function prepareOmnibus(
   return omnibus;
 }
 
-async function collectOmnibusSolidityFiles(omnibusName: string): Promise<string[]> {
-  const omnibusDirPath = path.resolve(__dirname, "..", "omnibuses", omnibusName);
-
+async function collectOmnibusSolidityFiles(omnibusDirPath: string): Promise<string[]> {
   return fs
     .readdir(omnibusDirPath)
     .then((entries) => entries.filter((entry) => entry.endsWith(".sol") && !entry.endsWith(".t.sol")))
@@ -870,7 +917,7 @@ async function collectOmnibusSolidityFiles(omnibusName: string): Promise<string[
  *   the omnibus has no contracts and is launched from an EVM script built off-chain
  */
 async function findDefaultOmnibusContractName(omnibusName: string): Promise<string | undefined> {
-  const omnibusSolidityFiles = await collectOmnibusSolidityFiles(omnibusName);
+  const omnibusSolidityFiles = await collectOmnibusSolidityFiles(await resolveOmnibusDir(omnibusName));
 
   if (omnibusSolidityFiles.length === 0) {
     return undefined;
@@ -887,8 +934,8 @@ async function findDefaultOmnibusContractName(omnibusName: string): Promise<stri
 }
 
 async function buildOmnibusContracts(hre: HardhatRuntimeEnvironment, omnibusName: string, quiet = false) {
-  const omnibusDirPath = path.resolve(__dirname, "..", "omnibuses", omnibusName);
-  const omnibusSolidityFiles = await collectOmnibusSolidityFiles(omnibusName);
+  const omnibusDirPath = await resolveOmnibusDir(omnibusName);
+  const omnibusSolidityFiles = await collectOmnibusSolidityFiles(omnibusDirPath);
 
   if (omnibusSolidityFiles.length === 0) {
     throw new Error(`No Solidity contracts found in omnibus folder: ${omnibusDirPath}`);
@@ -902,7 +949,7 @@ async function buildOmnibusContracts(hre: HardhatRuntimeEnvironment, omnibusName
 }
 
 async function collectOmnibusSolidityTests(omnibusName: string): Promise<string[]> {
-  const omnibusDirPath = path.resolve(__dirname, "..", "omnibuses", omnibusName);
+  const omnibusDirPath = await resolveOmnibusDir(omnibusName);
 
   const walk = async (currentPath: string): Promise<string[]> => {
     const entries = await fs.readdir(currentPath, { withFileTypes: true });
