@@ -7,5 +7,27 @@ pragma solidity 0.8.26;
 ///      test reads state through the matching `abi/*.abi.ts` module. Enums are declared as
 ///      their storage type (`uint8`): the ABI carries no member names.
 interface IHashConsensus {
+    function addMember(address addr, uint256 quorum) external;
+
+    function disableConsensus() external;
+
+    function grantRole(bytes32 role, address account) external;
+
+    function removeMember(address addr, uint256 quorum) external;
+
+    function renounceRole(bytes32 role, address account) external;
+
+    function revokeRole(bytes32 role, address account) external;
+
+    function setFastLaneLengthSlots(uint256 fastLaneLengthSlots) external;
+
     function setFrameConfig(uint256 epochsPerFrame, uint256 fastLaneLengthSlots) external;
+
+    function setQuorum(uint256 quorum) external;
+
+    function setReportProcessor(address newProcessor) external;
+
+    function submitReport(uint256 slot, bytes32 report, uint256 consensusVersion) external;
+
+    function updateInitialEpoch(uint256 initialEpoch) external;
 }

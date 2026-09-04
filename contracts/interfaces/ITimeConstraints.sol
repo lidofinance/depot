@@ -7,5 +7,9 @@ pragma solidity 0.8.26;
 ///      test reads state through the matching `abi/*.abi.ts` module. Enums are declared as
 ///      their storage type (`uint8`): the ABI carries no member names.
 interface ITimeConstraints {
+    function checkTimeAfterTimestampAndEmit(uint40 timestamp) external;
+
+    function checkTimeBeforeTimestampAndEmit(uint40 timestamp) external;
+
     function checkTimeWithinDayTimeAndEmit(uint32 startDayTime, uint32 endDayTime) external;
 }

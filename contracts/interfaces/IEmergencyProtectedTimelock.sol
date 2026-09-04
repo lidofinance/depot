@@ -7,5 +7,45 @@ pragma solidity 0.8.26;
 ///      test reads state through the matching `abi/*.abi.ts` module. Enums are declared as
 ///      their storage type (`uint8`): the ABI carries no member names.
 interface IEmergencyProtectedTimelock {
+    struct ExternalCall {
+        address target;
+        uint96 value;
+        bytes payload;
+    }
+
+    function activateEmergencyMode() external;
+
+    function cancelAllNonExecutedProposals() external;
+
+    function deactivateEmergencyMode() external;
+
+    function emergencyExecute(uint256 proposalId) external;
+
+    function emergencyReset() external;
+
+    function execute(uint256 proposalId) external;
+
+    function schedule(uint256 proposalId) external;
+
+    function setAdminExecutor(address newAdminExecutor) external;
+
+    function setAfterScheduleDelay(uint32 newAfterScheduleDelay) external;
+
+    function setAfterSubmitDelay(uint32 newAfterSubmitDelay) external;
+
+    function setEmergencyGovernance(address newEmergencyGovernance) external;
+
+    function setEmergencyModeDuration(uint32 newEmergencyModeDuration) external;
+
+    function setEmergencyProtectionActivationCommittee(address newEmergencyActivationCommittee) external;
+
     function setEmergencyProtectionEndDate(uint40 newEmergencyProtectionEndDate) external;
+
+    function setEmergencyProtectionExecutionCommittee(address newEmergencyExecutionCommittee) external;
+
+    function setGovernance(address newGovernance) external;
+
+    function submit(address executor, ExternalCall[] calldata calls) external returns (uint256 newProposalId);
+
+    function transferExecutorOwnership(address executor, address owner) external;
 }
