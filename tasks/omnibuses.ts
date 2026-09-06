@@ -110,10 +110,13 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
 
     const omnibusDescriptionPath = path.join(newOmnibusDir, `${omnibusName}.md`);
     const omnibusScriptPath = path.join(newOmnibusDir, `${omnibusName}.ts`);
+    const omnibusContractName = `Omnibus_${omnibusName}`;
+    const omnibusContractPath = path.join(newOmnibusDir, `${omnibusContractName}.sol`);
     const templateFileName = "_omnibus_template";
 
     await fs.rename(path.join(newOmnibusDir, `${templateFileName}.ts`), omnibusScriptPath);
     await fs.rename(path.join(newOmnibusDir, `${templateFileName}.md`), omnibusDescriptionPath);
+    await fs.rename(path.join(newOmnibusDir, "OmnibusTemplate.sol"), omnibusContractPath);
 
     // replace name of the omnibus in the description markdown file
     const omnibusDescriptionContent = await fs.readFile(omnibusDescriptionPath, "utf-8");
@@ -128,9 +131,22 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
 
     await fs.writeFile(omnibusScriptPath, omnibusScriptContent.replace("mainnet", network), { encoding: "utf-8" });
 
-    console.log(`Omnibus file was successfully created:`);
-    console.log(`- Script file: ${omnibusScriptPath}`);
+    const omnibusContractContent = await fs.readFile(omnibusContractPath, "utf-8");
+    await fs.writeFile(
+      omnibusContractPath,
+      omnibusContractContent
+        .replace("contract OmnibusTemplate", `contract ${omnibusContractName}`)
+        .replace(
+          /(address public constant VOTING = )0x[\da-fA-F]{40}/,
+          `$1${getGovernanceContracts(network).voting.address}`,
+        ),
+      { encoding: "utf-8" },
+    );
+
+    console.log(`Omnibus files were successfully created:`);
     console.log(`- Description file: ${omnibusDescriptionPath}`);
+    console.log(`- Contract file: ${omnibusContractPath}`);
+    console.log(`- Test file: ${omnibusScriptPath}`);
   },
 );
 
