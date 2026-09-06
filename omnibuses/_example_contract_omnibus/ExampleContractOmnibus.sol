@@ -77,6 +77,17 @@ contract ExampleContractOmnibus is OmnibusBase {
     address public constant ROCKAWAY_REWARD_ADDRESS = 0xcA6817DAb36850D58375A10c78703CE49d41D25a;
     address private constant ZERO_ADDRESS = address(0);
 
+    string internal constant DG_PROPOSAL_DESCRIPTION = "11. Submit proposal to Dual Governance with the following calls:\n"
+        "  11.1. Forward call to Agent update staking limit on\n" "  11.2. Execute calls via Agent to transfer ETH\n"
+        "  11.3. Forward 7 calls via Aragon Agent to add new Node Operators to the Curated Module\n"
+        "    11.3.1. Add node operator \"A41\" with the reward address 0x2A64944eBFaFF8b6A0d07B222D3d83ac29c241a7 to Curated module\n"
+        "    11.3.2. Add node operator \"Develp GmbH\" with the reward address 0x0a6a0b60fFeF196113b3530781df6e747DdC565e to Curated module\n"
+        "    11.3.3. Add node operator \"Ebunker\" with the reward address 0x2A2245d1f47430b9f60adCFC63D158021E80A728 to Curated module\n"
+        "    11.3.4. Add node operator \"Gateway.fm AS\" with the reward address 0x78CEE97C23560279909c0215e084dB293F036774 to Curated module\n"
+        "    11.3.5. Add node operator \"Numic\" with the reward address 0x0209a89b6d9F707c14eB6cD4C3Fb519280a7E1AC to Curated module\n"
+        "    11.3.6. Add node operator \"ParaFi Technologies LLC\" with the reward address 0x5Ee590eFfdf9456d5666002fBa05fbA8C3752CB7 to Curated module\n"
+        "    11.3.7. Add node operator \"RockawayX Infra\" with the reward address 0xcA6817DAb36850D58375A10c78703CE49d41D25a to Curated module";
+
     address public immutable ACTION_VALIDATOR;
 
     constructor(address actionValidator) OmnibusBase(VOTING) {
@@ -88,12 +99,12 @@ contract ExampleContractOmnibus is OmnibusBase {
         return VoteCallsBuilderUtils.create({
             callsCount: VOTE_ITEMS_COUNT
         }).directCall(
-                "1. Capture LDO balance before vote execution",
+                "Capture LDO balance before vote execution",
                 ACTION_VALIDATOR,
                 abi.encodeCall(IOmnibusVoteStateValidator.validateStateBeforeVote, ())
             )
             .directCall(
-                "2. Add TopUpEVMScriptFactory with address 0x85d703B2A4BaD713b596c647badac9A1e95bB03d",
+                "Add TopUpEVMScriptFactory with address 0x85d703B2A4BaD713b596c647badac9A1e95bB03d",
                 EASY_TRACK,
                 abi.encodeCall(
                     IEasyTrack.addEVMScriptFactory,
@@ -109,7 +120,7 @@ contract ExampleContractOmnibus is OmnibusBase {
                 )
             )
             .directCall(
-                "3. Add AddRecipientEVMScriptFactory with address 0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C",
+                "Add AddRecipientEVMScriptFactory with address 0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C",
                 EASY_TRACK,
                 abi.encodeCall(
                     IEasyTrack.addEVMScriptFactory,
@@ -120,7 +131,7 @@ contract ExampleContractOmnibus is OmnibusBase {
                 )
             )
             .directCall(
-                "4. Add RemoveRecipientEVMScriptFactory with address 0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E",
+                "Add RemoveRecipientEVMScriptFactory with address 0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E",
                 EASY_TRACK,
                 abi.encodeCall(
                     IEasyTrack.addEVMScriptFactory,
@@ -131,7 +142,7 @@ contract ExampleContractOmnibus is OmnibusBase {
                 )
             )
             .directCall(
-                "5. Transfer 110,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig",
+                "Transfer 110,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig",
                 FINANCE,
                 abi.encodeCall(
                     IFinance.newImmediatePayment,
@@ -144,22 +155,22 @@ contract ExampleContractOmnibus is OmnibusBase {
                 )
             )
             .directCall(
-                "6. Remove TopUpEVMScriptFactory with address 0x200dA0b6a9905A377CF8D469664C65dB267009d1",
+                "Remove TopUpEVMScriptFactory with address 0x200dA0b6a9905A377CF8D469664C65dB267009d1",
                 EASY_TRACK,
                 abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (REWARDS_LDO_TOP_UP_FACTORY))
             )
             .directCall(
-                "7. Remove AddRecipientEVMScriptFactory with address 0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252",
+                "Remove AddRecipientEVMScriptFactory with address 0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252",
                 EASY_TRACK,
                 abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (REWARDS_LDO_ADD_RECIPIENT_FACTORY))
             )
             .directCall(
-                "8. Remove RemoveRecipientEVMScriptFactory with address 0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7",
+                "Remove RemoveRecipientEVMScriptFactory with address 0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7",
                 EASY_TRACK,
                 abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (REWARDS_LDO_REMOVE_RECIPIENT_FACTORY))
             )
             .directCall(
-                "9. Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
+                "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
                 FINANCE,
                 abi.encodeCall(
                     IFinance.newImmediatePayment,
@@ -172,12 +183,13 @@ contract ExampleContractOmnibus is OmnibusBase {
                 )
             )
             .directCall(
-                "10. Validate LDO balance after vote execution",
+                "Validate LDO balance after vote execution",
                 ACTION_VALIDATOR,
                 abi.encodeCall(IOmnibusVoteStateValidator.validateStateAfterVote, ())
             )
             .submitCalls(
-                "11. Submit proposal to Dual Governance with the following calls:",
+                "Submit proposal to Dual Governance with the following calls:",
+                DG_PROPOSAL_DESCRIPTION,
                 DUAL_GOVERNANCE,
                 ProposalCallsBuilderUtils.create({
                     callsCount: DG_PROPOSAL_CALLS_COUNT

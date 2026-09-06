@@ -32,7 +32,6 @@ import { createTimedSpinner } from "../src/common/spinner";
 import { ProposalStatus } from "../src/omnibuses/dual-governance";
 import { logBlue } from "../src/common/color";
 import { getGovernanceContracts } from "../src/omnibuses/governance-contracts";
-import { generateOmnibusContractFile } from "../src/omnibuses/contract-generator";
 import { getKeystores } from "../src/hardhat-keystores";
 import { runHardhatTask } from "../src/hardhat/run-task";
 import { adoptAragonVoting } from "../src/aragon-votes-tools";
@@ -166,55 +165,6 @@ defineTask("omnibus:archive", "Move launched omnibus to archive folder")
     console.log(`Omnibus ${name} was archived to ${archivePath}`);
   });
 
-defineTask("omnibus:contract", "Generate solidity omnibus contract from an existing omnibus script")
-  .addPositionalArgument({ name: "name", description: "Name of the omnibus to convert" })
-  .addOption({
-    name: "contractName",
-    description: "Name of the generated solidity contract",
-    defaultValue: "",
-  })
-  .addOption({
-    name: "formatter",
-    description: "Formatter to use: prettier|forge|none",
-    defaultValue: "prettier",
-  })
-  .addFlag({ name: "force", description: "overwrite existing contract file" })
-  .setAction(
-    async (
-      taskArgs: { name: string; contractName: string; formatter: string; force: boolean },
-      hre: HardhatRuntimeEnvironment,
-    ) => {
-      const { name, contractName, formatter, force } = taskArgs;
-      const normalizedContractName = contractName || undefined;
-      const omnibus = await loadOmnibus(name);
-
-      if (omnibus.hasDeployMethod() && !omnibus.getDeployment()) {
-        console.log(
-          fmt.padded(
-            `Omnibus "${name}" has deploy() and doesn't contain deployment addresses. Resolving deployment contracts for generation...`,
-            1,
-          ),
-        );
-      }
-
-      if (!["prettier", "forge", "none"].includes(formatter)) {
-        throw new Error(`Unsupported formatter "${formatter}". Use: prettier, forge, none`);
-      }
-
-      const { generatedFilePath } = await generateOmnibusContractFile({
-        hre,
-        omnibus,
-        omnibusName: name,
-        contractName: normalizedContractName,
-        force,
-        formatter: formatter as "prettier" | "forge" | "none",
-        rootDir: path.resolve(__dirname, ".."),
-      });
-
-      console.log(`Solidity contract generated: ${generatedFilePath}`);
-    },
-  );
-
 defineTask("omnibus:build", "Build Solidity omnibus contract(s) for the given omnibus")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to build contracts for" })
   .setAction(async (taskArgs: { name: string }, hre: HardhatRuntimeEnvironment) => {
@@ -240,10 +190,6 @@ defineTask("omnibus:deploy", "Deploy the contracts of an omnibus")
     const { name, broadcast = false } = taskArgs;
     const omnibus = await loadOmnibus(name);
     const defaultContractName = omnibus.hasDeployMethod() ? undefined : await findDefaultOmnibusContractName(name);
-
-    if (!omnibus.hasDeployMethod() && !defaultContractName) {
-      throw new Error(`Omnibus "${name}" has neither a "deploy" section nor a default Solidity contract`);
-    }
 
     const deployment = omnibus.getDeployment();
 
@@ -857,51 +803,49 @@ export async function prepareOmnibus(
     ? undefined
     : await findDefaultOmnibusContractName(omnibus.name);
 
-  if (omnibus.hasDeployMethod() || defaultContractName) {
-    console.log(`Omnibus "${omnibus.name}" is launched from a contract, preparing it for the launch...`);
-    let deployment = omnibus.getDeployment();
-    if (deployment && Object.keys(deployment).length > 0) {
-      console.log(`Contracts already deployed:`);
-      for (const [name, contract] of Object.entries(deployment)) {
-        console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
-      }
-    } else if (client instanceof DevRpcClient) {
-      console.log(fmt.padded("Compiling contracts before deploy...", 3));
-      await buildOmnibusContracts(hre, omnibus.name, true);
-      console.log(fmt.padded(fmt.success("Contracts compiled successfully"), 3));
-
-      const [deployer] = await client.getAccounts();
-      console.log(fmt.padded(`Deploying omnibus contracts using test account ${deployer}`, 3));
-      deployment = defaultContractName
-        ? await omnibus.deployOmnibusContract(
-            hre.artifacts,
-            client,
-            defaultContractName,
-            { from: deployer },
-            { padLength: 4 },
-          )
-        : await omnibus.deployOmnibusContracts(hre.artifacts, client, { from: deployer }, { padLength: 4 });
-      console.log(fmt.padded(fmt.success(`All contracts successfully deployed:`), 3));
-      for (const [name, contract] of Object.entries(deployment)) {
-        console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
-      }
-    } else {
-      throw new Error(
-        `Omnibus contracts was not deployed. Use "omnibus:deploy <omnibus_name> --broadcast" command to deploy contracts`,
-      );
+  console.log(`Omnibus "${omnibus.name}" is launched from a contract, preparing it for the launch...`);
+  let deployment = omnibus.getDeployment();
+  if (deployment && Object.keys(deployment).length > 0) {
+    console.log(`Contracts already deployed:`);
+    for (const [name, contract] of Object.entries(deployment)) {
+      console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
     }
+  } else if (client instanceof DevRpcClient) {
+    console.log(fmt.padded("Compiling contracts before deploy...", 3));
+    await buildOmnibusContracts(hre, omnibus.name, true);
+    console.log(fmt.padded(fmt.success("Contracts compiled successfully"), 3));
 
-    if (deployment.omnibus) {
-      console.log(fmt.padded(`Loading and validating omnibus calls from the contract...`, 2));
-      await omnibus.loadAndValidateOmnibusContractCalls(client);
-      console.log(fmt.padded(fmt.success(`Omnibus calls successfully validated`), 2));
-
-      if (!omnibus.hasCalls()) {
-        console.log(fmt.padded(`Validating Dual Governance proposal descriptions...`, 2));
-        omnibus.validateDgProposalDescriptions(await readOmnibusDescriptionFile(omnibus.name));
-        console.log(fmt.padded(fmt.success(`Proposal descriptions match the description file`), 2));
-      }
+    const [deployer] = await client.getAccounts();
+    console.log(fmt.padded(`Deploying omnibus contracts using test account ${deployer}`, 3));
+    deployment = defaultContractName
+      ? await omnibus.deployOmnibusContract(
+          hre.artifacts,
+          client,
+          defaultContractName,
+          { from: deployer },
+          { padLength: 4 },
+        )
+      : await omnibus.deployOmnibusContracts(hre.artifacts, client, { from: deployer }, { padLength: 4 });
+    console.log(fmt.padded(fmt.success(`All contracts successfully deployed:`), 3));
+    for (const [name, contract] of Object.entries(deployment)) {
+      console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
     }
+  } else {
+    throw new Error(
+      `Omnibus contracts was not deployed. Use "omnibus:deploy <omnibus_name> --broadcast" command to deploy contracts`,
+    );
+  }
+
+  if (deployment.omnibus) {
+    console.log(fmt.padded(`Loading and validating omnibus calls from the contract...`, 2));
+    await omnibus.loadAndValidateOmnibusContractCalls(client);
+    console.log(fmt.padded(fmt.success(`Omnibus calls successfully validated`), 2));
+
+    console.log(fmt.padded(`Validating Dual Governance proposal descriptions...`, 2));
+    omnibus.validateDgProposalDescriptions(await readOmnibusDescriptionFile(omnibus.name));
+    console.log(fmt.padded(fmt.success(`Proposal descriptions match the description file`), 2));
+  } else {
+    throw new Error(`Omnibus deployment must contain an "omnibus" contract`);
   }
   console.log(fmt.success("Omnibus prepared\n"));
 
@@ -916,14 +860,13 @@ async function collectOmnibusSolidityFiles(omnibusDirPath: string): Promise<stri
 }
 
 /**
- * @returns name of the contract to deploy for an omnibus without a "deploy" section, `undefined` when
- *   the omnibus has no contracts and is launched from an EVM script built off-chain
+ * @returns name of the contract to deploy for an omnibus without a "deploy" section
  */
-async function findDefaultOmnibusContractName(omnibusName: string): Promise<string | undefined> {
+async function findDefaultOmnibusContractName(omnibusName: string): Promise<string> {
   const omnibusSolidityFiles = await collectOmnibusSolidityFiles(await resolveOmnibusDir(omnibusName));
 
   if (omnibusSolidityFiles.length === 0) {
-    return undefined;
+    throw new Error(`Omnibus "${omnibusName}" has no Solidity contract`);
   }
 
   if (omnibusSolidityFiles.length > 1) {

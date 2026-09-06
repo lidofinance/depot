@@ -75,7 +75,7 @@ describe("production omnibus deployment (integration)", function () {
     await recordDefaultOmnibusDeployment(wrapperPath, deployment.omnibus.address);
     const module = (await import(`${pathToFileURL(wrapperPath).href}?smoke=${Date.now()}`)) as { default: Omnibus };
     const omnibus = module.default;
-    omnibus.setName("_example_regular_omnibus");
+    omnibus.setName("_example_finance_omnibus");
 
     assert.equal(omnibus.getDeployment()?.omnibus.address, getAddress(deployment.omnibus.address));
 
