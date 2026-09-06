@@ -373,6 +373,14 @@ library MainnetAddresses {
     address internal constant EASY_TRACK = 0xF0211b7660680B49De1A7E9f25C65660F0a13Fea;
 }`;
 
+    it("reads the mainnet Voting address from the real library", async () => {
+      assert.equal(await lookupAddressInRegistry("mainnet", "Voting"), "0x2e59A20f205bB85a89C53f1936454680651E618e");
+    });
+
+    it("reads the Hoodi Voting address from the real library", async () => {
+      assert.equal(await lookupAddressInRegistry("hoodi", "Voting"), "0x49B3512c44891bef83F8967d075121Bd1b07a01B");
+    });
+
     it("finds the constant by PascalCase name and checksums the address", async () => {
       sinon.stub(deps, "readFile").resolves(LIBRARY);
 

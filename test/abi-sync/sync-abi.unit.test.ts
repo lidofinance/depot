@@ -3,6 +3,8 @@ import sinon from "sinon";
 import { Abi } from "abitype";
 
 import { deps, syncAbi } from "../../src/abi-sync";
+import { deps as sourceDeps } from "../../src/abi-sync/abi-source";
+import { NetworkName } from "../../src/network";
 
 const ADDRESS = "0xFdDf38947aFB03C621C71b06C9C70bce73f12999";
 const ABI: Abi = [
@@ -74,5 +76,38 @@ describe("syncAbi", () => {
   it("rejects a name that is not PascalCase", async () => {
     await assert.isRejected(syncAbi({ name: "oracleRouter", networkName: "mainnet", address: ADDRESS }), /PascalCase/);
     assert.isFalse(writeFile.called);
+  });
+});
+
+describe("syncAbi address selection", () => {
+  beforeEach(() => {
+    sinon.stub(sourceDeps, "resolveContractInfo").resolves({
+      name: "Voting",
+      abi: ABI,
+      implementation: null,
+      constructorArgs: "0x",
+      sourceCode: "",
+      evmVersion: "",
+      compilerVersion: "",
+    });
+    sinon.stub(sourceDeps, "readImplementationOnChain").resolves(null);
+    sinon.stub(deps, "writeFile").resolves();
+  });
+
+  afterEach(() => sinon.restore());
+
+  const networks: NetworkName[] = ["mainnet", "hoodi"];
+  for (const networkName of networks) {
+    it(`prefers an explicit address over the ${networkName} library`, async () => {
+      const { source } = await syncAbi({ name: "Voting", networkName, address: ADDRESS, skipSol: true });
+
+      assert.equal(source, `Etherscan, ${networkName} ${ADDRESS} (Voting)`);
+    });
+  }
+
+  it("accepts an explicit address for a contract outside the shared infrastructure", async () => {
+    const { source } = await syncAbi({ name: "OracleRouter", networkName: "hoodi", address: ADDRESS, skipSol: true });
+
+    assert.equal(source, `Etherscan, hoodi ${ADDRESS} (Voting)`);
   });
 });
