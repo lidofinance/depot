@@ -4,6 +4,8 @@ import { decodeFunctionData, encodeEventTopics, Log } from "viem";
 import { IGovernance_ABI } from "../../abi/IGovernance.abi";
 import bytes, { HexStrPrefixed } from "../common/bytes";
 import { event } from "./event-helpers";
+import agentEvents, { isAgentForward } from "./expected-events/agent";
+import dualGovernanceEvents from "./expected-events/dual-governance";
 import { GovernanceContracts } from "./governance-contracts";
 import { LogCollector, LogWindow } from "./log-collector";
 import { isSubmitProposalCall } from "./omnibus-contract-calls";
@@ -91,7 +93,7 @@ export class VoteEvents {
   }
 
   #envelopeOf(call: VoteCall): OmnibusCallEvent[] {
-    const { voting, callsScript, timelock, dualGovernance } = this.#governance;
+    const { voting, callsScript, dualGovernance } = this.#governance;
     const logScriptCall = event(callsScript, "LogScriptCall", [null, voting.address, call.target], {
       emitter: voting.address,
     });
@@ -100,12 +102,7 @@ export class VoteEvents {
       return [logScriptCall];
     }
 
-    const { calls, metadata } = decodeSubmitProposal(call);
-    return [
-      logScriptCall,
-      event(timelock, "ProposalSubmitted", [null, null, calls]),
-      event(dualGovernance, "ProposalSubmitted", [voting.address, null, metadata]),
-    ];
+    return [logScriptCall, ...dualGovernanceEvents.proposalSubmitted(this.#governance, decodeSubmitProposal(call))];
   }
 
   #splitByItems(): LogWindow[] {
@@ -149,13 +146,22 @@ export class ProposalEvents {
     return this.#calls.length;
   }
 
-  call(index: number, events: OmnibusCallEvent[] = []) {
+  call(index: number, events: OmnibusCallEvent[] | OmnibusCallEvent[][] = []) {
     const call = this.#calls[index];
     if (!call) {
       throw new Error(`Proposal has ${this.#calls.length} calls, there is no call at index ${index}`);
     }
+    let expected: OmnibusCallEvent[];
+    if (isAgentForward(call.payload)) {
+      expected = agentEvents.forwarded(this.#governance, call, isGroupedEvents(events) ? events : [events]);
+    } else {
+      if (isGroupedEvents(events)) {
+        throw new Error(`Proposal call ${index} is not an Agent forward; supply a flat array of domain events`);
+      }
+      expected = events;
+    }
     const executed = event(this.#governance.adminExecutor, "Executed", [call.target, call.value, call.payload, null]);
-    this.#collector.assertEvents([...events, executed], this.#windows[index]);
+    this.#collector.assertEvents([...expected, executed], this.#windows[index]);
   }
 
   assertTail() {
@@ -179,4 +185,8 @@ export class ProposalEvents {
       to: executedIndex + 1,
     }));
   }
+}
+
+function isGroupedEvents(events: OmnibusCallEvent[] | OmnibusCallEvent[][]): events is OmnibusCallEvent[][] {
+  return Array.isArray(events[0]);
 }

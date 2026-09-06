@@ -1,6 +1,5 @@
 import { Address, Hex, toFunctionSelector } from "viem";
 
-import { Agent_ABI } from "../../../../abi/Agent.abi";
 import { AccessControl_ABI } from "../../../../abi/AccessControl.abi";
 import { AllowedRecipientsRegistry_ABI } from "../../../../abi/AllowedRecipientsRegistry.abi";
 import { BuybackAllocator_ABI } from "../../../../abi/BuybackAllocator.abi";
@@ -19,7 +18,6 @@ import { event, expectedEvents as ev, Omnibus } from "../../../../src/omnibuses"
 import { getGovernanceContracts } from "../../../../src/omnibuses/governance-contracts";
 
 const contracts = createContracts({
-  agent: [Agent_ABI, "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c"],
   easyTrack: [EasyTrack_ABI, "0xF0211b7660680B49De1A7E9f25C65660F0a13Fea"],
   stakingRouter: [StakingRouter_ABI, "0xFdDf38947aFB03C621C71b06C9C70bce73f12999"],
   tokenRateNotifier: [TokenRateNotifier_ABI, "0xbe05d12Fd10919F1881125006523452F6aFF791b"],
@@ -361,8 +359,7 @@ export default Omnibus.create({
 
   testProposal: async ({ client, checks, passProposals, deployment }) => {
     const vote = await readVoteConstants(client, deployment.omnibus);
-    const { agent, tokenRateNotifier, lidoLocator, stonksStethRegistry, lolStablecoinsRegistry, buybackAllocator } =
-      contracts;
+    const { tokenRateNotifier, lidoLocator, stonksStethRegistry, lolStablecoinsRegistry, buybackAllocator } = contracts;
     const evmScriptExecutor = await client.read(contracts.easyTrack, "evmScriptExecutor", []);
 
     const observersBefore = await readObservers(client);
@@ -385,29 +382,16 @@ export default Omnibus.create({
 
     const [proposal] = (await passProposals()).proposalEvents;
 
-    // the Agent runs the forwarded script through CallsScript, which logs every call before making it
-    const forwardedCall = (target: Address) =>
-      event(governance.callsScript, "LogScriptCall", [governance.adminExecutor.address, agent.address, target], {
-        emitter: agent.address,
-      });
-
     proposal.call(0, [
-      forwardedCall(tokenRateNotifier.address),
-      event(tokenRateNotifier, "ObserverAdded", [vote.opStackTokenRatePusher, vote.observerKindNoArgs]),
-      forwardedCall(tokenRateNotifier.address),
-      event(tokenRateNotifier, "ObserverAdded", [vote.stakingRevenueSource, vote.observerKindWithArgs]),
-      forwardedCall(lidoLocator.address),
-      ...ev.proxy.upgraded(lidoLocator, { implementation: vote.lidoLocatorImplementation }),
-      forwardedCall(stonksStethRegistry.address),
-      event(stonksStethRegistry, "RecipientAdded", [buybackAllocator.address, vote.buybackAllocatorRecipientTitle]),
-      forwardedCall(lolStablecoinsRegistry.address),
-      ...ev.accessControl.roleGranted(lolStablecoinsRegistry, { role: vote.addRecipientRole, to: evmScriptExecutor }),
-      forwardedCall(lolStablecoinsRegistry.address),
-      ...ev.accessControl.roleGranted(lolStablecoinsRegistry, {
+      [event(tokenRateNotifier, "ObserverAdded", [vote.opStackTokenRatePusher, vote.observerKindNoArgs])],
+      [event(tokenRateNotifier, "ObserverAdded", [vote.stakingRevenueSource, vote.observerKindWithArgs])],
+      ev.proxy.upgraded(lidoLocator, { implementation: vote.lidoLocatorImplementation }),
+      [event(stonksStethRegistry, "RecipientAdded", [buybackAllocator.address, vote.buybackAllocatorRecipientTitle])],
+      ev.accessControl.roleGranted(lolStablecoinsRegistry, { role: vote.addRecipientRole, to: evmScriptExecutor }),
+      ev.accessControl.roleGranted(lolStablecoinsRegistry, {
         role: vote.removeRecipientRole,
         to: evmScriptExecutor,
       }),
-      event(agent, "ScriptResult", [governance.callsScript.address, null, "0x", "0x"]),
     ]);
 
     const observersAfter = await readObservers(client);

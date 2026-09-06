@@ -253,49 +253,32 @@ export default Omnibus.create({
     const frameConfigAfter = await readFrameConfig(client);
     const [, , periodStartAfter] = await client.read(allianceOpsStablecoinsRegistry, "getPeriodState", []);
 
-    // the Agent runs each forwarded call through CallsScript, which logs the call before making it
-    const forwardedCall = (target: Address) =>
-      event(governance.callsScript, "LogScriptCall", [governance.adminExecutor.address, agent.address, target], {
-        emitter: agent.address,
-      });
-    const scriptResult = event(agent, "ScriptResult", [governance.callsScript.address, null, "0x", "0x"]);
-
     proposal.call(0, [
       event(governance.timelock, "EmergencyProtectionEndDateSet", [vote.newEmergencyProtectionEndDate]),
     ]);
     proposal.call(1, [
-      forwardedCall(governance.acl.address),
       ...ev.accessControl.permissionGranted(governance.acl, {
         entity: vote.consensysSigningKeysManager,
         app: nodeOperatorsRegistry.address,
         role: vote.manageSigningKeysRole,
         params: manageSigningKeysParams(vote),
       }),
-      scriptResult,
     ]);
     proposal.call(2, [
-      forwardedCall(allianceOpsStablecoinsRegistry.address),
       event(allianceOpsStablecoinsRegistry, "CurrentPeriodAdvanced", [periodStartAfter]),
       event(allianceOpsStablecoinsRegistry, "LimitsParametersChanged", [
         vote.allianceOpsNewLimit,
         vote.allianceOpsNewPeriodDurationMonths,
       ]),
-      scriptResult,
     ]);
     proposal.call(3, [
-      forwardedCall(veboHashConsensus.address),
       ...ev.accessControl.roleGranted(veboHashConsensus, { role: vote.manageFrameConfigRole, to: agent.address }),
-      scriptResult,
     ]);
     proposal.call(4, [
-      forwardedCall(veboHashConsensus.address),
       event(veboHashConsensus, "FrameConfigSet", [frameConfigAfter.initialEpoch, vote.veboNewEpochsPerFrame]),
-      scriptResult,
     ]);
     proposal.call(5, [
-      forwardedCall(veboHashConsensus.address),
       ...ev.accessControl.roleRevoked(veboHashConsensus, { role: vote.manageFrameConfigRole, from: agent.address }),
-      scriptResult,
     ]);
     proposal.call(6, [
       event(timeConstraints, "TimeWithinDayTimeChecked", [
