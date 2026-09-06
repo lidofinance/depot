@@ -47,13 +47,15 @@ Report, grouped, with the vote item each entry belongs to:
 
 - **Contract interfaces you do not have.** Name the contract and its address. An interface exists
   only if it is in `contracts/interfaces/` and declares the exact method needed.
-- **Addresses you could not resolve.** Every address must come from the canonical registry
-  (`contracts/addresses/`) or be stated in the description. Anything else is missing — never
+- **Addresses you could not resolve.** Every address must come from the shared infrastructure
+  lists (`contracts/addresses/`) or be stated in the description. Anything else is missing — never
   recall an address from memory or look it up elsewhere. An address the description states but
   the registry disagrees with is also a stop: name both addresses and ask which one the vote
   calls. Votes do touch contracts the registry has since replaced, so either answer may be right,
-  and only the author knows. Never edit `contracts/addresses/` — the registry is maintained by
-  hand against the `scripts` config.
+  and only the author knows. During vote authoring, keep `contracts/addresses/` scoped to Depot
+  infrastructure. Its addresses are checked against [Lido deployments](https://docs.lido.fi/deployed-contracts/)
+  ([Hoodi](https://docs.lido.fi/deployed-contracts/hoodi/)); resolve source conflicts on the corresponding
+  network instead of assuming the `scripts` config is current.
 - **Role identifiers you could not resolve.** Either the description states the hash, or the
   description states the role name and the contract exposes it as a constant you can read.
 - **Ambiguities.** Any item where two readings would produce different calls: unclear ordering,
@@ -104,11 +106,10 @@ correctly, and still does the wrong thing. No later check in the pipeline catche
 
 ## Where things come from
 
-**Addresses.** Canonical protocol and DAO contracts come from `contracts/addresses/` — import the
-library for the network and reference constants (`Addresses.AGENT`). Contracts the vote itself
-deploys, or new ones absent from the registry, become named constants at the top of the omnibus,
-taken from the description. Address literals are allowed **only** in a constant declaration, never
-inside a call. See `contracts/addresses/README.md`.
+**Addresses.** Declare every address used by the vote as a named constant at the top of its
+contract, including addresses also listed in `contracts/addresses/`. Use those local constants
+in calls; a vote-local address does not need adding to the shared infrastructure lists. Address
+literals are allowed **only** in a constant declaration, never inside a call.
 
 **Method signatures.** From the interfaces in `contracts/interfaces/`. Every contract the 2025–2026
 votes touched already has one, so a missing interface means a contract new to governance. That is

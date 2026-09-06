@@ -2,7 +2,6 @@
 pragma solidity 0.8.26;
 
 import {OmnibusBase} from "contracts/OmnibusBase.sol";
-import {MainnetAddresses as Addresses} from "contracts/addresses/MainnetAddresses.sol";
 import {
     ProposalCallsBuilder,
     ProposalCallsBuilderUtils,
@@ -38,6 +37,13 @@ import {ITimeConstraints} from "contracts/interfaces/ITimeConstraints.sol";
 contract Omnibus_2026_05_13 is OmnibusBase {
     using VoteCallsBuilderUtils for VoteCallsBuilder;
     using ProposalCallsBuilderUtils for ProposalCallsBuilder;
+
+    address public constant ACL = 0x9895F0F17cc1d1891b6f18ee0b483B6f221b37Bb;
+    address public constant AGENT = 0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c;
+    address public constant VOTING = 0x2e59A20f205bB85a89C53f1936454680651E618e;
+    address public constant DUAL_GOVERNANCE = 0xC1db28B3301331277e307FDCfF8DE28242A4486E;
+    address public constant TIMELOCK = 0xCE0425301C85c5Ea2A0873A2dEe44d78E02D2316;
+    address public constant NODE_OPERATORS_REGISTRY = 0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5;
 
     // ---
     // Dual Governance Emergency Protection
@@ -91,7 +97,7 @@ contract Omnibus_2026_05_13 is OmnibusBase {
     uint256 public constant VOTE_ITEMS_COUNT = 1;
     uint256 public constant DG_PROPOSAL_CALLS_COUNT = 7;
 
-    constructor() OmnibusBase(Addresses.VOTING) {}
+    constructor() OmnibusBase(VOTING) {}
 
     function getOmnibusCalls() public pure override returns (VoteCall[] memory) {
         return VoteCallsBuilderUtils.create({
@@ -99,12 +105,12 @@ contract Omnibus_2026_05_13 is OmnibusBase {
         }).submitCalls(
                 "Submit a Dual Governance proposal to extend Dual Governance Emergency Protection until June 20 2027, grant MANAGE_SIGNING_KEYS role to Node Operator Consensys, increase Alliance Ops stablecoins Easy Track factory limit from $250K per 3 months to $5M per 6 months, reduce VEBO Reporting Frame from 75 to 45 epochs",
                 DG_PROPOSAL_METADATA,
-                Addresses.DUAL_GOVERNANCE,
+                DUAL_GOVERNANCE,
                 ProposalCallsBuilderUtils.create({
                     callsCount: DG_PROPOSAL_CALLS_COUNT
                 }).directCall(
                         "Call setEmergencyProtectionEndDate(1813449600) on Emergency Protected Timelock 0xCE0425301C85c5Ea2A0873A2dEe44d78E02D2316",
-                        Addresses.TIMELOCK,
+                        TIMELOCK,
                         abi.encodeCall(
                             IEmergencyProtectedTimelock.setEmergencyProtectionEndDate,
                             (NEW_EMERGENCY_PROTECTION_END_DATE)
@@ -112,13 +118,13 @@ contract Omnibus_2026_05_13 is OmnibusBase {
                     )
                     .forwardCall(
                         "Grant MANAGE_SIGNING_KEYS 75abc64490e17b40ea1e66691c3eb493647b24430b358bd87ec3e5127f1621ee role to 0xF45C77EadD434612fCD93db978B3E36B0D58eC99 for Node Operator Consensys (ID = 21)",
-                        Addresses.AGENT,
-                        Addresses.ACL,
+                        AGENT,
+                        ACL,
                         abi.encodeCall(
                             IACL.grantPermissionP,
                             (
                                 CONSENSYS_SIGNING_KEYS_MANAGER,
-                                Addresses.NODE_OPERATORS_REGISTRY,
+                                NODE_OPERATORS_REGISTRY,
                                 MANAGE_SIGNING_KEYS,
                                 _manageSigningKeysParams()
                             )
@@ -126,7 +132,7 @@ contract Omnibus_2026_05_13 is OmnibusBase {
                     )
                     .forwardCall(
                         "Set limit to 5,000,000 USD per 6 months on Alliance Ops stablecoins AllowedRecipientsRegistry 0x3B525F4c059F246Ca4aa995D21087204F30c9E2F",
-                        Addresses.AGENT,
+                        AGENT,
                         ALLIANCE_OPS_STABLECOINS_ALLOWED_RECIPIENTS_REGISTRY,
                         abi.encodeCall(
                             IAllowedRecipientsRegistry.setLimitParameters,
@@ -135,13 +141,13 @@ contract Omnibus_2026_05_13 is OmnibusBase {
                     )
                     .forwardCall(
                         "Grant MANAGE_FRAME_CONFIG_ROLE 0x921f40f434e049d23969cbe68d9cf3ac1013fbe8945da07963af6f3142de6afe role to Aragon Agent 0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c on the VEBO Hash Consensus 0x7FaDB6358950c5fAA66Cb5EB8eE5147De3df355a",
-                        Addresses.AGENT,
+                        AGENT,
                         VEBO_HASH_CONSENSUS,
-                        abi.encodeCall(IAccessControl.grantRole, (MANAGE_FRAME_CONFIG_ROLE, Addresses.AGENT))
+                        abi.encodeCall(IAccessControl.grantRole, (MANAGE_FRAME_CONFIG_ROLE, AGENT))
                     )
                     .forwardCall(
                         "Set number of epochs in reporting frame to 45 on the VEBO Hash Consensus 0x7FaDB6358950c5fAA66Cb5EB8eE5147De3df355a",
-                        Addresses.AGENT,
+                        AGENT,
                         VEBO_HASH_CONSENSUS,
                         abi.encodeCall(
                             IHashConsensus.setFrameConfig, (VEBO_NEW_EPOCHS_PER_FRAME, VEBO_FAST_LANE_LENGTH_SLOTS)
@@ -149,9 +155,9 @@ contract Omnibus_2026_05_13 is OmnibusBase {
                     )
                     .forwardCall(
                         "Revoke MANAGE_FRAME_CONFIG_ROLE 0x921f40f434e049d23969cbe68d9cf3ac1013fbe8945da07963af6f3142de6afe role from Aragon Agent 0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c on the VEBO Hash Consensus 0x7FaDB6358950c5fAA66Cb5EB8eE5147De3df355a",
-                        Addresses.AGENT,
+                        AGENT,
                         VEBO_HASH_CONSENSUS,
-                        abi.encodeCall(IAccessControl.revokeRole, (MANAGE_FRAME_CONFIG_ROLE, Addresses.AGENT))
+                        abi.encodeCall(IAccessControl.revokeRole, (MANAGE_FRAME_CONFIG_ROLE, AGENT))
                     )
                     .directCall(
                         "Set time window constraint (13:00 - 16:30 UTC) for Dual Governance Proposal execution on Dual Governance Time Constraints 0x2a30F5aC03187674553024296bed35Aa49749DDa",

@@ -2,7 +2,6 @@
 pragma solidity 0.8.26;
 
 import {OmnibusBase} from "contracts/OmnibusBase.sol";
-import {MainnetAddresses as Addresses} from "contracts/addresses/MainnetAddresses.sol";
 import {
     ForwardedCallsBuilder,
     ForwardedCallsBuilderUtils,
@@ -54,6 +53,17 @@ contract Omnibus_2026_08_05 is OmnibusBase {
     using ProposalCallsBuilderUtils for ProposalCallsBuilder;
     using ForwardedCallsBuilderUtils for ForwardedCallsBuilder;
     using EasyTrackPermissionsUtils for bytes;
+
+    address public constant AGENT = 0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c;
+    address public constant FINANCE = 0xB9E5CBB9CA5b0d659238807E84D0176930753d86;
+    address public constant VOTING = 0x2e59A20f205bB85a89C53f1936454680651E618e;
+    address public constant DUAL_GOVERNANCE = 0xC1db28B3301331277e307FDCfF8DE28242A4486E;
+    address public constant LIDO_LOCATOR = 0xC1d0b3DE6792Bf6b4b37EccdcC24e45978Cfd2Eb;
+    address public constant STAKING_ROUTER = 0xFdDf38947aFB03C621C71b06C9C70bce73f12999;
+    address public constant TOKEN_RATE_NOTIFIER = 0xbe05d12Fd10919F1881125006523452F6aFF791b;
+    address public constant EASY_TRACK = 0xF0211b7660680B49De1A7E9f25C65660F0a13Fea;
+    address public constant EASY_TRACK_EVM_SCRIPT_EXECUTOR = 0xFE5986E06210aC1eCC1aDCafc0cc7f8D63B3F977;
+    address public constant EMERGENCY_BRAKES_MULTISIG = 0x73b047fe6337183A454c5217241D780a932777bD;
 
     // ---
     // NEST
@@ -111,7 +121,7 @@ contract Omnibus_2026_08_05 is OmnibusBase {
     uint256 public constant DG_PROPOSAL_CALLS_COUNT = 1;
     uint256 public constant AGENT_FORWARDED_CALLS_COUNT = 6;
 
-    constructor() OmnibusBase(Addresses.VOTING) {}
+    constructor() OmnibusBase(VOTING) {}
 
     function getOmnibusCalls() public pure override returns (VoteCall[] memory) {
         return VoteCallsBuilderUtils.create({
@@ -119,31 +129,31 @@ contract Omnibus_2026_08_05 is OmnibusBase {
         }).submitCalls(
                 "Submit a Dual Governance proposal containing a single Aragon Agent 0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c forward call to Dual Governance 0xC1db28B3301331277e307FDCfF8DE28242A4486E",
                 DG_PROPOSAL_METADATA,
-                Addresses.DUAL_GOVERNANCE,
+                DUAL_GOVERNANCE,
                 ProposalCallsBuilderUtils.create({
                     callsCount: DG_PROPOSAL_CALLS_COUNT
                 }).forwardCalls(
                         "Single Aragon Agent forward call with the following calls",
-                        Addresses.AGENT,
+                        AGENT,
                         ForwardedCallsBuilderUtils.create({
                             callsCount: AGENT_FORWARDED_CALLS_COUNT
                         }).directCall(
                                 "Add OpStackTokenRatePusher 0xd54c1c6413caac3477AC14b2a80D5398E3c32FfE as NoArgs observer kind 0 to TokenRateNotifier 0xbe05d12Fd10919F1881125006523452F6aFF791b",
-                                Addresses.TOKEN_RATE_NOTIFIER,
+                                TOKEN_RATE_NOTIFIER,
                                 abi.encodeCall(
                                     ITokenRateNotifier.addObserver, (OP_STACK_TOKEN_RATE_PUSHER, OBSERVER_KIND_NO_ARGS)
                                 )
                             )
                             .directCall(
                                 "Add StakingRevenueSource 0x6220212a33a87Ed7Cc386B67eB2c393974F28C38 as WithArgs observer kind 1 to TokenRateNotifier 0xbe05d12Fd10919F1881125006523452F6aFF791b",
-                                Addresses.TOKEN_RATE_NOTIFIER,
+                                TOKEN_RATE_NOTIFIER,
                                 abi.encodeCall(
                                     ITokenRateNotifier.addObserver, (STAKING_REVENUE_SOURCE, OBSERVER_KIND_WITH_ARGS)
                                 )
                             )
                             .directCall(
                                 "Upgrade Lido Locator 0xC1d0b3DE6792Bf6b4b37EccdcC24e45978Cfd2Eb to implementation 0xF2Ffb952e129a63F0614Ff87126E1d4a494A2313",
-                                Addresses.LIDO_LOCATOR,
+                                LIDO_LOCATOR,
                                 abi.encodeCall(IOssifiableProxy.proxy__upgradeTo, (LIDO_LOCATOR_IMPLEMENTATION))
                             )
                             .directCall(
@@ -159,7 +169,7 @@ contract Omnibus_2026_08_05 is OmnibusBase {
                                 LOL_STABLECOINS_ALLOWED_RECIPIENTS_REGISTRY,
                                 abi.encodeCall(
                                     IAccessControl.grantRole,
-                                    (ADD_RECIPIENT_TO_ALLOWED_LIST_ROLE, Addresses.EASY_TRACK_EVM_SCRIPT_EXECUTOR)
+                                    (ADD_RECIPIENT_TO_ALLOWED_LIST_ROLE, EASY_TRACK_EVM_SCRIPT_EXECUTOR)
                                 )
                             )
                             .directCall(
@@ -167,7 +177,7 @@ contract Omnibus_2026_08_05 is OmnibusBase {
                                 LOL_STABLECOINS_ALLOWED_RECIPIENTS_REGISTRY,
                                 abi.encodeCall(
                                     IAccessControl.grantRole,
-                                    (REMOVE_RECIPIENT_FROM_ALLOWED_LIST_ROLE, Addresses.EASY_TRACK_EVM_SCRIPT_EXECUTOR)
+                                    (REMOVE_RECIPIENT_FROM_ALLOWED_LIST_ROLE, EASY_TRACK_EVM_SCRIPT_EXECUTOR)
                                 )
                             )
                     )
@@ -202,9 +212,7 @@ contract Omnibus_2026_08_05 is OmnibusBase {
             .directCall(
                 "Grant Buybacks.BuybackExecutor.EMERGENCY_ROLE 0xc748c205190870b4e890036f373e30556929f7fbf3db8644c998a652c1996dbd to Ethereum Emergency Brakes multisig 0x73b047fe6337183A454c5217241D780a932777bD on BuybackExecutor 0x6c213ca5A10Cc26548C742229569B4AeD2A9C9B7",
                 BUYBACK_EXECUTOR,
-                abi.encodeCall(
-                    IAccessControl.grantRole, (BUYBACK_EXECUTOR_EMERGENCY_ROLE, Addresses.EMERGENCY_BRAKES_MULTISIG)
-                )
+                abi.encodeCall(IAccessControl.grantRole, (BUYBACK_EXECUTOR_EMERGENCY_ROLE, EMERGENCY_BRAKES_MULTISIG))
             )
             .directCall(
                 "Grant Buybacks.MANAGER_ROLE 0x24bec1f1283f989ed510b4d89bc7ef5002f20db1b60c1b3192336791c868543e to Treasury Management Committee 0xa02FC823cCE0D016bD7e17ac684c9abAb2d6D647 on BuybackAllocator 0xAA568141c051f2D1132b110f8391F18D48E8D889",
@@ -218,12 +226,12 @@ contract Omnibus_2026_08_05 is OmnibusBase {
             )
             .directCall(
                 "Remove UpdateStakingModuleShareLimits EVM script factory 0x0C6703F1d8D9DdfB6c6e5F57b4f7432a6500D6D8 from EasyTrack 0xF0211b7660680B49De1A7E9f25C65660F0a13Fea",
-                Addresses.EASY_TRACK,
+                EASY_TRACK,
                 abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (OLD_UPDATE_STAKING_MODULE_SHARE_LIMITS_FACTORY))
             )
             .directCall(
                 "Add UpdateStakingModuleShareLimits EVM script factory 0xde3e46E3129fA4e4e3f66c9024B0A3Ad509b27a1 with validateParams permission on itself and updateModuleShares permission on Staking Router 0xFdDf38947aFB03C621C71b06C9C70bce73f12999 to EasyTrack 0xF0211b7660680B49De1A7E9f25C65660F0a13Fea",
-                Addresses.EASY_TRACK,
+                EASY_TRACK,
                 abi.encodeCall(
                     IEasyTrack.addEVMScriptFactory,
                     (
@@ -231,18 +239,18 @@ contract Omnibus_2026_08_05 is OmnibusBase {
                         EasyTrackPermissionsUtils.permission(
                                 NEW_UPDATE_STAKING_MODULE_SHARE_LIMITS_FACTORY,
                                 IUpdateStakingModuleShareLimits.validateParams.selector
-                            ).and(Addresses.STAKING_ROUTER, IStakingRouter.updateModuleShares.selector)
+                            ).and(STAKING_ROUTER, IStakingRouter.updateModuleShares.selector)
                     )
                 )
             )
             .directCall(
                 "Add LOL stablecoins TopUpAllowedRecipients EVM script factory 0xc72d4C3e86b681D7c9EE306D41193C64D709C303 with newImmediatePayment permission on Aragon Finance 0xB9E5CBB9CA5b0d659238807E84D0176930753d86 and updateSpentAmount permission on LOL stablecoins AllowedRecipientsRegistry 0x8d8b35cA51e7808098afF4918C21Ce428c943F89 to EasyTrack 0xF0211b7660680B49De1A7E9f25C65660F0a13Fea",
-                Addresses.EASY_TRACK,
+                EASY_TRACK,
                 abi.encodeCall(
                     IEasyTrack.addEVMScriptFactory,
                     (
                         LOL_STABLECOINS_TOP_UP_FACTORY,
-                        EasyTrackPermissionsUtils.permission(Addresses.FINANCE, IFinance.newImmediatePayment.selector)
+                        EasyTrackPermissionsUtils.permission(FINANCE, IFinance.newImmediatePayment.selector)
                             .and(
                                 LOL_STABLECOINS_ALLOWED_RECIPIENTS_REGISTRY,
                                 IAllowedRecipientsRegistry.updateSpentAmount.selector
@@ -252,7 +260,7 @@ contract Omnibus_2026_08_05 is OmnibusBase {
             )
             .directCall(
                 "Add LOL stablecoins AddAllowedRecipient EVM script factory 0xe24230619e9218C1eed3de3489a22f6BC3ce18FF with addRecipient permission on LOL stablecoins AllowedRecipientsRegistry 0x8d8b35cA51e7808098afF4918C21Ce428c943F89 to EasyTrack 0xF0211b7660680B49De1A7E9f25C65660F0a13Fea",
-                Addresses.EASY_TRACK,
+                EASY_TRACK,
                 abi.encodeCall(
                     IEasyTrack.addEVMScriptFactory,
                     (
@@ -266,7 +274,7 @@ contract Omnibus_2026_08_05 is OmnibusBase {
             )
             .directCall(
                 "Add LOL stablecoins RemoveAllowedRecipient EVM script factory 0xF4d5D97C85eD18f77F99B57f55E9E11d52992632 with removeRecipient permission on LOL stablecoins AllowedRecipientsRegistry 0x8d8b35cA51e7808098afF4918C21Ce428c943F89 to EasyTrack 0xF0211b7660680B49De1A7E9f25C65660F0a13Fea",
-                Addresses.EASY_TRACK,
+                EASY_TRACK,
                 abi.encodeCall(
                     IEasyTrack.addEVMScriptFactory,
                     (
