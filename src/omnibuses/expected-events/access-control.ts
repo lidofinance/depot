@@ -18,12 +18,12 @@ function asAccessControl(contract: Contract): Contract<typeof AccessControl_ABI>
   return { abi: AccessControl_ABI, label: contract.label, address: contract.address };
 }
 
-function roleGranted(on: Contract, input: { role: string; to: Address }): OmnibusCallEvent[] {
-  return [event(asAccessControl(on), "RoleGranted", [roleDigest(input.role), input.to, null])];
+function roleGranted(on: Contract, input: { role: string; to: Address; sender?: Address }): OmnibusCallEvent[] {
+  return [event(asAccessControl(on), "RoleGranted", [roleDigest(input.role), input.to, input.sender ?? null])];
 }
 
-function roleRevoked(on: Contract, input: { role: string; from: Address }): OmnibusCallEvent[] {
-  return [event(asAccessControl(on), "RoleRevoked", [roleDigest(input.role), input.from, null])];
+function roleRevoked(on: Contract, input: { role: string; from: Address; sender?: Address }): OmnibusCallEvent[] {
+  return [event(asAccessControl(on), "RoleRevoked", [roleDigest(input.role), input.from, input.sender ?? null])];
 }
 
 type Acl = Contract<typeof ACL_ABI>;
@@ -48,4 +48,22 @@ function permissionRevoked(acl: Acl, { entity, app, role }: Omit<AclPermissionIn
   return [event(acl, "SetPermission", [entity, app, roleDigest(role), false])];
 }
 
-export default { roleGranted, roleRevoked, permissionGranted, permissionRevoked };
+function permissionManagerSet(acl: Acl, input: { app: Address; role: string; manager: Address }): OmnibusCallEvent[] {
+  return [event(acl, "ChangePermissionManager", [input.app, roleDigest(input.role), input.manager])];
+}
+
+function permissionCreated(
+  acl: Acl,
+  input: Omit<AclPermissionInput, "params"> & { manager: Address },
+): OmnibusCallEvent[] {
+  return [...permissionGranted(acl, input), ...permissionManagerSet(acl, input)];
+}
+
+export default {
+  roleGranted,
+  roleRevoked,
+  permissionCreated,
+  permissionGranted,
+  permissionRevoked,
+  permissionManagerSet,
+};

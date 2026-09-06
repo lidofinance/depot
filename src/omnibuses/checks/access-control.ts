@@ -25,6 +25,7 @@ interface CheckAragonPermissionInput {
   entity: Address;
   app: Address;
   role: Hex;
+  args?: readonly bigint[];
 }
 
 async function checkOzRoleGranted(
@@ -48,9 +49,12 @@ async function checkOzRoleNotGranted(
 
 async function checkAragonPermissionGranted(
   { client }: CheckContext,
-  { contracts, entity, app, role }: CheckAragonPermissionInput,
+  { contracts, entity, app, role, args }: CheckAragonPermissionInput,
 ): Promise<void> {
-  const hasPermission = await client.read(contracts.acl, "hasPermission", [entity, app, role]);
+  const hasPermission =
+    args === undefined
+      ? await client.read(contracts.acl, "hasPermission", [entity, app, role])
+      : await client.read(contracts.acl, "hasPermission", [entity, app, role, args]);
   assert.isTrue(
     hasPermission,
     `Expected Aragon permission ${role} to be granted for ${entity} on app ${app} via ACL ${contracts.acl.address}`,
@@ -59,9 +63,12 @@ async function checkAragonPermissionGranted(
 
 async function checkAragonPermissionNotGranted(
   { client }: CheckContext,
-  { contracts, entity, app, role }: CheckAragonPermissionInput,
+  { contracts, entity, app, role, args }: CheckAragonPermissionInput,
 ): Promise<void> {
-  const hasPermission = await client.read(contracts.acl, "hasPermission", [entity, app, role]);
+  const hasPermission =
+    args === undefined
+      ? await client.read(contracts.acl, "hasPermission", [entity, app, role])
+      : await client.read(contracts.acl, "hasPermission", [entity, app, role, args]);
   assert.isFalse(
     hasPermission,
     `Expected Aragon permission ${role} to be revoked for ${entity} on app ${app} via ACL ${contracts.acl.address}`,
