@@ -1,1 +1,2 @@
+npm run lint:vote-addresses -- --staged
 npx lint-staged

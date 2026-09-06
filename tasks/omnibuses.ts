@@ -37,6 +37,7 @@ import { getKeystores } from "../src/hardhat-keystores";
 import { runHardhatTask } from "../src/hardhat/run-task";
 import { adoptAragonVoting } from "../src/aragon-votes-tools";
 import { renderDefaultOmnibusDeployment } from "../src/omnibuses/omnibus-deployment";
+import { assertVoteAddresses } from "../src/omnibuses/address-lint";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -218,6 +219,7 @@ defineTask("omnibus:build", "Build Solidity omnibus contract(s) for the given om
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to build contracts for" })
   .setAction(async (taskArgs: { name: string }, hre: HardhatRuntimeEnvironment) => {
     const { name } = taskArgs;
+    assertVoteAddresses(await resolveOmnibusDir(name));
     await buildOmnibusContracts(hre, name);
     console.log(fmt.success(`Omnibus contracts for "${name}" compiled successfully`));
   });
@@ -304,6 +306,7 @@ defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
   .addOption({ name: "forkBlock", description: FORK_BLOCK_DESCRIPTION, defaultValue: "" })
   .setAction(async (taskArgs: { name: string; forkBlock: string }, hre: HardhatRuntimeEnvironment) => {
     const { name } = taskArgs;
+    assertVoteAddresses(await resolveOmnibusDir(name));
     const omnibus = await loadOmnibus(name);
     const client = await prepareDevRpcClient(omnibus.network, hre, resolveForkBlock(taskArgs.forkBlock));
     await prepareOmnibus(hre, client, omnibus);

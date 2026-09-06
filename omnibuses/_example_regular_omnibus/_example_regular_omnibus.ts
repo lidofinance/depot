@@ -12,6 +12,22 @@ import { StakingRouter_ABI } from "../../abi/StakingRouter.abi";
 import { StETH_ABI } from "../../abi/StETH.abi";
 import { ExampleRegularOmnibusVoteStateValidatorContract } from "./_example_regular_omnibus.abi";
 
+const LDO = "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32";
+const AGENT = "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c";
+const FINANCE = "0xB9E5CBB9CA5b0d659238807E84D0176930753d86";
+const EASY_TRACK = "0xF0211b7660680B49De1A7E9f25C65660F0a13Fea";
+const DUAL_GOVERNANCE = "0xC1db28B3301331277e307FDCfF8DE28242A4486E";
+const CURATED_MODULE = "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5";
+const STAKING_ROUTER = "0xFdDf38947aFB03C621C71b06C9C70bce73f12999";
+const STETH = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
+const A41_REWARD_ADDRESS = "0x2A64944eBFaFF8b6A0d07B222D3d83ac29c241a7";
+const DEVELP_REWARD_ADDRESS = "0x0a6a0b60fFeF196113b3530781df6e747DdC565e";
+const EBUNKER_REWARD_ADDRESS = "0x2A2245d1f47430b9f60adCFC63D158021E80A728";
+const GATEWAY_REWARD_ADDRESS = "0x78CEE97C23560279909c0215e084dB293F036774";
+const NUMIC_REWARD_ADDRESS = "0x0209a89b6d9F707c14eB6cD4C3Fb519280a7E1AC";
+const PARAFI_REWARD_ADDRESS = "0x5Ee590eFfdf9456d5666002fBa05fbA8C3752CB7";
+const ROCKAWAY_REWARD_ADDRESS = "0xcA6817DAb36850D58375A10c78703CE49d41D25a";
+
 const ATC_STABLES_MULTISIG = "0x9B1cebF7616f2BC73b47D226f90b01a7c9F86956";
 const ATC_STABLES_LDO_TRANSFER_AMOUNT = 110_000n * 10n ** 18n;
 
@@ -20,13 +36,13 @@ const PML_LDO_TRANSFER_AMOUNT = 180_000n * 10n ** 18n;
 const EXPECTED_TOTAL_LDO_TRANSFER_AMOUNT = ATC_STABLES_LDO_TRANSFER_AMOUNT + PML_LDO_TRANSFER_AMOUNT;
 
 const NEW_NODE_OPERATORS = [
-  { name: "A41", rewardAddress: "0x2A64944eBFaFF8b6A0d07B222D3d83ac29c241a7" },
-  { name: "Develp GmbH", rewardAddress: "0x0a6a0b60fFeF196113b3530781df6e747DdC565e" },
-  { name: "Ebunker", rewardAddress: "0x2A2245d1f47430b9f60adCFC63D158021E80A728" },
-  { name: "Gateway.fm AS", rewardAddress: "0x78CEE97C23560279909c0215e084dB293F036774" },
-  { name: "Numic", rewardAddress: "0x0209a89b6d9F707c14eB6cD4C3Fb519280a7E1AC" },
-  { name: "ParaFi Technologies LLC", rewardAddress: "0x5Ee590eFfdf9456d5666002fBa05fbA8C3752CB7" },
-  { name: "RockawayX Infra", rewardAddress: "0xcA6817DAb36850D58375A10c78703CE49d41D25a" },
+  { name: "A41", rewardAddress: A41_REWARD_ADDRESS },
+  { name: "Develp GmbH", rewardAddress: DEVELP_REWARD_ADDRESS },
+  { name: "Ebunker", rewardAddress: EBUNKER_REWARD_ADDRESS },
+  { name: "Gateway.fm AS", rewardAddress: GATEWAY_REWARD_ADDRESS },
+  { name: "Numic", rewardAddress: NUMIC_REWARD_ADDRESS },
+  { name: "ParaFi Technologies LLC", rewardAddress: PARAFI_REWARD_ADDRESS },
+  { name: "RockawayX Infra", rewardAddress: ROCKAWAY_REWARD_ADDRESS },
 ] as const;
 
 const REWARDS_STETH_TOP_UP_EVM_SCRIPT_FACTORY = "0x85d703B2A4BaD713b596c647badac9A1e95bB03d";
@@ -40,14 +56,14 @@ const REWARDS_LDO_ADD_RECIPIENT_FACTORY = "0x48c135Ff690C2Aa7F5B11C539104B5855A4
 const REWARDS_LDO_REMOVE_RECIPIENT_FACTORY = "0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7";
 
 const contracts = createContracts({
-  agent: [Agent_ABI, "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c"],
-  ldo: [MiniMeToken_ABI, "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32"],
-  finance: [Finance_ABI, "0xB9E5CBB9CA5b0d659238807E84D0176930753d86"],
-  easyTrack: [EasyTrack_ABI, "0xF0211b7660680B49De1A7E9f25C65660F0a13Fea"],
-  dualGovernance: [DualGovernance_ABI, "0xC1db28B3301331277e307FDCfF8DE28242A4486E"],
-  curatedStakingModule: [NodeOperatorsRegistry_ABI, "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5"],
-  stakingRouter: [StakingRouter_ABI, "0xFdDf38947aFB03C621C71b06C9C70bce73f12999"],
-  stETH: [StETH_ABI, "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"],
+  agent: [Agent_ABI, AGENT],
+  ldo: [MiniMeToken_ABI, LDO],
+  finance: [Finance_ABI, FINANCE],
+  easyTrack: [EasyTrack_ABI, EASY_TRACK],
+  dualGovernance: [DualGovernance_ABI, DUAL_GOVERNANCE],
+  curatedStakingModule: [NodeOperatorsRegistry_ABI, CURATED_MODULE],
+  stakingRouter: [StakingRouter_ABI, STAKING_ROUTER],
+  stETH: [StETH_ABI, STETH],
 });
 
 const SDVT_MODULE_ID = 2;

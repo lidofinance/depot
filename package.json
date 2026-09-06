@@ -29,6 +29,7 @@
     "example:multi-test:dg:mainnet:custom": "hardhat omnibus:multi-test _example_tiny_omnibus --mount-tests --repo dual-governance --pattern test/custom/*",
     "example:multi-test:all:mainnet:custom": "hardhat omnibus:multi-test _example_tiny_omnibus --mount-tests --pattern default",
     "lint": "eslint .",
+    "lint:vote-addresses": "node --import tsx scripts/lint-vote-addresses.ts",
     "lint:fix": "eslint --fix .",
     "style": "prettier --write .",
     "prettier:check": "prettier --check .",
@@ -41,6 +42,7 @@
     "test:all": "npm test && npm run test:integration"
   },
   "devDependencies": {
+    "@solidity-parser/parser": "0.20.2",
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
     "@types/chai": "^4.3.14",

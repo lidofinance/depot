@@ -6,6 +6,8 @@ interface IERC20Like {
 }
 
 contract ExampleRegularOmnibusVoteStateValidator {
+    address private constant ZERO_ADDRESS = address(0);
+
     address public immutable TOKEN;
     address public immutable ACCOUNT;
     uint256 public immutable EXPECTED_SPENT;
@@ -19,8 +21,8 @@ contract ExampleRegularOmnibusVoteStateValidator {
     event StateValidatedAfter(uint256 balanceAfter, uint256 spent);
 
     constructor(address token, address account, uint256 expectedSpent) {
-        require(token != address(0), "token is zero");
-        require(account != address(0), "account is zero");
+        require(token != ZERO_ADDRESS, "token is zero");
+        require(account != ZERO_ADDRESS, "account is zero");
 
         TOKEN = token;
         ACCOUNT = account;

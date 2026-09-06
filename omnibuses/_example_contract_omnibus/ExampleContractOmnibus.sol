@@ -68,10 +68,19 @@ contract ExampleContractOmnibus is OmnibusBase {
     address public constant PML_MULTISIG = 0x17F6b2C738a63a8D3A113a228cfd0b373244633D;
     uint256 public constant PML_LDO_TRANSFER_AMOUNT = 180_000 * 10 ** 18;
 
+    address public constant A41_REWARD_ADDRESS = 0x2A64944eBFaFF8b6A0d07B222D3d83ac29c241a7;
+    address public constant DEVELP_REWARD_ADDRESS = 0x0a6a0b60fFeF196113b3530781df6e747DdC565e;
+    address public constant EBUNKER_REWARD_ADDRESS = 0x2A2245d1f47430b9f60adCFC63D158021E80A728;
+    address public constant GATEWAY_REWARD_ADDRESS = 0x78CEE97C23560279909c0215e084dB293F036774;
+    address public constant NUMIC_REWARD_ADDRESS = 0x0209a89b6d9F707c14eB6cD4C3Fb519280a7E1AC;
+    address public constant PARAFI_REWARD_ADDRESS = 0x5Ee590eFfdf9456d5666002fBa05fbA8C3752CB7;
+    address public constant ROCKAWAY_REWARD_ADDRESS = 0xcA6817DAb36850D58375A10c78703CE49d41D25a;
+    address private constant ZERO_ADDRESS = address(0);
+
     address public immutable ACTION_VALIDATOR;
 
     constructor(address actionValidator) OmnibusBase(VOTING) {
-        require(actionValidator != address(0), "Action validator is zero");
+        require(actionValidator != ZERO_ADDRESS, "Action validator is zero");
         ACTION_VALIDATOR = actionValidator;
     }
 
@@ -196,57 +205,47 @@ contract ExampleContractOmnibus is OmnibusBase {
                         }).directCall(
                                 "11.3.1. Add node operator \"A41\" with the reward address 0x2A64944eBFaFF8b6A0d07B222D3d83ac29c241a7 to Curated module",
                                 CURATED_MODULE,
-                                abi.encodeCall(
-                                    INodeOperatorsRegistry.addNodeOperator,
-                                    ("A41", 0x2A64944eBFaFF8b6A0d07B222D3d83ac29c241a7)
-                                )
+                                abi.encodeCall(INodeOperatorsRegistry.addNodeOperator, ("A41", A41_REWARD_ADDRESS))
                             )
                             .directCall(
                                 "11.3.2. Add node operator \"Develp GmbH\" with the reward address 0x0a6a0b60fFeF196113b3530781df6e747DdC565e to Curated module",
                                 CURATED_MODULE,
                                 abi.encodeCall(
-                                    INodeOperatorsRegistry.addNodeOperator,
-                                    ("Develp GmbH", 0x0a6a0b60fFeF196113b3530781df6e747DdC565e)
+                                    INodeOperatorsRegistry.addNodeOperator, ("Develp GmbH", DEVELP_REWARD_ADDRESS)
                                 )
                             )
                             .directCall(
                                 "11.3.3. Add node operator \"Ebunker\" with the reward address 0x2A2245d1f47430b9f60adCFC63D158021E80A728 to Curated module",
                                 CURATED_MODULE,
                                 abi.encodeCall(
-                                    INodeOperatorsRegistry.addNodeOperator,
-                                    ("Ebunker", 0x2A2245d1f47430b9f60adCFC63D158021E80A728)
+                                    INodeOperatorsRegistry.addNodeOperator, ("Ebunker", EBUNKER_REWARD_ADDRESS)
                                 )
                             )
                             .directCall(
                                 "11.3.4. Add node operator \"Gateway.fm AS\" with the reward address 0x78CEE97C23560279909c0215e084dB293F036774 to Curated module",
                                 CURATED_MODULE,
                                 abi.encodeCall(
-                                    INodeOperatorsRegistry.addNodeOperator,
-                                    ("Gateway.fm AS", 0x78CEE97C23560279909c0215e084dB293F036774)
+                                    INodeOperatorsRegistry.addNodeOperator, ("Gateway.fm AS", GATEWAY_REWARD_ADDRESS)
                                 )
                             )
                             .directCall(
                                 "11.3.5. Add node operator \"Numic\" with the reward address 0x0209a89b6d9F707c14eB6cD4C3Fb519280a7E1AC to Curated module",
                                 CURATED_MODULE,
-                                abi.encodeCall(
-                                    INodeOperatorsRegistry.addNodeOperator,
-                                    ("Numic", 0x0209a89b6d9F707c14eB6cD4C3Fb519280a7E1AC)
-                                )
+                                abi.encodeCall(INodeOperatorsRegistry.addNodeOperator, ("Numic", NUMIC_REWARD_ADDRESS))
                             )
                             .directCall(
                                 "11.3.6. Add node operator \"ParaFi Technologies LLC\" with the reward address 0x5Ee590eFfdf9456d5666002fBa05fbA8C3752CB7 to Curated module",
                                 CURATED_MODULE,
                                 abi.encodeCall(
                                     INodeOperatorsRegistry.addNodeOperator,
-                                    ("ParaFi Technologies LLC", 0x5Ee590eFfdf9456d5666002fBa05fbA8C3752CB7)
+                                    ("ParaFi Technologies LLC", PARAFI_REWARD_ADDRESS)
                                 )
                             )
                             .directCall(
                                 "11.3.7. Add node operator \"RockawayX Infra\" with the reward address 0xcA6817DAb36850D58375A10c78703CE49d41D25a to Curated module",
                                 CURATED_MODULE,
                                 abi.encodeCall(
-                                    INodeOperatorsRegistry.addNodeOperator,
-                                    ("RockawayX Infra", 0xcA6817DAb36850D58375A10c78703CE49d41D25a)
+                                    INodeOperatorsRegistry.addNodeOperator, ("RockawayX Infra", ROCKAWAY_REWARD_ADDRESS)
                                 )
                             )
                     )

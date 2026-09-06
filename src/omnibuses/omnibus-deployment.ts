@@ -33,16 +33,32 @@ export function renderDefaultOmnibusDeployment(source: string, address: Address)
   }
 
   const lineBreak = source.includes("\r\n") ? "\r\n" : "\n";
+  const identifiers = new Set<string>();
+  function collectIdentifiers(node: ts.Node): void {
+    if (ts.isIdentifier(node)) {
+      identifiers.add(node.text);
+    }
+    ts.forEachChild(node, collectIdentifiers);
+  }
+  collectIdentifiers(sourceFile);
+  let addressName = "DEPLOYED_OMNIBUS_ADDRESS";
+  for (let suffix = 2; identifiers.has(addressName); suffix++) {
+    addressName = `DEPLOYED_OMNIBUS_ADDRESS_${suffix}`;
+  }
+  const declaration = `const ${addressName} = "${getAddress(address)}";${lineBreak}${lineBreak}`;
   const insertionPoint = config.getStart(sourceFile) + 1;
-  const deployment = [
-    "",
-    `  deployment: {`,
-    `    omnibus: Omnibus.deployedContract("${getAddress(address)}"),`,
-    `  },`,
-    "",
-  ].join(lineBreak);
+  const deployment = ["", `  deployment: {`, `    omnibus: Omnibus.deployedContract(${addressName}),`, `  },`, ""].join(
+    lineBreak,
+  );
 
-  return source.slice(0, insertionPoint) + deployment + source.slice(insertionPoint);
+  const exportStart = exportAssignment.getStart(sourceFile);
+  return (
+    source.slice(0, exportStart) +
+    declaration +
+    source.slice(exportStart, insertionPoint) +
+    deployment +
+    source.slice(insertionPoint)
+  );
 }
 
 function getPropertyName(name: ts.PropertyName, sourceFile: ts.SourceFile): string {

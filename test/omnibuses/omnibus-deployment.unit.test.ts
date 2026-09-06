@@ -1,6 +1,7 @@
 import { assert } from "chai";
 
 import { renderDefaultOmnibusDeployment } from "../../src/omnibuses/omnibus-deployment";
+import { lintVoteSources } from "../../src/omnibuses/address-lint";
 
 const OMNIBUS_ADDRESS = "0x1234567890AbcdEF1234567890aBcdef12345678";
 
@@ -23,12 +24,21 @@ describe("default omnibus deployment", () => {
       [
         `export default Omnibus.create({`,
         `  deployment: {`,
-        `    omnibus: Omnibus.deployedContract("${OMNIBUS_ADDRESS}"),`,
+        `    omnibus: Omnibus.deployedContract(DEPLOYED_OMNIBUS_ADDRESS),`,
         `  },`,
         ``,
         `  network: "mainnet",`,
       ].join("\n"),
     );
+    assert.include(rendered, `const DEPLOYED_OMNIBUS_ADDRESS = "${OMNIBUS_ADDRESS}";`);
+    assert.isEmpty(lintVoteSources(new Map([["omnibus.ts", rendered]]), ["omnibus.ts"]));
+  });
+
+  it("preserves an existing address binding and chooses an unused name for the deployment", () => {
+    const source = `const DEPLOYED_OMNIBUS_ADDRESS = "${OMNIBUS_ADDRESS}";\n${wrapper}`;
+    const rendered = renderDefaultOmnibusDeployment(source, OMNIBUS_ADDRESS);
+    assert.include(rendered, `const DEPLOYED_OMNIBUS_ADDRESS_2 = "${OMNIBUS_ADDRESS}";`);
+    assert.include(rendered, "Omnibus.deployedContract(DEPLOYED_OMNIBUS_ADDRESS_2)");
   });
 
   it("refuses to overwrite an existing deployment section", () => {
