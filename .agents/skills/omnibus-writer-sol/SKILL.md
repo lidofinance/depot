@@ -1,6 +1,6 @@
 ---
 name: omnibus-writer-sol
-description: Write a Lido omnibus as a Solidity contract plus a TypeScript fork test, directly from a Markdown vote description, without any TypeScript description of the calls. Use when asked to turn a vote description into an omnibus contract and its test, or to extend or fix an existing Solidity omnibus. For the older TypeScript-first flow use omnibus-writer instead.
+description: Write or update a Lido omnibus from a Markdown vote description as a Solidity contract and a TypeScript fork test. Use when authoring an omnibus or its fork tests.
 ---
 
 # Omnibus Writer (Solidity-first)
@@ -9,6 +9,9 @@ The author of a vote writes Markdown. This skill turns that Markdown into two fi
 contract that produces the Aragon EVM script, and a TypeScript test that runs the vote on a fork
 and checks what it changed. There is no TypeScript description of the calls — the contract is the
 only description of what the vote does; the test only verifies that it did it.
+
+Read `docs/omnibuses/WRITING_OMNIBUS.md` for the scaffold, deployment and launch workflow. Mainnet
+and Hoodi use the same path. The three-file scaffold lives in `omnibuses/_omnibus_template/`.
 
 The compiler is the point. A wrong method name or argument type fails to build, so anything you
 cannot express through a typed interface is a signal to stop, not to improvise.
@@ -87,8 +90,10 @@ number you were not given.
 
 ### Phase 2 — Implementation
 
-Only after the gaps from phase 1 are filled. Write the interfaces, then the contract, then the
-test, then verify.
+Only after the gaps from phase 1 are filled. For a new folder, run `npm run omnibus:create`,
+select the network and date-based name, and fill the Markdown placeholder with the author's
+description. If the scaffold already exists, update its files. Generate the approved missing
+interfaces, implement the Solidity contract, write the TypeScript test, then verify.
 
 ## Never invent
 
@@ -106,14 +111,22 @@ correctly, and still does the wrong thing. No later check in the pipeline catche
 
 ## Where things come from
 
-**Addresses.** Declare every address used by the vote as a named constant at the top of its
-contract, including addresses also listed in `contracts/addresses/`. Use those local constants
-in calls; a vote-local address does not need adding to the shared infrastructure lists. Address
-literals are allowed **only** in a constant declaration, never inside a call.
+**Addresses.** Declare every vote address as a local named constant with its literal value
+visible at the top of the vote contract:
 
-**Method signatures.** From the interfaces in `contracts/interfaces/`. Every contract the 2025–2026
-votes touched already has one, so a missing interface means a contract new to governance. That is
-a phase 1 report entry and a stop — name the contract, its address, and what you need to call on it.
+```solidity
+address public constant VOTING = 0x2e59A20f205bB85a89C53f1936454680651E618e;
+```
+
+Use those local constants in calls. Shared lists in `contracts/addresses/` serve Depot
+infrastructure; votes do not import their addresses or alias imported constants. Repeating an
+infrastructure address as a vote-local literal constant is allowed. A vote's use of an address
+does not require adding it to the shared lists. Address literals belong only in constant
+declarations, never inside calls.
+
+**Method signatures.** From the interfaces in `contracts/interfaces/`. A missing interface or
+method is a phase 1 report entry and a stop — name the contract, its address, and what you need
+to call on it.
 
 Producing the missing interface is phase 2 work, and only for the contracts the answer to your report
 approves. Do not write it by hand — generate it from the verified ABI of that exact deployed address:
@@ -190,13 +203,21 @@ vote, for the same reason.
 
 ```
 omnibuses/<name>/
-  <name>.md          the description, as written by its author
-  <Name>.sol         the omnibus contract — the only description of the calls
-  <name>.ts          the test: network, checks and expected events. Not a single call in it.
+  <name>.md           the description, as written by its author
+  Omnibus_<name>.sol  the contract — the only description of the calls
+  <name>.ts           the wrapper: network, deployment and tests
 ```
 
-Three files, and you create two of them. The folder holds exactly one non-test `.sol`; the core
-deploys it by file name, so the `.ts` needs no `deploy` section.
+`omnibus:create` creates all three files and fills the network, contract name and Voting address.
+The Markdown is a placeholder; the Solidity scaffold compiles but rejects an incomplete call
+list until it is filled.
+
+The default path requires exactly one non-test `.sol` in the folder, a contract named after that
+file and a zero-argument constructor. The runner compiles and deploys it automatically on a local
+fork. For constructor arguments or auxiliary contracts, supply `deploy({ deployContract })` in
+the wrapper and return the vote contract as `omnibus` alongside the other handles. Use `deployment`
+to reference already deployed contracts. See `omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts`
+for a custom deployment.
 
 The contract: description of the vote as a header comment, then vote-scoped address and role
 constants, then `VOTE_ITEMS_COUNT`, then `getOmnibusCalls()`. No logic, no branching — a vote is a
@@ -206,8 +227,10 @@ list of calls, and anything conditional belongs outside the payload.
 
 `<name>.ts` is glue, not a second description. It exports `Omnibus.create({...})` with `network`,
 the lifecycle fields left `undefined`, `testVote`, and `testProposal` when the vote submits a Dual
-Governance proposal. It has **no `calls`** — with no `calls` the core reads the items from the
-deployed contract, and the test addresses them by title.
+Governance proposal. Add `deploy` or `deployment` only when the deployment path needs it.
+`Omnibus.create` has **no `calls` option**: the runner reads the items and EVM script from the
+deployed Solidity contract, and the test addresses items by title. For a complete test using
+automatic deployment, see `omnibuses/_example_tiny_omnibus/_example_tiny_omnibus.ts`.
 
 ```ts
 import { assert } from "chai";
@@ -327,12 +350,17 @@ separately, deliberately outside this skill. Do not run it, do not tune anything
 
 ## Verify before reporting done
 
-1. `npx hardhat compile`
-2. `forge fmt` — run it twice; on some constructs one pass is not enough
-3. `npm run omnibus:test -- <name>` — deploys the contract to a fork, runs the vote, the test, the
-   event matching and the leftover-log check. For a vote that has already been executed on-chain,
-   pin the fork before its execution: `--fork-block <block before the execution>`; otherwise the
-   state the test reads is the state the vote already produced.
+1. Format the changed Solidity files with `forge fmt <path>`; run it twice, as some constructs
+   need a second pass.
+2. `npm run omnibus:build -- <name>` — validates vote addresses and compiles the contract.
+3. `npm run omnibus:test -- <name> --fork-block <block>` — deploys the contract to a local fork,
+   validates and saves `<name>.evm-script.hex`, executes the vote, and runs state and event checks,
+   including the leftover-log check. For an already executed vote, use a block before execution;
+   otherwise the before-state is the state the vote already produced.
+4. `npx tsc --noEmit`, `npm run lint`, `npm test`.
+
+Use the chosen network's RPC configuration and fork setup described in
+`docs/omnibuses/WRITING_OMNIBUS.md`. Record the network, fork block, results and payload hash.
 
 Compilation proves the calls are well typed. The fork run proves the vote does what the test
 says — which is only as good as the test. Whether both match the description is decided by the
@@ -342,6 +370,18 @@ That makes the report the part reviewers depend on. Report what actually happene
 anything that failed. State the assumptions the contract rests on, the addresses that diverge from
 the registry, and the before-state the description left open, so a reviewer knows where to look
 first.
+
+## Deployment and launch
+
+After review and fork checks, rehearse with `npx hardhat omnibus:deploy <name>` and
+`npx hardhat omnibus:launch <name>`. Both use a local fork by default. Follow the guide's
+deployment and launch sections for keystore prompts, IPFS upload, a persistent pinned node and
+reuse of an existing deployment; these commands do not accept `--fork-block`.
+
+Public deployment and launch each require an explicit `--broadcast`. Local rehearsals do not
+establish public lifecycle facts. After a real launch, record `voteId` and `launchedAt` (the block
+number); record `executedAt` after execution and `quorumReached` when known. Follow the guide's
+post-launch script checks without using another vote's payload as authoring input.
 
 ## Constraints
 
