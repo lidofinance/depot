@@ -32,6 +32,11 @@ Etherscan, no block explorer, no fetching of ABIs. A gap you could close yoursel
 looking something up is still a gap — the point of the report is to find out whether the
 description and the repository were sufficient, and a lookup hides exactly that.
 
+For each action, consult the matching domain in [the helper catalogue](HELPERS.md). Identify its
+builder level, caller, typed arguments and paired event helper before declaring the inventory
+complete. The catalogue covers Agent, Dual Governance, Kernel, Easy Track, allowed recipients,
+Finance, permissions and node operators, including ACL and Easy Track permission encoding.
+
 **The stop is unconditional: if the report has even one entry, you stop and wait for an answer.**
 Only a completely empty report lets you continue to phase 2 on your own, and say so explicitly
 when you do.
@@ -157,6 +162,9 @@ rebuilding the same nodes with `aclParam`/`aclIfElse` from `src/omnibuses`.
 
 ## Building the calls
 
+Use the signatures and paired Solidity/test examples in [the helper catalogue](HELPERS.md) for
+those domains. Its builder table identifies which helpers work at each nesting level.
+
 Call kinds available, by nesting level (`contracts/libraries/calls-builder.sol`):
 
 - **vote level** — `directCall`, `submitCalls` (submits a Dual Governance proposal)
@@ -181,12 +189,16 @@ Keep the metadata in a `string internal constant` next to the other vote-scoped 
 that constant to `submitCalls`. Inline at the call site it is unreadable, and a reviewer has to be
 able to compare it with the description file at a glance.
 
-The metadata is the text inside the fenced block of the matching `### Item N` entry in
-`<!-- DG_PROPOSAL_DESCRIPTIONS -->`, taken character for character: the fence delimiters and the
-`### Item N` heading are not part of it, everything between them is, including any line break. It
-reaches the payload as written, so it is never rewrapped, retitled, or tidied up. A description
-outside a fenced block, or one whose item number matches no submitting vote item, is a phase 1
-report entry — see `omnibuses/_omnibus_template/_omnibus_template.md` for the shape.
+For the matching `### Item N` entry in `<!-- DG_PROPOSAL_DESCRIPTIONS -->`, take the content
+lines inside its fenced block and join them with `"\n"`, as `parseDgProposalDescriptions` in
+`src/omnibuses/omnibus-description.ts` does. The heading, fence lines and separating newlines
+next to the fences are not content. Preserve all spaces and explicit empty content lines;
+never trim, rewrap or retitle them. A one-line block containing `First line` produces
+`"First line"`, with no final newline; two content lines produce `"First line\nSecond line"`.
+An explicit empty content line before the closing fence does produce a final `"\n"`.
+
+A description outside a fenced block, or one whose item number matches no submitting vote item,
+is a phase 1 report entry — see `omnibuses/_omnibus_template/_omnibus_template.md` for the shape.
 
 Vote item titles do not reach the EVM script — they exist for the humans reading the vote. Copy
 them from the description rather than rewording.
@@ -240,9 +252,11 @@ import { StakingRouter_ABI } from "../../abi/StakingRouter.abi";
 import { createContracts } from "../../src/contracts";
 import { event, expectedEvents as ev, Omnibus } from "../../src/omnibuses";
 
+const STAKING_ROUTER = "0xFdDf38947aFB03C621C71b06C9C70bce73f12999";
+const HASH_CONSENSUS = "0xD624B08C83bAECF0807Dd2c6880C3154a5F0B288";
 const contracts = createContracts({
-  stakingRouter: [StakingRouter_ABI, "0xFdDf38947aFB03C621C71b06C9C70bce73f12999"],
-  hashConsensus: [HashConsensus_ABI, "0xD624B08C83bAECF0807Dd2c6880C3154a5F0B288"],
+  stakingRouter: [StakingRouter_ABI, STAKING_ROUTER],
+  hashConsensus: [HashConsensus_ABI, HASH_CONSENSUS],
 });
 const MODULE_ID = 1n;
 const NEW_MEMBER = "0x…"; // from the description
@@ -300,7 +314,11 @@ What the test owes, item by item:
   addressed: `voteEvents.item("Submit …")`. The core fails the test on any log the test did not
   account for, so an item left out is a failure, not an omission.
 - **Proposal execution** through `testProposal`: `proposalEvents[i].call(j, [...])` for every
-  call of every submitted proposal, plus the state checks that only hold after execution.
+  call of every submitted proposal, plus the state checks that only hold after execution. For
+  an Agent forward containing several calls, pass one domain-event array per nested call, in
+  order: `proposal.call(j, [eventsForFirstCall, eventsForSecondCall])`. Preserve empty groups for
+  calls with no domain events. The [Agent section](HELPERS.md#agent) shows both forms; the runtime
+  adds the Agent and executor envelopes, so do not add them again in the test.
 - **Time the execution explicitly when a call depends on it.** A call guarded by a time window
   (`TimeConstraints.checkTimeWithinDayTimeAndEmit`, anything comparing `block.timestamp` with a
   date) reverts outside that window, and the fork runner does not know the window exists — it
