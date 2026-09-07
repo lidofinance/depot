@@ -56,28 +56,45 @@ describe("environment helpers", () => {
     delete process.env.GIT_BRANCH_SCRIPTS;
     delete process.env.GIT_BRANCH_DG;
     delete process.env.GIT_BRANCH_CORE;
+    delete process.env.GIT_BRANCH_STAKING_MODULES;
+    delete process.env.GIT_BRANCH_STONKS;
 
     expect(env.GITHUB_ORG()).to.equal("lidofinance");
     expect(env.GIT_BRANCH_SCRIPTS()).to.equal("master");
     expect(env.GIT_BRANCH_DG()).to.equal("main");
     expect(env.GIT_BRANCH_CORE()).to.equal("master");
+    expect(env.GIT_BRANCH_STAKING_MODULES()).to.equal("develop");
+    expect(env.GIT_BRANCH_STONKS()).to.equal("main");
+
+    process.env.GIT_BRANCH_STAKING_MODULES = "release-candidate";
+    process.env.GIT_BRANCH_STONKS = "release-candidate";
+    expect(env.GIT_BRANCH_STAKING_MODULES()).to.equal("release-candidate");
+    expect(env.GIT_BRANCH_STONKS()).to.equal("release-candidate");
   });
 
   it("returns SHA defaults and overrides", () => {
     delete process.env.GIT_SHA_SCRIPTS;
     delete process.env.GIT_SHA_DG;
     delete process.env.GIT_SHA_CORE;
+    delete process.env.GIT_SHA_STAKING_MODULES;
+    delete process.env.GIT_SHA_STONKS;
 
     expect(env.GIT_SHA_SCRIPTS()).to.equal("");
     expect(env.GIT_SHA_DG()).to.equal("");
     expect(env.GIT_SHA_CORE()).to.equal("");
+    expect(env.GIT_SHA_STAKING_MODULES()).to.equal("");
+    expect(env.GIT_SHA_STONKS()).to.equal("");
 
     process.env.GIT_SHA_SCRIPTS = "sha1";
     process.env.GIT_SHA_DG = "sha2";
     process.env.GIT_SHA_CORE = "sha3";
+    process.env.GIT_SHA_STAKING_MODULES = "sha4";
+    process.env.GIT_SHA_STONKS = "sha5";
     expect(env.GIT_SHA_SCRIPTS()).to.equal("sha1");
     expect(env.GIT_SHA_DG()).to.equal("sha2");
     expect(env.GIT_SHA_CORE()).to.equal("sha3");
+    expect(env.GIT_SHA_STAKING_MODULES()).to.equal("sha4");
+    expect(env.GIT_SHA_STONKS()).to.equal("sha5");
   });
 
   it("returns default HH node image", () => {

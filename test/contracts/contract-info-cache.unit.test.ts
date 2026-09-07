@@ -1,4 +1,7 @@
-import { ContractInfoInMemoryCache, ContractInfoPersistentJsonCache } from "../../src/contract-info-resolver/contract-info-cache";
+import {
+  ContractInfoInMemoryCache,
+  ContractInfoPersistentJsonCache,
+} from "../../src/contract-info-resolver/contract-info-cache";
 import { sep } from "path";
 import fs from "fs/promises";
 import { assert } from "../../src/common/assert";

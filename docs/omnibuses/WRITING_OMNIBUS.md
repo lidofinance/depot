@@ -1,271 +1,103 @@
-# How To Write an Omnibus
+# How to Write an Omnibus
 
-This guide describes the practical workflow for creating omnibuses in this repository.
+The author supplies a Markdown description. The Solidity vote contract defines the payload; the TypeScript wrapper tests its effects and handles any custom deployment.
 
-Source examples used in this guide:
-
-- Template: [../../omnibuses/_omnibus_template/_omnibus_template.ts](../../omnibuses/_omnibus_template/_omnibus_template.ts)
-- Regular omnibus: [../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts](../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts)
-- Contract omnibus: [../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts)
-- Completed real omnibus: [../../omnibuses/2025_09_01/2025_09_01.ts](../../omnibuses/2025_09_01/2025_09_01.ts)
-
-## 1. Choose omnibus type
-
-Use one of two patterns:
-
-1. Regular omnibus (most cases)
-   - No dedicated on-chain `OmnibusBase` contract.
-   - Follow the structure from `_example_regular_omnibus`.
-2. Contract omnibus (when vote logic must live in a dedicated contract)
-   - Deploy and use `omnibus` contract in `deploy()`.
-   - Follow the structure from `_example_contract_omnibus`.
-
-## 2. Create a new folder and files
-
-Create a folder in `omnibuses/` with date-based name, usually `YYYY_MM_DD` or `YYYY_MM_DD_<short_topic>`.
-
-Minimum files:
-
-1. `<name>.ts` - executable omnibus definition
-2. `<name>.md` - vote/proposal human description
-
-For contract-based omnibuses, add Solidity and ABI files if needed.
-
-Quick command flow:
+## 1. Create the scaffold
 
 ```bash
 npm run omnibus:create
 ```
 
-Contract generation is optional and should be run only for contract-mode omnibuses:
+Select the network and enter a date-based name such as `2026_09_06_example`. Mainnet and Hoodi use the same workflow. The command creates:
 
-```bash
-npm run omnibus:contract -- <omnibus_name>
-npm run omnibus:build -- <omnibus_name>
+```text
+omnibuses/<name>/
+  <name>.md
+  Omnibus_<name>.sol
+  <name>.ts
 ```
 
-Important for contract mode:
+The Markdown file is a placeholder. The command fills the network, contract name and Voting address; the author provides the substantive description. The Solidity scaffold compiles but rejects an incomplete call list until it is filled.
 
-- `npm run omnibus:contract` is the first step.
-- After successful generation/compilation, omnibus script MUST include either:
-  - `deploy()` that returns deployed contract handles (as in `_example_contract_omnibus.ts`), or
-  - `deployment: createContracts({...})` with already deployed addresses.
+## 2. Supply the description
 
-## 3. Start from template
+Write the vote items inside `<!-- OMNIBUS_DESCRIPTION -->` in `<name>.md`. Specify addresses, amounts, limits, ordering and the required caller. Each numbered item is one call of its parent. Several operations share an Agent forward only when the description groups them into one item.
 
-Use [../../omnibuses/_omnibus_template/_omnibus_template.ts](../../omnibuses/_omnibus_template/_omnibus_template.ts) as the starting point.
+For each Dual Governance proposal, provide its exact metadata in the matching fenced `### Item N` entry inside `<!-- DG_PROPOSAL_DESCRIPTIONS -->`. The fenced text reaches the payload unchanged. Omit that section for votes without proposals. Resolve missing payload inputs before implementation.
 
-Key fields:
+## 3. Implement the Solidity contract
 
-- `network`: `mainnet` or `holesky`
-- `voteId`: set only after vote creation
-- `launchedAt`: set only after successful launch
-- `executedAt`: set only after successful execution
-- `quorumReached`: set only when quorum status is known
+Extend `OmnibusBase` and fill `getOmnibusCalls()` using the builders and libraries in `contracts/libraries/`. Set `VOTE_ITEMS_COUNT` to the actual item count. Use interfaces from `contracts/interfaces/` and `abi.encodeCall` for typed direct calls. Generate a missing interface from the verified ABI with `npm run abi:sync -- <Name> --address <address>`; add `--network-name hoodi` for Hoodi.
 
-For a new omnibus, keep these as `undefined`.
-The live-state example is [../../omnibuses/2025_09_01/2025_09_01.ts](../../omnibuses/2025_09_01/2025_09_01.ts), where these values are already filled (`voteId: 191`, `launchedAt: 23268269`, `executedAt: 23268272`, `quorumReached: true`).
+Declare every vote address as a local named constant with its literal value visible in the vote file:
 
-## 4. Declare contracts
-
-Create contract handles via `createContracts({...})`.
-
-Rules:
-
-1. Declare only contracts actually used in calls/tests.
-2. Keep addresses explicit and reviewed.
-3. Reuse ABIs from `abi/`.
-
-See:
-
-- Regular pattern: [../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts](../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts)
-- Contract pattern: [../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts)
-
-### Access Control: OZ vs Aragon ACL
-
-Before writing calls/tests, identify which permission model target contract uses.
-
-1. OpenZeppelin `AccessControl` contracts:
-   - Use `grantRole(...)`, `revokeRole(...)`, `hasRole(...)`.
-   - Typical events: `RoleGranted`, `RoleRevoked`.
-2. Aragon ACL-managed contracts:
-   - Use ACL proxy methods `grantPermission(...)`, `revokePermission(...)`, `hasPermission(...)`.
-   - Typical event on ACL: `SetPermission(entity, app, role, allowed)`.
-
-Critical rule:
-
-- `Lido` (`0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84`) is ACL-managed via Aragon ACL.
-- Do not use `AccessControl` ABI/methods for Lido permissions.
-
-Known Aragon ACL contracts (mainnet) used in this repo:
-
-1. ACL Proxy: `0x9895F0F17cc1d1891b6f18ee0b483B6f221b37Bb`
-2. Kernel Proxy (ACL infrastructure): `0xb8FFC3Cd6e7Cf5a098A1c92F48009765B24088Dc`
-3. Lido app contract controlled through ACL permissions: `0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84`
-
-Practical check before finalize:
-
-1. If call target is ACL-managed, all permission checks in tests must use `hasPermission`.
-2. If call target is OZ AccessControl, tests must use `hasRole`.
-3. Event expectations must match the permission system actually used.
-4. Prefer built-in helpers from `checks.accessControl`:
-   - `checkOzRoleGranted` / `checkOzRoleNotGranted`
-   - `checkAragonPermissionGranted` / `checkAragonPermissionNotGranted`
-
-## 5. Build calls section
-
-`calls` is the core of the omnibus.
-
-Prefer blueprint calls when possible:
-
-- `blueprints.easyTrack.*`
-- `blueprints.tokens.*`
-- `blueprints.stakingModule.*`
-
-Use direct calls when needed:
-
-- `directCall(...)`
-- `forwardCall(...)`
-- `forwardCalls(...)`
-- `executeCall(...)`
-- `submitCalls(...)`
-
-Each action must have:
-
-1. Clear title (`"1. ..."`, `"2. ..."`) to keep execution order readable.
-2. Correct function args.
-3. Expected events (`event(...)`) for deterministic verification.
-
-Examples:
-
-- Mixed blueprint/direct sequence: `_example_regular_omnibus.ts`
-- Nested forwarding/execute patterns: `_example_contract_omnibus.ts`
-- Dual Governance submission flow: `2025_09_01.ts`
-
-## 6. Implement optional deploy section
-
-Use `deploy()` when you need helper contracts for validation or the omnibus contract itself.
-
-For contract-based omnibuses this is mandatory:
-
-1. Generate and compile contract first (`omnibus:contract` + `hardhat build`).
-2. Add `deploy()` (recommended path) and return `omnibus` contract handle.
-3. Or provide explicit `deployment: createContracts({...})` if contracts are already deployed.
-4. Without one of these two, generated contract will not be used in real contract-mode omnibus workflow.
-
-Regular example deploys only validator:
-
-- `_example_regular_omnibus.ts` deploys `ExampleRegularOmnibusVoteStateValidator`.
-
-Contract example deploys validator + omnibus contract:
-
-- `_example_contract_omnibus.ts` deploys `ExampleContractOmnibusVoteStateValidator` and `ExampleContractOmnibus`.
-
-If contract is already deployed on-chain, switch to explicit `deployment: createContracts({...})` mapping (see comment block in `_example_contract_omnibus.ts`).
-
-## 7. Implement tests inside omnibus
-
-Use both hooks when relevant:
-
-1. `testVote`
-   - Pre/post checks around vote execution (`passOmnibus()`).
-   - Check balances, flags, and factories.
-2. `testProposal`
-   - Validate post-submission proposal enactment (`passProposals()`).
-   - Remove this hook only if omnibus does not submit proposals.
-
-Testing requirements (mandatory):
-
-1. Cover every voting item from `calls` with at least one explicit assertion.
-2. Prefer existing `checks.*` helpers when they exist; write custom assertions only for missing checks.
-   - For permissions, use `checks.accessControl.*` helpers.
-3. Validate state in four phases:
-   - before vote
-   - after vote
-   - before DG proposal execution
-   - after DG proposal execution
-4. Validate functional behavior of each item, not only event emission.
-5. Keep event check enabled and complete (`expectedEvents` per item).
-
-Patterns to copy:
-
-- Rich state checks: `_example_regular_omnibus.ts`
-- Proposal-phase checks and assertions: `2025_09_01.ts`
-
-## 8. Write markdown description
-
-Use [../../omnibuses/_omnibus_template/_omnibus_template.md](../../omnibuses/_omnibus_template/_omnibus_template.md) structure:
-
-1. `## Omnibus Description`
-
-Keep markers:
-
-- `<!-- OMNIBUS_DESCRIPTION --> ... <!-- OMNIBUS_DESCRIPTION -->`
-
-Write free-form text inside this block.
-Transformation of this description into concrete omnibus items is done by the agent, not by a code generator.
-
-See completed examples:
-
-- [../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.md](../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.md)
-- [../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.md](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.md)
-
-## 9. Validate before run
-
-Required sequence:
-
-```bash
-npx tsc --noEmit omnibuses/<omnibus_name>/<omnibus_name>.ts
-npm run omnibus:test -- <omnibus_name>
-npm run omnibus:simulate -- <omnibus_name>
+```solidity
+address public constant VOTING = 0x2e59A20f205bB85a89C53f1936454680651E618e;
 ```
 
-Then run:
+This includes addresses also present in `contracts/addresses/`. Shared lists serve Depot infrastructure; a vote's use of an address does not require adding it there. Use the local constants in the payload. An imported address or a local alias of one does not give the reviewer the required literal value beside the vote.
+
+Copy item titles from the description without their item numbers. Titles must be unique; the runtime adds numbering. Pass explicit metadata to `submitCalls`, stored in a vote-local string constant. Determine the permission model and intended caller before choosing direct execution or forwarding: Lido uses Aragon ACL, while other targets may use OpenZeppelin AccessControl.
+
+See [the one-item vote](../../omnibuses/_example_tiny_omnibus/TinyOmnibus.sol) and [the vote with auxiliary contracts and proposals](../../omnibuses/_example_contract_omnibus/ExampleContractOmnibus.sol).
+
+## 4. Implement the TypeScript tests
+
+Export `Omnibus.create` with `network`, `testVote`, and `testProposal` when the vote submits Dual Governance proposals. Keep `voteId`, `launchedAt`, `executedAt` and `quorumReached` undefined until their real lifecycle milestones.
+
+The wrapper describes checks and deployment. The runner reads vote items and the EVM script from the deployed Solidity contract.
+
+- Read before-state, call `passOmnibus()`, and assert the resulting state or balance deltas. Read expected values from public vote constants where available. Prefer `checks.*` over duplicate state-reading logic.
+- Register every item's domain events through `voteEvents.item(title, events)`, using `expectedEvents.*` helpers where available. The runner checks the structural envelopes and rejects unexplained logs.
+- For Dual Governance, use `testProposal` and `passProposals()`. Register every proposal call with `proposalEvents[i].call(j, events)` and verify the state after execution. A time-dependent item needs explicit timing in its test.
+- Permission changes need the correct ACL or AccessControl checks and, where applicable, a call proving the intended grantee can use the permission.
+
+The runner restores its snapshot after the test, including on failure. Additional snapshots belong only to checks that need their own temporary state.
+
+See [the one-item test](../../omnibuses/_example_tiny_omnibus/_example_tiny_omnibus.ts) and [the proposal tests](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts).
+
+## 5. Deployment configuration
+
+The default path needs exactly one non-test `.sol` file in the omnibus folder, with a contract named after the file and a zero-argument constructor. The runner compiles and deploys it automatically on a local fork. No custom deployment hook is needed.
+
+When constructor arguments or auxiliary contracts require custom deployment, supply `deploy({ deployContract })` and return the vote contract as `omnibus` alongside the other handles. A `deployment` mapping can reference contracts that are already deployed.
+
+## 6. Build and test
 
 ```bash
-npm run omnibus:run -- <omnibus_name>
+npm run omnibus:build -- <name>
+npm run omnibus:test -- <name> --fork-block <block>
+npx tsc --noEmit
+npm run lint
+npm test
 ```
 
-Notes:
+`omnibus:test` deploys the contract on a local fork, reads and validates its payload, saves `<name>.evm-script.hex`, executes the vote, and runs the state and event checks. Configure `ETH_MAINNET_RPC_URL` or `ETH_HOODI_RPC_URL` for the chosen network. A running local node must already be at the requested block; otherwise the task creates an in-process fork at that block.
 
-1. `<omnibus_name>` is the folder/file name without `.ts`.
-2. Keep keystore ready (`npm run ks:add -- <name>`).
-3. Do not run on mainnet before all expected events and checks pass.
-4. Omnibus TypeScript file MUST have zero TypeScript errors.
+Record the network, fork block, results and payload hash. A build alone does not prove execution or event coverage. To inspect execution traces, use `npx hardhat omnibus:trace <name>`.
 
-## 10. Contract generation review
+## 7. Rehearse deployment and launch
 
-`npm run omnibus:contract` is only the first step for contract-mode omnibuses.
-After generation, review and normalize generated Solidity manually.
+```bash
+npx hardhat omnibus:deploy <name>
+npx hardhat omnibus:launch <name>
+```
 
-Mandatory post-generation review:
+These commands use a local fork by default. They still ask for a keystore and confirmation, and launch attempts to publish the Markdown description to IPFS when an IPFS provider is configured. Without a provider, launch offers to continue without uploading.
 
-1. Review naming quality for constants and variables.
-2. Replace ambiguous/generated names with domain-specific names.
-3. Replace inline role/address literals in calls with named constants.
-4. Keep constant naming aligned with omnibus `<name>.ts` (reuse names where possible).
-5. Verify all role constants and permission bytes values against source description.
-6. Verify addresses and constructor args.
-7. Verify call ordering and comments against omnibus `.ts`.
-8. Re-run formatting/linting and Solidity tests after manual cleanup.
-9. Compilation of generated contract is mandatory immediately after generation and again after normalization:
-   - `npm run omnibus:build -- <omnibus_name>`
+Deployment and launch do not accept `--fork-block`. For a pinned rehearsal, start a local node at the chosen block and keep it running across both commands. Local deployment does not record addresses in the wrapper; launch can deploy the contract itself. To rehearse loading an existing deployment, supply its local `deployment.omnibus` address and keep that same local node alive.
 
-## 11. Post-launch update checklist
+After creation, compare the vote's on-chain script with the contract's `getEVMScript()` and check `isValidVoteScript(voteId)`. The wrapper's saved EVM script must match as well.
 
-After real launch/execution, update omnibus file:
+## 8. Public deployment and launch
 
-1. `voteId`
-2. `launchedAt`
-3. `executedAt` (if executed)
-4. `quorumReached` (if known)
+Public transactions require an explicit `--broadcast` on each command. Complete review and fork checks before using them:
 
-This keeps historical files self-contained and auditable (see `2025_09_01.ts`).
+```bash
+npx hardhat omnibus:deploy <name> --broadcast
+npx hardhat omnibus:launch <name> --broadcast
+```
 
-## Common mistakes
+For default deployment, successful broadcast records `deployment.omnibus` in the wrapper. Custom deployments require recording their handles explicitly. Launch reads the deployed contract and displays its items and payload before confirmation.
 
-1. Missing or incomplete `expectedEvents`.
-2. Filling `voteId/launchedAt/executedAt` too early.
-3. Using direct calls where existing blueprints already cover the operation.
-4. Forgetting proposal-phase checks for `submitCalls(...)`.
-5. Reusing old addresses/constants without explicit review.
+After the real launch, record `voteId` and `launchedAt` (the block number). Set `executedAt` after execution and `quorumReached` when known. Local rehearsals do not establish these public lifecycle facts.

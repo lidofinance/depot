@@ -1,0 +1,17 @@
+import config from "./hardhat.config";
+
+export default {
+  ...config,
+  networks: {
+    ...config.networks,
+    localhost: {
+      ...config.networks?.localhost,
+      url: process.env.RPC_URL,
+    },
+  },
+  mocha: {
+    ...config.mocha,
+    failZero: true,
+    forbidPending: true,
+  },
+};
