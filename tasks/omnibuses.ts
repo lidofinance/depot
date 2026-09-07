@@ -312,6 +312,18 @@ defineTask("omnibus:trace", "Trace the omnibus with given name and shows the exe
 
 type RepositorySuite = Exclude<Repos, "depot">;
 
+export function getRepositorySuites(repo?: string): RepositorySuite[] {
+  const repositories: RepositorySuite[] = ["core", "dual-governance", "scripts", "staking-modules", "stonks"];
+  if (!repo) {
+    return repositories;
+  }
+  const selected = repositories.find((repository) => repository === repo);
+  if (!selected) {
+    throw new Error(`Unsupported repo "${repo}"`);
+  }
+  return [selected];
+}
+
 export async function runRepositorySuites(
   client: Pick<DevRpcClient, "withSnapshot">,
   repositories: readonly RepositorySuite[],
@@ -331,7 +343,7 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
   })
   .addOption({
     name: "repo",
-    description: "Name of the repo for test: depot|core|scripts|dual-governance",
+    description: "Name of the repo for test: core|scripts|dual-governance|staking-modules|stonks",
     defaultValue: "",
   })
   .addOption({
@@ -351,6 +363,7 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
       const normalizedName = name || undefined;
       const normalizedRepo = repo || undefined;
       const normalizedPattern = pattern || undefined;
+      const repoNamesToTest = getRepositorySuites(normalizedRepo);
       let node: LocalRpcNode;
 
       let snapshotId;
@@ -369,17 +382,6 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
       }
 
       try {
-        const repoNamesToTest: Exclude<Repos, "depot">[] = [];
-        if (!normalizedRepo || normalizedRepo === "core") {
-          repoNamesToTest.push("core");
-        }
-        if (!normalizedRepo || normalizedRepo === "dual-governance") {
-          repoNamesToTest.push("dual-governance");
-        }
-        if (!normalizedRepo || normalizedRepo === "scripts") {
-          repoNamesToTest.push("scripts");
-        }
-
         const hideDebug = repoNamesToTest.length > 1;
 
         await runRepositorySuites(node.client, repoNamesToTest, (repository) =>

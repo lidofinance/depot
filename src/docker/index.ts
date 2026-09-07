@@ -48,19 +48,25 @@ function mochaProgressOf(lines: string[]) {
 const FORGE_PASSED_LINE = /^\[PASS\] /;
 const FORGE_FAILED_LINE = /^\[FAIL[:\]]/;
 const FORGE_TOTAL_LINE = /^Ran \d+ test suites? in /;
+const FORGE_SUITE_RESULT_LINE = /^\s*↪ Suite result: (?:ok|FAILED)\. (\d+) passed; (\d+) failed;/;
 
 /** `12 ✔ · 0 ✖` of a forge run */
 function forgeProgressOf(lines: string[]) {
   // failures are listed again after the total
   const totalStart = lines.findIndex((line) => FORGE_TOTAL_LINE.test(line));
   const results = totalStart === -1 ? lines : lines.slice(0, totalStart);
-  const passed = results.filter((line) => FORGE_PASSED_LINE.test(line)).length;
-  const failed = results.filter((line) => FORGE_FAILED_LINE.test(line)).length;
+  const summaries = results.map((line) => FORGE_SUITE_RESULT_LINE.exec(line)).filter((summary) => summary !== null);
+  const passed = summaries.length
+    ? summaries.reduce((count, summary) => count + Number(summary[1]), 0)
+    : results.filter((line) => FORGE_PASSED_LINE.test(line)).length;
+  const failed = summaries.length
+    ? summaries.reduce((count, summary) => count + Number(summary[2]), 0)
+    : results.filter((line) => FORGE_FAILED_LINE.test(line)).length;
   return passed || failed ? `${passed} ✔ · ${failed} ✖` : "";
 }
 
 /** `14% (50/351)` for pytest, `31 ✔ · 2 ✖` for mocha/forge, empty until the first result */
-function progressOf(lines: string[]) {
+export function progressOf(lines: string[]): string {
   const collected = lines
     .map((line) => /^collected \d+ items?(?: \/ \d+ deselected \/ (\d+) selected)?/.exec(line))
     .find(Boolean);
@@ -221,7 +227,7 @@ export async function runImageInBackground(
   return result ? container : null;
 }
 
-export type Repos = "core" | "depot" | "scripts" | "dual-governance";
+export type Repos = "core" | "depot" | "scripts" | "dual-governance" | "staking-modules" | "stonks";
 
 interface GitRefsResponse {
   ref: string;
@@ -242,6 +248,8 @@ const GIT_SHA_OVERRIDES: Record<Repos, () => string> = {
   scripts: env.GIT_SHA_SCRIPTS,
   core: env.GIT_SHA_CORE,
   "dual-governance": env.GIT_SHA_DG,
+  "staking-modules": env.GIT_SHA_STAKING_MODULES,
+  stonks: env.GIT_SHA_STONKS,
   depot: () => "",
 };
 
@@ -263,15 +271,12 @@ async function getLastCommitSha(org: string, repo: Repos, branch: string) {
 }
 
 async function getBuildVersion(org: string, repo: Repos, branch: string) {
-  let buildVersion = "";
   if (branch) {
     const sha = await getLastCommitSha(org, repo, branch);
-    buildVersion = sha?.slice(0, 7);
-  } else {
-    // TODO: ask about rebuild or verify changes somehow or mount local dir
-    buildVersion = "latest";
+    return { sha, buildVersion: sha?.slice(0, 7) };
   }
-  return buildVersion;
+  // TODO: ask about rebuild or verify changes somehow or mount local dir
+  return { sha: "", buildVersion: "latest" };
 }
 
 function getTargetPlatformArgs(repo: Repos) {
@@ -298,11 +303,23 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
   const org = env.GITHUB_ORG();
 
   let buildVersion = "";
+  let sha = "";
+  const pinnedSource = repo === "staking-modules" || repo === "stonks";
 
   try {
-    buildVersion = await getBuildVersion(org, repo, branch);
+    ({ sha, buildVersion } = await getBuildVersion(org, repo, branch));
   } catch (error) {
+    if (pinnedSource) {
+      throw error;
+    }
     console.error(`Error on retrieving build version: ${(error as Error).message}`);
+  }
+
+  if (pinnedSource && !/^[a-fA-F0-9]{40}$/.test(sha)) {
+    throw new Error(`Expected a full commit SHA for "${repo}", received "${sha}"`);
+  }
+  if (pinnedSource) {
+    console.log(`Repository ${org}/${repo}: ${branch} at ${sha}`);
   }
 
   const imageTag = `depot/${repo}:${buildVersion}`;
@@ -312,6 +329,7 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
       images
         // when the tag can't be received, take the latest one
         .filter(({ RepoTags }) => RepoTags?.some((tag) => tag.startsWith(imageTag)))
+        .filter(({ Labels }) => !pinnedSource || Labels?.["org.opencontainers.image.revision"] === sha)
         // the last at the top
         .sort((i1, i2) => i2.Created - i1.Created)[0],
   );
@@ -337,7 +355,10 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
     const stream = await docker.buildImage(
       {
         context: process.cwd(),
-        src: [`tests@${repo}.Dockerfile`],
+        src: [
+          `tests@${repo}.Dockerfile`,
+          ...(repo === "stonks" ? ["src/docker/stonks/hardhat.config.ts.template"] : []),
+        ],
       },
       {
         t: imageTag,
@@ -345,6 +366,7 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
         buildargs: {
           ...targetPlatformArgs,
           GIT_BRANCH: branch,
+          GIT_SHA: sha,
           BUILD_VERSION: buildVersion,
           GITHUB_ORG: org,
           SCRIPTS_IMAGE: env.SCRIPTS_IMAGE(),
