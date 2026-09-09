@@ -250,6 +250,7 @@ contract ExampleContractOmnibus is OmnibusBase {
                                 )
                             )
                     )
-            ).getCalls();
+            )
+            .getCalls();
     }
 }
