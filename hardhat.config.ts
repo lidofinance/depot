@@ -4,6 +4,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import * as env from "./src/common/env";
 import { omnibusTaskBuilders } from "./tasks/omnibuses";
 import { keystoreTaskBuilders } from "./src/hardhat-keystores/tasks";
+import { abiTaskBuilders } from "./tasks/abi";
 
 import { ContractInfoResolver } from "./src/contract-info-resolver/contract-info-resolver";
 import { findContainerByName, stopContainer } from "./src/docker";
@@ -57,6 +58,7 @@ const config: HardhatUserConfig = {
   tasks: [
     ...omnibusTaskBuilders.map((taskBuilder) => taskBuilder.build()),
     ...keystoreTaskBuilders.map((taskBuilder) => taskBuilder.build()),
+    ...abiTaskBuilders.map((taskBuilder) => taskBuilder.build()),
   ],
   paths: {
     sources: {

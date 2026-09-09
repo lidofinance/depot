@@ -8,6 +8,8 @@ Follow `CONTRIBUTING.md` for coding conventions (TypeScript, async safety, error
 
 Project skills live in `.agents/skills/`. For omnibus work, follow `.agents/skills/omnibus-writer/SKILL.md`.
 
+For ABI/interface generation, source selection or regeneration review, read [docs/ABI_SYNC.md](docs/ABI_SYNC.md).
+
 ## Project overview
 
 Hardhat 3 + TypeScript + Viem project for building, testing, and launching Lido governance omnibuses (batched on-chain proposals).
