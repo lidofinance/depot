@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-
 /// @notice Represents an external call to a specific address with an optional ETH transfer.
 /// @param target The address to call.
 /// @param value The amount of ETH (in wei) to transfer with the call, capped at approximately 7.9 billion ETH.
@@ -12,7 +11,6 @@ struct ExternalCall {
     uint96 value;
     bytes payload;
 }
-
 
 /// @notice Describes the lifecycle state of a proposal, defining its current status.
 /// @param NotExist Proposal has not been submitted yet.

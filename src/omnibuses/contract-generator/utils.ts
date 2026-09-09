@@ -91,7 +91,9 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function isTupleParameter(input: AbiParameter): input is AbiParameter & { type: "tuple"; components: AbiParameter[] } {
+export function isTupleParameter(
+  input: AbiParameter,
+): input is AbiParameter & { type: "tuple"; components: AbiParameter[] } {
   return input.type === "tuple" && "components" in input && Array.isArray(input.components);
 }
 

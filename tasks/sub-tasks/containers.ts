@@ -7,7 +7,9 @@ import type { ContainerCreateOptions } from "dockerode";
 function getDockerLocalRpcUrl() {
   const localRpc = String(env.ETH_LOCAL_RPC_PORT());
   const hostRpcUrl = /^https?:\/\//i.test(localRpc) ? localRpc : `http://localhost:${localRpc}`;
-  return hostRpcUrl.replace("://localhost", "://host.docker.internal").replace("://127.0.0.1", "://host.docker.internal");
+  return hostRpcUrl
+    .replace("://localhost", "://host.docker.internal")
+    .replace("://127.0.0.1", "://host.docker.internal");
 }
 
 export async function runRepoTests(
@@ -89,10 +91,7 @@ const runDgTests = async (pattern?: string, hideDebug = false, shouldMountTests 
     : ["npm", "run", "test", "--match-path", pattern];
 
   const config: Docker.ContainerCreateOptions = {
-    Env: [
-      `MAINNET_RPC_URL=${getDockerLocalRpcUrl()}`,
-      `DEPLOY_ARTIFACT_FILE_NAME=deploy-artifact-mainnet.toml`,
-    ],
+    Env: [`MAINNET_RPC_URL=${getDockerLocalRpcUrl()}`, `DEPLOY_ARTIFACT_FILE_NAME=deploy-artifact-mainnet.toml`],
   };
   if (shouldMountTests) {
     config.HostConfig = {
