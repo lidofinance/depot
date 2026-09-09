@@ -35,7 +35,7 @@ export async function deployMockGovernance(client: DevRpcClient, deployer: Addre
 
   const voteTime = 3600n; // 1 hour
   const votingAddress = await client.deployContract(
-    { abi: mockVoting.abi, bytecode: mockVoting.bytecode, args: [voteTime] },
+    { abi: mockVoting.abi, bytecode: mockVoting.bytecode, args: [voteTime, ldoAddress] },
     { from: deployer },
   );
 

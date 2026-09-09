@@ -62,7 +62,6 @@ export default [
       "cache/",
       "cache_forge/",
       "out_forge/",
-      "archive/",
       "node_modules/",
       "coverage/",
       "lib/",
