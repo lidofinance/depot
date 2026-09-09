@@ -6,7 +6,14 @@ import {VoteCall} from "./libraries/calls-builder.sol";
 import {IForwarder} from "./interfaces/IForwarder.sol";
 import {CallsScriptBuilder, CallsScriptBuilderUtils} from "./libraries/CallsScriptBuilder.sol";
 
-import {VoteCallsBuilder, VoteCallsBuilderUtils, ForwardedCallsBuilder, ForwardedCallsBuilderUtils, ProposalCallsBuilder, ProposalCallsBuilderUtils} from "./libraries/calls-builder.sol";
+import {
+    VoteCallsBuilder,
+    VoteCallsBuilderUtils,
+    ForwardedCallsBuilder,
+    ForwardedCallsBuilderUtils,
+    ProposalCallsBuilder,
+    ProposalCallsBuilderUtils
+} from "./libraries/calls-builder.sol";
 
 error UnexpectedChainId(uint256 chainId);
 
@@ -57,7 +64,9 @@ abstract contract OmnibusBase {
     /// @notice Validates the specific vote on Aragon Voting contract against the vote items.
     /// @return A boolean value indicating whether the vote is valid.
     function isValidVoteScript(uint256 voteId) external view returns (bool) {
-        ( /*open*/
+        (
+
+            /*open*/
             , /*executed*/
             , /*startDate*/
             , /*snapshotBlock*/

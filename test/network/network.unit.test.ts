@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { EthereumProvider } from "hardhat/types";
+import { EthereumProvider } from "hardhat/types/providers";
 
 import {
   createRpcClient,

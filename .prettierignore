@@ -7,3 +7,8 @@ pnpm-lock.yaml
 package-lock.json
 pnpm-workspace.yaml
 mount
+
+# vendored dependencies
+lib
+artifacts
+cache
