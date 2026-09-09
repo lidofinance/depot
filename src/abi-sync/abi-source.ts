@@ -91,7 +91,7 @@ async function resolveImplementation(
   if (!implementation && proxyLike) {
     throw new Error(
       `${address} on ${networkName} (${info.name}) looks like a proxy, but exposes no implementation on chain ` +
-        `— pass --from-file with the implementation ABI, or --proxyAbi for the proxy's own ABI`,
+        `— pass --from-file with the implementation ABI, or --proxy-abi for the proxy's own ABI`,
     );
   }
   return implementation;
@@ -111,7 +111,7 @@ async function resolveImplementationInfo(
     }
     throw new Error(
       `Implementation ${implementation} of proxy ${proxy} on ${networkName} is not verified ` +
-        `— pass --from-file with the implementation ABI, or --proxyAbi for the proxy's own ABI`,
+        `— pass --from-file with the implementation ABI, or --proxy-abi for the proxy's own ABI`,
     );
   }
 }

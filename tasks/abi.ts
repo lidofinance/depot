@@ -27,7 +27,12 @@ async function abiSyncAction(taskArgs: AbiSyncTaskArgs, hre: HardhatRuntimeEnvir
     networkName,
     address: taskArgs.address ? parseAddress(taskArgs.address) : undefined,
     fromFile: taskArgs.fromFile || undefined,
-    methods: taskArgs.methods ? taskArgs.methods.split(",").map((method) => method.trim()) : undefined,
+    methods: taskArgs.methods
+      ? taskArgs.methods
+          .split(",")
+          .map((method) => method.trim())
+          .filter((method) => method.length > 0)
+      : undefined,
     skipSol: taskArgs.skipSol,
     proxyAbi: taskArgs.proxyAbi,
   });
