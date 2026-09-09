@@ -4,6 +4,7 @@ import dualGovernance from "./dual-governance";
 import easyTrack from "./easy-track";
 import finance from "./finance";
 import hashConsensus from "./hash-consensus";
+import kernel from "./kernel";
 import proxy from "./proxy";
 import stakingRouter from "./staking-router";
 
@@ -16,6 +17,7 @@ export const expectedEvents = {
   easyTrack,
   finance,
   hashConsensus,
+  kernel,
   proxy,
   stakingRouter,
 };
