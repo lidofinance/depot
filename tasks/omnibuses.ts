@@ -11,7 +11,7 @@ import { EthereumProvider } from "hardhat/types/providers";
 import { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 import { Repos, runImageInBackground } from "../src/docker";
 import { runRepoTests } from "./sub-tasks/containers";
-import { formatEther } from "viem";
+import { Address, formatEther } from "viem";
 import {
   createDevRpcClient,
   createRpcClient,
@@ -27,17 +27,20 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { getRpcUrl } from "../src/network/network";
 import files from "../src/common/files";
 import { uploadDescription } from "./sub-tasks/upload-description";
-import { DevRpcClient, RpcClient } from "../src/network";
+import { DevRpcClient, RpcClient, WriteContractOptions } from "../src/network";
 import { createTimedSpinner } from "../src/common/spinner";
 import { ProposalStatus } from "../src/omnibuses/dual-governance";
 import { logBlue } from "../src/common/color";
 import { getGovernanceContracts } from "../src/omnibuses/governance-contracts";
-import { generateOmnibusContractFile } from "../src/omnibuses/contract-generator";
 import { getKeystores } from "../src/hardhat-keystores";
 import { runHardhatTask } from "../src/hardhat/run-task";
 import { adoptAragonVoting } from "../src/aragon-votes-tools";
+import { renderDefaultOmnibusDeployment } from "../src/omnibuses/omnibus-deployment";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const OMNIBUSES_DIR = path.resolve(__dirname, "..", "omnibuses");
+const ARCHIVE_DIR = path.join(OMNIBUSES_DIR, "_archive");
 
 export const omnibusTaskBuilders: Array<ReturnType<typeof task>> = [];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,24 +89,31 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
       throw new Error("Invalid name. Omnibus name should match patter: yyyy_dd_mm_some_optional_info");
     }
 
-    const omnibusesDir = path.join(__dirname, "..", "omnibuses");
-    const newOmnibusDir = path.join(omnibusesDir, omnibusName);
+    const newOmnibusDir = path.join(OMNIBUSES_DIR, omnibusName);
+    const archivedOmnibusDir = await findArchivedOmnibusDir(omnibusName);
+
+    if (archivedOmnibusDir) {
+      throw new Error(`Omnibus ${omnibusName} is already archived at ${archivedOmnibusDir}`);
+    }
 
     if (await files.touchDir(newOmnibusDir)) {
       throw new Error(`Omnibus ${newOmnibusDir} already exist`);
     }
 
     const templateDirName = "_omnibus_template";
-    const templatePath = path.join(omnibusesDir, templateDirName);
+    const templatePath = path.join(OMNIBUSES_DIR, templateDirName);
 
     await fs.cp(templatePath, newOmnibusDir, { recursive: true });
 
     const omnibusDescriptionPath = path.join(newOmnibusDir, `${omnibusName}.md`);
     const omnibusScriptPath = path.join(newOmnibusDir, `${omnibusName}.ts`);
+    const omnibusContractName = `Omnibus_${omnibusName}`;
+    const omnibusContractPath = path.join(newOmnibusDir, `${omnibusContractName}.sol`);
     const templateFileName = "_omnibus_template";
 
     await fs.rename(path.join(newOmnibusDir, `${templateFileName}.ts`), omnibusScriptPath);
     await fs.rename(path.join(newOmnibusDir, `${templateFileName}.md`), omnibusDescriptionPath);
+    await fs.rename(path.join(newOmnibusDir, "OmnibusTemplate.sol"), omnibusContractPath);
 
     // replace name of the omnibus in the description markdown file
     const omnibusDescriptionContent = await fs.readFile(omnibusDescriptionPath, "utf-8");
@@ -118,9 +128,22 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
 
     await fs.writeFile(omnibusScriptPath, omnibusScriptContent.replace("mainnet", network), { encoding: "utf-8" });
 
-    console.log(`Omnibus file was successfully created:`);
-    console.log(`- Script file: ${omnibusScriptPath}`);
+    const omnibusContractContent = await fs.readFile(omnibusContractPath, "utf-8");
+    await fs.writeFile(
+      omnibusContractPath,
+      omnibusContractContent
+        .replace("contract OmnibusTemplate", `contract ${omnibusContractName}`)
+        .replace(
+          /(address public constant VOTING = )0x[\da-fA-F]{40}/,
+          `$1${getGovernanceContracts(network).voting.address}`,
+        ),
+      { encoding: "utf-8" },
+    );
+
+    console.log(`Omnibus files were successfully created:`);
     console.log(`- Description file: ${omnibusDescriptionPath}`);
+    console.log(`- Contract file: ${omnibusContractPath}`);
+    console.log(`- Test file: ${omnibusScriptPath}`);
   },
 );
 
@@ -146,63 +169,14 @@ defineTask("omnibus:archive", "Move launched omnibus to archive folder")
       throw new Error(`Omnibus doesn't have "executedAt" property set and "quorumReached" is not false`);
     }
 
-    const omnibusPath = path.resolve(__dirname, "..", "omnibuses", name);
-    const archivePath = path.resolve(__dirname, "..", "omnibuses", "_archive", omnibus.network, name);
+    const omnibusPath = path.join(OMNIBUSES_DIR, name);
+    const archivePath = path.join(ARCHIVE_DIR, omnibus.network, name);
 
     await fs.cp(omnibusPath, archivePath, { errorOnExist: true, recursive: true });
     await fs.rm(omnibusPath, { recursive: true });
 
     console.log(`Omnibus ${name} was archived to ${archivePath}`);
   });
-
-defineTask("omnibus:contract", "Generate solidity omnibus contract from an existing omnibus script")
-  .addPositionalArgument({ name: "name", description: "Name of the omnibus to convert" })
-  .addOption({
-    name: "contractName",
-    description: "Name of the generated solidity contract",
-    defaultValue: "",
-  })
-  .addOption({
-    name: "formatter",
-    description: "Formatter to use: prettier|forge|none",
-    defaultValue: "forge",
-  })
-  .addFlag({ name: "force", description: "overwrite existing contract file" })
-  .setAction(
-    async (
-      taskArgs: { name: string; contractName: string; formatter: string; force: boolean },
-      hre: HardhatRuntimeEnvironment,
-    ) => {
-      const { name, contractName, formatter, force } = taskArgs;
-      const normalizedContractName = contractName || undefined;
-      const omnibus = await loadOmnibus(name);
-
-      if (omnibus.hasDeployMethod() && !omnibus.getDeployment()) {
-        console.log(
-          fmt.padded(
-            `Omnibus "${name}" has deploy() and doesn't contain deployment addresses. Resolving deployment contracts for generation...`,
-            1,
-          ),
-        );
-      }
-
-      if (!["prettier", "forge", "none"].includes(formatter)) {
-        throw new Error(`Unsupported formatter "${formatter}". Use: prettier, forge, none`);
-      }
-
-      const { generatedFilePath } = await generateOmnibusContractFile({
-        hre,
-        omnibus,
-        omnibusName: name,
-        contractName: normalizedContractName,
-        force,
-        formatter: formatter as "prettier" | "forge" | "none",
-        rootDir: path.resolve(__dirname, ".."),
-      });
-
-      console.log(`Solidity contract generated: ${generatedFilePath}`);
-    },
-  );
 
 defineTask("omnibus:build", "Build Solidity omnibus contract(s) for the given omnibus")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to build contracts for" })
@@ -221,24 +195,25 @@ function omnibusNameToDescriptionHeader(omnibusName: string) {
     .replace(/(\d{4}) (\d{2}) (\d{2})/g, "$1-$2-$3");
 }
 
-defineTask("omnibus:deploy", "Run deploy method on an omnibus script")
-  .addPositionalArgument({ name: "name", description: "Name of the omnibus script with the deploy() method to run" })
+defineTask("omnibus:deploy", "Deploy the contracts of an omnibus")
+  .addPositionalArgument({ name: "name", description: "Name of the omnibus to deploy" })
   .addFlag({ name: "broadcast", description: "broadcast the transaction to the network" })
   .setAction(async (taskArgs: { name: string; broadcast: boolean }, hre: HardhatRuntimeEnvironment) => {
     const { name, broadcast = false } = taskArgs;
     const omnibus = await loadOmnibus(name);
-
-    if (!omnibus.hasDeployMethod()) {
-      throw new Error(`Omnibus "${name}" doesn't have deploy method`);
-    }
+    const defaultContractName = omnibus.hasDeployMethod() ? undefined : await findDefaultOmnibusContractName(name);
 
     const deployment = omnibus.getDeployment();
 
-    if (deployment) {
+    if (deployment && Object.keys(deployment).length > 0) {
       const deployedAddresses = Object.fromEntries(
         Object.entries(deployment).map(([name, contract]) => [name, contract.address]),
       );
       throw new Error(`Omnibus contracts already deployed at ${JSON.stringify(deployedAddresses)}`);
+    }
+
+    if (broadcast && defaultContractName) {
+      await validateDefaultOmnibusDeploymentCanBeRecorded(name);
     }
 
     await buildOmnibusContracts(hre, name);
@@ -263,10 +238,25 @@ defineTask("omnibus:deploy", "Run deploy method on an omnibus script")
     console.log(`Deployer: ${deployer.address}`);
     console.log(`Balance: ${await client.getBalance(deployer.address)}`);
 
-    await prompt.confirm(`Deploy omnibus contract(s)?`);
-    const deployedOmnibusContract = await omnibus.deployOmnibusContracts(hre.artifacts, client, { from: deployer });
+    await prompt.confirmOrAbort(`Deploy omnibus contract(s)?`);
+    const deployedContracts = await deployOmnibusForLaunch(hre, client, omnibus, defaultContractName, {
+      from: deployer,
+    });
 
-    console.log(`Omnibus contract ${deployedOmnibusContract.label} was deployed at ${deployedOmnibusContract.address}`);
+    console.log(`Deployed omnibus contracts:`);
+    for (const [contractName, deployedContract] of Object.entries(deployedContracts)) {
+      console.log(`  - "${contractName}" - ${deployedContract.label}[${deployedContract.address}]`);
+    }
+
+    if (broadcast && defaultContractName) {
+      const deployedOmnibusContract = deployedContracts.omnibus;
+      if (!deployedOmnibusContract) {
+        throw new Error(`Default omnibus deployment didn't return an "omnibus" contract`);
+      }
+      const omnibusScriptPath = await getOmnibusScriptPath(name);
+      await recordDefaultOmnibusDeployment(omnibusScriptPath, deployedOmnibusContract.address);
+      console.log(`Saved deployment.omnibus to ${path.relative(process.cwd(), omnibusScriptPath)}`);
+    }
   });
 
 defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
@@ -276,6 +266,7 @@ defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
     const omnibus = await loadOmnibus(name);
     const client = await prepareDevRpcClient(omnibus.network, hre);
     await prepareOmnibus(hre, client, omnibus);
+    await printEvmScript(name, omnibus.getEvmScript());
     await omnibus.test(client);
   });
 
@@ -425,10 +416,10 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
 
     await prepareOmnibus(hre, client, omnibus);
 
-    const descriptionFilePath = path.join(__dirname, "..", "omnibuses", name, `${name}.md`);
-    const description = await fs.readFile(descriptionFilePath, { encoding: "utf-8" });
+    const description = await readOmnibusDescriptionFile(name);
 
     const descriptionUrl = await uploadDescription(name, description, false);
+    const voteDescription = omnibus.formatDescription(descriptionUrl);
     const evmScript = omnibus.getEvmScript();
 
     console.log();
@@ -438,16 +429,14 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
     console.log();
 
     console.log(chalk.bold.underline("Omnibus Aragon Vote description:\n"));
-    console.log(chalk.gray(omnibus.formatDescription(descriptionUrl)));
+    console.log(chalk.gray(voteDescription));
     console.log();
 
     console.log(chalk.bold.underline("Omnibus IPFS description:\n"));
     console.log(chalk.gray(description));
     console.log();
 
-    console.log(chalk.bold.underline("Omnibus EVM script:\n"));
-    console.log(chalk.greenBright(evmScript));
-    console.log();
+    await printEvmScript(name, evmScript);
 
     if (broadcast) {
       console.log(
@@ -489,7 +478,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
 
     await prompt.confirmOrAbort(`Proceed?`);
 
-    const { receipt, voteId } = await startAragonVote(client, evmScript, omnibus.formatDescription(), {
+    const { receipt, voteId } = await startAragonVote(client, evmScript, voteDescription, {
       from: pilot,
     });
 
@@ -566,12 +555,95 @@ defineTask("omnibus:execute-proposal", "Executes proposal with a given id")
     console.log(` - tx hash: ${executeReceipt.transactionHash}`);
   });
 
+async function printEvmScript(name: string, evmScript: string) {
+  const evmScriptPath = path.join(await resolveOmnibusDir(name), `${name}.evm-script.hex`);
+  await fs.writeFile(evmScriptPath, evmScript + "\n");
+
+  console.log(chalk.bold.underline("Omnibus EVM script:\n"));
+  console.log(chalk.greenBright(evmScript));
+  console.log(chalk.gray(`\nSaved to ${path.relative(process.cwd(), evmScriptPath)}\n`));
+}
+
+async function readOmnibusDescriptionFile(name: string): Promise<string> {
+  const descriptionFilePath = path.join(await resolveOmnibusDir(name), `${name}.md`);
+  return fs.readFile(descriptionFilePath, { encoding: "utf-8" });
+}
+
 async function loadOmnibus(name: string): Promise<Omnibus> {
-  const omnibusModulePath = path.resolve(__dirname, "..", "omnibuses", name, `${name}.ts`);
+  const omnibusModulePath = await getOmnibusScriptPath(name);
   const omnibusModule = await import(pathToFileURL(omnibusModulePath).href);
   const omnibus: Omnibus = omnibusModule.default;
   omnibus.setName(name);
   return omnibus;
+}
+
+async function isDirectory(dirPath: string): Promise<boolean> {
+  try {
+    return (await fs.stat(dirPath)).isDirectory();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+/** `omnibuses/_archive/<network>/<name>`, or `undefined` when the omnibus is not archived. */
+async function findArchivedOmnibusDir(name: string): Promise<string | undefined> {
+  const networkDirs = (await isDirectory(ARCHIVE_DIR)) ? await fs.readdir(ARCHIVE_DIR) : [];
+  const archivedDirs: string[] = [];
+  for (const networkDir of networkDirs) {
+    const archivedDir = path.join(ARCHIVE_DIR, networkDir, name);
+    if (await isDirectory(archivedDir)) {
+      archivedDirs.push(archivedDir);
+    }
+  }
+
+  if (archivedDirs.length > 1) {
+    throw new Error(`Omnibus "${name}" is archived for several networks: ${archivedDirs.join(", ")}`);
+  }
+  return archivedDirs[0];
+}
+
+/** An omnibus lives in `omnibuses/<name>` until it is archived to `omnibuses/_archive/<network>/<name>`. */
+async function resolveOmnibusDir(name: string): Promise<string> {
+  const activeDir = path.join(OMNIBUSES_DIR, name);
+  if (await isDirectory(activeDir)) {
+    return activeDir;
+  }
+
+  const archivedDir = await findArchivedOmnibusDir(name);
+  if (!archivedDir) {
+    throw new Error(`Omnibus "${name}" not found in ${activeDir} or ${path.join(ARCHIVE_DIR, "<network>", name)}`);
+  }
+  return archivedDir;
+}
+
+async function getOmnibusScriptPath(name: string): Promise<string> {
+  return path.join(await resolveOmnibusDir(name), `${name}.ts`);
+}
+
+async function validateDefaultOmnibusDeploymentCanBeRecorded(name: string): Promise<void> {
+  const source = await fs.readFile(await getOmnibusScriptPath(name), "utf-8");
+  renderDefaultOmnibusDeployment(source, "0x0000000000000000000000000000000000000000");
+}
+
+export async function recordDefaultOmnibusDeployment(omnibusScriptPath: string, address: Address): Promise<void> {
+  const source = await fs.readFile(omnibusScriptPath, "utf-8");
+  const updatedSource = renderDefaultOmnibusDeployment(source, address);
+  await fs.writeFile(omnibusScriptPath, updatedSource, "utf-8");
+}
+
+export function deployOmnibusForLaunch(
+  hre: HardhatRuntimeEnvironment,
+  client: RpcClient,
+  omnibus: Omnibus,
+  defaultContractName: string | undefined,
+  txOptions: WriteContractOptions,
+) {
+  return defaultContractName
+    ? omnibus.deployOmnibusContract(hre.artifacts, client, defaultContractName, txOptions)
+    : omnibus.deployOmnibusContracts(hre.artifacts, client, txOptions);
 }
 
 async function prepareLocalRpcNode(network: NetworkName) {
@@ -681,50 +753,89 @@ export async function prepareOmnibus(
 ) {
   console.log(`⏳Preparing omnibus "${omnibus.name}"...`);
 
-  if (omnibus.hasDeployMethod()) {
-    console.log(`Omnibus "${omnibus.name}" has deploy() method, preparing contracts required for omnibus launch...`);
-    let deployment = omnibus.getDeployment();
-    if (deployment) {
-      console.log(`Contracts already deployed:`);
-      for (const [name, contract] of Object.entries(deployment)) {
-        console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
-      }
-    } else if (client instanceof DevRpcClient) {
-      console.log(fmt.padded("Compiling contracts before deploy...", 3));
-      await buildOmnibusContracts(hre, omnibus.name, true);
-      console.log(fmt.padded(fmt.success("Contracts compiled successfully"), 3));
+  const defaultContractName = omnibus.hasDeployMethod()
+    ? undefined
+    : await findDefaultOmnibusContractName(omnibus.name);
 
-      const [deployer] = await client.getAccounts();
-      console.log(fmt.padded(`Deploying omnibus contracts using test account ${deployer}`, 3));
-      deployment = await omnibus.deployOmnibusContracts(hre.artifacts, client, { from: deployer }, { padLength: 4 });
-      console.log(fmt.padded(fmt.success(`All contracts successfully deployed:`), 3));
-      for (const [name, contract] of Object.entries(deployment)) {
-        console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
-      }
-    } else {
-      throw new Error(
-        `Omnibus contracts was not deployed. Use "omnibus:deploy <omnibus_name> --broadcast" command to deploy contracts`,
-      );
+  console.log(`Omnibus "${omnibus.name}" is launched from a contract, preparing it for the launch...`);
+  let deployment = omnibus.getDeployment();
+  if (deployment && Object.keys(deployment).length > 0) {
+    console.log(`Contracts already deployed:`);
+    for (const [name, contract] of Object.entries(deployment)) {
+      console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
     }
+  } else if (client instanceof DevRpcClient) {
+    console.log(fmt.padded("Compiling contracts before deploy...", 3));
+    await buildOmnibusContracts(hre, omnibus.name, true);
+    console.log(fmt.padded(fmt.success("Contracts compiled successfully"), 3));
 
-    if (deployment.omnibus) {
-      console.log(fmt.padded(`Loading and validating omnibus calls from the contract...`, 2));
-      await omnibus.loadAndValidateOmnibusContractCalls(client);
-      console.log(fmt.padded(fmt.success(`Omnibus calls successfully validated`), 2));
+    const [deployer] = await client.getAccounts();
+    console.log(fmt.padded(`Deploying omnibus contracts using test account ${deployer}`, 3));
+    deployment = defaultContractName
+      ? await omnibus.deployOmnibusContract(
+          hre.artifacts,
+          client,
+          defaultContractName,
+          { from: deployer },
+          { padLength: 4 },
+        )
+      : await omnibus.deployOmnibusContracts(hre.artifacts, client, { from: deployer }, { padLength: 4 });
+    console.log(fmt.padded(fmt.success(`All contracts successfully deployed:`), 3));
+    for (const [name, contract] of Object.entries(deployment)) {
+      console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
     }
+  } else {
+    throw new Error(
+      `Omnibus contracts was not deployed. Use "omnibus:deploy <omnibus_name> --broadcast" command to deploy contracts`,
+    );
+  }
+
+  if (deployment.omnibus) {
+    console.log(fmt.padded(`Loading and validating omnibus calls from the contract...`, 2));
+    await omnibus.loadAndValidateOmnibusContractCalls(client);
+    console.log(fmt.padded(fmt.success(`Omnibus calls successfully validated`), 2));
+
+    console.log(fmt.padded(`Validating Dual Governance proposal descriptions...`, 2));
+    omnibus.validateDgProposalDescriptions(await readOmnibusDescriptionFile(omnibus.name));
+    console.log(fmt.padded(fmt.success(`Proposal descriptions match the description file`), 2));
+  } else {
+    throw new Error(`Omnibus deployment must contain an "omnibus" contract`);
   }
   console.log(fmt.success("Omnibus prepared\n"));
 
   return omnibus;
 }
 
-async function buildOmnibusContracts(hre: HardhatRuntimeEnvironment, omnibusName: string, quiet = false) {
-  const omnibusDirPath = path.resolve(__dirname, "..", "omnibuses", omnibusName);
-
-  const omnibusSolidityFiles = await fs
+async function collectOmnibusSolidityFiles(omnibusDirPath: string): Promise<string[]> {
+  return fs
     .readdir(omnibusDirPath)
     .then((entries) => entries.filter((entry) => entry.endsWith(".sol") && !entry.endsWith(".t.sol")))
     .then((entries) => entries.map((entry) => path.relative(process.cwd(), path.join(omnibusDirPath, entry))));
+}
+
+/**
+ * @returns name of the contract to deploy for an omnibus without a "deploy" section
+ */
+async function findDefaultOmnibusContractName(omnibusName: string): Promise<string> {
+  const omnibusSolidityFiles = await collectOmnibusSolidityFiles(await resolveOmnibusDir(omnibusName));
+
+  if (omnibusSolidityFiles.length === 0) {
+    throw new Error(`Omnibus "${omnibusName}" has no Solidity contract`);
+  }
+
+  if (omnibusSolidityFiles.length > 1) {
+    throw new Error(
+      `Omnibus "${omnibusName}" contains more than one Solidity contract, so it has to deploy them in its ` +
+        `"deploy" section: ${omnibusSolidityFiles.join(", ")}`,
+    );
+  }
+
+  return path.basename(omnibusSolidityFiles[0], ".sol");
+}
+
+async function buildOmnibusContracts(hre: HardhatRuntimeEnvironment, omnibusName: string, quiet = false) {
+  const omnibusDirPath = await resolveOmnibusDir(omnibusName);
+  const omnibusSolidityFiles = await collectOmnibusSolidityFiles(omnibusDirPath);
 
   if (omnibusSolidityFiles.length === 0) {
     throw new Error(`No Solidity contracts found in omnibus folder: ${omnibusDirPath}`);
@@ -738,7 +849,7 @@ async function buildOmnibusContracts(hre: HardhatRuntimeEnvironment, omnibusName
 }
 
 async function collectOmnibusSolidityTests(omnibusName: string): Promise<string[]> {
-  const omnibusDirPath = path.resolve(__dirname, "..", "omnibuses", omnibusName);
+  const omnibusDirPath = await resolveOmnibusDir(omnibusName);
 
   const walk = async (currentPath: string): Promise<string[]> => {
     const entries = await fs.readdir(currentPath, { withFileTypes: true });

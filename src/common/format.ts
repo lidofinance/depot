@@ -52,11 +52,9 @@ function formatRawFunctionCall(params: FormatUndecodedFunctionCallParams) {
   const padLength = params.padLength ?? 0;
   const functionSignature = `[${address(params.address)}::${params.input}]`;
   const functionResult = params.output ? `${ok("<- [return]:")} ${params.output}` : `${ok("<- [stop]")}`;
+  const callPrefix = params.callType ? opcode(params.callType) + " " : "";
 
-  return [
-    padded(params.callType ? opcode(params.callType) : "" + functionSignature, padLength),
-    padded(functionResult, padLength + 1),
-  ].join("\n");
+  return [padded(callPrefix + functionSignature, padLength), padded(functionResult, padLength + 1)].join("\n");
 }
 
 interface FormatDecodedFunctionCallParams {
