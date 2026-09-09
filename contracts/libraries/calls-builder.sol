@@ -36,6 +36,49 @@ library VoteCallsBuilderUtils {
         return self;
     }
 
+    /// @notice Submits a Dual Governance proposal, describing it with `metadata`.
+    /// @param title Title of the vote item. Off-chain only — vote items are described in the vote
+    ///     description, and the title never reaches the EVM script.
+    /// @param metadata Description of the proposal. Unlike `title`, it is an argument of
+    ///     `submitProposal` and therefore part of the payload the DAO votes on, so it must be
+    ///     written by the omnibus author rather than derived from anything.
+    function submitCalls(
+        VoteCallsBuilder memory self,
+        string memory title,
+        string memory metadata,
+        address governance,
+        ProposalCallsBuilder memory proposalCallsBuilder
+    ) internal pure returns (VoteCallsBuilder memory) {
+        return submitCalls(self, title, metadata, governance, ProposalCallsBuilderUtils.getCalls(proposalCallsBuilder));
+    }
+
+    /// @notice Submits a Dual Governance proposal, describing it with `metadata`.
+    /// @param title Title of the vote item. Off-chain only — see the overload above.
+    /// @param metadata Description of the proposal, part of the submitted payload.
+    function submitCalls(
+        VoteCallsBuilder memory self,
+        string memory title,
+        string memory metadata,
+        address governance,
+        ProposalCall[] memory submittedCalls
+    ) internal pure returns (VoteCallsBuilder memory) {
+        ExternalCall[] memory externalCalls = new ExternalCall[](submittedCalls.length);
+
+        for (uint256 i = 0; i < submittedCalls.length; ++i) {
+            ProposalCall memory proposalCall = submittedCalls[i];
+            externalCalls[i] = ExternalCall(proposalCall.target, proposalCall.value, proposalCall.payload);
+        }
+
+        _addCall(self, title, governance, abi.encodeCall(IGovernance.submitProposal, (externalCalls, metadata)));
+
+        return self;
+    }
+
+    /// @notice Submits a Dual Governance proposal, composing its description from the titles of
+    ///     the calls it contains.
+    /// @dev Prefer the overloads taking an explicit `metadata`: the composed description ends up
+    ///     in the submitted payload, so deriving it silently ties what the DAO votes on to how the
+    ///     vote items happen to be worded.
     function submitCalls(
         VoteCallsBuilder memory self,
         string memory title,
@@ -45,24 +88,20 @@ library VoteCallsBuilderUtils {
         return submitCalls(self, title, governance, ProposalCallsBuilderUtils.getCalls(proposalCallsBuilder));
     }
 
+    /// @notice Submits a Dual Governance proposal, composing its description from call titles.
+    /// @dev See the overload above — prefer passing `metadata` explicitly.
     function submitCalls(
         VoteCallsBuilder memory self,
         string memory title,
         address governance,
         ProposalCall[] memory submittedCalls
     ) internal pure returns (VoteCallsBuilder memory) {
-        ExternalCall[] memory externalCalls = new ExternalCall[](submittedCalls.length);
-
         string memory metadata = title;
         for (uint256 i = 0; i < submittedCalls.length; ++i) {
-            ProposalCall memory proposalCall = submittedCalls[i];
-            metadata = string(abi.encodePacked(metadata, "\n", proposalCall.title));
-            externalCalls[i] = ExternalCall(proposalCall.target, proposalCall.value, proposalCall.payload);
+            metadata = string(abi.encodePacked(metadata, "\n", submittedCalls[i].title));
         }
 
-        _addCall(self, title, governance, abi.encodeCall(IGovernance.submitProposal, (externalCalls, metadata)));
-
-        return self;
+        return submitCalls(self, title, metadata, governance, submittedCalls);
     }
 
     function getCalls(VoteCallsBuilder memory self) internal pure returns (VoteCall[] memory) {
