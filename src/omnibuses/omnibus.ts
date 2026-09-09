@@ -551,8 +551,24 @@ export class Omnibus<
     );
   }
 
-  format({ padLength = 0 }: OmnibusFormatParams) {
-    return this.#formatContractVoteCalls(padLength);
+  format({ executeOmnibusTrace, executeProposalTraces = [], padLength = 0 }: OmnibusFormatParams) {
+    const strBuilder: string[] = [this.#formatContractVoteCalls(padLength)];
+
+    const appendTrace = (title: string, trace: TxTrace) => {
+      strBuilder.push(fmt.padded(chalk.bold(title), padLength));
+      strBuilder.push(trace.calls.length === 0 ? fmt.padded("(empty)", padLength + 1) : trace.format(padLength + 1));
+      strBuilder.push("");
+    };
+
+    if (executeOmnibusTrace) {
+      appendTrace("Vote execution trace:", executeOmnibusTrace);
+    }
+
+    executeProposalTraces.forEach((trace, index) => {
+      appendTrace(`Proposal #${index + 1} execution trace:`, trace);
+    });
+
+    return strBuilder.join("\n");
   }
 
   // ---

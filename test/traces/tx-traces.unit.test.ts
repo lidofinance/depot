@@ -1,6 +1,7 @@
 import { assert } from "../../src/common/assert";
 import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, encodeFunctionResult } from "viem";
 import { TxTrace, TxTraceCallItem, TxTraceItem } from "../../src/traces/tx-traces";
+import fmt from "../../src/common/format";
 
 const testAbi = [
   {
@@ -20,6 +21,13 @@ const testAbi = [
     ],
   },
 ] as const;
+
+// chalk keeps colors when the runner is attached to a TTY, so assertions compare against plain text
+const ANSI_ESCAPE_PATTERN = new RegExp("\u001B\\[[0-9;]*m", "g");
+
+function stripAnsi(text: string): string {
+  return text.replace(ANSI_ESCAPE_PATTERN, "");
+}
 
 const contractAddress = "0x1111111111111111111111111111111111111111" as `0x${string}`;
 const unknownAddress = "0x2222222222222222222222222222222222222222" as `0x${string}`;
@@ -207,5 +215,25 @@ describe("TxTrace", () => {
     // padded version should have more leading whitespace
     assert.isAbove(withPad.length, noPad.length);
     assert.match(withPad, /^\s{6}/); // 3 * 2-char pad
+  });
+
+  it("prints opcode, address and raw input when calldata cannot be decoded", () => {
+    const rawInput = "0xdeadbeef" as `0x${string}`;
+    const callItem: TxTraceCallItem = { ...createCallItem(unknownAddress), input: rawInput, output: "0x" };
+    const trace = new TxTrace("mainnet", unknownAddress, [callItem], { [unknownAddress]: [] } as any, []);
+
+    const result = stripAnsi(trace.formatOpCode(trace.calls[0], 0));
+
+    assert.include(result, "CALL");
+    assert.include(result, unknownAddress);
+    assert.include(result, rawInput);
+  });
+
+  it("prints the raw call signature when callType is omitted", () => {
+    const result = stripAnsi(fmt.rawFuncCall({ address: unknownAddress, input: "0xdeadbeef" }));
+
+    assert.include(result, unknownAddress);
+    assert.include(result, "0xdeadbeef");
+    assert.notInclude(result, "CALL");
   });
 });
