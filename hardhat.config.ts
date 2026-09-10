@@ -36,7 +36,16 @@ process.on("SIGTERM", () => {
 });
 
 async function stopDockerContainers() {
-  const containerNames = ["lido-core", "lido-scripts", "lido-scripts-1", "lido-dual-governance", "hh-rpc-node"];
+  const containerNames = [
+    "lido-core",
+    "lido-scripts",
+    "lido-scripts-1",
+    "lido-dual-governance",
+    "lido-staking-modules",
+    "lido-staking-modules-1",
+    "lido-stonks",
+    "hh-rpc-node",
+  ];
   const containers = await Promise.all(containerNames.map((name) => findContainerByName(name)));
 
   const stopContainerPromises: Promise<unknown>[] = [];
