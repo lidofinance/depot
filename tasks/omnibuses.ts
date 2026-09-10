@@ -202,6 +202,7 @@ defineTask("omnibus:deploy", "Deploy the contracts of an omnibus")
   .addFlag({ name: "broadcast", description: "broadcast the transaction to the network" })
   .setAction(async (taskArgs: { name: string; broadcast: boolean }, hre: HardhatRuntimeEnvironment) => {
     const { name, broadcast = false } = taskArgs;
+    assertVoteAddresses(await resolveOmnibusDir(name));
     const omnibus = await loadOmnibus(name);
     const defaultContractName = omnibus.hasDeployMethod() ? undefined : await findDefaultOmnibusContractName(name);
 

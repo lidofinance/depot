@@ -92,7 +92,7 @@ describe("vote address lint entrypoints", () => {
     assert.match(result.stderr, /Cannot parse imported source shared\.sol:.*\(1:9\)/);
   });
 
-  for (const task of ["omnibus:test", "omnibus:build"]) {
+  for (const task of ["omnibus:test", "omnibus:build", "omnibus:deploy"]) {
     it(`blocks ${task} before importing a vote or compiling/connecting to RPC`, async () => {
       const directory = mkdtempSync(path.resolve("omnibuses/_address_lint_"));
       const name = path.basename(directory);
