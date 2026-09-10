@@ -691,7 +691,7 @@ function resolveForkBlock(taskArg: string): bigint | undefined {
   if (!taskArg) {
     return undefined;
   }
-  if (!/^\d+$/.test(taskArg)) {
+  if (!/^[1-9]\d*$/.test(taskArg)) {
     throw new Error(`Fork block must be a positive integer, got "${taskArg}"`);
   }
   return BigInt(taskArg);

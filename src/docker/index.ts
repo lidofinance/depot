@@ -6,6 +6,7 @@ import { createWriteStream, mkdirSync, readFileSync } from "node:fs";
 import { logGreen } from "../common/color";
 import util from "node:util";
 import { Transform } from "node:stream";
+import { finished } from "node:stream/promises";
 import os from "os";
 
 type ContainerRunResponse = [{ StatusCode: number }, Container, id: string, Record<string, object>];
@@ -478,6 +479,7 @@ export async function runTestsFromRepo(
   } finally {
     stopFollowing();
     logFile.end();
+    await finished(logFile);
   }
 
   const [statusInfo] = data;

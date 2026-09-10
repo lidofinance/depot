@@ -1,7 +1,7 @@
 # Tests for the external repos
 
-You could mount this files into `core`, `scripts`, `dual-governance`, `staking-modules` and `stonks` containers.
-It could help to develop all vouting tests in one place and move it to different repos after.
+You can mount these files into the `core`, `scripts`, `dual-governance`, `staking-modules`, and `stonks` containers.
+This helps develop all voting tests in one place before moving them to the different repositories.
 
 Every directory holds an example test written in the toolchain of its repo:
 
