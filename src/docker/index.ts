@@ -2,7 +2,7 @@ import Docker, { Container } from "dockerode";
 import * as env from "../common/env";
 import process from "node:process";
 import chalk from "chalk";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, mkdirSync, readFileSync } from "node:fs";
 import { logGreen } from "../common/color";
 import util from "node:util";
 import { Transform } from "node:stream";
@@ -12,11 +12,123 @@ type ContainerRunResponse = [{ StatusCode: number }, Container, id: string, Reco
 
 const docker = new Docker();
 
+export function getLogFilePath(name: string) {
+  const logsDir = `${process.cwd()}/logs`;
+  mkdirSync(logsDir, { recursive: true });
+  return `${logsDir}/${name.replace(/\W/g, "-")}.log`;
+}
+
 export function getStdout(name: string) {
-  // FIXME: Fails when the logs folder does not exist
-  const logFilePath = `${process.cwd()}/logs/${name.replace(/\W/g, "-")}.log`;
-  logGreen(`You will able to see container log here: \n${logFilePath}`);
+  const logFilePath = getLogFilePath(name);
+  logGreen(`Container log: ${logFilePath}`);
   return createWriteStream(logFilePath);
+}
+
+const PROGRESS_POLL_MS = 2_000;
+
+function completeLines(logFilePath: string) {
+  // drop the trailing partial line
+  return readFileSync(logFilePath, "utf8").split("\n").slice(0, -1);
+}
+
+const MOCHA_PASSED_LINE = /^\s+[✔✓] /;
+const MOCHA_FAILED_LINE = /^\s+\d+\) /;
+const MOCHA_SUMMARY_LINE = /^\s+\d+ (passing|failing|pending)\b/;
+
+/** `31 ✔ · 2 ✖` of a mocha run */
+function mochaProgressOf(lines: string[]) {
+  // failures are listed again after the summary
+  const summaryStart = lines.findIndex((line) => MOCHA_SUMMARY_LINE.test(line));
+  const results = summaryStart === -1 ? lines : lines.slice(0, summaryStart);
+  const passed = results.filter((line) => MOCHA_PASSED_LINE.test(line)).length;
+  const failed = results.filter((line) => MOCHA_FAILED_LINE.test(line)).length;
+  return passed || failed ? `${passed} ✔ · ${failed} ✖` : "";
+}
+
+const FORGE_PASSED_LINE = /^\[PASS\] /;
+const FORGE_FAILED_LINE = /^\[FAIL[:\]]/;
+const FORGE_TOTAL_LINE = /^Ran \d+ test suites? in /;
+const FORGE_SUITE_RESULT_LINE = /^\s*↪ Suite result: (?:ok|FAILED)\. (\d+) passed; (\d+) failed;/;
+
+/** `12 ✔ · 0 ✖` of a forge run */
+function forgeProgressOf(lines: string[]) {
+  // failures are listed again after the total
+  const totalStart = lines.findIndex((line) => FORGE_TOTAL_LINE.test(line));
+  const results = totalStart === -1 ? lines : lines.slice(0, totalStart);
+  const summaries = results.map((line) => FORGE_SUITE_RESULT_LINE.exec(line)).filter((summary) => summary !== null);
+  const passed = summaries.length
+    ? summaries.reduce((count, summary) => count + Number(summary[1]), 0)
+    : results.filter((line) => FORGE_PASSED_LINE.test(line)).length;
+  const failed = summaries.length
+    ? summaries.reduce((count, summary) => count + Number(summary[2]), 0)
+    : results.filter((line) => FORGE_FAILED_LINE.test(line)).length;
+  return passed || failed ? `${passed} ✔ · ${failed} ✖` : "";
+}
+
+/** `14% (50/351)` for pytest, `31 ✔ · 2 ✖` for mocha/forge, empty until the first result */
+export function progressOf(lines: string[]): string {
+  const collected = lines
+    .map((line) => /^collected \d+ items?(?: \/ \d+ deselected \/ (\d+) selected)?/.exec(line))
+    .find(Boolean);
+  if (!collected) {
+    return mochaProgressOf(lines) || forgeProgressOf(lines);
+  }
+  const total = Number(collected[1] ?? /^collected (\d+)/.exec(collected[0])?.[1]);
+  // `tests/x.py ..F.  [ 14%]`, long files wrap onto bare `......` lines
+  const resultLine = /^(\S+\.py )?([.FsxE]+)\s*(\[\s*\d+%\])?$/;
+  const done = lines.reduce((count, line) => count + (resultLine.exec(line)?.[2].length ?? 0), 0);
+  return `${Math.floor((done / total) * 100)}% (${done}/${total})`;
+}
+
+/** Prints the log progress when it changes; the returned callback stops it */
+function followProgress(name: string, logFilePath: string) {
+  let lastProgress = "";
+  const tick = () => {
+    const progress = progressOf(completeLines(logFilePath));
+    if (progress && progress !== lastProgress) {
+      lastProgress = progress;
+      console.log(`[${name}] ${progress}`);
+    }
+  };
+  const timer = setInterval(tick, PROGRESS_POLL_MS);
+  return () => clearInterval(timer);
+}
+
+/** Mocha `N passing / N failing` lines and the failed test titles */
+function summarizeMochaLog(lines: string[]) {
+  const summaryStart = lines.findIndex((line) => MOCHA_SUMMARY_LINE.test(line));
+  if (summaryStart === -1) {
+    return null;
+  }
+  const summary = lines.slice(summaryStart);
+  // `N) suite` line plus the test title on the next line
+  const failures = summary.flatMap((line, index) =>
+    MOCHA_FAILED_LINE.test(line) ? [line, summary[index + 1] ?? ""] : [],
+  );
+  return [...summary.filter((line) => MOCHA_SUMMARY_LINE.test(line)), ...failures].join("\n");
+}
+
+/** Forge `Ran N test suites …` line and the failed tests */
+function summarizeForgeLog(lines: string[]) {
+  const totalStart = lines.findIndex((line) => FORGE_TOTAL_LINE.test(line));
+  if (totalStart === -1) {
+    return null;
+  }
+  return lines
+    .slice(totalStart)
+    .filter((line) => FORGE_TOTAL_LINE.test(line) || FORGE_FAILED_LINE.test(line))
+    .join("\n");
+}
+
+/** Test summary of a pytest, mocha or forge log; the tail of any other log */
+export function summarizeLog(logFilePath: string, tailLines = 15) {
+  const lines = completeLines(logFilePath);
+  const summaryStart = lines.findIndex((line) => /^=+ short test summary info =+$/.test(line));
+  if (summaryStart !== -1) {
+    return lines.slice(summaryStart).join("\n");
+  }
+  const resultLine = lines.filter((line) => /^=+ .*\b(passed|failed|error)\b.* =+$/.test(line)).pop();
+  return resultLine ?? summarizeMochaLog(lines) ?? summarizeForgeLog(lines) ?? lines.slice(-tailLines).join("\n");
 }
 
 /** Stop docker container and rename if isTmpContainer is true */
@@ -112,10 +224,10 @@ export async function runImageInBackground(
   const result = await Promise.race([delay(10_000), waitMessage(logs, "Started HTTP and WebSocket JSON-RPC server")]);
 
   console.log(result ? chalk.bold.green(result) : chalk.bold.red(`${name} container initiated timeout`));
-  return result ? container : null;
+  return container;
 }
 
-export type Repos = "core" | "depot" | "scripts" | "dual-governance";
+export type Repos = "core" | "depot" | "scripts" | "dual-governance" | "staking-modules" | "stonks";
 
 interface GitRefsResponse {
   ref: string;
@@ -136,6 +248,8 @@ const GIT_SHA_OVERRIDES: Record<Repos, () => string> = {
   scripts: env.GIT_SHA_SCRIPTS,
   core: env.GIT_SHA_CORE,
   "dual-governance": env.GIT_SHA_DG,
+  "staking-modules": env.GIT_SHA_STAKING_MODULES,
+  stonks: env.GIT_SHA_STONKS,
   depot: () => "",
 };
 
@@ -157,19 +271,17 @@ async function getLastCommitSha(org: string, repo: Repos, branch: string) {
 }
 
 async function getBuildVersion(org: string, repo: Repos, branch: string) {
-  let buildVersion = "";
   if (branch) {
     const sha = await getLastCommitSha(org, repo, branch);
-    buildVersion = sha?.slice(0, 7);
-  } else {
-    // TODO: ask about rebuild or verify changes somehow or mount local dir
-    buildVersion = "latest";
+    return { sha, buildVersion: sha?.slice(0, 7) };
   }
-  return buildVersion;
+  // TODO: ask about rebuild or verify changes somehow or mount local dir
+  return { sha: "", buildVersion: "latest" };
 }
 
-function getTargetPlatformArgs() {
-  const arch = os.arch();
+function getTargetPlatformArgs(repo: Repos) {
+  const override = env.IMAGE_PLATFORM(repo);
+  const arch = override ? override.split("/")[1] : os.arch();
 
   // Convert Node.js arch to Docker arch
   const archMap: Record<string, string> = {
@@ -191,26 +303,43 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
   const org = env.GITHUB_ORG();
 
   let buildVersion = "";
+  let sha = "";
+  const pinnedSource = repo === "staking-modules" || repo === "stonks";
 
   try {
-    buildVersion = await getBuildVersion(org, repo, branch);
+    ({ sha, buildVersion } = await getBuildVersion(org, repo, branch));
   } catch (error) {
+    if (pinnedSource) {
+      throw error;
+    }
     console.error(`Error on retrieving build version: ${(error as Error).message}`);
   }
 
-  const imageTag = `depot/${repo}:${buildVersion}`;
+  if (pinnedSource && !/^[a-fA-F0-9]{40}$/.test(sha)) {
+    throw new Error(`Expected a full commit SHA for "${repo}", received "${sha}"`);
+  }
+  if (pinnedSource) {
+    console.log(`Repository ${org}/${repo}: ${branch} at ${sha}`);
+  }
+
+  const targetPlatformArgs = getTargetPlatformArgs(repo);
+  // the arch belongs in the tag: an image cached for another platform must not be reused
+  const imageTag = `depot/${repo}:${buildVersion}-${targetPlatformArgs.TARGETARCH}`;
+  const matchesImageTag = (tag: string) =>
+    tag.startsWith(`depot/${repo}:${buildVersion}`) && tag.endsWith(`-${targetPlatformArgs.TARGETARCH}`);
 
   const image = await docker.listImages().then(
     (images) =>
       images
         // when the tag can't be received, take the latest one
-        .filter(({ RepoTags }) => RepoTags?.some((tag) => tag.startsWith(imageTag)))
+        .filter(({ RepoTags }) => RepoTags?.some(matchesImageTag))
+        .filter(({ Labels }) => !pinnedSource || Labels?.["org.opencontainers.image.revision"] === sha)
         // the last at the top
         .sort((i1, i2) => i2.Created - i1.Created)[0],
   );
 
   if (!buildVersion && !image.RepoTags?.includes(imageTag)) {
-    const actualRepoTag = image.RepoTags?.find((rt) => rt.startsWith(imageTag));
+    const actualRepoTag = image.RepoTags?.find(matchesImageTag);
     console.log(
       chalk.yellow.bold(
         `IMPORTANT: The build version for the repo "${repo}" is not set. Will be used tag ${actualRepoTag} `,
@@ -223,14 +352,15 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
   if (!!buildVersion && !image) {
     const stdout = hideDebug ? getStdout(imageTag) : process.stdout;
 
-    const targetPlatformArgs = getTargetPlatformArgs();
-
     console.log(`Image for ${repo} not found.`);
     console.log(`Creating image ${imageTag} to run fast next time`);
     const stream = await docker.buildImage(
       {
         context: process.cwd(),
-        src: [`tests@${repo}.Dockerfile`],
+        src: [
+          `tests@${repo}.Dockerfile`,
+          ...(repo === "stonks" ? ["src/docker/stonks/hardhat.config.ts.template"] : []),
+        ],
       },
       {
         t: imageTag,
@@ -238,10 +368,12 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
         buildargs: {
           ...targetPlatformArgs,
           GIT_BRANCH: branch,
+          GIT_SHA: sha,
           BUILD_VERSION: buildVersion,
           GITHUB_ORG: org,
+          SCRIPTS_IMAGE: env.SCRIPTS_IMAGE(),
         },
-        platform: "linux/arm64",
+        platform: targetPlatformArgs.TARGETPLATFORM,
       },
     );
 
@@ -282,9 +414,13 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
 
     stream.pipe(cleanStream).pipe(stdout);
 
-    await new Promise((resolve, reject) => {
+    const events = await new Promise<{ error?: string }[]>((resolve, reject) => {
       docker.modem.followProgress(stream, (err, res) => (err ? reject(err) : resolve(res)));
     });
+    const buildError = events.find((event) => event.error)?.error;
+    if (buildError) {
+      throw new Error(`Image ${imageTag} failed to build: ${buildError}`);
+    }
   }
 
   return imageTag;
@@ -293,14 +429,7 @@ export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean)
 export function createCleanOutputStream(targetStream: NodeJS.WritableStream) {
   return new Transform({
     transform(chunk, encoding, callback) {
-      let text = (chunk as Buffer).toString("utf8");
-
-      // Skip Docker headers if present
-      if (text.charCodeAt(0) <= 8) {
-        text = text.slice(8); // Skip 8-byte Docker header
-      }
-
-      const cleaned = util.stripVTControlCharacters(text);
+      const cleaned = util.stripVTControlCharacters((chunk as Buffer).toString("utf8"));
 
       if (cleaned) {
         targetStream.write(cleaned);
@@ -316,7 +445,6 @@ export async function runTestsFromRepo(
   imageTag: string,
   cmd: string[],
   config: Docker.ContainerCreateOptions,
-  hideDebug = false,
   instance = 0,
 ) {
   const docker = new Docker();
@@ -324,7 +452,11 @@ export async function runTestsFromRepo(
   const key = !instance ? repo : `${repo}-${instance}`;
   const name = `lido-${key}`;
 
-  const stdout = createCleanOutputStream(hideDebug ? getStdout(name) : process.stdout);
+  const logFilePath = getLogFilePath(name);
+  const logFile = createWriteStream(logFilePath);
+  // two streams make dockerode demux the docker frames
+  const output = [createCleanOutputStream(logFile), createCleanOutputStream(logFile)];
+  logGreen(`Container ${name} log: ${logFilePath}`);
 
   const container = await findContainerByName(name);
 
@@ -333,21 +465,33 @@ export async function runTestsFromRepo(
   }
 
   logGreen(`Running command on image ${imageTag} \n"${cmd.join(" ")}"`);
-  const data: ContainerRunResponse = await docker.run(imageTag, cmd, stdout, {
-    Tty: false,
-    name,
-    ...config,
-    HostConfig: { AutoRemove: true, ExtraHosts: ["host.docker.internal:host-gateway"], ...config?.HostConfig },
-  });
+  const stopFollowing = followProgress(name, logFilePath);
+  let data: ContainerRunResponse;
+  try {
+    data = await docker.run(imageTag, cmd, output, {
+      Tty: false,
+      name,
+      platform: getTargetPlatformArgs(repo).TARGETPLATFORM,
+      ...config,
+      HostConfig: { AutoRemove: true, ExtraHosts: ["host.docker.internal:host-gateway"], ...config?.HostConfig },
+    });
+  } finally {
+    stopFollowing();
+    logFile.end();
+  }
 
   const [statusInfo] = data;
-
   if (!statusInfo.hasOwnProperty?.("StatusCode")) {
     throw new Error(`Container ${name} stop working, but status code not found`);
   }
+  const exitedCleanly = statusInfo.StatusCode === 0;
 
-  if (statusInfo?.StatusCode && statusInfo?.StatusCode !== 143) {
-    throw new Error(`Container ${name} stop working, with status code ${statusInfo.StatusCode}`);
+  console.log(chalk.bold(`\n${exitedCleanly ? "✔" : "✖"} ${name} · ${cmd.join(" ")} · full log: ${logFilePath}`));
+  console.log(summarizeLog(logFilePath));
+  console.log();
+
+  if (!exitedCleanly) {
+    throw new Error(`Container ${name} exited with status code ${statusInfo.StatusCode}`);
   }
 
   return data;
