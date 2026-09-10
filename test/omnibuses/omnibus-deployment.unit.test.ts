@@ -1,6 +1,7 @@
 import { assert } from "chai";
 
 import { renderDefaultOmnibusDeployment } from "../../src/omnibuses/omnibus-deployment";
+import { lintVoteSources } from "../../src/omnibuses/address-lint";
 
 const OMNIBUS_ADDRESS = "0x1234567890AbcdEF1234567890aBcdef12345678";
 
@@ -30,6 +31,7 @@ describe("default omnibus deployment", () => {
       ].join("\n"),
     );
     assert.include(rendered, `const DEPLOYED_OMNIBUS_ADDRESS = "${OMNIBUS_ADDRESS}";`);
+    assert.isEmpty(lintVoteSources(new Map([["omnibus.ts", rendered]]), ["omnibus.ts"]));
   });
 
   it("preserves an existing address binding and chooses an unused name for the deployment", () => {
