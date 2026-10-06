@@ -1,0 +1,89 @@
+name: Core tests CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-tests:
+    name: Core repo tests in docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    services:
+      hardhat-node:
+        image: ghcr.io/lidofinance/hardhat-node:2.26.0
+        ports:
+          - 8545:8545
+        env:
+          ETH_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          HARDFORK: cancun
+
+    steps:
+      ################################################################
+      # Prepare depot repository
+      ################################################################
+
+      - name: Checkout depot repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: depot
+
+      - name: Setup depot
+        uses: ./depot/.github/actions/prepare_depot
+
+      ################################################################
+      # Prepare core repository
+      ################################################################
+
+      - name: Checkout core repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: lidofinance/core
+          path: core
+          persist-credentials: false
+
+      - name: Enable corepack
+        shell: bash
+        run: corepack enable
+
+      - name: Setup Node.js for core
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: core/.nvmrc
+          cache: yarn
+          cache-dependency-path: core/yarn.lock
+
+      - name: Set env
+        run: cp .env.example .env
+        working-directory: core
+
+      - name: Install dependencies
+        shell: bash
+        run: yarn install --frozen-lockfile
+        working-directory: core
+
+      ################################################################
+      # Run vote
+      ################################################################
+
+      - name: Run vote
+        uses: ./depot/.github/actions/run_depot_vote
+
+      ################################################################
+      # Run tests
+      ################################################################
+      - name: Run integration tests
+        run: yarn test:integration
+        working-directory: core
+        env:
+          RPC_URL: http://127.0.0.1:8545
+          NODE_OPTIONS: --max_old_space_size=7200
+          NETWORK_STATE_FILE: deployed-mainnet.json

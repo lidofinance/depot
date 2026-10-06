@@ -1,0 +1,185 @@
+import { EthereumProvider } from "hardhat/types";
+import * as env from "../common/env";
+import { RpcClient } from "./rpc-client";
+import { createWalletClient, custom, CustomTransport, http, HttpTransport, publicActions } from "viem";
+import { hardhat, holesky, hoodi, mainnet } from "viem/chains";
+import { DevRpcClient } from "./dev-rpc-client";
+
+export type NetworkName = "mainnet" | "holesky" | "hoodi";
+export type ChainId = typeof MAINNET_CHAIN_ID | typeof HOLESKY_CHAIN_ID | typeof HOODI_CHAIN_ID;
+
+class UnsupportedNetwork extends Error {
+  constructor(networkName: string) {
+    super(`Unsupported chain ${networkName}`);
+  }
+}
+
+class UnsupportedChainId extends Error {
+  constructor(chainId: number) {
+    super(`Unsupported chain ${chainId}`);
+  }
+}
+
+const HARDHAT_CHAIN_ID = 31337;
+export const HOODI_CHAIN_ID = 560048;
+export const MAINNET_CHAIN_ID = 1;
+export const HOLESKY_CHAIN_ID = 17000;
+
+export function getChainIdByNetworkName(network: string): ChainId {
+  if (network === "mainnet") return MAINNET_CHAIN_ID;
+  if (network === "holesky") return HOLESKY_CHAIN_ID;
+  if (network === "hoodi") return HOODI_CHAIN_ID;
+  throw new UnsupportedNetwork(network);
+}
+
+export function getNetworkNameByChainId(chainId: number): NetworkName {
+  if (chainId === MAINNET_CHAIN_ID) return "mainnet";
+  if (chainId === HOLESKY_CHAIN_ID) return "holesky";
+  if (chainId === HOODI_CHAIN_ID) return "hoodi";
+  throw new UnsupportedChainId(chainId);
+}
+
+export function getRpcUrl(network: NetworkName, ind = 0): string {
+  let urls = "";
+  if (network === "mainnet") {
+    urls = env.ETH_MAINNET_RPC_URL();
+  }
+  if (network === "holesky") {
+    urls = env.ETH_HOLESKY_RPC_URL();
+  }
+  if (network === "hoodi") {
+    urls = env.ETH_HOODI_RPC_URL();
+  }
+  if (urls) {
+    return urls.split(",")[ind % urls.split(",").length]; // always in range
+  }
+  throw new UnsupportedNetwork(network);
+}
+
+export async function createRpcClient(network: NetworkName, rpcUrl?: string): Promise<RpcClient>;
+export async function createRpcClient(network: NetworkName, provider: EthereumProvider): Promise<RpcClient>;
+export async function createRpcClient(
+  network: NetworkName,
+  rpcUrlOrProvider: string | undefined | EthereumProvider,
+): Promise<RpcClient> {
+  const viemClient =
+    typeof rpcUrlOrProvider === "string" || rpcUrlOrProvider === undefined
+      ? await createPublicWalletClientFromNetwork(network, rpcUrlOrProvider ?? getRpcUrl(network))
+      : await createPublicWalletClientFromProvider(network, rpcUrlOrProvider);
+
+  return new RpcClient(network, viemClient);
+}
+
+export async function createDevRpcClient(network: NetworkName, rpcUrl?: string): Promise<DevRpcClient>;
+export async function createDevRpcClient(network: NetworkName, provider: EthereumProvider): Promise<DevRpcClient>;
+export async function createDevRpcClient(
+  network: NetworkName,
+  rpcUrlOrProvider: string | undefined | EthereumProvider,
+): Promise<DevRpcClient> {
+  const viemClient =
+    typeof rpcUrlOrProvider === "string" || rpcUrlOrProvider === undefined
+      ? await createDevPublicWalletClientFromNetwork(network, rpcUrlOrProvider ?? getRpcUrl(network))
+      : await createDevPublicWalletClientFromProvider(network, rpcUrlOrProvider);
+
+  return new DevRpcClient(network, viemClient);
+}
+
+export function getLocalRpcUrl(port: string | number) {
+  if (typeof port === "string" && /^https?:\/\//i.test(port)) {
+    return port;
+  }
+  return `http://localhost:${port}`;
+}
+
+export default {
+  MAINNET_CHAIN_ID,
+  HOLESKY_CHAIN_ID,
+  HOODI_CHAIN_ID,
+  getRpcUrl,
+  createRpcClient,
+  createDevRpcClient,
+  getChainIdByNetworkName,
+  getNetworkNameByChainId,
+};
+
+// ---
+// Helper Methods
+// ---
+
+async function createPublicWalletClientFromNetwork(network: NetworkName, rpcUrl: string) {
+  const transport = http(rpcUrl, { timeout: 300_0000 });
+  const viemClient = createPublicWalletClient(network, transport);
+  const chainId = await viemClient.getChainId();
+
+  if (chainId !== getChainIdByNetworkName(network)) {
+    throw new Error(`Unexpected chain id`);
+  }
+
+  return viemClient;
+}
+
+async function createPublicWalletClientFromProvider(network: NetworkName, provider: EthereumProvider) {
+  const transport = custom(provider);
+  const viemClient = createPublicWalletClient(network, transport);
+
+  const chainId = await viemClient.getChainId();
+
+  if (chainId === HARDHAT_CHAIN_ID) {
+    // For local dev chains we should not pin a target L1/L2 chain in the wallet client.
+    // Otherwise viem validates tx against e.g. mainnet(1) and rejects on local 31337.
+    return createWalletClient({ chain: hardhat, transport }).extend(publicActions);
+  }
+
+  if (chainId === getChainIdByNetworkName(network)) {
+    return viemClient;
+  }
+
+  throw new Error(`Unexpected chain id`);
+}
+
+async function createDevPublicWalletClientFromNetwork(network: NetworkName, rpcUrl: string) {
+  const transport = http(rpcUrl, { timeout: 300_0000 });
+  const viemClient = createPublicWalletClient(network, transport);
+  const chainId = await viemClient.getChainId();
+
+  if (chainId === HARDHAT_CHAIN_ID) {
+    return createWalletClient({ chain: hardhat, transport }).extend(publicActions);
+  }
+
+  if (chainId === getChainIdByNetworkName(network)) {
+    return viemClient;
+  }
+
+  throw new Error(`Unexpected chain id`);
+}
+
+async function createDevPublicWalletClientFromProvider(network: NetworkName, provider: EthereumProvider) {
+  const transport = custom(provider);
+  const viemClient = createPublicWalletClient(network, transport);
+  const chainId = await viemClient.getChainId();
+
+  if (chainId === HARDHAT_CHAIN_ID) {
+    return createWalletClient({ chain: hardhat, transport }).extend(publicActions);
+  }
+
+  if (chainId === getChainIdByNetworkName(network)) {
+    return viemClient;
+  }
+
+  throw new Error(`Unexpected chain id`);
+}
+
+function createPublicWalletClient<T extends HttpTransport | CustomTransport>(network: NetworkName, transport: T) {
+  return createWalletClient({
+    chain: getViemChain(network),
+    transport: transport,
+  }).extend(publicActions);
+}
+
+function getViemChain(network: NetworkName) {
+  if (network === "mainnet") return mainnet;
+  if (network === "holesky") return holesky;
+  if (network === "hoodi") return hoodi;
+
+  throw new UnsupportedNetwork(network);
+}

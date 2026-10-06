@@ -1,0 +1,44 @@
+name: "Prepare scripts"
+description: "Install Python, Poetry, and scripts dependencies"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Poetry
+      shell: bash
+      run: pipx install poetry==1.8.2
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      with:
+        python-version: "3.10"
+        cache: poetry
+
+    - name: Install poetry requirements
+      shell: bash
+      run: poetry install
+      working-directory: scripts
+
+    - name: Install ganache
+      shell: bash
+      run: yarn install --frozen-lockfile
+      working-directory: scripts
+
+    - name: Import network config to connect brownie with local Ganache
+      shell: bash
+      run: poetry run brownie networks import network-config.yaml True
+      working-directory: scripts
+
+    - name: Show system info
+      shell: bash
+      run: |
+        echo "Memory and swap:"
+        free -h
+        echo
+        swapon --show
+        echo
+        df -h
+        echo
+        echo "CPU units"
+        nproc --all
+        echo "Vote type normal"
