@@ -23,45 +23,54 @@ contract MockVoting {
     }
 
     function newVote(
-        bytes calldata /* _executionScript */,
+        bytes calldata,
+        /* _executionScript */
         string calldata _metadata,
-        bool /* _castVote */,
+        bool,
+        /* _castVote */
         bool /* _executesIfDecided */
     ) external returns (uint256 voteId) {
         voteId = votesLength++;
         _votes[voteId] = Vote({
-            open: true,
-            executed: false,
-            startDate: uint64(block.timestamp),
-            creator: msg.sender,
-            metadata: _metadata
+            open: true, executed: false, startDate: uint64(block.timestamp), creator: msg.sender, metadata: _metadata
         });
         emit StartVote(voteId, msg.sender, _metadata);
     }
 
-    function getVote(uint256 _voteId) external view returns (
-        bool open,
-        bool executed,
-        uint64 startDate,
-        uint64 snapshotBlock,
-        uint64 supportRequired,
-        uint64 minAcceptQuorum,
-        uint256 yea,
-        uint256 nay,
-        uint256 votingPower,
-        bytes memory script
-    ) {
+    function getVote(uint256 _voteId)
+        external
+        view
+        returns (
+            bool open,
+            bool executed,
+            uint64 startDate,
+            uint64 snapshotBlock,
+            uint64 supportRequired,
+            uint64 minAcceptQuorum,
+            uint256 yea,
+            uint256 nay,
+            uint256 votingPower,
+            bytes memory script
+        )
+    {
         Vote storage v = _votes[_voteId];
         open = v.open;
         executed = v.executed;
         startDate = v.startDate;
     }
 
-    function canVote(uint256 _voteId, address /* _voter */) external view returns (bool) {
+    function canVote(
+        uint256 _voteId,
+        address /* _voter */
+    ) external view returns (bool) {
         return _votes[_voteId].open && !_votes[_voteId].executed;
     }
 
-    function vote(uint256 _voteId, bool _supports, bool /* _executesIfDecided */) external {
+    function vote(
+        uint256 _voteId,
+        bool _supports,
+        bool /* _executesIfDecided */
+    ) external {
         require(_votes[_voteId].open, "vote not open");
         emit CastVote(_voteId, msg.sender, _supports);
     }

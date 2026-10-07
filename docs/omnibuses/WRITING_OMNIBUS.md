@@ -4,9 +4,9 @@ This guide describes the practical workflow for creating omnibuses in this repos
 
 Source examples used in this guide:
 
-- Template: [../../omnibuses/_omnibus_template/_omnibus_template.ts](../../omnibuses/_omnibus_template/_omnibus_template.ts)
-- Regular omnibus: [../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts](../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts)
-- Contract omnibus: [../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts)
+- Template: [../../omnibuses/\_omnibus_template/\_omnibus_template.ts](../../omnibuses/_omnibus_template/_omnibus_template.ts)
+- Regular omnibus: [../../omnibuses/\_example_regular_omnibus/\_example_regular_omnibus.ts](../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts)
+- Contract omnibus: [../../omnibuses/\_example_contract_omnibus/\_example_contract_omnibus.ts](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts)
 - Completed real omnibus: [../../omnibuses/2025_09_01/2025_09_01.ts](../../omnibuses/2025_09_01/2025_09_01.ts)
 
 ## 1. Choose omnibus type
@@ -53,7 +53,7 @@ Important for contract mode:
 
 ## 3. Start from template
 
-Use [../../omnibuses/_omnibus_template/_omnibus_template.ts](../../omnibuses/_omnibus_template/_omnibus_template.ts) as the starting point.
+Use [../../omnibuses/\_omnibus_template/\_omnibus_template.ts](../../omnibuses/_omnibus_template/_omnibus_template.ts) as the starting point.
 
 Key fields:
 
@@ -78,8 +78,8 @@ Rules:
 
 See:
 
-- Regular pattern: [../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts](../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts)
-- Contract pattern: [../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts)
+- Regular pattern: [../../omnibuses/\_example_regular_omnibus/\_example_regular_omnibus.ts](../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts)
+- Contract pattern: [../../omnibuses/\_example_contract_omnibus/\_example_contract_omnibus.ts](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts)
 
 ### Access Control: OZ vs Aragon ACL
 
@@ -194,7 +194,7 @@ Patterns to copy:
 
 ## 8. Write markdown description
 
-Use [../../omnibuses/_omnibus_template/_omnibus_template.md](../../omnibuses/_omnibus_template/_omnibus_template.md) structure:
+Use [../../omnibuses/\_omnibus_template/\_omnibus_template.md](../../omnibuses/_omnibus_template/_omnibus_template.md) structure:
 
 1. `## Omnibus Description`
 
@@ -207,8 +207,8 @@ Transformation of this description into concrete omnibus items is done by the ag
 
 See completed examples:
 
-- [../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.md](../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.md)
-- [../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.md](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.md)
+- [../../omnibuses/\_example_regular_omnibus/\_example_regular_omnibus.md](../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.md)
+- [../../omnibuses/\_example_contract_omnibus/\_example_contract_omnibus.md](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.md)
 
 ## 9. Validate before run
 

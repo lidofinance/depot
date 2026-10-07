@@ -9,6 +9,8 @@ Install nvm - https://github.com/nvm-sh/nvm
 
 Install docker - https://docs.docker.com/engine/install/
 
+Use Foundry v1.8.1 for Solidity formatting and contract generation, matching CI: `foundryup --install v1.8.1`.
+
 ## Omnibus
 
 The main purpose of the omnibus is to prepare the EVM script that will be executed if the vote is successful. The voting EVM script is built from the omnibus items defined in the omnibus. During the run, the omnibus will call the
@@ -36,11 +38,15 @@ Recommended flow when using agents:
    npm run omnibus:create
    ```
 3. Open `omnibuses/<omnibus_name>/<omnibus_name>.md` and fill description in block:
+
    ```md
    <!-- OMNIBUS_DESCRIPTION -->
+
    ... free-form action list and context ...
+
    <!-- OMNIBUS_DESCRIPTION -->
    ```
+
 4. Ask the agent to transform that description into concrete omnibus items in `<omnibus_name>.ts`.
 5. Decide contract mode:
    - no contract: keep regular omnibus script
@@ -56,11 +62,12 @@ Recommended flow when using agents:
    ```
 9. For contract mode, ensure omnibus `.ts` has `deploy()` (returning `omnibus`) or explicit `deployment` mapping.
 10. Finalize calls/events/tests with the agent, then validate and run:
-   ```bash
-   npm run omnibus:test -- <omnibus_name>
-   npm run omnibus:simulate -- <omnibus_name>
-   npm run omnibus:run -- <omnibus_name>
-   ```
+
+    ```bash
+    npm run omnibus:test -- <omnibus_name>
+    npm run omnibus:simulate -- <omnibus_name>
+    npm run omnibus:run -- <omnibus_name>
+    ```
 
 ## Omnibus Item
 

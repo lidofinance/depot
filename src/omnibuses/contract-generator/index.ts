@@ -1,4 +1,4 @@
-import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFile as execFileCb } from "node:child_process";
@@ -31,7 +31,7 @@ export async function generateOmnibusContractFile({
   omnibusName,
   contractName,
   force = false,
-  formatter = "prettier",
+  formatter = "forge",
   rootDir = path.resolve(__dirname, "..", "..", ".."),
 }: GenerateOmnibusContractParams) {
   if (omnibus.hasDeployMethod() && !omnibus.getDeployment()) {

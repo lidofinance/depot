@@ -3,9 +3,9 @@
 Use this documentation as the primary guide for writing and maintaining omnibuses in this repository.
 
 - Writing guide: [WRITING_OMNIBUS.md](./WRITING_OMNIBUS.md)
-- Template source: [../../omnibuses/_omnibus_template/_omnibus_template.ts](../../omnibuses/_omnibus_template/_omnibus_template.ts)
-- Regular example source: [../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts](../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts)
-- Contract-based example source: [../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts)
+- Template source: [../../omnibuses/\_omnibus_template/\_omnibus_template.ts](../../omnibuses/_omnibus_template/_omnibus_template.ts)
+- Regular example source: [../../omnibuses/\_example_regular_omnibus/\_example_regular_omnibus.ts](../../omnibuses/_example_regular_omnibus/_example_regular_omnibus.ts)
+- Contract-based example source: [../../omnibuses/\_example_contract_omnibus/\_example_contract_omnibus.ts](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts)
 
 Runbook commands:
 

@@ -26,11 +26,12 @@ library VoteCallsBuilderUtils {
         res._calls = new VoteCall[](callsCount);
     }
 
-    function directCall(VoteCallsBuilder memory self, string memory title, address target, bytes memory payload)
-        internal
-        pure
-        returns (VoteCallsBuilder memory)
-    {
+    function directCall(
+        VoteCallsBuilder memory self,
+        string memory title,
+        address target,
+        bytes memory payload
+    ) internal pure returns (VoteCallsBuilder memory) {
         _addCall(self, title, target, payload);
         return self;
     }
@@ -75,10 +76,12 @@ library VoteCallsBuilderUtils {
     // Private Methods
     // ---
 
-    function _addCall(VoteCallsBuilder memory self, string memory title, address target, bytes memory payload)
-        private
-        pure
-    {
+    function _addCall(
+        VoteCallsBuilder memory self,
+        string memory title,
+        address target,
+        bytes memory payload
+    ) private pure {
         self._calls[self._addedCallsCount] = VoteCall(title, target, payload);
         self._addedCallsCount += 1;
     }
@@ -100,11 +103,12 @@ library ForwardedCallsBuilderUtils {
         res._calls = new ForwardedCall[](callsCount);
     }
 
-    function directCall(ForwardedCallsBuilder memory self, string memory title, address target, bytes memory payload)
-        internal
-        pure
-        returns (ForwardedCallsBuilder memory)
-    {
+    function directCall(
+        ForwardedCallsBuilder memory self,
+        string memory title,
+        address target,
+        bytes memory payload
+    ) internal pure returns (ForwardedCallsBuilder memory) {
         self._calls[self._addedCallsCount] = ForwardedCall(string(abi.encodePacked("    ", title)), target, payload);
         self._addedCallsCount += 1;
         return self;
@@ -150,11 +154,12 @@ library ProposalCallsBuilderUtils {
         return self;
     }
 
-    function directCall(ProposalCallsBuilder memory self, string memory title, address target, bytes memory payload)
-        internal
-        pure
-        returns (ProposalCallsBuilder memory)
-    {
+    function directCall(
+        ProposalCallsBuilder memory self,
+        string memory title,
+        address target,
+        bytes memory payload
+    ) internal pure returns (ProposalCallsBuilder memory) {
         _addCallWithValue(self, title, target, 0, payload);
         return self;
     }

@@ -1,5 +1,5 @@
 import hre from "hardhat";
-import { EthereumProvider } from "hardhat/types";
+import { EthereumProvider } from "hardhat/types/providers";
 
 import { createDevRpcClient } from "../../src/network/network";
 import { DevRpcClient } from "../../src/network/dev-rpc-client";

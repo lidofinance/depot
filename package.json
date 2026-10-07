@@ -31,6 +31,8 @@
     "lint:fix": "eslint --fix .",
     "style": "prettier --write .",
     "prettier:check": "prettier --check .",
+    "fmt:sol": "forge fmt",
+    "fmt:sol:check": "forge fmt --check",
     "prepare": "husky && node scripts/sync-skills.js",
     "sync-skills": "node scripts/sync-skills.js",
     "test": "nyc --reporter text-summary mocha",
