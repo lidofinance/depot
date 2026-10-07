@@ -23,10 +23,7 @@ export interface MockGovernanceContracts {
   tokenManager: Contract<typeof TokenManager_ABI>;
 }
 
-export async function deployMockGovernance(
-  client: DevRpcClient,
-  deployer: Address,
-): Promise<MockGovernanceContracts> {
+export async function deployMockGovernance(client: DevRpcClient, deployer: Address): Promise<MockGovernanceContracts> {
   const mockERC20 = loadArtifact("MockERC20");
   const mockVoting = loadArtifact("MockVoting");
   const mockTokenManager = loadArtifact("MockTokenManager");
@@ -38,7 +35,7 @@ export async function deployMockGovernance(
 
   const voteTime = 3600n; // 1 hour
   const votingAddress = await client.deployContract(
-    { abi: mockVoting.abi, bytecode: mockVoting.bytecode, args: [voteTime] },
+    { abi: mockVoting.abi, bytecode: mockVoting.bytecode, args: [voteTime, ldoAddress] },
     { from: deployer },
   );
 

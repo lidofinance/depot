@@ -1,4 +1,4 @@
-import { EthereumProvider } from "hardhat/types";
+import { EthereumProvider } from "hardhat/types/providers";
 import * as env from "../common/env";
 import { RpcClient } from "./rpc-client";
 import { createWalletClient, custom, CustomTransport, http, HttpTransport, publicActions } from "viem";

@@ -9,3 +9,9 @@ remappings = [
 ]
 cache_path = "cache_forge"
 out = "out_forge"
+
+# Solidity is formatted by `forge fmt`, TypeScript, JSON and Markdown by prettier.
+# Settings mirror the lidofinance/dual-governance repository.
+[fmt]
+line_length = 120
+multiline_func_header = 'params_first_multi'

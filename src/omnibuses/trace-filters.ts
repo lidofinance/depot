@@ -10,38 +10,11 @@ import { Voting_ABI } from "../../abi/Voting.abi";
 import { Executor_ABI } from "../../abi/Executor.abi";
 import { EmergencyProtectedTimelock_ABI } from "../../abi/EmergencyProtectedTimelock.abi";
 import { getGovernanceContracts } from "./governance-contracts";
-import type { BaseOmnibusCall } from "./omnibus";
 
 interface MethodCallConfig {
   type: CallEvmOpcodes;
   address: Address;
   abi: AbiFunction;
-}
-
-export function groupOmnibusTraceCalls(items: BaseOmnibusCall[], trace: TxTrace) {
-  const voteCallIndices: number[] = [];
-
-  const callTraces: TxTrace[] = [];
-  for (let i = 0; i < items.length; ++i) {
-    const item = items[i];
-    const startIndex = trace.calls.findIndex(
-      (opCode) =>
-        (opCode.type === "CALL" || opCode.type === "DELEGATECALL") &&
-        bytes.isEqual(opCode.address, item.getTarget()) &&
-        bytes.isEqual(opCode.input, item.getCalldata()),
-    );
-    voteCallIndices.push(startIndex);
-  }
-
-  for (let ind = 0; ind < voteCallIndices.length; ++ind) {
-    callTraces.push(trace.slice(voteCallIndices[ind], voteCallIndices[ind + 1]));
-  }
-
-  if (items.length !== callTraces.length) {
-    throw new Error("Unexpected call traces length");
-  }
-  const extraCallsTrace = voteCallIndices.length > 0 ? trace.slice(0, voteCallIndices[0]) : null;
-  return [extraCallsTrace, callTraces] as const;
 }
 
 export function filterOmnibusTrace(trace: TxTrace) {

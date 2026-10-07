@@ -6,7 +6,7 @@ Follow `CONTRIBUTING.md` for coding conventions (TypeScript, async safety, error
 
 ## Skills
 
-Project skills live in `.agents/skills/`. For omnibus work, follow `.agents/skills/omnibus-writer/SKILL.md`.
+Project skills live in `.agents/skills/`. For omnibus authoring and fork tests, follow `.agents/skills/omnibus-writer-sol/SKILL.md` and `docs/omnibuses/WRITING_OMNIBUS.md`.
 
 ## Project overview
 
@@ -16,12 +16,20 @@ Hardhat 3 + TypeScript + Viem project for building, testing, and launching Lido 
 
 ```bash
 # Omnibus lifecycle
-npm run omnibus:create              # scaffold new omnibus from template
-npm run omnibus:test -- <name>      # run omnibus tests on local hardhat node
-npm run omnibus:simulate -- <name>  # simulate omnibus execution
-npm run omnibus:run -- <name>       # launch omnibus on mainnet/testnet
-npm run omnibus:contract -- <name>  # generate Solidity contract (opt-in)
-npm run omnibus:build -- <name>     # compile generated Solidity contract
+npm run omnibus:create              # scaffold a Markdown placeholder, Solidity vote contract, and TypeScript test
+npm run omnibus:test -- <name>      # run omnibus tests on local hardhat node; prints the EVM script and saves it to omnibuses/<name>/<name>.evm-script.hex
+npm run omnibus:test -- <name> --fork-block <n>  # same, fork pinned to block n
+npm run omnibus:build -- <name>     # compile the vote contract
+npx hardhat omnibus:trace <name>   # trace execution on a local fork
+npx hardhat omnibus:deploy <name>  # rehearse deployment on a local fork
+npx hardhat omnibus:launch <name>  # rehearse vote creation on a local fork
+
+# Contract surfaces (need Foundry for `forge fmt`, ETHERSCAN_TOKEN and the network's ETH_*_RPC_URL)
+npm run abi:sync -- <Name> [--address 0x…] [--network-name hoodi] [--methods a,b] [--from-file abi.json] [--skip-sol] [--proxy-abi]
+                                    # regenerate abi/<Name>.abi.ts + contracts/interfaces/I<Name>.sol
+                                    # from the verified Etherscan ABI (address defaults to contracts/addresses/);
+                                    # a proxy is followed to the implementation read from the chain, never
+                                    # from Etherscan's stale "Implementation" field
 
 # Quality
 npm run lint                        # ESLint (0 errors, 0 warnings expected)
@@ -44,7 +52,7 @@ src/
   hardhat/              # HH3 task runner helpers
   ipfs/                 # IPFS/Pinata upload
   network/              # RPC client (viem), DevRpcClient with test actions
-  omnibuses/            # omnibus runtime, blueprints, checks, contract generator
+  omnibuses/            # contract-backed omnibus runtime, checks, event matching
   traces/               # transaction tracing (debug_traceTransaction)
 tasks/                  # Hardhat tasks (omnibus:*, keystore:*)
 omnibuses/              # actual omnibus scripts and templates
