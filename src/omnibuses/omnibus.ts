@@ -488,11 +488,7 @@ export class Omnibus<
         throw new Error(`Unexpected count of proposal calls`);
       }
 
-      if (submittedProposals.length > 0 && !this.#config.testProposal) {
-        console.log(
-          chalk.yellowBright.bold(`Omnibus doesn't contain test for submitted proposals ${submittedProposals}`),
-        );
-      } else if (submittedProposals.length === 0 && this.#config.testProposal) {
+      if (submittedProposals.length === 0 && this.#config.testProposal) {
         console.log(
           chalk.yellowBright.bold(`Omnibus doesn't submit any proposals but contains "testProposal" section`),
         );
@@ -501,7 +497,7 @@ export class Omnibus<
       if (submittedProposalIds.length > 0) {
         try {
           if (!this.#config.testProposal) {
-            throw new Error(`testProposal function is not defined`);
+            throw new Error(`testProposal function is not defined for submitted proposals [${submittedProposalIds}]`);
           }
 
           console.log(fmt.padded(`Passing & executing proposals [${submittedProposalIds}]...`, 2));

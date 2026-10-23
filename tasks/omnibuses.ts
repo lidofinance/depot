@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import ts from "typescript";
 import { task } from "hardhat/config";
 
 import { passAragonVote, setupLdoHolder, startAragonVote } from "../src/aragon-votes-tools";
@@ -35,13 +36,12 @@ import { getGovernanceContracts } from "../src/omnibuses/governance-contracts";
 import { getKeystores } from "../src/hardhat-keystores";
 import { runHardhatTask } from "../src/hardhat/run-task";
 import { adoptAragonVoting } from "../src/aragon-votes-tools";
-import { renderDefaultOmnibusDeployment } from "../src/omnibuses/omnibus-deployment";
+import { renderCustomOmnibusDeployment, renderDefaultOmnibusDeployment } from "../src/omnibuses/omnibus-deployment";
 import { assertVoteAddresses } from "../src/omnibuses/address-lint";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const OMNIBUSES_DIR = path.resolve(__dirname, "..", "omnibuses");
-const ARCHIVE_DIR = path.join(OMNIBUSES_DIR, "_archive");
+export const omnibusTaskDeps = { getOmnibusesDir: () => path.resolve(__dirname, "..", "omnibuses") };
 
 export const omnibusTaskBuilders: Array<ReturnType<typeof task>> = [];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,7 +90,7 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
       throw new Error("Invalid name. Omnibus name should match patter: yyyy_dd_mm_some_optional_info");
     }
 
-    const newOmnibusDir = path.join(OMNIBUSES_DIR, omnibusName);
+    const newOmnibusDir = path.join(omnibusTaskDeps.getOmnibusesDir(), omnibusName);
     const archivedOmnibusDir = await findArchivedOmnibusDir(omnibusName);
 
     if (archivedOmnibusDir) {
@@ -102,7 +102,7 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
     }
 
     const templateDirName = "_omnibus_template";
-    const templatePath = path.join(OMNIBUSES_DIR, templateDirName);
+    const templatePath = path.join(omnibusTaskDeps.getOmnibusesDir(), templateDirName);
 
     await fs.cp(templatePath, newOmnibusDir, { recursive: true });
 
@@ -170,10 +170,11 @@ defineTask("omnibus:archive", "Move launched omnibus to archive folder")
       throw new Error(`Omnibus doesn't have "executedAt" property set and "quorumReached" is not false`);
     }
 
-    const omnibusPath = path.join(OMNIBUSES_DIR, name);
-    const archivePath = path.join(ARCHIVE_DIR, omnibus.network, name);
+    const omnibusPath = path.join(omnibusTaskDeps.getOmnibusesDir(), name);
+    const archivePath = path.join(omnibusTaskDeps.getOmnibusesDir(), "_archive", omnibus.network, name);
 
     await fs.cp(omnibusPath, archivePath, { errorOnExist: true, recursive: true });
+    await rebaseArchivedImports(archivePath);
     await fs.rm(omnibusPath, { recursive: true });
 
     console.log(`Omnibus ${name} was archived to ${archivePath}`);
@@ -187,6 +188,32 @@ defineTask("omnibus:build", "Build Solidity omnibus contract(s) for the given om
     await buildOmnibusContracts(hre, name);
     console.log(fmt.success(`Omnibus contracts for "${name}" compiled successfully`));
   });
+
+async function rebaseArchivedImports(archiveDir: string): Promise<void> {
+  for (const entry of await fs.readdir(archiveDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".ts")) {
+      continue;
+    }
+    const archivedFile = path.join(archiveDir, entry.name);
+    const originalSource = await fs.readFile(archivedFile, "utf-8");
+    const parsed = ts.createSourceFile(archivedFile, originalSource, ts.ScriptTarget.Latest);
+    let source = originalSource;
+    for (const statement of [...parsed.statements].reverse()) {
+      if (!ts.isImportDeclaration(statement)) {
+        continue;
+      }
+      const specifier = statement.moduleSpecifier;
+      if (ts.isStringLiteral(specifier) && specifier.text.startsWith("../")) {
+        // _archive/<network> adds two levels; imports within the vote directory stay unchanged.
+        const start = specifier.getStart(parsed) + 1;
+        source = source.slice(0, start) + "../../" + source.slice(start);
+      }
+    }
+    if (source !== originalSource) {
+      await fs.writeFile(archivedFile, source, "utf-8");
+    }
+  }
+}
 
 function omnibusNameToDescriptionHeader(omnibusName: string) {
   return omnibusName
@@ -259,6 +286,16 @@ defineTask("omnibus:deploy", "Deploy the contracts of an omnibus")
       const omnibusScriptPath = await getOmnibusScriptPath(name);
       await recordDefaultOmnibusDeployment(omnibusScriptPath, deployedOmnibusContract.address);
       console.log(`Saved deployment.omnibus to ${path.relative(process.cwd(), omnibusScriptPath)}`);
+    } else if (broadcast) {
+      console.log(
+        "Before recording this custom deployment, move the existing deploy callback to a named async function deploy.",
+      );
+      console.log("Import type DeployOmnibusContractCtx alongside Omnibus and use it for the function parameter.");
+      console.log(
+        "Paste these public deployments after that function; the cast preserves its authored contract types:",
+      );
+      console.log(renderCustomOmnibusDeployment(deployedContracts));
+      console.log("Inside Omnibus.create({...}), use `deploy,` and `deployment: DEPLOYED_CONTRACTS,`.");
     }
   });
 
@@ -573,7 +610,7 @@ async function readOmnibusDescriptionFile(name: string): Promise<string> {
   return fs.readFile(descriptionFilePath, { encoding: "utf-8" });
 }
 
-async function loadOmnibus(name: string): Promise<Omnibus> {
+export async function loadOmnibus(name: string): Promise<Omnibus> {
   const omnibusModulePath = await getOmnibusScriptPath(name);
   const omnibusModule = await import(pathToFileURL(omnibusModulePath).href);
   const omnibus: Omnibus = omnibusModule.default;
@@ -594,10 +631,12 @@ async function isDirectory(dirPath: string): Promise<boolean> {
 
 /** `omnibuses/_archive/<network>/<name>`, or `undefined` when the omnibus is not archived. */
 async function findArchivedOmnibusDir(name: string): Promise<string | undefined> {
-  const networkDirs = (await isDirectory(ARCHIVE_DIR)) ? await fs.readdir(ARCHIVE_DIR) : [];
+  const networkDirs = (await isDirectory(path.join(omnibusTaskDeps.getOmnibusesDir(), "_archive")))
+    ? await fs.readdir(path.join(omnibusTaskDeps.getOmnibusesDir(), "_archive"))
+    : [];
   const archivedDirs: string[] = [];
   for (const networkDir of networkDirs) {
-    const archivedDir = path.join(ARCHIVE_DIR, networkDir, name);
+    const archivedDir = path.join(omnibusTaskDeps.getOmnibusesDir(), "_archive", networkDir, name);
     if (await isDirectory(archivedDir)) {
       archivedDirs.push(archivedDir);
     }
@@ -611,14 +650,16 @@ async function findArchivedOmnibusDir(name: string): Promise<string | undefined>
 
 /** An omnibus lives in `omnibuses/<name>` until it is archived to `omnibuses/_archive/<network>/<name>`. */
 async function resolveOmnibusDir(name: string): Promise<string> {
-  const activeDir = path.join(OMNIBUSES_DIR, name);
+  const activeDir = path.join(omnibusTaskDeps.getOmnibusesDir(), name);
   if (await isDirectory(activeDir)) {
     return activeDir;
   }
 
   const archivedDir = await findArchivedOmnibusDir(name);
   if (!archivedDir) {
-    throw new Error(`Omnibus "${name}" not found in ${activeDir} or ${path.join(ARCHIVE_DIR, "<network>", name)}`);
+    throw new Error(
+      `Omnibus "${name}" not found in ${activeDir} or ${path.join(omnibusTaskDeps.getOmnibusesDir(), "_archive", "<network>", name)}`,
+    );
   }
   return archivedDir;
 }

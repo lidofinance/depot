@@ -98,10 +98,11 @@ async function withImpersonatedAccount<T>(
   balance: bigint,
   callback: () => Promise<T>,
 ): Promise<T> {
+  const originalBalance = await client.getBalance(account);
   await client.impersonate(account, balance);
   try {
     return await callback();
   } finally {
-    await client.stopImpersonating(account);
+    await client.stopImpersonating(account, originalBalance);
   }
 }

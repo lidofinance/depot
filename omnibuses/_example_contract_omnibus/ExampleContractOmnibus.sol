@@ -78,7 +78,8 @@ contract ExampleContractOmnibus is OmnibusBase {
     address private constant ZERO_ADDRESS = address(0);
 
     string internal constant DG_PROPOSAL_DESCRIPTION = "11. Submit proposal to Dual Governance with the following calls:\n"
-        "  11.1. Forward call to Agent update staking limit on\n" "  11.2. Execute calls via Agent to transfer ETH\n"
+        "  11.1. Forward call via Agent to pause deposits to the Curated Module\n"
+        "  11.2. Execute call via Agent to deposit 100 wei into stETH\n"
         "  11.3. Forward 7 calls via Aragon Agent to add new Node Operators to the Curated Module\n"
         "    11.3.1. Add node operator \"A41\" with the reward address 0x2A64944eBFaFF8b6A0d07B222D3d83ac29c241a7 to Curated module\n"
         "    11.3.2. Add node operator \"Develp GmbH\" with the reward address 0x0a6a0b60fFeF196113b3530781df6e747DdC565e to Curated module\n"
@@ -194,7 +195,7 @@ contract ExampleContractOmnibus is OmnibusBase {
                 ProposalCallsBuilderUtils.create({
                     callsCount: DG_PROPOSAL_CALLS_COUNT
                 }).forwardCall(
-                        "11.1. Forward call to Agent update staking limit on",
+                        "11.1. Forward call via Agent to pause deposits to the Curated Module",
                         AGENT,
                         STAKING_ROUTER,
                         abi.encodeCall(
@@ -203,7 +204,7 @@ contract ExampleContractOmnibus is OmnibusBase {
                         )
                     )
                     .executeCall(
-                        "11.2. Execute calls via Agent to transfer ETH",
+                        "11.2. Execute call via Agent to deposit 100 wei into stETH",
                         AGENT,
                         STETH,
                         100 wei,

@@ -1,8 +1,10 @@
 import { assert } from "chai";
 import hre from "hardhat";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, rm, rmdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { tmpdir } from "node:os";
+import ts from "typescript";
 import { rejects } from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import sinon from "sinon";
@@ -10,48 +12,95 @@ import sinon from "sinon";
 import prompt from "../../src/common/prompt";
 import { Omnibus } from "../../src/omnibuses";
 import { RpcClient } from "../../src/network";
-import { prepareOmnibus } from "../../tasks/omnibuses";
+import { loadOmnibus, omnibusTaskDeps, prepareOmnibus } from "../../tasks/omnibuses";
 import { lintVoteAddresses } from "../../src/omnibuses/address-lint";
 
 describe("omnibus:create", () => {
   let name: string;
   let directory: string;
-  const createdArchiveParents = new Set<string>();
+  let root: string;
+  let omnibusesDir: string;
 
   async function createArchivedOmnibus(network: string) {
-    const archive = path.resolve("omnibuses/_archive", network, name);
-    const firstCreated = await mkdir(archive, { recursive: true });
-    for (
-      let parent = path.dirname(archive);
-      firstCreated && parent.length >= firstCreated.length;
-      parent = path.dirname(parent)
-    ) {
-      createdArchiveParents.add(parent);
-    }
+    const archive = path.join(omnibusesDir, "_archive", network, name);
+    await mkdir(archive, { recursive: true });
     return archive;
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    root = await mkdtemp(path.join(tmpdir(), "depot-omnibus-"));
+    omnibusesDir = path.join(root, "omnibuses");
+    await mkdir(omnibusesDir);
+    await cp(path.resolve("omnibuses/_omnibus_template"), path.join(omnibusesDir, "_omnibus_template"), {
+      recursive: true,
+    });
+    for (const folder of ["src", "abi", "node_modules"]) {
+      await symlink(path.resolve(folder), path.join(root, folder), "dir");
+    }
+    await writeFile(path.join(root, "package.json"), '{"type":"module"}');
+    sinon.stub(omnibusTaskDeps, "getOmnibusesDir").returns(omnibusesDir);
     name = `2026_09_06_create_${randomUUID().replaceAll("-", "")}`;
-    directory = path.resolve("omnibuses", name);
+    directory = path.join(omnibusesDir, name);
     sinon.stub(prompt, "text").resolves(name);
     sinon.stub(console, "log");
   });
 
   afterEach(async () => {
     sinon.restore();
-    await rm(directory, { recursive: true, force: true });
-    for (const network of ["mainnet", "hoodi"]) {
-      await rm(path.resolve("omnibuses/_archive", network, name), { recursive: true, force: true });
-    }
-    for (const parent of [...createdArchiveParents].sort((a, b) => b.length - a.length)) {
-      await rmdir(parent).catch((error: NodeJS.ErrnoException) => {
-        if (error.code !== "ENOTEMPTY" && error.code !== "ENOENT") {
-          throw error;
-        }
-      });
-    }
-    createdArchiveParents.clear();
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it("archives a created wrapper and its sibling helper with loadable external imports", async () => {
+    sinon.stub(prompt, "select").resolves("mainnet");
+    await hre.tasks.getTask(["omnibus:create"]).run({});
+    const wrapperPath = path.join(directory, `${name}.ts`);
+    let source = await readFile(wrapperPath, "utf-8");
+    source =
+      `import { network } from "./helper";\n` +
+      source
+        .replace('network: "mainnet"', "network")
+        .replace("voteId: undefined", "voteId: 1")
+        .replace("launchedAt: undefined", "launchedAt: 1")
+        .replace("quorumReached: undefined", "quorumReached: false");
+    await writeFile(wrapperPath, source);
+    await writeFile(
+      path.join(directory, "helper.ts"),
+      `import {
+  MiniMeToken_ABI,
+} from "../../abi/MiniMeToken.abi";
+export const network = MiniMeToken_ABI.length ? "mainnet" : "hoodi";
+export const text = "../../src/omnibuses";
+`,
+    );
+    await hre.tasks.getTask(["omnibus:archive"]).run({ name });
+    await rejects(readdir(directory), { code: "ENOENT" });
+    const archive = path.join(omnibusesDir, "_archive/mainnet", name);
+    const archivedWrapper = path.join(archive, `${name}.ts`);
+    const wrapper = await readFile(archivedWrapper, "utf-8");
+    assert.include(wrapper, 'from "./helper"');
+    assert.include(wrapper, 'from "../../../../src/omnibuses"');
+    const helper = await readFile(path.join(archive, "helper.ts"), "utf-8");
+    assert.include(helper, 'from "../../../../abi/MiniMeToken.abi"');
+    assert.include(helper, 'text = "../../src/omnibuses"');
+    const omnibus = await loadOmnibus(name);
+    assert.equal(omnibus.voteId, 1);
+    assert.equal(omnibus.network, "mainnet");
+    const options: ts.CompilerOptions = {
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      target: ts.ScriptTarget.ES2022,
+      strict: true,
+      skipLibCheck: true,
+      esModuleInterop: true,
+      noEmit: true,
+    };
+    const program = ts.createProgram([archivedWrapper], options);
+    assert.isEmpty(
+      ts
+        .getPreEmitDiagnostics(program)
+        .filter((diagnostic) => diagnostic.file?.fileName.startsWith(archive))
+        .map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")),
+    );
   });
 
   for (const [network, voting] of [
@@ -77,7 +126,7 @@ describe("omnibus:create", () => {
       assert.notMatch(wrapper, /\bcalls\s*:/);
       assert.equal(markdown.slice(markdown.indexOf("\n")), templateMarkdown.slice(templateMarkdown.indexOf("\n")));
       assert.notInclude(markdown, "Omnibus Template");
-      assert.isEmpty(lintVoteAddresses({ directories: [directory] }));
+      assert.isEmpty(lintVoteAddresses({ rootDir: root, directories: [directory] }));
 
       const { default: omnibus }: { default: unknown } = await import(
         pathToFileURL(path.join(directory, `${name}.ts`)).href
