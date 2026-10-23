@@ -6,6 +6,7 @@ import easyTrack from "./easy-track";
 import finance from "./finance";
 import hashConsensus from "./hash-consensus";
 import kernel from "./kernel";
+import nodeOperators from "./node-operators";
 import proxy from "./proxy";
 import stakingRouter from "./staking-router";
 
@@ -20,6 +21,7 @@ export const expectedEvents = {
   finance,
   hashConsensus,
   kernel,
+  nodeOperators,
   proxy,
   stakingRouter,
 };
