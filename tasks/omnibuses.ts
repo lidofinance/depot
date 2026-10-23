@@ -36,6 +36,7 @@ import { getKeystores } from "../src/hardhat-keystores";
 import { runHardhatTask } from "../src/hardhat/run-task";
 import { adoptAragonVoting } from "../src/aragon-votes-tools";
 import { renderDefaultOmnibusDeployment } from "../src/omnibuses/omnibus-deployment";
+import { assertVoteAddresses } from "../src/omnibuses/address-lint";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -182,6 +183,7 @@ defineTask("omnibus:build", "Build Solidity omnibus contract(s) for the given om
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to build contracts for" })
   .setAction(async (taskArgs: { name: string }, hre: HardhatRuntimeEnvironment) => {
     const { name } = taskArgs;
+    assertVoteAddresses(await resolveOmnibusDir(name));
     await buildOmnibusContracts(hre, name);
     console.log(fmt.success(`Omnibus contracts for "${name}" compiled successfully`));
   });
@@ -200,6 +202,7 @@ defineTask("omnibus:deploy", "Deploy the contracts of an omnibus")
   .addFlag({ name: "broadcast", description: "broadcast the transaction to the network" })
   .setAction(async (taskArgs: { name: string; broadcast: boolean }, hre: HardhatRuntimeEnvironment) => {
     const { name, broadcast = false } = taskArgs;
+    assertVoteAddresses(await resolveOmnibusDir(name));
     const omnibus = await loadOmnibus(name);
     const defaultContractName = omnibus.hasDeployMethod() ? undefined : await findDefaultOmnibusContractName(name);
 
@@ -263,6 +266,7 @@ defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to test" })
   .setAction(async (taskArgs: { name: string }, hre: HardhatRuntimeEnvironment) => {
     const { name } = taskArgs;
+    assertVoteAddresses(await resolveOmnibusDir(name));
     const omnibus = await loadOmnibus(name);
     const client = await prepareDevRpcClient(omnibus.network, hre);
     await prepareOmnibus(hre, client, omnibus);

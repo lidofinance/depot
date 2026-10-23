@@ -11,6 +11,7 @@ import prompt from "../../src/common/prompt";
 import { Omnibus } from "../../src/omnibuses";
 import { RpcClient } from "../../src/network";
 import { prepareOmnibus } from "../../tasks/omnibuses";
+import { lintVoteAddresses } from "../../src/omnibuses/address-lint";
 
 describe("omnibus:create", () => {
   let name: string;
@@ -76,6 +77,7 @@ describe("omnibus:create", () => {
       assert.notMatch(wrapper, /\bcalls\s*:/);
       assert.equal(markdown.slice(markdown.indexOf("\n")), templateMarkdown.slice(templateMarkdown.indexOf("\n")));
       assert.notInclude(markdown, "Omnibus Template");
+      assert.isEmpty(lintVoteAddresses({ directories: [directory] }));
 
       const { default: omnibus }: { default: unknown } = await import(
         pathToFileURL(path.join(directory, `${name}.ts`)).href
