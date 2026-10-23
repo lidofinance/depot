@@ -104,6 +104,8 @@ Docker and each target's configured dependencies are required. Set the intended 
 
 ## 7. Rehearse deployment and launch
 
+Before the first run, import an existing key with `npm run ks:add -- <name>` or generate a new account with `npm run ks:gen -- <name>`. Both commands prompt for a password to encrypt the keystore; deploy and launch prompt for that password to unlock it.
+
 ```bash
 npx hardhat omnibus:deploy <name>
 npx hardhat omnibus:launch <name>
