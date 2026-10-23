@@ -20,7 +20,7 @@ pragma solidity 0.8.26;
 ///
 /// ```solidity
 /// uint256[] memory params = new uint256[](1);
-/// params[0] = AclPermissionsUtils.param(0, Op.EQ, NODE_OPERATOR_ID);
+/// params[0] = AclPermissionsUtils.param(0, AclPermissionsUtils.Op.EQ, NODE_OPERATOR_ID);
 /// ```
 library AclPermissionsUtils {
     enum Op {

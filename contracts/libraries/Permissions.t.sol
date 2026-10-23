@@ -40,8 +40,7 @@ contract PermissionsCallsTest is Test {
         VoteCall[] memory calls = builder.getCalls();
 
         bytes[] memory expected = _expectedPayloads();
-        string[7] memory titles =
-            ["Create", "Grant", "Grant with params", "Revoke", "Set manager", "Grant OZ role", "Revoke OZ role"];
+        string[7] memory titles = _expectedTitles();
         assertEq(calls.length, 7);
         for (uint256 i = 0; i < calls.length; ++i) {
             assertEq(calls[i].title, titles[i]);
@@ -64,8 +63,7 @@ contract PermissionsCallsTest is Test {
         ForwardedCall[] memory calls = builder.getCalls();
 
         bytes[] memory expected = _expectedPayloads();
-        string[7] memory titles =
-            ["Create", "Grant", "Grant with params", "Revoke", "Set manager", "Grant OZ role", "Revoke OZ role"];
+        string[7] memory titles = _expectedTitles();
         assertEq(calls.length, 7);
         for (uint256 i = 0; i < calls.length; ++i) {
             assertEq(calls[i].title, string.concat("    ", titles[i]));
@@ -105,6 +103,10 @@ contract PermissionsCallsTest is Test {
             calls[0].payload,
             abi.encodeWithSignature("grantPermissionP(address,address,bytes32,uint256[])", ENTITY, APP, ROLE, params)
         );
+    }
+
+    function _expectedTitles() private pure returns (string[7] memory titles) {
+        titles = ["Create", "Grant", "Grant with params", "Revoke", "Set manager", "Grant OZ role", "Revoke OZ role"];
     }
 
     function _expectedPayloads() private pure returns (bytes[] memory payloads) {

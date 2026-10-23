@@ -116,10 +116,19 @@ describe("permissions and node operator helpers (mainnet fork integration)", fun
         revoked.assertEvents(ev.accessControl.permissionRevoked(acl, permission));
         revoked.assertNothingLeft();
         await permissionChecks.checkAragonPermissionNotGranted({ client }, { ...permission, args: [OPERATOR_ID] });
-        const before = await client.read(registry, "getNodeOperator", [OPERATOR_ID, true]);
-        assert.isTrue(before[5] > before[6], "The test needs an unused signing key");
+        const [, , , , , totalAddedValidatorsBefore, totalDepositedValidatorsBefore] = await client.read(
+          registry,
+          "getNodeOperator",
+          [OPERATOR_ID, true],
+        );
+        assert.isTrue(
+          totalAddedValidatorsBefore > totalDepositedValidatorsBefore,
+          "The test needs an unused signing key",
+        );
         await rejects(
-          client.write(registry, "removeSigningKeys", [OPERATOR_ID, before[6], 1n], { from: MANAGER }),
+          client.write(registry, "removeSigningKeys", [OPERATOR_ID, totalDepositedValidatorsBefore, 1n], {
+            from: MANAGER,
+          }),
           /APP_AUTH_FAILED/,
         );
 
@@ -138,8 +147,14 @@ describe("permissions and node operator helpers (mainnet fork integration)", fun
           client.write(registry, "removeSigningKeys", [OPERATOR_ID + 1n, 0n, 1n], { from: MANAGER }),
           /APP_AUTH_FAILED/,
         );
-        await client.write(registry, "removeSigningKeys", [OPERATOR_ID, before[6], 1n], { from: MANAGER });
-        assert.equal((await client.read(registry, "getNodeOperator", [OPERATOR_ID, true]))[5], before[5] - 1n);
+        await client.write(registry, "removeSigningKeys", [OPERATOR_ID, totalDepositedValidatorsBefore, 1n], {
+          from: MANAGER,
+        });
+        const [, , , , , totalAddedValidatorsAfter] = await client.read(registry, "getNodeOperator", [
+          OPERATOR_ID,
+          true,
+        ]);
+        assert.equal(totalAddedValidatorsAfter, totalAddedValidatorsBefore - 1n);
       } finally {
         await client.stopImpersonating(MANAGER);
         await client.stopImpersonating(AGENT);
@@ -149,7 +164,11 @@ describe("permissions and node operator helpers (mainnet fork integration)", fun
 
   it("executes all NOR helpers against the current module and checks every domain log", async function () {
     await client.withSnapshot(async () => {
-      const before = await client.read(registry, "getNodeOperator", [OPERATOR_ID, true]);
+      const [, , , totalVettedValidatorsBefore, , , totalDepositedValidatorsBefore] = await client.read(
+        registry,
+        "getNodeOperator",
+        [OPERATOR_ID, true],
+      );
       const nonce = await client.read(registry, "getNonce");
       const activeCount = await client.read(registry, "getActiveNodeOperatorsCount");
       await client.impersonate(AGENT, parseEther("1"));
@@ -188,7 +207,8 @@ describe("permissions and node operator helpers (mainnet fork integration)", fun
             nodeOperatorId: OPERATOR_ID,
             active: false,
             nonce: nonce + 2n,
-            vettedSigningKeysCount: before[3] > before[6] ? before[6] : undefined,
+            vettedSigningKeysCount:
+              totalVettedValidatorsBefore > totalDepositedValidatorsBefore ? totalDepositedValidatorsBefore : undefined,
           }),
         );
         deactivated.assertNothingLeft();
@@ -198,7 +218,8 @@ describe("permissions and node operator helpers (mainnet fork integration)", fun
         );
         assert.equal(await client.read(registry, "getActiveNodeOperatorsCount"), activeCount - 1n);
         assert.equal(await client.read(registry, "getNonce"), nonce + 2n);
-        assert.equal((await client.read(registry, "getNodeOperator", [OPERATOR_ID, true]))[3], before[6]);
+        const [, , , totalVettedValidatorsAfter] = await client.read(registry, "getNodeOperator", [OPERATOR_ID, true]);
+        assert.equal(totalVettedValidatorsAfter, totalDepositedValidatorsBefore);
       } finally {
         await client.stopImpersonating(AGENT);
       }

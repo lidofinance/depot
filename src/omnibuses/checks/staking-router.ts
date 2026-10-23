@@ -53,14 +53,16 @@ const checkNodeOperator = async ({ client }: CheckContext, input: CheckNodeOpera
   }
 };
 
+interface CheckNodeOperatorTargetValidatorsCountInput {
+  stakingModule: Contract<typeof NodeOperatorsRegistry_ABI>;
+  operatorId: bigint;
+  targetLimitMode: bigint;
+  targetValidatorsCount: bigint;
+}
+
 async function checkNodeOperatorTargetValidatorsCount(
   { client }: CheckContext,
-  input: {
-    stakingModule: Contract<typeof NodeOperatorsRegistry_ABI>;
-    operatorId: bigint;
-    targetLimitMode: bigint;
-    targetValidatorsCount: bigint;
-  },
+  input: CheckNodeOperatorTargetValidatorsCountInput,
 ): Promise<void> {
   const [targetLimitMode, targetValidatorsCount] = await client.read(input.stakingModule, "getNodeOperatorSummary", [
     input.operatorId,
