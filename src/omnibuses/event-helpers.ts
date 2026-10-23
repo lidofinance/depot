@@ -1,7 +1,7 @@
 import { AbiEvent, Address, formatAbiItem } from "abitype";
 import chalk from "chalk";
 import deepEqual from "deep-eql";
-import { decodeEventLog, encodeEventTopics, Log, TransactionReceipt } from "viem";
+import { decodeEventLog, encodeEventTopics, isAddressEqual, Log, TransactionReceipt } from "viem";
 
 import bytes from "../common/bytes";
 import { Contract, getEventAbi } from "../contracts";
@@ -54,6 +54,16 @@ export function getSubmittedProposalIds(receipt: TransactionReceipt) {
 
 export function assertEventWithLog(actualLog: Log, expectedEvent: OmnibusCallEvent): { skipped: boolean } {
   const [expectedTopic] = encodeEventTopics({ abi: [expectedEvent.abi], eventName: expectedEvent.abi.name });
+
+  if (!isAddressEqual(actualLog.address, expectedEvent.emitter)) {
+    if (expectedEvent.isOptional) {
+      return { skipped: true };
+    }
+    throw new Error(
+      `Unexpected emitter for the "${formatAbiItem(expectedEvent.abi)}": ` +
+        `${actualLog.address} != ${expectedEvent.emitter}`,
+    );
+  }
 
   if (!bytes.isEqual(actualLog.topics[0]!, expectedTopic)) {
     if (expectedEvent.isOptional) {
