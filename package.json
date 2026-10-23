@@ -11,6 +11,7 @@
     "omnibus:debug": "hardhat omnibus:simulate _example_regular_omnibus",
     "omnibus:ci-prepare": "hardhat omnibus:ci-prepare _example_tiny_omnibus",
     "omnibus:multi-test": "hardhat omnibus:multi-test",
+    "abi:sync": "hardhat abi:sync",
     "ks:add": "hardhat keystore:add",
     "ks:ls": "hardhat keystore:list",
     "ks:del": "hardhat keystore:delete",

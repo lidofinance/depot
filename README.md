@@ -11,6 +11,10 @@ Install docker - https://docs.docker.com/engine/install/
 
 Use Foundry v1.8.1 for Solidity formatting and contract generation, matching CI: `foundryup --install v1.8.1`.
 
+## ABI synchronization
+
+Use `npm run abi:sync -- <Name>` to generate a TypeScript ABI and Solidity interface from Etherscan or a local JSON file. See the [ABI sync guide](./docs/ABI_SYNC.md) for source selection, proxy handling, method filtering and verification.
+
 ## Omnibus
 
 The main purpose of the omnibus is to prepare the EVM script that will be executed if the vote is successful. The voting EVM script is built from the omnibus items defined in the omnibus. During the run, the omnibus will call the

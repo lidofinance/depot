@@ -74,7 +74,7 @@ Rules:
 
 1. Declare only contracts actually used in calls/tests.
 2. Keep addresses explicit and reviewed.
-3. Reuse ABIs from `abi/`.
+3. Reuse ABIs from `abi/`. When a required ABI/interface is missing or stale, follow the [ABI sync guide](../ABI_SYNC.md) for source selection and regeneration.
 
 See:
 
