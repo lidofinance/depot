@@ -1,18 +1,13 @@
 import { AbiEvent, Address } from "abitype";
 import { TransactionReceipt } from "viem";
 
-import { HexStrNonPrefixed, HexStrPrefixed } from "../common/bytes";
+import { HexStrPrefixed } from "../common/bytes";
 import { DevRpcClient, NetworkName, RpcClient } from "../network";
 import { TxTrace } from "../traces/tx-traces";
 import { Contract } from "../contracts";
-import { OmnibusDirectCall, OmnibusDirectCallFactory } from "./calls/omnibus-direct-call";
-import { OmnibusExecuteCall, OmnibusExecuteCallFactory } from "./calls/omnibus-execute-call";
-import { OmnibusForwardCall, OmnibusForwardCallFactory } from "./calls/omnibus-forward-call";
-import { OmnibusForwardCalls, OmnibusForwardCallsFactory } from "./calls/omnibus-forward-calls";
-import { OmnibusSubmitProposalCall, OmnibusSubmitProposalCallFactory } from "./calls/omnibus-submit-calls";
-import { Blueprints } from "./blueprints";
 import type checks from "./checks";
-import type { event } from "./event-helpers";
+import type { LogCollector } from "./log-collector";
+import type { ProposalEvents, VoteEvents } from "./vote-events";
 
 export const DEFAULT_FORMAT_OPTIONS: FormatOptions = Object.freeze({
   padLength: 0,
@@ -23,15 +18,6 @@ export interface FormatOptions {
   trace?: TxTrace;
 }
 
-export interface BaseOmnibusCall {
-  getTarget(): Address;
-  getCalldata(): HexStrNonPrefixed;
-  getExpectedEvents(phase: "vote" | "proposal"): OmnibusCallEvent[];
-  format(formatOptions?: FormatOptions): string;
-  formatTitle(formatOptions?: FormatOptions): string;
-  formatCall(formatOptions?: FormatOptions): string;
-}
-
 export interface OmnibusCallEvent {
   abi: AbiEvent;
   args: unknown[];
@@ -40,31 +26,10 @@ export interface OmnibusCallEvent {
   allowMultiple: boolean;
 }
 
-export type OmnibusCall =
-  | OmnibusDirectCall
-  | OmnibusForwardCall
-  | OmnibusExecuteCall
-  | OmnibusForwardCalls
-  | OmnibusSubmitProposalCall;
-
 export interface OmnibusFormatParams {
   executeOmnibusTrace?: TxTrace;
   executeProposalTraces?: TxTrace[];
   padLength?: number;
-}
-
-export type BlueprintCtx = Pick<OmnibusConfigCtx, "event" | "directCall">;
-
-// The voting will be bound to the method at the construction of the omnibus
-export interface OmnibusConfigCtx<$DeployedContracts extends Record<string, Contract> = Record<string, Contract>> {
-  event: typeof event;
-  directCall: OmnibusDirectCallFactory["create"];
-  executeCall: OmnibusExecuteCallFactory["create"];
-  forwardCall: OmnibusForwardCallFactory["create"];
-  forwardCalls: OmnibusForwardCallsFactory["create"];
-  submitCalls: OmnibusSubmitProposalCallFactory["create"];
-  blueprints: Blueprints;
-  deployment: $DeployedContracts;
 }
 
 export interface DeployOmnibusContractCtx {
@@ -90,10 +55,10 @@ export interface OmnibusConfig<$Network extends NetworkName, $DeployedContracts 
   quorumReached?: boolean;
   /**
    * Contains the info about the omnibus execution - the number of the block with execution transaction.
+   * Used by omnibus:archive and omnibus:trace; omnibus:test rejects executed votes.
    */
   executedAt?: number | undefined;
 
-  calls: (ctx: OmnibusConfigCtx<$DeployedContracts>) => OmnibusCall[];
   testVote: TestVoteFn<$DeployedContracts>;
   testProposal?: TestProposalFn<$DeployedContracts>;
 
@@ -113,6 +78,8 @@ export interface TestVoteFn<$DeployedContracts extends Record<string, Contract>>
 
 export interface PassProposalResult {
   executeReceipts: TransactionReceipt[];
+  logs: LogCollector[];
+  proposalEvents: ProposalEvents[];
 }
 
 export interface TestFnCommonCtx<$DeployedContracts extends Record<string, Contract>> {
@@ -152,4 +119,6 @@ export interface PassVoteResult {
   voteId: bigint;
   executeReceipt: TransactionReceipt;
   submittedProposalIds: bigint[];
+  logs: LogCollector;
+  voteEvents: VoteEvents;
 }

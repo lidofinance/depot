@@ -1,5 +1,6 @@
 import { Address, getAddress } from "viem";
 import ts from "typescript";
+import { Contract } from "../contracts";
 
 export function renderDefaultOmnibusDeployment(source: string, address: Address): string {
   const sourceFile = ts.createSourceFile("omnibus.ts", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
@@ -66,4 +67,22 @@ function getPropertyName(name: ts.PropertyName, sourceFile: ts.SourceFile): stri
     return name.text;
   }
   return name.getText(sourceFile);
+}
+
+export function renderCustomOmnibusDeployment(contracts: Record<string, Contract>): string {
+  const entries = Object.entries(contracts);
+  const declarations = entries.map(
+    ([, contract], index) => `const DEPLOYED_CONTRACT_${index + 1} = "${getAddress(contract.address)}";`,
+  );
+  const properties = entries.map(
+    ([key, contract], index) =>
+      `  ${JSON.stringify(key)}: { address: DEPLOYED_CONTRACT_${index + 1}, label: ${JSON.stringify(contract.label)}, abi: ${JSON.stringify(contract.abi)} },`,
+  );
+  return [
+    ...declarations,
+    "",
+    "const DEPLOYED_CONTRACTS = {",
+    ...properties,
+    "} as unknown as Awaited<ReturnType<typeof deploy>>;",
+  ].join("\n");
 }
