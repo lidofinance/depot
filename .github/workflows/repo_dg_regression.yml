@@ -46,6 +46,9 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: lidofinance/dual-governance
+          # TODO
+          # Temporarily pin develop for SR3-compatible regression helpers (DG #369).
+          ref: cc407b472199585b21d33b14c6b3067a6b62de96
           path: dual-governance
           persist-credentials: false
 
