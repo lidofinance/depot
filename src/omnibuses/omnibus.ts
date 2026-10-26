@@ -220,7 +220,7 @@ export class Omnibus<
     const omnibusContract = this.getOmnibusContract();
 
     if (!omnibusContract) {
-      throw new Error(`Omnibus doesn't contain "contract" property`);
+      throw new Error(`Omnibus doesn't contain "deployment.omnibus" property`);
     }
 
     const { calls, evmScript } = await readOmnibusContractCalls(client, omnibusContract);

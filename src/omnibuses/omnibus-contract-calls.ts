@@ -26,7 +26,7 @@ export async function readOmnibusContractCalls(
   omnibusContract: OmnibusBaseContract,
 ): Promise<OmnibusContractCalls> {
   if (!omnibusContract.address) {
-    throw new Error(`Omnibus contract is not deployed. Make sure "contract.address" property is set.`);
+    throw new Error(`Omnibus contract is not deployed. Make sure "deployment.omnibus.address" property is set.`);
   }
 
   const [calls, evmScript] = await Promise.all([
