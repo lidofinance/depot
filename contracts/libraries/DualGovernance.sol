@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {VoteCallsBuilder, VoteCallsBuilderUtils, ProposalCallsBuilder} from "./calls-builder.sol";
+import {VoteCallsBuilder, VoteCallsBuilderUtils, ProposalCallsBuilder} from "./CallsBuilder.sol";
 
 library DualGovernanceCalls {
     using VoteCallsBuilderUtils for VoteCallsBuilder;

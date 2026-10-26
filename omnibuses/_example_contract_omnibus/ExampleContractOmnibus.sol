@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import "contracts/OmnibusBase.sol";
-import "contracts/libraries/calls-builder.sol";
+import "contracts/libraries/CallsBuilder.sol";
 
 import {IFinance} from "contracts/interfaces/IFinance.sol";
 import {IEasyTrack} from "contracts/interfaces/IEasyTrack.sol";

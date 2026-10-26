@@ -10,7 +10,7 @@ import {
     VoteCallsBuilderUtils,
     ProposalCallsBuilder,
     ProposalCallsBuilderUtils
-} from "./calls-builder.sol";
+} from "./CallsBuilder.sol";
 
 contract DualGovernanceCallsTest is Test {
     using DualGovernanceCalls for VoteCallsBuilder;

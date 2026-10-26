@@ -4,7 +4,7 @@ Use this catalogue when an action matches one of these domains. Resolve its call
 
 ## Builder levels
 
-Import types and matching `*BuilderUtils` from [calls-builder.sol](../../../contracts/libraries/calls-builder.sol). `create(n)` allocates immediate children; `getCalls()` completes that builder. Domain call helpers return the same builder for chaining.
+Import types and matching `*BuilderUtils` from [CallsBuilder.sol](../../../contracts/libraries/CallsBuilder.sol). `create(n)` allocates immediate children; `getCalls()` completes that builder. Domain call helpers return the same builder for chaining.
 
 | Receiver                | Caller at the target                   | Available operations                                                                                    |
 | ----------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------- |

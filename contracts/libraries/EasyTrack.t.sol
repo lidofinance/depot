@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 
 import {EasyTrackCalls} from "./EasyTrack.sol";
-import {VoteCall, VoteCallsBuilder, VoteCallsBuilderUtils} from "./calls-builder.sol";
+import {VoteCall, VoteCallsBuilder, VoteCallsBuilderUtils} from "./CallsBuilder.sol";
 
 contract EasyTrackCallsTest is Test {
     using EasyTrackCalls for VoteCallsBuilder;

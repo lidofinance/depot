@@ -5,7 +5,7 @@ import {IEasyTrack} from "../interfaces/IEasyTrack.sol";
 import {IFinance} from "../interfaces/IFinance.sol";
 import {IAllowedRecipientsRegistry} from "../interfaces/IAllowedRecipientsRegistry.sol";
 import {EasyTrackPermissionsUtils} from "./EasyTrackPermissions.sol";
-import {VoteCallsBuilder, VoteCallsBuilderUtils} from "./calls-builder.sol";
+import {VoteCallsBuilder, VoteCallsBuilderUtils} from "./CallsBuilder.sol";
 
 library EasyTrackCalls {
     using EasyTrackPermissionsUtils for bytes;

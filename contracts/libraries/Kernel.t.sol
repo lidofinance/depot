@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {KernelCalls} from "./Kernel.sol";
-import {ForwardedCall, ForwardedCallsBuilder, ForwardedCallsBuilderUtils} from "./calls-builder.sol";
+import {ForwardedCall, ForwardedCallsBuilder, ForwardedCallsBuilderUtils} from "./CallsBuilder.sol";
 
 contract KernelCallsTest is Test {
     using KernelCalls for ForwardedCallsBuilder;

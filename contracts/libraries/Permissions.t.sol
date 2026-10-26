@@ -12,7 +12,7 @@ import {
     ForwardedCall,
     ForwardedCallsBuilder,
     ForwardedCallsBuilderUtils
-} from "./calls-builder.sol";
+} from "./CallsBuilder.sol";
 
 contract PermissionsCallsTest is Test {
     using PermissionsCalls for VoteCallsBuilder;

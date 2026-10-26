@@ -35,7 +35,7 @@ Fence and heading lines are not content. One content line produces no final newl
 
 ## 3. Implement the Solidity contract
 
-Extend [OmnibusBase](../../contracts/OmnibusBase.sol), implement `getOmnibusCalls()`, and set `VOTE_ITEMS_COUNT` to the actual vote-item count. Use [calls-builder.sol](../../contracts/libraries/calls-builder.sol) and the [domain helpers](../../.agents/skills/omnibus-writer-sol/HELPERS.md). Each builder's size is the number of its immediate children, not the number of nested operations.
+Extend [OmnibusBase](../../contracts/OmnibusBase.sol), implement `getOmnibusCalls()`, and set `VOTE_ITEMS_COUNT` to the actual vote-item count. Use [CallsBuilder.sol](../../contracts/libraries/CallsBuilder.sol) and the [domain helpers](../../.agents/skills/omnibus-writer-sol/HELPERS.md). Each builder's size is the number of its immediate children, not the number of nested operations.
 
 Use the intended deployment's interfaces from `contracts/interfaces/` with `abi.encodeCall` and interface selectors. Write selectors as `IContract.method.selector`, never as hex literals: a literal is checked by nothing. For a missing or stale ABI/interface, follow [ABI sync](../ABI_SYNC.md); confirm the target version before generation. Its default proxy lookup reads latest state, so historical votes may need an explicitly sourced local ABI. Preserve handwritten interfaces and generation filters; for example, `IKernel` uses `--methods setApp`. Buyback interfaces are `IBuybackAllocator` and `IBuybackExecutor`.
 

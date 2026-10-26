@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 
 import {NodeOperatorsCalls} from "./NodeOperators.sol";
-import {ForwardedCall, ForwardedCallsBuilder, ForwardedCallsBuilderUtils} from "./calls-builder.sol";
+import {ForwardedCall, ForwardedCallsBuilder, ForwardedCallsBuilderUtils} from "./CallsBuilder.sol";
 
 contract NodeOperatorsCallsTest is Test {
     using NodeOperatorsCalls for ForwardedCallsBuilder;

@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 
 import {FinanceCalls} from "./Finance.sol";
-import {VoteCall, VoteCallsBuilder, VoteCallsBuilderUtils} from "./calls-builder.sol";
+import {VoteCall, VoteCallsBuilder, VoteCallsBuilderUtils} from "./CallsBuilder.sol";
 
 contract FinanceCallsTest is Test {
     using FinanceCalls for VoteCallsBuilder;

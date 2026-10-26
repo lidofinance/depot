@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {INodeOperatorsRegistry} from "../interfaces/INodeOperatorsRegistry.sol";
 import {IStakingRouter} from "../interfaces/IStakingRouter.sol";
-import {ForwardedCallsBuilder, ForwardedCallsBuilderUtils} from "./calls-builder.sol";
+import {ForwardedCallsBuilder, ForwardedCallsBuilderUtils} from "./CallsBuilder.sol";
 
 library NodeOperatorsCalls {
     using ForwardedCallsBuilderUtils for ForwardedCallsBuilder;

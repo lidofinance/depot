@@ -9,7 +9,7 @@ import {
     VoteCallsBuilderUtils,
     ProposalCallsBuilder,
     ProposalCallsBuilderUtils
-} from "./calls-builder.sol";
+} from "./CallsBuilder.sol";
 import {ExternalCall} from "../interfaces/IGovernance.sol";
 import {IOracleRouter} from "../interfaces/IOracleRouter.sol";
 import {MainnetAddresses as Addresses} from "../addresses/MainnetAddresses.sol";

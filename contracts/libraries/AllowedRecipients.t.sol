@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 
 import {AllowedRecipientsCalls} from "./AllowedRecipients.sol";
-import {ForwardedCall, ForwardedCallsBuilder, ForwardedCallsBuilderUtils} from "./calls-builder.sol";
+import {ForwardedCall, ForwardedCallsBuilder, ForwardedCallsBuilderUtils} from "./CallsBuilder.sol";
 
 contract AllowedRecipientsCallsTest is Test {
     using AllowedRecipientsCalls for ForwardedCallsBuilder;

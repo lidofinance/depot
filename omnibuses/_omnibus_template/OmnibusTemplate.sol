@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {OmnibusBase} from "contracts/OmnibusBase.sol";
-import {VoteCall, VoteCallsBuilder, VoteCallsBuilderUtils} from "contracts/libraries/calls-builder.sol";
+import {VoteCall, VoteCallsBuilder, VoteCallsBuilderUtils} from "contracts/libraries/CallsBuilder.sol";
 
 contract OmnibusTemplate is OmnibusBase {
     using VoteCallsBuilderUtils for VoteCallsBuilder;

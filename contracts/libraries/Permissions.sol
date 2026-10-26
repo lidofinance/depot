@@ -8,7 +8,7 @@ import {
     VoteCallsBuilderUtils,
     ForwardedCallsBuilder,
     ForwardedCallsBuilderUtils
-} from "./calls-builder.sol";
+} from "./CallsBuilder.sol";
 
 library PermissionsCalls {
     using VoteCallsBuilderUtils for VoteCallsBuilder;

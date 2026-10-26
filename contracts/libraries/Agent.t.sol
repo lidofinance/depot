@@ -9,7 +9,7 @@ import {
     ProposalCallsBuilderUtils,
     ForwardedCallsBuilder,
     ForwardedCallsBuilderUtils
-} from "./calls-builder.sol";
+} from "./CallsBuilder.sol";
 
 contract AgentCallsTest is Test {
     using AgentCalls for ProposalCallsBuilder;

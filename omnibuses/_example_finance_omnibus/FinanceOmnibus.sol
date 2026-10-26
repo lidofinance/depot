@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {OmnibusBase} from "contracts/OmnibusBase.sol";
 import {FinanceCalls} from "contracts/libraries/Finance.sol";
-import {VoteCall, VoteCallsBuilder, VoteCallsBuilderUtils} from "contracts/libraries/calls-builder.sol";
+import {VoteCall, VoteCallsBuilder, VoteCallsBuilderUtils} from "contracts/libraries/CallsBuilder.sol";
 
 /// @notice Reproduces the 2500 stETH Finance payment of mainnet vote #200 to the LLF operational multisig.
 contract FinanceOmnibus is OmnibusBase {

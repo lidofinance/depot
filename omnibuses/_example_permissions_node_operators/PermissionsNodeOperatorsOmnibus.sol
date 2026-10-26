@@ -15,7 +15,7 @@ import {
     ProposalCallsBuilderUtils,
     ForwardedCallsBuilder,
     ForwardedCallsBuilderUtils
-} from "contracts/libraries/calls-builder.sol";
+} from "contracts/libraries/CallsBuilder.sol";
 
 /// @notice Local fork example: renew a scoped permission and update one curated operator.
 contract PermissionsNodeOperatorsOmnibus is OmnibusBase {

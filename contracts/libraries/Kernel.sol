@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {IKernel} from "../interfaces/IKernel.sol";
-import {ForwardedCallsBuilder, ForwardedCallsBuilderUtils} from "./calls-builder.sol";
+import {ForwardedCallsBuilder, ForwardedCallsBuilderUtils} from "./CallsBuilder.sol";
 
 library KernelCalls {
     using ForwardedCallsBuilderUtils for ForwardedCallsBuilder;

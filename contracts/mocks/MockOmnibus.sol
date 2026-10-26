@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {OmnibusBase} from "../OmnibusBase.sol";
-import {VoteCall} from "../libraries/calls-builder.sol";
+import {VoteCall} from "../libraries/CallsBuilder.sol";
 
 contract MockOmnibus is OmnibusBase {
     constructor() OmnibusBase(address(0)) {}

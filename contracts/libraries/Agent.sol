@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {ProposalCallsBuilder, ProposalCallsBuilderUtils, ForwardedCallsBuilder} from "./calls-builder.sol";
+import {ProposalCallsBuilder, ProposalCallsBuilderUtils, ForwardedCallsBuilder} from "./CallsBuilder.sol";
 
 library AgentCalls {
     using ProposalCallsBuilderUtils for ProposalCallsBuilder;

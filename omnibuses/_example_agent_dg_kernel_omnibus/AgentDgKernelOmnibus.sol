@@ -14,7 +14,7 @@ import {
     ProposalCallsBuilderUtils,
     ForwardedCallsBuilder,
     ForwardedCallsBuilderUtils
-} from "contracts/libraries/calls-builder.sol";
+} from "contracts/libraries/CallsBuilder.sol";
 
 /// @notice Fork-only example upgrading a fixture app through the deployed DG, Agent and Kernel.
 contract AgentDgKernelOmnibus is OmnibusBase {

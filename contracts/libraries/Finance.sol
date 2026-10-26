@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {IFinance} from "../interfaces/IFinance.sol";
-import {VoteCallsBuilder, VoteCallsBuilderUtils} from "./calls-builder.sol";
+import {VoteCallsBuilder, VoteCallsBuilderUtils} from "./CallsBuilder.sol";
 
 library FinanceCalls {
     using VoteCallsBuilderUtils for VoteCallsBuilder;
