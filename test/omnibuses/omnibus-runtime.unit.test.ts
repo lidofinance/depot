@@ -1,14 +1,7 @@
 import { assert } from "chai";
 import { rejects } from "node:assert/strict";
 import sinon from "sinon";
-import {
-  encodeAbiParameters,
-  encodeEventTopics,
-  encodeFunctionData,
-  encodeFunctionResult,
-  Hex,
-  TransactionReceipt,
-} from "viem";
+import { encodeFunctionData, encodeFunctionResult, TransactionReceipt } from "viem";
 
 import { Address } from "abitype";
 
@@ -22,6 +15,7 @@ import { Omnibus, OmnibusConfig, VoteCall } from "../../src/omnibuses";
 import { ProposalStatus } from "../../src/omnibuses/dual-governance";
 import { getGovernanceContracts } from "../../src/omnibuses/governance-contracts";
 import { TxTrace, TxTraceCallItem } from "../../src/traces/tx-traces";
+import { eventLog } from "../helpers/event-log";
 
 const governance = getGovernanceContracts("mainnet");
 const { voting, callsScript, dualGovernance, timelock, adminExecutor } = governance;
@@ -39,27 +33,14 @@ const calls: VoteCall[] = proposalCalls.map((items, index) => ({
 }));
 
 function log(emitter: Contract, name: string, args: unknown[]): TransactionReceipt["logs"][number] {
-  const abi = emitter.abi.find((item) => item.type === "event" && item.name === name);
-  if (!abi || abi.type !== "event") {
-    throw new Error(`Unknown event ${name}`);
-  }
   return {
-    address: emitter.address,
-    topics: encodeEventTopics({
-      abi: [abi],
-      eventName: name,
-      args: abi.inputs.flatMap((input, index) => (input.indexed ? [args[index]] : [])) as never,
-    }) as [Hex, ...Hex[]],
-    data: encodeAbiParameters(
-      abi.inputs.filter((input) => !input.indexed),
-      abi.inputs.flatMap((input, index) => (input.indexed ? [] : [args[index]])),
-    ),
+    ...eventLog(emitter, name, args),
+    blockTimestamp: undefined,
     logIndex: 0,
     blockHash: "0x00",
     blockNumber: 1n,
     transactionHash: "0x00",
     transactionIndex: 0,
-    removed: false,
   };
 }
 

@@ -9,6 +9,7 @@ import { getGovernanceContracts } from "../../src/omnibuses/governance-contracts
 import { LogCollector } from "../../src/omnibuses/log-collector";
 import { VoteCall } from "../../src/omnibuses/omnibus-types";
 import { VoteEvents } from "../../src/omnibuses/vote-events";
+import { eventLog } from "../helpers/event-log";
 
 const EASY_TRACK = "0xF0211b7660680B49De1A7E9f25C65660F0a13Fea";
 const FACTORY = "0x0000000000000000000000000000000000000101";
@@ -37,34 +38,26 @@ function log(emitter: Address, signature: string, data: Hex, indexedTopics: Hex[
 }
 
 function factoryAddedLog(permission: Hex, factory: Address = FACTORY, emitter: Address = EASY_TRACK): Log {
-  return log(emitter, "EVMScriptFactoryAdded(address,bytes)", encodeAbiParameters([{ type: "bytes" }], [permission]), [
-    encodeAbiParameters([{ type: "address" }], [factory]),
-  ]);
+  return eventLog(easyTrack, "EVMScriptFactoryAdded", [factory, permission], { address: emitter });
 }
 
 function factoryRemovedLog(factory: Address = FACTORY): Log {
-  return log(EASY_TRACK, "EVMScriptFactoryRemoved(address)", "0x", [
-    encodeAbiParameters([{ type: "address" }], [factory]),
-  ]);
+  return eventLog(easyTrack, "EVMScriptFactoryRemoved", [factory]);
 }
 
 function logScriptCall(): Log {
-  return log(governance.voting.address, "LogScriptCall(address,address,address)", "0x", [
-    encodeAbiParameters([{ type: "address" }], [governance.tokenManager.address]),
-    encodeAbiParameters([{ type: "address" }], [governance.voting.address]),
-    encodeAbiParameters([{ type: "address" }], [EASY_TRACK]),
-  ]);
+  return eventLog(
+    governance.callsScript,
+    "LogScriptCall",
+    [governance.tokenManager.address, governance.voting.address, EASY_TRACK],
+    { address: governance.voting.address },
+  );
 }
 
 function voteTailLogs(evmScript: Hex): Log[] {
   return [
-    log(
-      governance.voting.address,
-      "ScriptResult(address,bytes,bytes,bytes)",
-      encodeAbiParameters([{ type: "bytes" }, { type: "bytes" }, { type: "bytes" }], [evmScript, "0x", "0x"]),
-      [encodeAbiParameters([{ type: "address" }], [governance.callsScript.address])],
-    ),
-    log(governance.voting.address, "ExecuteVote(uint256)", "0x", [encodeAbiParameters([{ type: "uint256" }], [204n])]),
+    eventLog(governance.voting, "ScriptResult", [governance.callsScript.address, evmScript, "0x", "0x"]),
+    eventLog(governance.voting, "ExecuteVote", [204n]),
   ];
 }
 

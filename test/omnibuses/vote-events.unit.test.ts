@@ -1,6 +1,6 @@
 import { Address } from "abitype";
 import { assert } from "chai";
-import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, Hex, Log } from "viem";
+import { encodeFunctionData, Log } from "viem";
 
 import { ERC20_ABI } from "../../abi/ERC20.abi";
 import { Agent_ABI } from "../../abi/Agent.abi";
@@ -15,6 +15,7 @@ import { getGovernanceContracts } from "../../src/omnibuses/governance-contracts
 import { LogCollector } from "../../src/omnibuses/log-collector";
 import { VoteCall } from "../../src/omnibuses/omnibus-types";
 import { ProposalEvents, VoteEvents } from "../../src/omnibuses/vote-events";
+import { eventLog } from "../helpers/event-log";
 
 const governance = getGovernanceContracts("mainnet");
 const { voting, callsScript, timelock, dualGovernance, adminExecutor } = governance;
@@ -31,30 +32,15 @@ const agent = contract(Agent_ABI, AGENT);
 
 let logIndex = 0;
 
-/** Encodes a log the way the node would: indexed args into topics, the rest into data. */
-function log(emitter: Contract, eventName: string, args: unknown[], address?: Address): Log {
-  const abiEvent = emitter.abi.find((item) => item.type === "event" && item.name === eventName);
-  if (!abiEvent || abiEvent.type !== "event") {
-    throw new Error(`No event "${eventName}" in ${emitter.label} ABI`);
-  }
-  const indexedArgs = abiEvent.inputs.flatMap((input, index) => (input.indexed ? [args[index]] : []));
-  const plainInputs = abiEvent.inputs.filter((input) => !input.indexed);
-  const plainArgs = abiEvent.inputs.flatMap((input, index) => (input.indexed ? [] : [args[index]]));
-
-  return {
-    address: address ?? emitter.address,
-    topics: encodeEventTopics({ abi: [abiEvent], eventName: abiEvent.name, args: indexedArgs as never }) as [
-      Hex,
-      ...Hex[],
-    ],
-    data: encodeAbiParameters(plainInputs, plainArgs),
+function log(emitter: Contract, eventName: string, args: unknown[], address = emitter.address): Log {
+  return eventLog(emitter, eventName, args, {
+    address,
     logIndex: logIndex++,
     blockHash: "0x00",
     blockNumber: 1n,
     transactionHash: "0x00",
     transactionIndex: 0,
-    removed: false,
-  };
+  });
 }
 
 function logScriptCall(target: Address): Log {

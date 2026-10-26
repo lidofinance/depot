@@ -1,5 +1,5 @@
 import { assert } from "chai";
-import { Address, encodeAbiParameters, Hex, Log, pad, toEventSelector, toHex } from "viem";
+import { Address, Hex, Log, toEventSelector } from "viem";
 
 import { Agent_ABI } from "../../abi/Agent.abi";
 import { ERC20_ABI } from "../../abi/ERC20.abi";
@@ -8,6 +8,7 @@ import { Lido_ABI } from "../../abi/Lido.abi";
 import { contract } from "../../src/contracts";
 import financeEvents from "../../src/omnibuses/expected-events/finance";
 import { LogCollector } from "../../src/omnibuses/log-collector";
+import { eventLog } from "../helpers/event-log";
 
 const FINANCE = "0xB9E5CBB9CA5b0d659238807E84D0176930753d86";
 const VAULT = "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c";
@@ -36,23 +37,9 @@ function log(address: Address, signature: string, data: Hex, indexed: Hex[] = []
 
 function paymentLogs(tokenAddress: Address = TOKEN): Log[] {
   return [
-    log(
-      FINANCE,
-      "NewTransaction(uint256,bool,address,uint256,string)",
-      encodeAbiParameters(
-        [{ type: "bool" }, { type: "uint256" }, { type: "string" }],
-        [false, 2500n, "Operational payment"],
-      ),
-      [toHex(200n, { size: 32 }), pad(RECIPIENT)],
-    ),
-    log(tokenAddress, "Transfer(address,address,uint256)", encodeAbiParameters([{ type: "uint256" }], [2500n]), [
-      pad(VAULT),
-      pad(RECIPIENT),
-    ]),
-    log(VAULT, "VaultTransfer(address,address,uint256)", encodeAbiParameters([{ type: "uint256" }], [2500n]), [
-      pad(tokenAddress),
-      pad(RECIPIENT),
-    ]),
+    eventLog(finance, "NewTransaction", [200n, false, RECIPIENT, 2500n, "Operational payment"]),
+    eventLog(token, "Transfer", [VAULT, RECIPIENT, 2500n], { address: tokenAddress }),
+    eventLog(vault, "VaultTransfer", [tokenAddress.toLowerCase(), RECIPIENT, 2500n]),
   ];
 }
 
@@ -66,18 +53,8 @@ describe("finance event helpers", () => {
 
   it("accounts for every Finance period advanced before the payment", () => {
     const collector = new LogCollector([
-      log(
-        FINANCE,
-        "NewPeriod(uint64,uint64,uint64)",
-        encodeAbiParameters([{ type: "uint64" }, { type: "uint64" }], [100n, 200n]),
-        [toHex(1n, { size: 32 })],
-      ),
-      log(
-        FINANCE,
-        "NewPeriod(uint64,uint64,uint64)",
-        encodeAbiParameters([{ type: "uint64" }, { type: "uint64" }], [201n, 300n]),
-        [toHex(2n, { size: 32 })],
-      ),
+      eventLog(finance, "NewPeriod", [1n, 100n, 200n]),
+      eventLog(finance, "NewPeriod", [2n, 201n, 300n]),
       ...paymentLogs(),
     ]);
 
@@ -87,14 +64,7 @@ describe("finance event helpers", () => {
 
   it("checks the exact stETH shares transferred before VaultTransfer", () => {
     const logs = paymentLogs(STETH);
-    logs.splice(
-      2,
-      0,
-      log(STETH, "TransferShares(address,address,uint256)", encodeAbiParameters([{ type: "uint256" }], [2000n]), [
-        pad(VAULT),
-        pad(RECIPIENT),
-      ]),
-    );
+    logs.splice(2, 0, eventLog(steth, "TransferShares", [VAULT, RECIPIENT, 2000n]));
     const collector = new LogCollector(logs);
 
     collector.assertEvents(financeEvents.stethPaid({ finance, vault, steth }, { ...payment, shares: 2000n }));
@@ -133,14 +103,7 @@ describe("finance event helpers", () => {
 
   it("rejects an incorrect stETH share amount", () => {
     const logs = paymentLogs(STETH);
-    logs.splice(
-      2,
-      0,
-      log(STETH, "TransferShares(address,address,uint256)", encodeAbiParameters([{ type: "uint256" }], [1999n]), [
-        pad(VAULT),
-        pad(RECIPIENT),
-      ]),
-    );
+    logs.splice(2, 0, eventLog(steth, "TransferShares", [VAULT, RECIPIENT, 1999n]));
     const collector = new LogCollector(logs);
     assert.throws(
       () => collector.assertEvents(financeEvents.stethPaid({ finance, vault, steth }, { ...payment, shares: 2000n })),

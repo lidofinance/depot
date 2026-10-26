@@ -1,11 +1,12 @@
 import { Address } from "abitype";
 import { assert } from "chai";
-import { encodeAbiParameters, getAbiItem, Hex, Log, pad, toEventSelector } from "viem";
+import { Log } from "viem";
 
 import { ERC20_ABI } from "../../abi/ERC20.abi";
 import { contract } from "../../src/contracts";
 import { LogCollector } from "../../src/omnibuses/log-collector";
 import { event } from "../../src/omnibuses/event-helpers";
+import { eventLog } from "../helpers/event-log";
 
 const TOKEN: Address = "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32";
 const OTHER_TOKEN: Address = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
@@ -14,29 +15,25 @@ const RECIPIENT: Address = "0xC1db28B3301331277e307FDCfF8DE28242A4486E";
 
 const token = contract(ERC20_ABI, TOKEN);
 
-const TRANSFER_TOPIC = toEventSelector(getAbiItem({ abi: ERC20_ABI, name: "Transfer" }));
-
 function createTransferLog(value: bigint, logIndex: number, emitter: Address = TOKEN): Log {
-  const topics: [Hex, Hex, Hex] = [TRANSFER_TOPIC, pad(HOLDER), pad(RECIPIENT)];
-
-  return {
+  return eventLog(token, "Transfer", [HOLDER, RECIPIENT, value], {
     address: emitter,
-    topics,
-    data: encodeAbiParameters([{ name: "value", type: "uint256" }], [value]),
-    logIndex,
+    logIndex: logIndex,
     blockHash: "0x00",
     blockNumber: 1n,
     transactionHash: "0x00",
     transactionIndex: 0,
-    removed: false,
-  };
+  });
 }
 
 function createApprovalLog(value: bigint, logIndex: number): Log {
-  return {
-    ...createTransferLog(value, logIndex),
-    topics: [toEventSelector(getAbiItem({ abi: ERC20_ABI, name: "Approval" })), pad(HOLDER), pad(RECIPIENT)],
-  };
+  return eventLog(token, "Approval", [HOLDER, RECIPIENT, value], {
+    logIndex: logIndex,
+    blockHash: "0x00",
+    blockNumber: 1n,
+    transactionHash: "0x00",
+    transactionIndex: 0,
+  });
 }
 
 function transferEvent(value: bigint, options: { allowMultiple?: boolean } = {}) {
