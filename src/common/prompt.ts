@@ -31,32 +31,32 @@ const DEFAULT_PROMPTS_OPTIONS = {
   },
 };
 
+export const promptDeps = {
+  async toggle(message: string) {
+    const { isConfirmed } = await prompts({
+      type: "toggle",
+      name: "isConfirmed",
+      message,
+      active: "yes",
+      inactive: "no",
+    });
+    return Boolean(isConfirmed);
+  },
+};
+
 async function confirmOrAbort(message?: string, autoConfirm = false) {
   if (autoConfirm) {
     return;
   }
 
-  const { isConfirmed } = await prompts({
-    type: "toggle",
-    name: "isConfirmed",
-    message: message ?? "Confirm?",
-    active: "yes",
-    inactive: "no",
-  });
+  const isConfirmed = await promptDeps.toggle(message ?? "Confirm?");
   if (!isConfirmed) {
     throw new OperationAbortedError();
   }
 }
 
 async function confirm(message?: string) {
-  const { isConfirmed } = await prompts({
-    type: "toggle",
-    name: "isConfirmed",
-    message: message ?? "Confirm?",
-    active: "yes",
-    inactive: "no",
-  });
-  return isConfirmed;
+  return promptDeps.toggle(message ?? "Confirm?");
 }
 
 async function select(message: string, choices: SelectChoice[]) {

@@ -253,7 +253,7 @@ describe("omnibus multi-test task lifecycle", () => {
     client.snapshot.resolves("0x1");
     client.revert.resolves();
     client.withSnapshot.callsFake(DevRpcClient.prototype.withSnapshot.bind(client));
-    omnibus = Omnibus.create({ network: "mainnet", calls: () => [], testVote: () => Promise.resolve() });
+    omnibus = Omnibus.create({ network: "mainnet", testVote: () => Promise.resolve() });
     pass = sinon.stub(omnibus, "passOmnibus").resolves();
     load = sinon.stub(multiTestDeps, "loadOmnibus").resolves(omnibus);
     prepare = sinon.stub(multiTestDeps, "prepareOmnibus").resolves(omnibus);
