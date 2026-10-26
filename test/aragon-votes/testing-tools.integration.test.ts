@@ -2,7 +2,7 @@ import { assert } from "chai";
 import { Address } from "viem";
 import { lifecycleDeps } from "../../src/aragon-votes-tools/lifecycle";
 import { testingDeps, setupLdoHolder, passAragonVote, adoptAragonVoting } from "../../src/aragon-votes-tools/testing";
-import { CREATOR, LDO_WHALES_BY_NETWORK_NAME } from "../../src/aragon-votes-tools/constants";
+import { CREATOR, LDO_VOTERS_BY_NETWORK_NAME } from "../../src/aragon-votes-tools/constants";
 import { HexStrPrefixed } from "../../src/common/bytes";
 import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
 import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
@@ -29,7 +29,7 @@ describe("aragon vote testing tools (integration)", function () {
     mocks = await deployMockGovernance(client, deployer);
 
     // Fund whale with LDO so setupLdoHolder can transfer from whale
-    const whale = LDO_WHALES_BY_NETWORK_NAME.mainnet;
+    const [whale] = LDO_VOTERS_BY_NETWORK_NAME.mainnet;
     await client.setBalance(whale, 10n ** 18n);
     // Mint LDO to whale using MockERC20.mint(address, uint256)
     await client.impersonate(deployer);
@@ -87,6 +87,38 @@ describe("aragon vote testing tools (integration)", function () {
     const [open, executed] = await client.read(mocks.voting, "getVote", [voteId]);
     assert.isFalse(open);
     assert.isTrue(executed);
+  });
+
+  it("uses additional voters when setupLdoHolder moves the first voter below quorum", async function () {
+    const [firstVoter, secondVoter] = LDO_VOTERS_BY_NETWORK_NAME.mainnet;
+    const oneLdo = 10n ** 18n;
+    const exactQuorum = 50_000n * oneLdo;
+    const secondVoterBalance = 60_000n * oneLdo;
+    const firstVoterBalance = await client.read(mocks.ldo, "balanceOf", [firstVoter]);
+
+    await client.impersonate(firstVoter, 10n ** 18n);
+    try {
+      await client.write(mocks.ldo, "transfer", [secondVoter, secondVoterBalance], { from: firstVoter });
+      await client.write(mocks.ldo, "transfer", [deployer, firstVoterBalance - exactQuorum - secondVoterBalance], {
+        from: firstVoter,
+      });
+    } finally {
+      await client.stopImpersonating(firstVoter);
+    }
+
+    const result = await adoptAragonVoting(client, "0x00000001" as HexStrPrefixed, "Vote requiring two voters");
+    const castVotes = await client.viemClient.getContractEvents({
+      ...mocks.voting,
+      eventName: "CastVote",
+      args: { voteId: result.voteId },
+      fromBlock: result.createVoteReceipt.blockNumber,
+    });
+    const [, , , , , , yea] = await client.read(mocks.voting, "getVote", [result.voteId]);
+
+    assert.lengthOf(castVotes, 2);
+    assert.equal(castVotes[0]?.args.voter, firstVoter);
+    assert.equal(castVotes[1]?.args.voter, secondVoter);
+    assert.equal(yea, exactQuorum - oneLdo + secondVoterBalance);
   });
 
   it("adoptAragonVoting runs full lifecycle: create + pass", async function () {
