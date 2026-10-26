@@ -29,7 +29,7 @@ Run the examples from the repository root. The task supports `mainnet` (default)
 
 ```bash
 npm run abi:sync -- StakingRouter
-npm run abi:sync -- Voting --network-name hoodi
+npm run abi:sync -- Voting --network-name hoodi --skip-sol
 ```
 
 Without `--address` or `--from-file`, the task converts the name to a Solidity constant (`StakingRouter` → `STAKING_ROUTER`) and looks it up in [MainnetAddresses.sol](../contracts/addresses/MainnetAddresses.sol) or [HoodiAddresses.sol](../contracts/addresses/HoodiAddresses.sol). A missing constant fails with a hint to provide an address.
@@ -75,7 +75,7 @@ DOTENV_CONFIG_PATH=/dev/null npm run abi:sync -- MyContract --from-file ./MyCont
 
 By default, Solidity includes every function whose `stateMutability` is `nonpayable` or `payable`. It omits view/pure functions, events, errors, constructors, fallback and receive entries. The TypeScript ABI retains all input entries and metadata.
 
-`--methods name1,name2` narrows only the Solidity functions, preserving ABI order. It matches exact names and includes every state-changing overload of each name; signatures such as `setManager(address)` are not selectors for this option. Unknown names and view/pure-only names fail: check the requested names and source ABI version against the available methods listed in the error. `--skip-sol` skips method selection entirely and leaves any existing Solidity interface untouched.
+`--methods name1,name2` narrows only the Solidity functions, preserving ABI order. It matches exact names and includes every state-changing overload of each name; signatures such as `setManager(address)` are not selectors for this option. Unknown names and view/pure-only names fail; the error lists available methods. `--skip-sol` skips method selection entirely and leaves any existing Solidity interface untouched.
 
 Tuples in selected functions become structs and need `internalType` struct names and named fields; conflicting definitions with the same struct name fail. Enums retain their ABI integer type. Legacy ABI entries without `stateMutability` remain in TypeScript but are omitted from Solidity, even if they have legacy `constant`/`payable` fields.
 
@@ -93,18 +93,18 @@ Use `--proxy-abi` when you need the supplied address's own ABI, such as proxy up
 npm run abi:sync -- StakingRouterProxy --address 0xFdDf38947aFB03C621C71b06C9C70bce73f12999 --proxy-abi
 ```
 
-This skips all implementation resolution and returns only the proxy's own ABI; it is not a substitute for the implementation ABI and does not merge the two.
+This skips implementation resolution and returns only the supplied address's ABI, without merging the implementation ABI.
 
 ## Troubleshooting
 
-Each Etherscan contract-info request retries rate limits and transient failures up to six total attempts, with waits of 0.5, 1, 2, 4 and 8 seconds. This retry policy applies per Etherscan request, not to RPC calls or the whole CLI run. If those failures persist, retry the same command later; rejected API keys and unverified contracts need the actions below.
+Each Etherscan contract-info request retries rate limits and transient failures up to six total attempts, with waits of 0.5, 1, 2, 4 and 8 seconds. This retry policy applies per Etherscan request, not to RPC calls or the whole CLI run.
 
 | Error                                                                    | Action                                                                                                                                                                  |
 | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Etherscan rejects the API key                                            | Check the configured `ETHERSCAN_TOKEN`.                                                                                                                                 |
 | No RPC for the selected network                                          | Check the RPC variable listed under prerequisites and that its endpoint is available and serves the selected chain.                                                     |
-| Contract/implementation not verified, or proxy implementation unresolved | Use `--from-file` only with an ABI whose origin and intended contract/implementation version you have established; retain that source information for review.           |
-| Local file unreadable or invalid ABI JSON                                | Check the input path and reported cause; use valid JSON containing an ABI array or artifact. Resolve malformed fields against the correct source artifact.              |
+| Contract/implementation not verified, or proxy implementation unresolved | Use `--from-file` with the intended implementation ABI; record its origin and version.                                                                                  |
+| Local file unreadable or invalid ABI JSON                                | Check the input path and reported cause; use valid JSON containing an ABI array or artifact.                                                                            |
 | `forge fmt` fails                                                        | Check Forge is installed on `PATH` and inspect the reported error against the tuple/type requirements above. Formatting failure occurs before either output is written. |
 
 ## Flag reference
