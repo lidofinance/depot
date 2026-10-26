@@ -170,7 +170,7 @@ async function readImplementationGetter(client: ChainReader, address: Address): 
     ]);
     return addressFromWord(word);
   } catch (error: unknown) {
-    if (isExecutionRevert(error)) {
+    if (isExecutionReverted(error)) {
       return null;
     }
     throw error;
@@ -193,7 +193,7 @@ async function getRpcClient(networkName: NetworkName, address: Address): Promise
   }
 }
 
-function isExecutionRevert(error: unknown): boolean {
+function isExecutionReverted(error: unknown): boolean {
   const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
   const message = error instanceof Error ? error.message : "";
   return code === 3 || /revert|execution error|invalid opcode/i.test(message);

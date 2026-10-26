@@ -143,7 +143,7 @@ describe("abi-source", () => {
     it("fails with a hint when a proxy-looking contract has no resolvable implementation", async () => {
       sinon.stub(deps, "resolveContractInfo").resolves(contractInfo("OssifiableProxy", PROXY_ABI));
 
-      await assert.isRejected(fetchAbiFromEtherscan("mainnet", PROXY), /looks like a proxy.*--proxyAbi/);
+      await assert.isRejected(fetchAbiFromEtherscan("mainnet", PROXY), /looks like a proxy.*--proxy-abi/);
     });
 
     it("checksums the implementation address in the source line", async () => {
