@@ -24,7 +24,7 @@ jobs:
           - 8545:8545
         env:
           ETH_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
-          HARDFORK: cancun
+          HARDFORK: prague
 
     steps:
       ################################################################
