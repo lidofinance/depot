@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {IVoting} from "./interfaces/IVoting.sol";
-import {VoteCall} from "./libraries/calls-builder.sol";
+import {VoteCall} from "./libraries/CallsBuilder.sol";
 import {IForwarder} from "./interfaces/IForwarder.sol";
 import {CallsScriptBuilder, CallsScriptBuilderUtils} from "./libraries/CallsScriptBuilder.sol";
 
@@ -13,7 +13,7 @@ import {
     ForwardedCallsBuilderUtils,
     ProposalCallsBuilder,
     ProposalCallsBuilderUtils
-} from "./libraries/calls-builder.sol";
+} from "./libraries/CallsBuilder.sol";
 
 error UnexpectedChainId(uint256 chainId);
 
