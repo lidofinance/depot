@@ -31,9 +31,9 @@ jobs:
         working-directory: depot
 
       - name: Run unit tests
-        run: npm run test
+        run: npm run test:depot:unit
         working-directory: depot
 
       - name: Run integration tests
-        run: npm run test:integration
+        run: npm run test:depot:integration
         working-directory: depot

@@ -39,6 +39,7 @@ import { runHardhatTask } from "../src/hardhat/run-task";
 import { adoptAragonVoting } from "../src/aragon-votes-tools";
 import { renderCustomOmnibusDeployment, renderDefaultOmnibusDeployment } from "../src/omnibuses/omnibus-deployment";
 import { assertVoteAddresses } from "../src/omnibuses/address-lint";
+import { runAcceptance } from "./sub-tasks/acceptance";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -305,15 +306,18 @@ defineTask("omnibus:deploy", "Deploy the contracts of an omnibus")
 defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to test" })
   .addOption({ name: "forkBlock", description: FORK_BLOCK_DESCRIPTION, defaultValue: "" })
-  .setAction(async (taskArgs: { name: string; forkBlock: string }, hre: HardhatRuntimeEnvironment) => {
-    const { name } = taskArgs;
-    assertVoteAddresses(await resolveOmnibusDir(name));
-    const omnibus = await loadOmnibus(name);
-    const client = await prepareDevRpcClient(omnibus.network, hre, resolveForkBlock(taskArgs.forkBlock));
-    await prepareOmnibus(hre, client, omnibus);
-    await printEvmScript(name, omnibus.getEvmScript());
-    await omnibus.test(client);
-  });
+  .addFlag({ name: "skipAcceptance", description: "Skip post-execution acceptance checks" })
+  .setAction(
+    async (taskArgs: { name: string; forkBlock: string; skipAcceptance: boolean }, hre: HardhatRuntimeEnvironment) => {
+      const { name } = taskArgs;
+      assertVoteAddresses(await resolveOmnibusDir(name));
+      const omnibus = await loadOmnibus(name);
+      const client = await prepareDevRpcClient(omnibus.network, hre, resolveForkBlock(taskArgs.forkBlock));
+      await prepareOmnibus(hre, client, omnibus);
+      await printEvmScript(name, omnibus.getEvmScript());
+      await omnibus.test(client, taskArgs.skipAcceptance ? undefined : runAcceptance);
+    },
+  );
 
 defineTask("omnibus:test-solidity", "Runs Solidity tests (*.t.sol) for the given omnibus")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to test with Solidity runner" })

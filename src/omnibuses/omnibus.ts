@@ -356,7 +356,7 @@ export class Omnibus<
     await processPendingProposals(client, submittedProposalIds);
   }
 
-  async test(client: DevRpcClient) {
+  async test(client: DevRpcClient, afterExecution?: (client: DevRpcClient) => Promise<void>) {
     if (this.#config.executedAt !== undefined) {
       throw new Error(
         `Omnibus "${this.name}" was executed at block ${this.#config.executedAt}. ` +
@@ -528,6 +528,7 @@ export class Omnibus<
         events.assertTail();
         logs.assertNothingLeft();
       }
+      await afterExecution?.(client);
       console.log(fmt.success(`All tests for omnibus "${this.name}" have passed successfully`));
     } catch (error) {
       throw error;

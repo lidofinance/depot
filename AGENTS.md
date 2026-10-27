@@ -29,8 +29,9 @@ npm run lint:vote-addresses -- omnibuses/<name> # validate vote-local addresses
 # Quality
 npm run lint                        # ESLint (0 errors, 0 warnings expected)
 npm run lint:fix                    # auto-fix
-npm test                            # unit tests (mocha)
-npm run test:integration            # integration tests (needs hardhat node on :8545)
+npm run test:depot:unit              # Depot unit tests (npm test is a shortcut)
+npm run test:depot:integration       # Depot integration tests (in-process Hardhat)
+npm run test:all                     # both Depot suites
 npx tsc --noEmit                    # typecheck
 ```
 
@@ -51,11 +52,13 @@ src/
   traces/               # transaction tracing (debug_traceTransaction)
 tasks/                  # Hardhat tasks (omnibus:*, keystore:*)
 omnibuses/              # actual omnibus scripts and templates
-test/                   # all tests
+test/depot/             # Depot unit/integration tests and helpers
+test/protocol/acceptance/ # deployed protocol checks after vote/DG execution
+test/protocol/snapshot/  # reserved for future upgrade snapshot suites
 contracts/mocks/        # mock Solidity contracts for integration tests
 ```
 
-Use [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md) for fork pinning, exact proposal metadata, event grouping and deployment/launch authorization. Solidity owns the payload; the TypeScript wrapper owns tests and custom deployment.
+Use [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md) for fork pinning, exact proposal metadata, event grouping and deployment/launch authorization. Solidity owns the payload; the TypeScript wrapper owns per-vote `testVote`/`testProposal` checks and custom deployment. Per-vote checks stay in `omnibuses/<name>/*.ts`; shared protocol checks run after vote/DG execution and before snapshot restore.
 
 ## Verification checklist
 
@@ -64,5 +67,6 @@ Before submitting changes, verify:
 ```bash
 npx tsc --noEmit         # 0 errors
 npm run lint             # 0 errors, 0 warnings
-npm test                 # all passing
+npm run test:depot:unit  # all passing
+npm run test:depot:integration # report fork cases skipped without ETH_MAINNET_RPC_URL
 ```

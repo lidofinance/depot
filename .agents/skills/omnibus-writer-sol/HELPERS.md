@@ -76,7 +76,7 @@ The TS `registry` is a contract handle. A recipient's stored title is distinct f
 
 Capture the previous spent amount before execution, accounting for earlier calls. Equal old/new spent amounts produce no domain event, but the proposal call still needs registration. Limit changes expect `CurrentPeriodAdvanced` before `LimitsParametersChanged`; derive the period for that action rather than blindly using final state after multiple period changes. Check stored limits, period, spent amount and recipient membership against the intended inputs.
 
-Paired unit examples: [AllowedRecipients.t.sol](../../../contracts/libraries/AllowedRecipients.t.sol) and [event tests](../../../test/omnibuses/expected-events-allowed-recipients.unit.test.ts).
+Paired unit examples: [AllowedRecipients.t.sol](../../../contracts/libraries/AllowedRecipients.t.sol) and [event tests](../../../test/depot/omnibuses/expected-events-allowed-recipients.unit.test.ts).
 
 ## Finance
 

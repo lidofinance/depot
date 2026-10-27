@@ -35,6 +35,6 @@ Historical verification on 2026-09-06:
 - `npm run omnibus:build -- _example_permissions_node_operators`: passed.
 - `forge test --match-path 'contracts/libraries/*.t.sol'`: 34 tests passed across 11 suites, none failed or skipped; includes the permissions and node-operator libraries.
 - The four domain unit files plus `acl-permission-params.unit.test.ts`: 37 tests passed.
-- `npx mocha --no-config --import=tsx --timeout 600000 test/omnibuses/helpers-permissions-node-operators.integration.test.ts`: both tests passed on an isolated Hardhat chain 31337 forked from mainnet block 25918463. Each test completed its snapshot/revert and impersonation cleanup, and the connection was closed.
+- `npx mocha --no-config --import=tsx --timeout 600000 test/depot/omnibuses/helpers-permissions-node-operators.integration.test.ts`: both tests passed on an isolated Hardhat chain 31337 forked from mainnet block 25918463. Each test completed its snapshot/revert and impersonation cleanup, and the connection was closed.
 - `omnibus:test` at the same fork block: local vote **205**, proposal **14**, all six Agent forwards passed with every receipt event accounted for. `isValidVoteScript(205)` returned true; the runtime completed its snapshot cleanup.
 - EVM script: **2752 bytes**, keccak256 **`0x530a7002fd2cd11183d40a18bd4ef46ea16fe699085a77cec24d2332e72e5678`**. This is a synthetic local vote, not a reconstruction of the complete historical vote #201.
