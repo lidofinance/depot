@@ -1,9 +1,9 @@
 import { assert } from "chai";
 import type { Context } from "mocha";
-import { OssifiableProxy_ABI } from "../../../abi/OssifiableProxy.abi";
-import { contract } from "../../../src/contracts";
-import { createDevRpcClient, DevRpcClient } from "../../../src/network";
-import { getGovernanceContracts } from "../../../src/omnibuses/governance-contracts";
+import { OssifiableProxy_ABI } from "@/abi/OssifiableProxy.abi";
+import { contract } from "@/src/contracts";
+import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
 // Core deployment configuration: https://github.com/lidofinance/core/tree/2bd532298d85cdf520169fdc0c5fb0cc9baf03c3
 const configurations = {
