@@ -6,7 +6,6 @@ import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 import { zeroAddress } from "viem";
 import { OracleReportSanityChecker_ABI } from "@/abi/OracleReportSanityChecker.abi";
 
-// Deployment inputs: https://github.com/lidofinance/core/tree/2bd532298d85cdf520169fdc0c5fb0cc9baf03c3
 const configurations = {
   mainnet: {
     checker: "0x147f8d3cf3004FAf9Bf94E88B54b6C06De507be9",
@@ -52,7 +51,6 @@ const configurations = {
   },
 } as const;
 
-// Source assertions: https://github.com/lidofinance/scripts/blob/d02f8786f138583c521d6406fdbf1b2180a131a8/tests/acceptance/test_oracle_report_sanity_checker.py
 describe("OracleReportSanityChecker acceptance", function () {
   let client: DevRpcClient;
   let checker: Contract<typeof OracleReportSanityChecker_ABI>;

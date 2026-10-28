@@ -5,7 +5,6 @@ import { contract } from "@/src/contracts";
 import { createDevRpcClient, DevRpcClient } from "@/src/network";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
-// Core deployment configuration: https://github.com/lidofinance/core/tree/2bd532298d85cdf520169fdc0c5fb0cc9baf03c3
 const configurations = {
   mainnet: {
     implementation: "0x60E09F1791F1168d0450E4F100616B4a3F95119C",
@@ -65,7 +64,6 @@ const configurations = {
   },
 } as const;
 
-// Source assertions: https://github.com/lidofinance/scripts/blob/d02f8786f138583c521d6406fdbf1b2180a131a8/tests/acceptance/test_locator.py#L14-L61
 describe("Locator acceptance", function () {
   let client: DevRpcClient;
   let locator: ReturnType<typeof getGovernanceContracts>["locator"];

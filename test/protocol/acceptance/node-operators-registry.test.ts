@@ -16,8 +16,6 @@ import { contract, type Contract } from "@/src/contracts";
 import { createDevRpcClient, DevRpcClient } from "@/src/network";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
-// Deployment inputs: https://github.com/lidofinance/core/tree/2bd532298d85cdf520169fdc0c5fb0cc9baf03c3
-// Operator configuration follows executed events through mainnet block 26288552 and Hoodi block 3901441.
 const configurations = {
   mainnet: {
     registry: "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5",
@@ -56,7 +54,6 @@ const moduleType = stringToHex("curated-onchain-v1", { size: 32 });
 const exitDeadline = 172800n;
 const solidityErrorAbi = parseAbi(["error Error(string reason)"]);
 
-// Source assertions: https://github.com/lidofinance/scripts/blob/d02f8786f138583c521d6406fdbf1b2180a131a8/tests/acceptance/test_node_operators_registry.py
 describe("NodeOperatorsRegistry acceptance", function () {
   let client: DevRpcClient;
   let registry: Contract<typeof NodeOperatorsRegistry_ABI>;

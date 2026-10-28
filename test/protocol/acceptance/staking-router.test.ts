@@ -8,8 +8,6 @@ import { contract, type Contract } from "@/src/contracts";
 import { createDevRpcClient, DevRpcClient } from "@/src/network";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
-// Deployment inputs: https://github.com/lidofinance/core/tree/2bd532298d85cdf520169fdc0c5fb0cc9baf03c3
-// Module configuration follows executed events through mainnet block 26285164 and Hoodi block 3898389.
 const configurations = {
   mainnet: {
     stakingRouter: "0xFdDf38947aFB03C621C71b06C9C70bce73f12999",
@@ -116,7 +114,6 @@ const configurations = {
       {
         id: 2,
         stakingModuleAddress: "0x0B5236BECA68004DB89434462DfC3BB074d2c830",
-        // Vote 4 rename: https://hoodi.etherscan.io/tx/0xeb2b918baeb7839a8abf0647406223d568b662e9953cc1f64ab56aaebb428464
         name: "SimpleDVT",
         stakingModuleFee: 800,
         treasuryFee: 200,
@@ -180,7 +177,6 @@ const configurations = {
 
 const invalidInitialization = encodeErrorResult({ abi: StakingRouter_ABI, errorName: "InvalidInitialization" });
 
-// Source assertions: https://github.com/lidofinance/scripts/blob/d02f8786f138583c521d6406fdbf1b2180a131a8/tests/acceptance/test_staking_router.py
 describe("StakingRouter acceptance", function () {
   let client: DevRpcClient;
   let stakingRouter: Contract<typeof StakingRouter_ABI>;

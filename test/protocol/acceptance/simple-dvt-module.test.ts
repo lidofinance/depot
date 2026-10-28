@@ -17,7 +17,6 @@ import { contract, type Contract } from "@/src/contracts";
 import { createDevRpcClient, DevRpcClient } from "@/src/network";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
-// Pinned Scripts deployment inputs, updated through mainnet block 26288552 and Hoodi block 3901441.
 const configurations = {
   mainnet: {
     simpleDvt: "0xaE7B191A31f627b4eB1d4DaC64eaB9976995b433",
@@ -81,7 +80,6 @@ const roles = {
   MANAGE_SIGNING_KEYS: "0x75abc64490e17b40ea1e66691c3eb493647b24430b358bd87ec3e5127f1621ee",
 } as const;
 
-// Source assertions: https://github.com/lidofinance/scripts/blob/d02f8786f138583c521d6406fdbf1b2180a131a8/tests/acceptance/test_simple_dvt_module.py
 describe("SimpleDVT acceptance", function () {
   let client: DevRpcClient;
   let simpleDvt: Contract<typeof NodeOperatorsRegistry_ABI>;
@@ -214,7 +212,6 @@ describe("SimpleDVT acceptance", function () {
         summaryDepositedValidators,
         depositableValidatorsCount,
       ] = await client.read(simpleDvt, "getNodeOperatorSummary", [id]);
-      // The pinned source reserves an empty exited list; retain its conditional guarantees.
       if (exitedNodeOperators.includes(id)) {
         assert.isTrue(targetLimitMode > 0n, `exited operator ${id} target limit mode`);
         assert.equal(depositableValidatorsCount, 0n, `exited operator ${id} depositable validators`);

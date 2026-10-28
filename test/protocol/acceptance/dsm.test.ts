@@ -5,8 +5,6 @@ import { DepositSecurityModule_ABI } from "@/abi/DepositSecurityModule.abi";
 import { contract, type Contract } from "@/src/contracts";
 import { createDevRpcClient, DevRpcClient } from "@/src/network";
 
-// Deployment inputs: https://github.com/lidofinance/core/tree/2bd532298d85cdf520169fdc0c5fb0cc9baf03c3
-// Configuration follows executed events through mainnet block 26288552 and Hoodi block 3901441.
 const configurations = {
   mainnet: {
     depositSecurityModule: "0x39BB5d491e98A44D1bfe8047A737a81E296a63E0",
@@ -48,7 +46,6 @@ const configurations = {
   },
 } as const;
 
-// Source assertions: https://github.com/lidofinance/scripts/blob/d02f8786f138583c521d6406fdbf1b2180a131a8/tests/acceptance/test_dsm.py
 describe("DepositSecurityModule acceptance", function () {
   let client: DevRpcClient;
   let dsm: Contract<typeof DepositSecurityModule_ABI>;

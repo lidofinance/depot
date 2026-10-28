@@ -9,9 +9,6 @@ import { OssifiableProxy_ABI } from "@/abi/OssifiableProxy.abi";
 import { HashConsensus_ABI } from "@/abi/HashConsensus.abi";
 import { AccountingOracle_ABI } from "@/abi/AccountingOracle.abi";
 
-// Deployment inputs: https://github.com/lidofinance/core/tree/2bd532298d85cdf520169fdc0c5fb0cc9baf03c3
-// Committee inputs: Core scripts/upgrade/upgrade-params-{mainnet,hoodi}.toml oracleCommittees and oracleMembers.
-// Hoodi frame changes: FrameConfigSet/FastLaneConfigSet through block 3901441.
 const configurations = {
   mainnet: {
     admin: "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c",
@@ -60,7 +57,6 @@ const configurations = {
   },
 } as const;
 
-// Source assertions: https://github.com/lidofinance/scripts/blob/d02f8786f138583c521d6406fdbf1b2180a131a8/tests/acceptance/test_accounting_oracle.py
 describe("AccountingOracle acceptance", function () {
   let client: DevRpcClient;
   let oracle: Contract<typeof AccountingOracle_ABI>;

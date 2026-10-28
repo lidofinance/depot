@@ -19,7 +19,6 @@ import { contract, type Contract } from "@/src/contracts";
 import { createDevRpcClient, DevRpcClient } from "@/src/network";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
-// Core deployment configuration: https://github.com/lidofinance/core/tree/2bd532298d85cdf520169fdc0c5fb0cc9baf03c3
 const configurations = {
   mainnet: {
     lido: "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84",
@@ -32,7 +31,6 @@ const configurations = {
     withdrawalQueue: "0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1",
     burner: "0xE76c52750019b80B43E36DF30bf4060EB73F573a",
     nodeOperatorsRegistry: "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5",
-    // Easy Track motion 1209: https://etherscan.io/tx/0xc805632cdde85fd40da430bf1e0a5e241b607b83f4d4d8ed0157440157865e6f
     reserveTarget: parseEther("512"),
     maxStakeLimit: parseEther("150000"),
   },
@@ -47,16 +45,13 @@ const configurations = {
     withdrawalQueue: "0xfe56573178f1bcdf53F01A6E9977670dcBBD9186",
     burner: "0xb2c99cd38a2636a6281a849C8de938B3eF4A7C3D",
     nodeOperatorsRegistry: "0x5cDbE1590c083b5A2A64427fAA63A7cfDB91FbB5",
-    // Easy Track motion 465: https://hoodi.etherscan.io/tx/0x45f1fd444e83aa95b746b56a1c521f5fb27477a662d871e0db97a20b84f37ed8
     reserveTarget: 0n,
-    // Vote 0: https://hoodi.etherscan.io/tx/0x49ad88882300655fc2f21577695c7f23c98b3480c04f65b20c4dcf48ccc6bcfd
     maxStakeLimit: parseEther("3000"),
   },
 } as const;
 
 const solidityErrorAbi = parseAbi(["error Error(string reason)"]);
 
-// Source assertions: https://github.com/lidofinance/scripts/blob/d02f8786f138583c521d6406fdbf1b2180a131a8/tests/acceptance/test_lido.py
 describe("Lido acceptance", function () {
   let client: DevRpcClient;
   let lido: Contract<typeof Lido_ABI>;

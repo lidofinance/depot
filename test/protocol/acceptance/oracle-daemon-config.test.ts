@@ -4,8 +4,6 @@ import { contract, type Contract } from "@/src/contracts";
 import { createDevRpcClient, DevRpcClient } from "@/src/network";
 import { OracleDaemonConfig_ABI } from "@/abi/OracleDaemonConfig.abi";
 
-// Deployment inputs: https://github.com/lidofinance/core/tree/2bd532298d85cdf520169fdc0c5fb0cc9baf03c3
-// Hoodi distant-epoch update: https://hoodi.etherscan.io/tx/0x7fd6e090d9b231e38fad660b39f4818a96859abf56706208b74150412d369d4b
 const configurations = {
   mainnet: {
     daemon: "0xbf05A929c3D7885a6aeAd833a992dA6E5ac23b09",
@@ -33,7 +31,6 @@ const configurations = {
   },
 } as const;
 
-// Source assertions: https://github.com/lidofinance/scripts/blob/d02f8786f138583c521d6406fdbf1b2180a131a8/tests/acceptance/test_oracle_daemon_config.py
 describe("OracleDaemonConfig acceptance", function () {
   let client: DevRpcClient;
   let daemon: Contract<typeof OracleDaemonConfig_ABI>;
