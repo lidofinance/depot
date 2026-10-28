@@ -23,6 +23,8 @@ export async function runAcceptance(client: DevRpcClient): Promise<void> {
   mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/oracle-daemon-config.test.ts", import.meta.url)));
   mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/withdrawal-queue.test.ts", import.meta.url)));
   mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/withdrawal-vault.test.ts", import.meta.url)));
+  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/burner.test.ts", import.meta.url)));
+  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/el-rewards-vault.test.ts", import.meta.url)));
 
   try {
     // Mocha supports esmDecorator, but its type declarations omit the options argument.
