@@ -8,6 +8,7 @@ export async function runAcceptance(client: DevRpcClient): Promise<void> {
   mocha.suite.ctx.client = client;
   mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/locator.test.ts", import.meta.url)));
   mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/lido.test.ts", import.meta.url)));
+  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/staking-router.test.ts", import.meta.url)));
 
   try {
     // Mocha supports esmDecorator, but its type declarations omit the options argument.
