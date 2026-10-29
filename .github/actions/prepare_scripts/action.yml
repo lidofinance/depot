@@ -19,6 +19,22 @@ runs:
       run: poetry install
       working-directory: scripts
 
+    - name: Use pinned official Solidity binaries for legacy Brownie
+      shell: bash
+      working-directory: scripts
+      run: |
+        poetry run python - <<'PY'
+        from pathlib import Path
+        import solcx.install
+
+        path = Path(solcx.install.__file__)
+        source = path.read_text()
+        old = 'BINARY_DOWNLOAD_BASE = "https://solc-bin.ethereum.org/{}-amd64/{}"'
+        # Legacy solcx uses a retired host; pin the official mirror to an immutable commit.
+        new = 'BINARY_DOWNLOAD_BASE = "https://raw.githubusercontent.com/argotorg/solc-bin/c04c6cdc827bbdcc7bd65689fa76b63a238b223f/{}-amd64/{}"'
+        path.write_text(source.replace(old, new))
+        PY
+
     - name: Install ganache
       shell: bash
       run: yarn install --frozen-lockfile
