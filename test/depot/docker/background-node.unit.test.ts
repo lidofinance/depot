@@ -6,7 +6,7 @@ import path from "node:path";
 import { PassThrough } from "node:stream";
 import sinon from "sinon";
 
-import { runImageInBackground } from "../../../src/docker";
+import { runImageInBackground } from "@/src/docker";
 
 describe("background node container ownership", () => {
   const originalCwd = process.cwd();

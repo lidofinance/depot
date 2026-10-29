@@ -1,8 +1,8 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { parseAbi } from "viem";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 
 const vaultAbi = parseAbi(["function LIDO() view returns (address)", "function TREASURY() view returns (address)"]);
 
@@ -24,12 +24,9 @@ describe("ELRewardsVault acceptance", function () {
   let vault: Contract<typeof vaultAbi>;
   let expected: (typeof configurations)[keyof typeof configurations];
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     vault = contract(vaultAbi, expected.vault);
   });

@@ -1,42 +1,49 @@
 import Mocha from "mocha";
 import { randomUUID } from "node:crypto";
+import { readdir } from "node:fs/promises";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { DevRpcClient } from "../../src/network";
+import { DevRpcClient } from "@/src/network";
+
+const ACCEPTANCE_DIR = fileURLToPath(new URL("../../test/protocol/acceptance/", import.meta.url));
+// Negative suites mutate fork state heavily and run last
+const ACCEPTANCE_SUITES = [
+  "locator.test.ts",
+  "lido.test.ts",
+  "staking-router.test.ts",
+  "dsm.test.ts",
+  "node-operators-registry.test.ts",
+  "simple-dvt-module.test.ts",
+  "accounting-oracle.test.ts",
+  "veb-oracle.test.ts",
+  "oracle-report-sanity-checker.test.ts",
+  "oracle-daemon-config.test.ts",
+  "withdrawal-queue.test.ts",
+  "withdrawal-vault.test.ts",
+  "burner.test.ts",
+  "el-rewards-vault.test.ts",
+  "top-up-gateway.test.ts",
+  "consolidation.test.ts",
+  "dual-governance.test.ts",
+  "circuit-breaker.test.ts",
+  "accounting-oracle-negative.test.ts",
+  "veb-negative.test.ts",
+  "withdrawals-negative.test.ts",
+];
 
 export async function runAcceptance(client: DevRpcClient): Promise<void> {
   const mocha = new Mocha({ timeout: 600_000, failZero: true });
   mocha.suite.ctx.client = client;
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/locator.test.ts", import.meta.url)));
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/lido.test.ts", import.meta.url)));
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/staking-router.test.ts", import.meta.url)));
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/dsm.test.ts", import.meta.url)));
-  mocha.addFile(
-    fileURLToPath(new URL("../../test/protocol/acceptance/node-operators-registry.test.ts", import.meta.url)),
+  const registered = new Set(ACCEPTANCE_SUITES);
+  const unregistered = (await readdir(ACCEPTANCE_DIR)).filter(
+    (fileName) => fileName.endsWith(".test.ts") && !registered.has(fileName),
   );
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/simple-dvt-module.test.ts", import.meta.url)));
-
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/accounting-oracle.test.ts", import.meta.url)));
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/veb-oracle.test.ts", import.meta.url)));
-  mocha.addFile(
-    fileURLToPath(new URL("../../test/protocol/acceptance/oracle-report-sanity-checker.test.ts", import.meta.url)),
-  );
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/oracle-daemon-config.test.ts", import.meta.url)));
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/withdrawal-queue.test.ts", import.meta.url)));
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/withdrawal-vault.test.ts", import.meta.url)));
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/burner.test.ts", import.meta.url)));
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/el-rewards-vault.test.ts", import.meta.url)));
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/top-up-gateway.test.ts", import.meta.url)));
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/consolidation.test.ts", import.meta.url)));
-
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/dual-governance.test.ts", import.meta.url)));
-
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/circuit-breaker.test.ts", import.meta.url)));
-
-  mocha.addFile(
-    fileURLToPath(new URL("../../test/protocol/acceptance/accounting-oracle-negative.test.ts", import.meta.url)),
-  );
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/veb-negative.test.ts", import.meta.url)));
-  mocha.addFile(fileURLToPath(new URL("../../test/protocol/acceptance/withdrawals-negative.test.ts", import.meta.url)));
+  if (unregistered.length > 0) {
+    throw new Error(`Acceptance suites missing from ACCEPTANCE_SUITES: ${unregistered.join(", ")}`);
+  }
+  for (const suite of ACCEPTANCE_SUITES) {
+    mocha.addFile(path.join(ACCEPTANCE_DIR, suite));
+  }
 
   try {
     // Mocha supports esmDecorator, but its type declarations omit the options argument.

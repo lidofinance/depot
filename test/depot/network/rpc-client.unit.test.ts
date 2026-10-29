@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { createWalletClient, custom, publicActions } from "viem";
 import { mainnet } from "viem/chains";
 
-import { RpcClient } from "../../../src/network/rpc-client";
+import { RpcClient } from "@/src/network/rpc-client";
 
 type RpcHandler = (method: string, params: unknown[]) => unknown;
 

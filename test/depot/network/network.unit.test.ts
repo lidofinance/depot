@@ -11,9 +11,9 @@ import {
   MAINNET_CHAIN_ID,
   HOLESKY_CHAIN_ID,
   HOODI_CHAIN_ID,
-} from "../../../src/network/network";
-import { DevRpcClient } from "../../../src/network/dev-rpc-client";
-import { RpcClient } from "../../../src/network/rpc-client";
+} from "@/src/network/network";
+import { DevRpcClient } from "@/src/network/dev-rpc-client";
+import { RpcClient } from "@/src/network/rpc-client";
 
 const HARDHAT_CHAIN_ID = 31337;
 

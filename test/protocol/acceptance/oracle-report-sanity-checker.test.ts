@@ -1,7 +1,7 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 import { zeroAddress } from "viem";
 import { OracleReportSanityChecker_ABI } from "@/abi/OracleReportSanityChecker.abi";
@@ -57,12 +57,9 @@ describe("OracleReportSanityChecker acceptance", function () {
   let expected: (typeof configurations)[keyof typeof configurations];
   let governance: ReturnType<typeof getGovernanceContracts>;
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     governance = getGovernanceContracts(network);
     checker = contract(OracleReportSanityChecker_ABI, expected.checker);

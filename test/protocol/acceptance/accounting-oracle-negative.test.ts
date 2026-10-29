@@ -1,20 +1,10 @@
-import { rejects } from "node:assert/strict";
 import hre from "hardhat";
-import type { Context } from "mocha";
 import {
-  BaseError,
-  ContractFunctionRevertedError,
   concat,
-  encodeAbiParameters,
   encodeFunctionData,
-  getAbiItem,
   isHex,
   keccak256,
-  parseAbi,
-  parseAbiParameters,
-  parseEther,
   slice,
-  stringToHex,
   toHex,
   zeroAddress,
   zeroHash,
@@ -23,7 +13,7 @@ import {
   type Hex,
 } from "viem";
 import { AccountingOracle_ABI } from "@/abi/AccountingOracle.abi";
-import { Burner_ABI } from "@/abi/Burner.abi";
+
 import { HashConsensus_ABI } from "@/abi/HashConsensus.abi";
 import { Lido_ABI } from "@/abi/Lido.abi";
 import { NodeOperatorsRegistry_ABI } from "@/abi/NodeOperatorsRegistry.abi";
@@ -31,48 +21,25 @@ import { OracleReportSanityChecker_ABI } from "@/abi/OracleReportSanityChecker.a
 import { StakingRouter_ABI } from "@/abi/StakingRouter.abi";
 import { WithdrawalQueue_ABI } from "@/abi/WithdrawalQueue.abi";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { customError, expectRevert } from "@/test/protocol/helpers/reverts";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
+import { ImpersonatedAccounts } from "@/test/protocol/helpers/impersonation";
+import {
+  accountingReportHash,
+  advanceToNextFrame,
+  prepareAccountingReport,
+  reachConsensus,
+  sendAsOracleMember,
+  type AccountingReport,
+} from "@/test/protocol/helpers/oracle";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
-const delegationAbi = parseAbi([
-  "function getDelegate() view returns (address)",
-  "function execute(address target, bytes data) returns (bytes)",
-]);
-const accountingAbi = parseAbi([
-  "function simulateOracleReport((uint256 timestamp,uint256 timeElapsed,uint256 clValidatorsBalance,uint256 clPendingBalance,uint256 withdrawalVaultBalance,uint256 elRewardsVaultBalance,uint256 sharesRequestedToBurn,uint256[] withdrawalFinalizationBatches,uint256 simulatedShareRate) report) view returns ((uint256 withdrawalsVaultTransfer,uint256 elRewardsVaultTransfer,uint256 etherToFinalizeWQ,uint256 sharesToFinalizeWQ,uint256 sharesToBurnForWithdrawals,uint256 totalSharesToBurn,uint256 sharesToMintAsFees,(address[] moduleFeeRecipients,uint256[] moduleIds,uint256[] moduleSharesToMint,uint256 treasurySharesToMint) feeDistribution,uint256 principalClBalance,uint256 preTotalShares,uint256 preTotalPooledEther,uint256 postInternalShares,uint256 postInternalEther,uint256 postTotalShares,uint256 postTotalPooledEther) update)",
-]);
-type Report = ContractFunctionArgs<typeof AccountingOracle_ABI, "nonpayable", "submitReportData">[0];
-const reportParameters = [getAbiItem({ abi: AccountingOracle_ABI, name: "submitReportData" }).inputs[0]] as const;
+const agents = {
+  mainnet: "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c",
+  hoodi: "0x0534aA41907c9631fae990960bCC72d75fA7cfeD",
+} as const;
 const nonZeroHash = toHex(1n, { size: 32 });
-
-function reportHash(report: Report): Hex {
-  return keccak256(encodeAbiParameters(reportParameters, [report]));
-}
-
-async function expectRevert(action: Promise<unknown>, signature: string, args: readonly (bigint | Hex)[] = []) {
-  const types = signature.slice(signature.indexOf("(") + 1, -1);
-  const expected = concat([
-    slice(keccak256(stringToHex(signature)), 0, 4),
-    types ? encodeAbiParameters(parseAbiParameters(types), args) : "0x",
-  ]);
-  await rejects(
-    action,
-    (error: unknown) => {
-      const revert =
-        error instanceof BaseError &&
-        error.walk(
-          (cause) =>
-            cause instanceof ContractFunctionRevertedError ||
-            (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-        );
-      if (revert instanceof ContractFunctionRevertedError) {
-        return revert.raw === expected;
-      }
-      return revert instanceof Error && "data" in revert && revert.data === expected;
-    },
-    signature,
-  );
-}
 
 function extraDataItem(
   index: number,
@@ -100,113 +67,65 @@ describe("AccountingOracle negative acceptance", function () {
   let oracle: Contract<typeof AccountingOracle_ABI>;
   let consensus: Contract<typeof HashConsensus_ABI>;
   let lido: Contract<typeof Lido_ABI>;
-  let router: Contract<typeof StakingRouter_ABI>;
   let nor: Contract<typeof NodeOperatorsRegistry_ABI>;
   let queue: Contract<typeof WithdrawalQueue_ABI>;
-  let burner: Contract<typeof Burner_ABI>;
   let checker: Contract<typeof OracleReportSanityChecker_ABI>;
-  let accounting: Contract<typeof accountingAbi>;
+  let locator: ReturnType<typeof getGovernanceContracts>["locator"];
   let agent: Address;
   let stranger: Address;
-  let withdrawalVault: Address;
-  let elRewardsVault: Address;
   let snapshot: Hex;
+  const impersonated = new ImpersonatedAccounts();
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
-    const { locator } = getGovernanceContracts(network);
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
+    locator = getGovernanceContracts(network).locator;
     oracle = contract(AccountingOracle_ABI, await client.read(locator, "accountingOracle"));
     consensus = contract(HashConsensus_ABI, await client.read(oracle, "getConsensusContract"));
     lido = contract(Lido_ABI, await client.read(locator, "lido"));
-    router = contract(StakingRouter_ABI, await client.read(locator, "stakingRouter"));
+    const router = contract(StakingRouter_ABI, await client.read(locator, "stakingRouter"));
     nor = contract(
       NodeOperatorsRegistry_ABI,
       (await client.read(router, "getStakingModule", [1n])).stakingModuleAddress,
     );
     queue = contract(WithdrawalQueue_ABI, await client.read(locator, "withdrawalQueue"));
-    burner = contract(Burner_ABI, await client.read(locator, "burner"));
     checker = contract(OracleReportSanityChecker_ABI, await client.read(locator, "oracleReportSanityChecker"));
-    accounting = contract(accountingAbi, await client.read(locator, "accounting"));
-    withdrawalVault = await client.read(locator, "withdrawalVault");
-    elRewardsVault = await client.read(locator, "elRewardsVault");
-    agent = await client.read(oracle, "getRoleMember", [await client.read(oracle, "DEFAULT_ADMIN_ROLE"), 0n]);
+    agent = agents[network];
     [stranger] = await client.getAccounts();
     await hre.tasks
       .getTask("build")
       .run({ files: ["contracts/mocks/MockHashConsensus.sol"], noTests: true, quiet: true });
+    // Scoped build does not invalidate artifacts already cached by earlier readArtifact calls
+    await hre.artifacts.clearCache();
   });
 
   beforeEach(async function () {
     snapshot = await client.snapshot();
   });
   afterEach(async function () {
-    await client.revert(snapshot);
+    try {
+      await impersonated.stopAll(client);
+    } finally {
+      await client.revert(snapshot);
+    }
   });
 
-  async function sendAsMember(target: Address, data: Hex, member?: Address) {
-    member ??= (await client.read(consensus, "getFastLaneMembers"))[0][0];
-    const code = await client.viemClient.getCode({ address: member });
-    if (!code || code === "0x") {
-      await client.impersonate(member, parseEther("10"));
-      const hash = await client.viemClient.sendTransaction({
-        account: member,
-        to: target,
-        data,
-        chain: client.viemClient.chain,
-      });
-      return client.viemClient.waitForTransactionReceipt({ hash });
-    }
-    const delegation = contract(delegationAbi, member);
-    const delegate = await client.read(delegation, "getDelegate");
-    await client.impersonate(delegate, parseEther("10"));
-    return client.write(delegation, "execute", [target, data], { from: delegate });
+  async function sendAsFirstMember(target: Address, data: Hex) {
+    const [[member]] = await client.read(consensus, "getFastLaneMembers");
+    return sendAsOracleMember(client, impersonated, member, target, data);
   }
 
-  function submitData(report: Report, version: bigint) {
-    return sendAsMember(
+  function submitData(report: AccountingReport, version: bigint) {
+    return sendAsFirstMember(
       oracle.address,
       encodeFunctionData({ abi: AccountingOracle_ABI, functionName: "submitReportData", args: [report, version] }),
     );
   }
 
-  async function prepareReport(changes: Partial<Report> = {}): Promise<Report> {
-    const [slots, seconds, genesis] = await client.read(consensus, "getChainConfig");
-    const [refSlot] = await client.read(consensus, "getCurrentFrame");
-    const [, epochs] = await client.read(consensus, "getFrameConfig");
-    await client.setTime(genesis + (refSlot + slots * epochs + 1n) * seconds);
-    const [nextRefSlot] = await client.read(consensus, "getCurrentFrame");
-    const [active, pending, , deposited] = await client.read(lido, "getBalanceStats");
-    const withdrawalVaultBalance = await client.getBalance(withdrawalVault);
-    const previousVaultBalance = await client.read(checker, "lastVaultBalanceAfterTransfer");
-    const clValidatorsBalance = active - (withdrawalVaultBalance - previousVaultBalance) + parseEther("10");
-    const clPendingBalance = pending + deposited;
-    const moduleIds = await client.read(router, "getStakingModuleIds");
-    const stored = await Promise.all(moduleIds.map((id) => client.read(router, "getModuleValidatorsBalance", [id])));
-    const storedGwei = stored.map((balance) => balance / 10n ** 9n);
-    const totalStored = storedGwei.reduce((sum, value) => sum + value, 0n);
-    const target = clValidatorsBalance / 10n ** 9n;
-    const balances = storedGwei.map((balance) => (balance * target) / totalStored);
-    balances[0] += target - balances.reduce((sum, value) => sum + value, 0n);
-    const elRewardsVaultBalance = await client.getBalance(elRewardsVault);
-    const [cover, nonCover] = await client.read(burner, "getSharesRequestedToBurn");
-    const simulation = await client.read(accounting, "simulateOracleReport", [
-      {
-        timestamp: genesis + nextRefSlot * seconds,
-        timeElapsed: 86400n,
-        clValidatorsBalance,
-        clPendingBalance,
-        withdrawalVaultBalance,
-        elRewardsVaultBalance,
-        sharesRequestedToBurn: 0n,
-        withdrawalFinalizationBatches: [],
-        simulatedShareRate: 0n,
-      },
-    ]);
-    const simulatedShareRate = (simulation.postTotalPooledEther * 10n ** 27n) / simulation.postTotalShares;
+  async function prepareReport(changes: Partial<AccountingReport> = {}): Promise<AccountingReport> {
+    await advanceToNextFrame(client, consensus);
+    const { report: baseReport, simulation } = await prepareAccountingReport(client, locator);
+    const { simulatedShareRate } = baseReport;
     const buffered = await client.read(lido, "getBufferedEther");
     const unfinalized = await client.read(queue, "unfinalizedStETH");
     const budget =
@@ -269,59 +188,34 @@ describe("AccountingOracle negative acceptance", function () {
       }
       batches.push(...state.batches.filter((id) => id > 0n));
     }
-    return {
-      consensusVersion: await client.read(oracle, "getConsensusVersion"),
-      refSlot: nextRefSlot,
-      clValidatorsBalanceGwei: target,
-      clPendingBalanceGwei: clPendingBalance / 10n ** 9n,
-      stakingModuleIdsWithNewlyExitedValidators: [],
-      numExitedValidatorsByStakingModule: [],
-      stakingModuleIdsWithUpdatedBalance: moduleIds,
-      validatorBalancesGweiByStakingModule: balances,
-      withdrawalVaultBalance,
-      elRewardsVaultBalance,
-      sharesRequestedToBurn: cover + nonCover,
-      withdrawalFinalizationBatches: batches,
-      simulatedShareRate,
-      isBunkerMode: (await client.read(lido, "getTotalPooledEther")) > simulation.postTotalPooledEther,
-      vaultsDataTreeRoot: zeroHash,
-      vaultsDataTreeCid: "test_vaults_data_tree_cid",
-      extraDataFormat: 0n,
-      extraDataHash: zeroHash,
-      extraDataItemsCount: 0n,
-      ...changes,
-    };
+    return { ...baseReport, withdrawalFinalizationBatches: batches, ...changes };
   }
 
-  async function pushReport(report: Report) {
+  async function pushReport(report: AccountingReport) {
     const deadline = BigInt(await client.getChainTime()) + 100n;
-    await client.impersonate(consensus.address, parseEther("10"));
-    await client.write(oracle, "submitConsensusReport", [reportHash(report), report.refSlot, deadline], {
+    await impersonated.impersonate(client, consensus.address);
+    await client.write(oracle, "submitConsensusReport", [accountingReportHash(report), report.refSlot, deadline], {
       from: consensus.address,
     });
     return deadline;
   }
 
   async function report(data?: Hex, itemsCount = 2n) {
-    const current = await prepareReport(
+    const currentReport = await prepareReport(
       data === undefined
         ? {}
         : { extraDataFormat: 1n, extraDataHash: keccak256(data), extraDataItemsCount: itemsCount },
     );
-    const [members] = await client.read(consensus, "getFastLaneMembers");
-    for (const member of members) {
-      await sendAsMember(
-        consensus.address,
-        encodeFunctionData({
-          abi: HashConsensus_ABI,
-          functionName: "submitReport",
-          args: [current.refSlot, reportHash(current), current.consensusVersion],
-        }),
-        member,
-      );
-    }
-    await submitData(current, await client.read(oracle, "getContractVersion"));
-    return sendAsMember(
+    await reachConsensus(
+      client,
+      impersonated,
+      consensus,
+      currentReport.refSlot,
+      accountingReportHash(currentReport),
+      currentReport.consensusVersion,
+    );
+    await submitData(currentReport, await client.read(oracle, "getContractVersion"));
+    return sendAsFirstMember(
       oracle.address,
       encodeFunctionData({
         abi: AccountingOracle_ABI,
@@ -335,7 +229,7 @@ describe("AccountingOracle negative acceptance", function () {
     if (!(await client.read(oracle, "getConsensusReport"))[3]) {
       await report();
     }
-    await client.impersonate(consensus.address, parseEther("10"));
+    await impersonated.impersonate(client, consensus.address);
     return client.read(oracle, "getLastProcessingRefSlot");
   }
 
@@ -344,33 +238,33 @@ describe("AccountingOracle negative acceptance", function () {
   }
 
   it("rejects unauthorized senders", async function () {
-    const current = await prepareReport();
+    const currentReport = await prepareReport();
     await expectRevert(
       client.simulate(oracle, "submitReportExtraDataEmpty", [], { from: stranger }),
-      "SenderNotAllowed()",
+      customError("SenderNotAllowed()"),
     );
     await expectRevert(
       client.simulate(oracle, "submitReportExtraDataList", ["0x"], { from: stranger }),
-      "SenderNotAllowed()",
+      customError("SenderNotAllowed()"),
     );
     await expectRevert(
-      client.simulate(oracle, "submitReportData", [current, await client.read(oracle, "getContractVersion")], {
+      client.simulate(oracle, "submitReportData", [currentReport, await client.read(oracle, "getContractVersion")], {
         from: stranger,
       }),
-      "SenderNotAllowed()",
+      customError("SenderNotAllowed()"),
     );
     await expectRevert(
       client.simulate(
         oracle,
         "submitConsensusReport",
-        [reportHash(current), current.refSlot, BigInt(await client.getChainTime())],
+        [accountingReportHash(currentReport), currentReport.refSlot, BigInt(await client.getChainTime())],
         { from: stranger },
       ),
-      "SenderIsNotTheConsensusContract()",
+      customError("SenderIsNotTheConsensusContract()"),
     );
     await expectRevert(
-      client.simulate(oracle, "discardConsensusReport", [current.refSlot], { from: stranger }),
-      "SenderIsNotTheConsensusContract()",
+      client.simulate(oracle, "discardConsensusReport", [currentReport.refSlot], { from: stranger }),
+      customError("SenderIsNotTheConsensusContract()"),
     );
   });
 
@@ -380,20 +274,17 @@ describe("AccountingOracle negative acceptance", function () {
       client.simulate(oracle, "submitConsensusReport", [nonZeroHash, last - 1n, BigInt(await client.getChainTime())], {
         from: consensus.address,
       }),
-      "RefSlotCannotDecrease(uint256,uint256)",
-      [last - 1n, last],
+      customError("RefSlotCannotDecrease(uint256,uint256)", [last - 1n, last]),
     );
     await expectRevert(
       client.simulate(oracle, "submitConsensusReport", [nonZeroHash, last, BigInt(await client.getChainTime())], {
         from: consensus.address,
       }),
-      "RefSlotMustBeGreaterThanProcessingOne(uint256,uint256)",
-      [last, last],
+      customError("RefSlotMustBeGreaterThanProcessingOne(uint256,uint256)", [last, last]),
     );
     await expectRevert(
       client.simulate(oracle, "submitConsensusReport", [nonZeroHash, last + 1n, 42n], { from: consensus.address }),
-      "ProcessingDeadlineMissed(uint256)",
-      [42n],
+      customError("ProcessingDeadlineMissed(uint256)", [42n]),
     );
     await expectRevert(
       client.simulate(
@@ -402,7 +293,7 @@ describe("AccountingOracle negative acceptance", function () {
         [zeroHash, last + 1n, BigInt(await client.getChainTime()) + 3n],
         { from: consensus.address },
       ),
-      "HashCannotBeZero()",
+      customError("HashCannotBeZero()"),
     );
   });
 
@@ -410,17 +301,16 @@ describe("AccountingOracle negative acceptance", function () {
     const last = await ensureProcessing();
     await expectRevert(
       client.simulate(oracle, "discardConsensusReport", [last - 1n], { from: consensus.address }),
-      "RefSlotCannotDecrease(uint256,uint256)",
-      [last - 1n, last],
+      customError("RefSlotCannotDecrease(uint256,uint256)", [last - 1n, last]),
     );
     await expectRevert(
       client.simulate(oracle, "discardConsensusReport", [last], { from: consensus.address }),
-      "RefSlotAlreadyProcessing()",
+      customError("RefSlotAlreadyProcessing()"),
     );
   });
 
   it("rejects setting the same consensus version", async function () {
-    await client.impersonate(agent, parseEther("10"));
+    await impersonated.impersonate(client, agent);
     await client.write(oracle, "grantRole", [await client.read(oracle, "MANAGE_CONSENSUS_VERSION_ROLE"), agent], {
       from: agent,
     });
@@ -428,34 +318,37 @@ describe("AccountingOracle negative acceptance", function () {
       client.simulate(oracle, "setConsensusVersion", [await client.read(oracle, "getConsensusVersion")], {
         from: agent,
       }),
-      "VersionCannotBeSame()",
+      customError("VersionCannotBeSame()"),
     );
   });
 
   it("rejects invalid consensus contracts", async function () {
-    await client.impersonate(agent, parseEther("10"));
+    await impersonated.impersonate(client, agent);
     await client.write(oracle, "grantRole", [await client.read(oracle, "MANAGE_CONSENSUS_CONTRACT_ROLE"), agent], {
       from: agent,
     });
     await expectRevert(
       client.simulate(oracle, "setConsensusContract", [zeroAddress], { from: agent }),
-      "AddressCannotBeZero()",
+      customError("AddressCannotBeZero()"),
     );
     await expectRevert(
       client.simulate(oracle, "setConsensusContract", [consensus.address], { from: agent }),
-      "AddressCannotBeSame()",
+      customError("AddressCannotBeSame()"),
     );
     const artifact = await hre.artifacts.readArtifact("MockHashConsensus");
     if (!isHex(artifact.bytecode)) {
       throw new Error("MockHashConsensus artifact has invalid bytecode");
     }
     const mock = { abi: artifact.abi, bytecode: artifact.bytecode };
-    const mismatched = await client.deployContract({ ...mock, args: [42n, 17n, 100500n, 0n] }, { from: stranger });
-    await expectRevert(
-      client.simulate(oracle, "setConsensusContract", [mismatched], { from: agent }),
-      "UnexpectedChainConfig()",
+    const mismatchedConsensusMock = await client.deployContract(
+      { ...mock, args: [42n, 17n, 100500n, 0n] },
+      { from: stranger },
     );
-    const older = await client.deployContract(
+    await expectRevert(
+      client.simulate(oracle, "setConsensusContract", [mismatchedConsensusMock], { from: agent }),
+      customError("UnexpectedChainConfig()"),
+    );
+    const olderConsensusMock = await client.deployContract(
       {
         ...mock,
         args: [99n, await client.read(oracle, "SECONDS_PER_SLOT"), await client.read(oracle, "GENESIS_TIME"), 13n],
@@ -463,16 +356,18 @@ describe("AccountingOracle negative acceptance", function () {
       { from: stranger },
     );
     await expectRevert(
-      client.simulate(oracle, "setConsensusContract", [older], { from: agent }),
-      "InitialRefSlotCannotBeLessThanProcessingOne(uint256,uint256)",
-      [13n, await client.read(oracle, "getLastProcessingRefSlot")],
+      client.simulate(oracle, "setConsensusContract", [olderConsensusMock], { from: agent }),
+      customError("InitialRefSlotCannotBeLessThanProcessingOne(uint256,uint256)", [
+        13n,
+        await client.read(oracle, "getLastProcessingRefSlot"),
+      ]),
     );
   });
 
   it("rejects finalizing the upgrade again", async function () {
     await expectRevert(
       client.simulate(oracle, "finalizeUpgrade_v5", [6n], { from: stranger }),
-      "InvalidContractVersionIncrement()",
+      customError("InvalidContractVersionIncrement()"),
     );
   });
 
@@ -480,49 +375,45 @@ describe("AccountingOracle negative acceptance", function () {
     it("rejects too short extra data items", async function () {
       await expectRevert(
         report(extraData([slice(extraDataItem(0, 2, 2, [2], [2n]), 0, 36)])),
-        "InvalidExtraDataItem(uint256)",
-        [0n],
+        customError("InvalidExtraDataItem(uint256)", [0n]),
       );
       const count = await exited(2);
       await expectRevert(
         report(extraData([extraDataItem(0, 2, 1, [2, 3, 4, 5], [count]), extraDataItem(1, 2, 2, [2], [count])])),
-        "InvalidExtraDataItem(uint256)",
-        [0n],
+        customError("InvalidExtraDataItem(uint256)", [0n]),
       );
     });
     it("rejects zero node operator count", async function () {
-      await expectRevert(report(extraData([extraDataItem(0, 2, 2, [], [1n])])), "InvalidExtraDataItem(uint256)", [0n]);
+      await expectRevert(
+        report(extraData([extraDataItem(0, 2, 2, [], [1n])])),
+        customError("InvalidExtraDataItem(uint256)", [0n]),
+      );
     });
     it("rejects zero module IDs", async function () {
       await expectRevert(
         report(extraData([extraDataItem(0, 2, 0, [2], [1n]), extraDataItem(1, 2, 0, [2], [2n])])),
-        "InvalidExtraDataItem(uint256)",
-        [0n],
+        customError("InvalidExtraDataItem(uint256)", [0n]),
       );
     });
     it("rejects unexpected extra data indices", async function () {
       await expectRevert(
         report(extraData([extraDataItem(1, 2, 1, [2], [1n]), extraDataItem(2, 2, 2, [2], [1n])])),
-        "UnexpectedExtraDataIndex(uint256,uint256)",
-        [0n, 1n],
+        customError("UnexpectedExtraDataIndex(uint256,uint256)", [0n, 1n]),
       );
       const count = await exited(2);
       await expectRevert(
         report(extraData([extraDataItem(0, 2, 1, [2], [count]), extraDataItem(3, 2, 1, [2], [count])])),
-        "UnexpectedExtraDataIndex(uint256,uint256)",
-        [1n, 3n],
+        customError("UnexpectedExtraDataIndex(uint256,uint256)", [1n, 3n]),
       );
       await expectRevert(
         report(extraData([extraDataItem(0, 2, 1, [2], [count]), extraDataItem(0, 2, 1, [2], [count])])),
-        "UnexpectedExtraDataIndex(uint256,uint256)",
-        [1n, 0n],
+        customError("UnexpectedExtraDataIndex(uint256,uint256)", [1n, 0n]),
       );
     });
     it("rejects unsupported extra data types", async function () {
       await expectRevert(
         report(extraData([extraDataItem(0, 3, 1, [1], [1n])]), 1n),
-        "UnsupportedExtraDataType(uint256,uint256)",
-        [0n, 3n],
+        customError("UnsupportedExtraDataType(uint256,uint256)", [0n, 3n]),
       );
     });
     it("rejects duplicate items", async function () {
@@ -530,8 +421,7 @@ describe("AccountingOracle negative acceptance", function () {
       const count = (await exited(operator)) + 1n;
       await expectRevert(
         report(extraData([extraDataItem(0, 2, 1, [operator], [count]), extraDataItem(1, 2, 1, [operator], [count])])),
-        "InvalidExtraDataSortOrder(uint256)",
-        [1n],
+        customError("InvalidExtraDataSortOrder(uint256)", [1n]),
       );
     });
     it("rejects duplicate operators with decreasing exited counts", async function () {
@@ -544,8 +434,7 @@ describe("AccountingOracle negative acceptance", function () {
             extraDataItem(1, 2, 1, [operator], [count + 1n]),
           ]),
         ),
-        "InvalidExtraDataSortOrder(uint256)",
-        [1n],
+        customError("InvalidExtraDataSortOrder(uint256)", [1n]),
       );
     });
     it("rejects unsorted exited operators", async function () {
@@ -553,8 +442,7 @@ describe("AccountingOracle negative acceptance", function () {
       const counts = await Promise.all(ids.map(async (id) => (await exited(id)) + 1n));
       await expectRevert(
         report(extraData([extraDataItem(0, 2, 1, ids, counts)])),
-        "InvalidExtraDataSortOrder(uint256)",
-        [0n],
+        customError("InvalidExtraDataSortOrder(uint256)", [0n]),
       );
     });
     it("rejects unexpected extra data item count", async function () {
@@ -563,66 +451,83 @@ describe("AccountingOracle negative acceptance", function () {
       const items = await Promise.all(
         ids.map(async (id, index) => extraDataItem(index, 2, 1, [id], [(await exited(id)) + increase])),
       );
-      await expectRevert(report(extraData(items), 7n), "UnexpectedExtraDataItemsCount(uint256,uint256)", [7n, 8n]);
+      await expectRevert(
+        report(extraData(items), 7n),
+        customError("UnexpectedExtraDataItemsCount(uint256,uint256)", [7n, 8n]),
+      );
     });
     it("rejects already processed extra data", async function () {
       const operator = client.getNetworkName() === "hoodi" ? 0 : 33;
       await report(extraData([extraDataItem(0, 2, 1, [operator], [(await exited(operator)) + 1n])]), 1n);
       await expectRevert(
-        sendAsMember(
+        sendAsFirstMember(
           oracle.address,
           encodeFunctionData({ abi: AccountingOracle_ABI, functionName: "submitReportExtraDataList", args: ["0x"] }),
         ),
-        "ExtraDataAlreadyProcessed()",
+        customError("ExtraDataAlreadyProcessed()"),
       );
     });
   });
 
   describe("submitReportData", function () {
     it("rejects invalid versions, reference slots, hashes, repeated data and missed deadlines", async function () {
-      const current = await prepareReport();
-      const deadline = await pushReport(current);
+      const currentReport = await prepareReport();
+      const deadline = await pushReport(currentReport);
       const version = await client.read(oracle, "getContractVersion");
-      await expectRevert(submitData(current, 42n), "UnexpectedContractVersion(uint256,uint256)", [version, 42n]);
-      await expectRevert(submitData({ ...current, refSlot: 42n }, version), "UnexpectedRefSlot(uint256,uint256)", [
-        current.refSlot,
-        42n,
-      ]);
       await expectRevert(
-        submitData({ ...current, consensusVersion: 66n }, version),
-        "UnexpectedConsensusVersion(uint256,uint256)",
-        [current.consensusVersion, 66n],
+        submitData(currentReport, 42n),
+        customError("UnexpectedContractVersion(uint256,uint256)", [version, 42n]),
       );
-      const broken = { ...current, simulatedShareRate: 0n };
-      await expectRevert(submitData(broken, version), "UnexpectedDataHash(bytes32,bytes32)", [
-        reportHash(current),
-        reportHash(broken),
-      ]);
-      await submitData(current, version);
-      await expectRevert(submitData(current, version), "RefSlotAlreadyProcessing()");
+      await expectRevert(
+        submitData({ ...currentReport, refSlot: 42n }, version),
+        customError("UnexpectedRefSlot(uint256,uint256)", [currentReport.refSlot, 42n]),
+      );
+      await expectRevert(
+        submitData({ ...currentReport, consensusVersion: 66n }, version),
+        customError("UnexpectedConsensusVersion(uint256,uint256)", [currentReport.consensusVersion, 66n]),
+      );
+      const broken = { ...currentReport, simulatedShareRate: 0n };
+      await expectRevert(
+        submitData(broken, version),
+        customError("UnexpectedDataHash(bytes32,bytes32)", [
+          accountingReportHash(currentReport),
+          accountingReportHash(broken),
+        ]),
+      );
+      await submitData(currentReport, version);
+      await expectRevert(submitData(currentReport, version), customError("RefSlotAlreadyProcessing()"));
       await client.setTime(deadline + 42n);
-      await expectRevert(submitData(current, version), "ProcessingDeadlineMissed(uint256)", [deadline]);
+      await expectRevert(
+        submitData(currentReport, version),
+        customError("ProcessingDeadlineMissed(uint256)", [deadline]),
+      );
     });
     it("rejects inconsistent extra data metadata", async function () {
       const version = await client.read(oracle, "getContractVersion");
-      let current = await prepareReport({ extraDataHash: nonZeroHash });
-      await pushReport(current);
-      await expectRevert(submitData(current, version), "UnexpectedExtraDataHash(bytes32,bytes32)", [
-        zeroHash,
-        nonZeroHash,
-      ]);
-      current = await prepareReport({ extraDataItemsCount: 42n });
-      await pushReport(current);
-      await expectRevert(submitData(current, version), "UnexpectedExtraDataItemsCount(uint256,uint256)", [0n, 42n]);
-      current = await prepareReport({ extraDataFormat: 66n });
-      await pushReport(current);
-      await expectRevert(submitData(current, version), "UnsupportedExtraDataFormat(uint256)", [66n]);
-      current = await prepareReport({ extraDataFormat: 1n });
-      await pushReport(current);
-      await expectRevert(submitData(current, version), "ExtraDataItemsCountCannotBeZeroForNonEmptyData()");
-      current = await prepareReport({ extraDataFormat: 1n, extraDataItemsCount: 42n });
-      await pushReport(current);
-      await expectRevert(submitData(current, version), "ExtraDataHashCannotBeZeroForNonEmptyData()");
+      let currentReport = await prepareReport({ extraDataHash: nonZeroHash });
+      await pushReport(currentReport);
+      await expectRevert(
+        submitData(currentReport, version),
+        customError("UnexpectedExtraDataHash(bytes32,bytes32)", [zeroHash, nonZeroHash]),
+      );
+      currentReport = await prepareReport({ extraDataItemsCount: 42n });
+      await pushReport(currentReport);
+      await expectRevert(
+        submitData(currentReport, version),
+        customError("UnexpectedExtraDataItemsCount(uint256,uint256)", [0n, 42n]),
+      );
+      currentReport = await prepareReport({ extraDataFormat: 66n });
+      await pushReport(currentReport);
+      await expectRevert(submitData(currentReport, version), customError("UnsupportedExtraDataFormat(uint256)", [66n]));
+      currentReport = await prepareReport({ extraDataFormat: 1n });
+      await pushReport(currentReport);
+      await expectRevert(
+        submitData(currentReport, version),
+        customError("ExtraDataItemsCountCannotBeZeroForNonEmptyData()"),
+      );
+      currentReport = await prepareReport({ extraDataFormat: 1n, extraDataItemsCount: 42n });
+      await pushReport(currentReport);
+      await expectRevert(submitData(currentReport, version), customError("ExtraDataHashCannotBeZeroForNonEmptyData()"));
     });
     it("rejects invalid exited validator module data", async function () {
       const version = await client.read(oracle, "getContractVersion");
@@ -637,12 +542,12 @@ describe("AccountingOracle negative acceptance", function () {
           [1n, 0n],
         ],
       ] as const) {
-        const current = await prepareReport({
+        const currentReport = await prepareReport({
           stakingModuleIdsWithNewlyExitedValidators: modules,
           numExitedValidatorsByStakingModule: counts,
         });
-        await pushReport(current);
-        await expectRevert(submitData(current, version), "InvalidExitedValidatorsData()");
+        await pushReport(currentReport);
+        await expectRevert(submitData(currentReport, version), customError("InvalidExitedValidatorsData()"));
       }
     });
   });

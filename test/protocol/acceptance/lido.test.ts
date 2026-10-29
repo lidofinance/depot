@@ -1,22 +1,14 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { rejects } from "node:assert/strict";
-import {
-  BaseError,
-  ContractFunctionRevertedError,
-  encodeErrorResult,
-  keccak256,
-  maxUint256,
-  parseAbi,
-  parseEther,
-  stringToHex,
-} from "viem";
+import { keccak256, maxUint256, parseEther, stringToHex } from "viem";
 import { AccountingOracle_ABI } from "@/abi/AccountingOracle.abi";
 import { AppProxyUpgradeable_ABI } from "@/abi/AppProxyUpgradeable.abi";
 import { Lido_ABI } from "@/abi/Lido.abi";
 import { StakingRouter_ABI } from "@/abi/StakingRouter.abi";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { isRevertedWith, solidityError } from "@/test/protocol/helpers/reverts";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
 const configurations = {
@@ -50,20 +42,15 @@ const configurations = {
   },
 } as const;
 
-const solidityErrorAbi = parseAbi(["error Error(string reason)"]);
-
 describe("Lido acceptance", function () {
   let client: DevRpcClient;
   let lido: Contract<typeof Lido_ABI>;
   let expected: (typeof configurations)[keyof typeof configurations];
   let voting: ReturnType<typeof getGovernanceContracts>["voting"];
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     lido = contract(Lido_ABI, expected.lido);
     voting = getGovernanceContracts(network).voting;
@@ -106,22 +93,7 @@ describe("Lido acceptance", function () {
         client.simulate(target, "initialize", [expected.locator, expected.eip712StETH, expected.reserveTarget], {
           from: voting.address,
         }),
-        (error: unknown) => {
-          const revert =
-            error instanceof BaseError &&
-            error.walk(
-              (cause) =>
-                cause instanceof ContractFunctionRevertedError ||
-                (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-            );
-          if (revert instanceof ContractFunctionRevertedError) return revert.reason === "INIT_ALREADY_INITIALIZED";
-          // In-process EDR exposes revert bytes without an RPC error code.
-          return (
-            revert instanceof Error &&
-            "data" in revert &&
-            revert.data === encodeErrorResult({ abi: solidityErrorAbi, args: ["INIT_ALREADY_INITIALIZED"] })
-          );
-        },
+        (error: unknown) => isRevertedWith(error, solidityError("INIT_ALREADY_INITIALIZED")),
         `initialize ${target.address}`,
       );
     }
@@ -144,21 +116,7 @@ describe("Lido acceptance", function () {
         account: voting.address,
         blockNumber,
       }),
-      (error: unknown) => {
-        const revert =
-          error instanceof BaseError &&
-          error.walk(
-            (cause) =>
-              cause instanceof ContractFunctionRevertedError ||
-              (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-          );
-        if (revert instanceof ContractFunctionRevertedError) return revert.reason === reason;
-        return (
-          revert instanceof Error &&
-          "data" in revert &&
-          revert.data === encodeErrorResult({ abi: solidityErrorAbi, args: [reason] })
-        );
-      },
+      (error: unknown) => isRevertedWith(error, solidityError(reason)),
       "finalizeUpgrade_v4 proxy",
     );
   });
@@ -168,21 +126,7 @@ describe("Lido acceptance", function () {
       client.simulate(contract(Lido_ABI, expected.implementation), "finalizeUpgrade_v4", [expected.reserveTarget], {
         from: voting.address,
       }),
-      (error: unknown) => {
-        const revert =
-          error instanceof BaseError &&
-          error.walk(
-            (cause) =>
-              cause instanceof ContractFunctionRevertedError ||
-              (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-          );
-        if (revert instanceof ContractFunctionRevertedError) return revert.reason === "NOT_INITIALIZED";
-        return (
-          revert instanceof Error &&
-          "data" in revert &&
-          revert.data === encodeErrorResult({ abi: solidityErrorAbi, args: ["NOT_INITIALIZED"] })
-        );
-      },
+      (error: unknown) => isRevertedWith(error, solidityError("NOT_INITIALIZED")),
       "finalizeUpgrade_v4 implementation",
     );
   });
@@ -244,7 +188,9 @@ describe("Lido acceptance", function () {
   });
 
   it("retains the historical mainnet deposited validators and rewards floors", async function () {
-    if (client.getNetworkName() !== "mainnet") this.skip();
+    if (client.getNetworkName() !== "mainnet") {
+      this.skip();
+    }
     const [depositedValidators] = await client.read(lido, "getBeaconStat");
     assert.isTrue(depositedValidators >= 176018n, "historical deposited validators");
     assert.isTrue(

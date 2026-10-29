@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import hre from "hardhat";
 
-import { lintVoteAddresses } from "../../../src/omnibuses/address-lint";
+import { lintVoteAddresses } from "@/src/omnibuses/address-lint";
 
 const ADDRESS = "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32";
 const CLI = path.resolve("scripts/lint-vote-addresses.ts");

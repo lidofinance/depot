@@ -2,7 +2,7 @@ import { assert } from "chai";
 import { rejects } from "node:assert/strict";
 import sinon from "sinon";
 
-import { DevRpcClient } from "../../../src/network";
+import { DevRpcClient } from "@/src/network";
 
 describe("DevRpcClient snapshot handling", () => {
   let client: sinon.SinonStubbedInstance<DevRpcClient>;

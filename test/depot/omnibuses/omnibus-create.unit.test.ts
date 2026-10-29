@@ -9,11 +9,11 @@ import { rejects } from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import sinon from "sinon";
 
-import prompt from "../../../src/common/prompt";
-import { Omnibus } from "../../../src/omnibuses";
-import { RpcClient } from "../../../src/network";
-import { loadOmnibus, omnibusTaskDeps, prepareOmnibus } from "../../../tasks/omnibuses";
-import { lintVoteAddresses } from "../../../src/omnibuses/address-lint";
+import prompt from "@/src/common/prompt";
+import { Omnibus } from "@/src/omnibuses";
+import { RpcClient } from "@/src/network";
+import { loadOmnibus, omnibusTaskDeps, prepareOmnibus } from "@/tasks/omnibuses";
+import { lintVoteAddresses } from "@/src/omnibuses/address-lint";
 
 describe("omnibus:create", () => {
   let name: string;

@@ -1,10 +1,10 @@
 import { assert } from "chai";
 import { Log } from "viem";
 
-import { NodeOperatorsRegistry_ABI } from "../../../abi/NodeOperatorsRegistry.abi";
-import { contract } from "../../../src/contracts";
-import events from "../../../src/omnibuses/expected-events/node-operators";
-import { LogCollector } from "../../../src/omnibuses/log-collector";
+import { NodeOperatorsRegistry_ABI } from "@/abi/NodeOperatorsRegistry.abi";
+import { contract } from "@/src/contracts";
+import events from "@/src/omnibuses/expected-events/node-operators";
+import { LogCollector } from "@/src/omnibuses/log-collector";
 import { eventLog } from "../helpers/event-log";
 
 const REGISTRY = "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5";

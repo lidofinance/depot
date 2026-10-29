@@ -1,9 +1,10 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { rejects } from "node:assert/strict";
-import { BaseError, ContractFunctionRevertedError, encodeErrorResult, maxUint256, parseAbi } from "viem";
+import { encodeErrorResult, maxUint256, parseAbi } from "viem";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { isRevertedWith } from "@/test/protocol/helpers/reverts";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
 const vaultAbi = parseAbi([
@@ -41,12 +42,9 @@ describe("WithdrawalVault acceptance", function () {
   let expected: (typeof configurations)[keyof typeof configurations];
   let governance: ReturnType<typeof getGovernanceContracts>;
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     governance = getGovernanceContracts(network);
     vault = contract(vaultAbi, expected.vault);
@@ -78,19 +76,7 @@ describe("WithdrawalVault acceptance", function () {
       });
       await rejects(
         client.simulate(target, method, [], { from: governance.voting.address }),
-        (error: unknown) => {
-          const revert =
-            error instanceof BaseError &&
-            error.walk(
-              (cause) =>
-                cause instanceof ContractFunctionRevertedError ||
-                (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-            );
-          if (revert instanceof ContractFunctionRevertedError) {
-            return revert.raw === expectedRevert;
-          }
-          return revert instanceof Error && "data" in revert && revert.data === expectedRevert;
-        },
+        (error: unknown) => isRevertedWith(error, expectedRevert),
         `${method} ${target.address}`,
       );
     }

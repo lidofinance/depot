@@ -5,12 +5,12 @@ import {
   startAragonVote,
   executeAragonVote,
   getExecuteReceipt,
-} from "../../../src/aragon-votes-tools/lifecycle";
-import { HexStrPrefixed } from "../../../src/common/bytes";
+} from "@/src/aragon-votes-tools/lifecycle";
+import { HexStrPrefixed } from "@/src/common/bytes";
 import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
 import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
-import { DevRpcClient } from "../../../src/network/dev-rpc-client";
-import { GovernanceContracts } from "../../../src/omnibuses/governance-contracts";
+import { DevRpcClient } from "@/src/network/dev-rpc-client";
+import { GovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
 describe("aragon vote lifecycle (integration)", function () {
   let client: DevRpcClient;

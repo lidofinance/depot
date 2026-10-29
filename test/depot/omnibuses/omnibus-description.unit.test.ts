@@ -1,13 +1,13 @@
 import { assert } from "chai";
 import { encodeFunctionData } from "viem";
 
-import { IGovernance_ABI } from "../../../abi/IGovernance.abi";
+import { IGovernance_ABI } from "@/abi/IGovernance.abi";
 import {
   assertDgProposalDescriptions,
   formatVoteDescription,
   parseDgProposalDescriptions,
-} from "../../../src/omnibuses/omnibus-description";
-import { VoteCall } from "../../../src/omnibuses/omnibus-types";
+} from "@/src/omnibuses/omnibus-description";
+import { VoteCall } from "@/src/omnibuses/omnibus-types";
 
 const GOVERNANCE = "0xC1db28B3301331277e307FDCfF8DE28242A4486E";
 const AGENT = "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c";

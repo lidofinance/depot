@@ -8,9 +8,9 @@ import {
   decodeAclParam,
   encodeAclParam,
   formatAclParam,
-} from "../../../src/omnibuses/acl-permission-params";
-import { expectedEvents } from "../../../src/omnibuses/expected-events";
-import { getGovernanceContracts } from "../../../src/omnibuses/governance-contracts";
+} from "@/src/omnibuses/acl-permission-params";
+import { expectedEvents } from "@/src/omnibuses/expected-events";
+import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
 const STETH = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
 const CONSENSYS_MANAGER = "0xF45C77EadD434612fCD93db978B3E36B0D58eC99";

@@ -5,10 +5,10 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sinon from "sinon";
 
-import { DevRpcClient } from "../../../src/network";
-import { Omnibus } from "../../../src/omnibuses";
-import { omnibusTaskBuilders, omnibusTaskDeps } from "../../../tasks/omnibuses";
-import { runAcceptance } from "../../../tasks/sub-tasks/acceptance";
+import { DevRpcClient } from "@/src/network";
+import { Omnibus } from "@/src/omnibuses";
+import { omnibusTaskBuilders, omnibusTaskDeps } from "@/tasks/omnibuses";
+import { runAcceptance } from "@/tasks/sub-tasks/acceptance";
 
 describe("omnibus:test acceptance option", () => {
   let hre: HardhatRuntimeEnvironment;

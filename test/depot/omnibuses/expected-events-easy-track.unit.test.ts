@@ -1,14 +1,14 @@
 import { assert } from "chai";
 import { Address, encodeAbiParameters, encodeFunctionData, Hex, Log, toEventSelector } from "viem";
 
-import { EasyTrack_ABI } from "../../../abi/EasyTrack.abi";
-import { EvmScriptParser } from "../../../src/aragon-votes-tools";
-import { contract } from "../../../src/contracts";
-import { expectedEvents } from "../../../src/omnibuses/expected-events";
-import { getGovernanceContracts } from "../../../src/omnibuses/governance-contracts";
-import { LogCollector } from "../../../src/omnibuses/log-collector";
-import { VoteCall } from "../../../src/omnibuses/omnibus-types";
-import { VoteEvents } from "../../../src/omnibuses/vote-events";
+import { EasyTrack_ABI } from "@/abi/EasyTrack.abi";
+import { EvmScriptParser } from "@/src/aragon-votes-tools";
+import { contract } from "@/src/contracts";
+import { expectedEvents } from "@/src/omnibuses/expected-events";
+import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
+import { LogCollector } from "@/src/omnibuses/log-collector";
+import { VoteCall } from "@/src/omnibuses/omnibus-types";
+import { VoteEvents } from "@/src/omnibuses/vote-events";
 import { eventLog } from "../helpers/event-log";
 
 const EASY_TRACK = "0xF0211b7660680B49De1A7E9f25C65660F0a13Fea";

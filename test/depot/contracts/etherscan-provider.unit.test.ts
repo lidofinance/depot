@@ -1,11 +1,11 @@
 import { assert } from "chai";
 import sinon from "sinon";
-import bytes from "../../../src/common/bytes";
+import bytes from "@/src/common/bytes";
 import {
   deps,
   EtherscanContractInfoProvider,
   MAX_ATTEMPTS,
-} from "../../../src/contract-info-resolver/etherscan-contract-info-provider";
+} from "@/src/contract-info-resolver/etherscan-contract-info-provider";
 
 const NETWORK_NAME = "mainnet";
 const CONTRACT_ADDRESS = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0";

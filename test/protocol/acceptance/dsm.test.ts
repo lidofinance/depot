@@ -1,9 +1,9 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { encodePacked, keccak256, stringToHex } from "viem";
 import { DepositSecurityModule_ABI } from "@/abi/DepositSecurityModule.abi";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 
 const configurations = {
   mainnet: {
@@ -51,12 +51,9 @@ describe("DepositSecurityModule acceptance", function () {
   let dsm: Contract<typeof DepositSecurityModule_ABI>;
   let expected: (typeof configurations)[keyof typeof configurations];
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     dsm = contract(DepositSecurityModule_ABI, expected.depositSecurityModule);
   });

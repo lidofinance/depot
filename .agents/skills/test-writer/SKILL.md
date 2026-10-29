@@ -84,7 +84,7 @@ export function doThing() {
 **Test stubs the container (plain object — works in ESM):**
 
 ```typescript
-import { thingDeps, doThing } from "../../../src/feature/thing";
+import { thingDeps, doThing } from "@/src/feature/thing";
 
 it("does the thing", () => {
   sinon.stub(thingDeps, "externalFn").returns("mocked");
@@ -119,10 +119,10 @@ Helper pattern for multiple responses, see `test/depot/contracts/etherscan-provi
 Connects to a running hardhat node, deploys mocks from `contracts/mocks/`, overrides DI containers:
 
 ```typescript
-import { createDevRpcClient } from "../../../src/network/network";
+import { createDevRpcClient } from "@/src/network/network";
 import { deployMockGovernance } from "../helpers/deploy-mock-governance";
-import { lifecycleDeps } from "../../../src/aragon-votes-tools/lifecycle";
-import type { HexStrPrefixed } from "../../../src/common/bytes";
+import { lifecycleDeps } from "@/src/aragon-votes-tools/lifecycle";
+import type { HexStrPrefixed } from "@/src/common/bytes";
 
 const RPC_URL = process.env.TEST_RPC_URL ?? "http://localhost:8545";
 

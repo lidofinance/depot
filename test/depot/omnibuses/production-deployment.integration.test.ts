@@ -7,16 +7,16 @@ import sinon from "sinon";
 import { pathToFileURL } from "node:url";
 import { Address, getAddress } from "viem";
 
-import { lifecycleDeps, startAragonVote } from "../../../src/aragon-votes-tools/lifecycle";
-import { HexStrPrefixed } from "../../../src/common/bytes";
-import { Omnibus } from "../../../src/omnibuses";
-import { Contract } from "../../../src/contracts";
-import contractExample from "../../../omnibuses/_example_contract_omnibus/_example_contract_omnibus";
-import { decodeSubmitProposalMetadata, isSubmitProposalCall } from "../../../src/omnibuses/omnibus-contract-calls";
-import { getGovernanceContracts } from "../../../src/omnibuses/governance-contracts";
-import { GovernanceContracts } from "../../../src/omnibuses/governance-contracts";
-import { DevRpcClient, RpcClient } from "../../../src/network";
-import { deployOmnibusForLaunch, prepareOmnibus, recordDefaultOmnibusDeployment } from "../../../tasks/omnibuses";
+import { lifecycleDeps, startAragonVote } from "@/src/aragon-votes-tools/lifecycle";
+import { HexStrPrefixed } from "@/src/common/bytes";
+import { Omnibus } from "@/src/omnibuses";
+import { Contract } from "@/src/contracts";
+import contractExample from "@/omnibuses/_example_contract_omnibus/_example_contract_omnibus";
+import { decodeSubmitProposalMetadata, isSubmitProposalCall } from "@/src/omnibuses/omnibus-contract-calls";
+import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
+import { GovernanceContracts } from "@/src/omnibuses/governance-contracts";
+import { DevRpcClient, RpcClient } from "@/src/network";
+import { deployOmnibusForLaunch, prepareOmnibus, recordDefaultOmnibusDeployment } from "@/tasks/omnibuses";
 import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
 import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
 

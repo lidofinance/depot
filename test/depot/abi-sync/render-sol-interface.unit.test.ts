@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import { Abi } from "abitype";
 
-import { renderSolInterface } from "../../../src/abi-sync/render-sol-interface";
+import { renderSolInterface } from "@/src/abi-sync/render-sol-interface";
 
 const SOURCE = "Etherscan, mainnet 0x0000000000000000000000000000000000000001 (Test)";
 

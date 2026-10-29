@@ -2,13 +2,13 @@ import { Address } from "abitype";
 import { assert } from "chai";
 import { encodeFunctionData } from "viem";
 
-import { IGovernance_ABI } from "../../../abi/IGovernance.abi";
+import { IGovernance_ABI } from "@/abi/IGovernance.abi";
 import {
   decodeSubmitProposalMetadata,
   getSubmitProposalCallIndexes,
   isSubmitProposalCall,
-} from "../../../src/omnibuses/omnibus-contract-calls";
-import { VoteCall } from "../../../src/omnibuses/omnibus-types";
+} from "@/src/omnibuses/omnibus-contract-calls";
+import { VoteCall } from "@/src/omnibuses/omnibus-types";
 
 const GOVERNANCE: Address = "0xC1db28B3301331277e307FDCfF8DE28242A4486E";
 const GOVERNANCE_LOWERCASE: Address = "0xc1db28b3301331277e307fdcff8de28242a4486e";

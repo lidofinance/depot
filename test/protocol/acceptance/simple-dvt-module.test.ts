@@ -1,20 +1,13 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { rejects } from "node:assert/strict";
-import {
-  BaseError,
-  ContractFunctionRevertedError,
-  encodeErrorResult,
-  keccak256,
-  parseAbi,
-  stringToHex,
-  zeroAddress,
-} from "viem";
+import { keccak256, parseAbi, stringToHex, zeroAddress } from "viem";
 import { AppProxyUpgradeable_ABI } from "@/abi/AppProxyUpgradeable.abi";
 import { EasyTrack_ABI } from "@/abi/EasyTrack.abi";
 import { NodeOperatorsRegistry_ABI } from "@/abi/NodeOperatorsRegistry.abi";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { isRevertedWith, solidityError } from "@/test/protocol/helpers/reverts";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
 const configurations = {
@@ -69,9 +62,9 @@ const factoryAbi = parseAbi([
   "function nodeOperatorsRegistry() view returns (address)",
   "function trustedCaller() view returns (address)",
 ]);
-const errorAbi = parseAbi(["error Error(string)"]);
 const moduleType = stringToHex("curated-onchain-v1", { size: 32 });
 const deactivatedNodeOperators: readonly bigint[] = [];
+// Empty as in Scripts, so the exited-operator branch below never runs
 const exitedNodeOperators: readonly bigint[] = [];
 const roles = {
   STAKING_ROUTER_ROLE: "0xbb75b874360e0bfd87f964eadd8276d8efb7c942134fc329b513032d0803e0c6",
@@ -86,12 +79,9 @@ describe("SimpleDVT acceptance", function () {
   let expected: (typeof configurations)[keyof typeof configurations];
   let governance: ReturnType<typeof getGovernanceContracts>;
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     simpleDvt = contract(NodeOperatorsRegistry_ABI, expected.simpleDvt);
     governance = getGovernanceContracts(network);
@@ -146,22 +136,10 @@ describe("SimpleDVT acceptance", function () {
               from: governance.voting.address,
             })
           : client.simulate(target, method, [172800n], { from: governance.voting.address });
-      const expectedRevert = encodeErrorResult({ abi: errorAbi, errorName: "Error", args: [reason] });
+      const expectedRevert = solidityError(reason);
       await rejects(
         call,
-        (error: unknown) => {
-          const revert =
-            error instanceof BaseError &&
-            error.walk(
-              (cause) =>
-                cause instanceof ContractFunctionRevertedError ||
-                (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-            );
-          if (revert instanceof ContractFunctionRevertedError) {
-            return revert.raw === expectedRevert;
-          }
-          return revert instanceof Error && "data" in revert && revert.data === expectedRevert;
-        },
+        (error: unknown) => isRevertedWith(error, expectedRevert),
         `${target.address} ${method}: ${reason}`,
       );
     }

@@ -2,7 +2,7 @@ import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
 import sinon from "sinon";
 
-import prompt, { promptDeps } from "../../../src/common/prompt";
+import prompt, { promptDeps } from "@/src/common/prompt";
 
 chai.use(chaiAsPromised);
 const { assert } = chai;

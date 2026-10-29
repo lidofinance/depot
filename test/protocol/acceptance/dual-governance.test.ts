@@ -1,5 +1,4 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { parseAbi, zeroAddress } from "viem";
 import { DualGovernance_ABI } from "@/abi/DualGovernance.abi";
 import { DualGovernanceConfigProvider_ABI } from "@/abi/DualGovernanceConfigProvider.abi";
@@ -8,7 +7,8 @@ import { Escrow_ABI } from "@/abi/Escrow.abi";
 import { Executor_ABI } from "@/abi/Executor.abi";
 import { TimelockedGovernance_ABI } from "@/abi/TimelockedGovernance.abi";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 
 const configurations = {
   mainnet: {
@@ -33,9 +33,9 @@ const configurations = {
     escrowMasterCopy: "0xd6A67636c05BeB5B4a5c90D408b03A63c4e39426",
     vetoSignallingEscrow: "0x165813A31446a98c84E20Dda8C101BB3C8228e1c",
     maxMinAssetsLockDuration: 4147200,
-    st_eth: "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84",
-    withdrawal_queue: "0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1",
-    wst_eth: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+    stEth: "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84",
+    withdrawalQueue: "0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1",
+    wstEth: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
     config: {
       FIRST_SEAL_RAGE_QUIT_SUPPORT: 10000000000000000,
       SECOND_SEAL_RAGE_QUIT_SUPPORT: 100000000000000000,
@@ -136,9 +136,9 @@ const configurations = {
     escrowMasterCopy: "0x61b7C2351F63b7f9840736D020eE65D2803A00fb",
     vetoSignallingEscrow: "0x781afe6C8D768CEaA9a97f2A75714e80AE0e83B9",
     maxMinAssetsLockDuration: 3600,
-    st_eth: "0x3508A952176b3c15387C97BE809eaffB1982176a",
-    withdrawal_queue: "0xfe56573178f1bcdf53F01A6E9977670dcBBD9186",
-    wst_eth: "0x7E99eE3C66636DE415D2d7C880938F2f40f94De4",
+    stEth: "0x3508A952176b3c15387C97BE809eaffB1982176a",
+    withdrawalQueue: "0xfe56573178f1bcdf53F01A6E9977670dcBBD9186",
+    wstEth: "0x7E99eE3C66636DE415D2d7C880938F2f40f94De4",
     config: {
       FIRST_SEAL_RAGE_QUIT_SUPPORT: 30000000000000000,
       SECOND_SEAL_RAGE_QUIT_SUPPORT: 150000000000000000,
@@ -235,12 +235,9 @@ describe("DualGovernance acceptance", function () {
   let expected: (typeof configurations)[keyof typeof configurations];
   let dualGovernance: Contract<typeof DualGovernance_ABI>;
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     dualGovernance = contract(DualGovernance_ABI, expected.dualGovernance);
   });
@@ -387,9 +384,9 @@ describe("DualGovernance acceptance", function () {
       for (const [getter, value] of [
         ["ESCROW_MASTER_COPY", expected.escrowMasterCopy],
         ["DUAL_GOVERNANCE", expected.dualGovernance],
-        ["ST_ETH", expected.st_eth],
-        ["WST_ETH", expected.wst_eth],
-        ["WITHDRAWAL_QUEUE", expected.withdrawal_queue],
+        ["ST_ETH", expected.stEth],
+        ["WST_ETH", expected.wstEth],
+        ["WITHDRAWAL_QUEUE", expected.withdrawalQueue],
       ] as const) {
         assert.equal((await client.read(escrow, getter)).toLowerCase(), value.toLowerCase(), `${address} ${getter}`);
       }

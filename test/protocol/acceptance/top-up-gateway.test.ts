@@ -1,20 +1,13 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { rejects } from "node:assert/strict";
-import {
-  BaseError,
-  ContractFunctionRevertedError,
-  encodeErrorResult,
-  type Hex,
-  keccak256,
-  toHex,
-  zeroHash,
-} from "viem";
+import { encodeErrorResult, keccak256, toHex, zeroHash } from "viem";
 import { LidoLocator_ABI } from "@/abi/LidoLocator.abi";
 import { OssifiableProxy_ABI } from "@/abi/OssifiableProxy.abi";
 import { TopUpGateway_ABI } from "@/abi/TopUpGateway.abi";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { isRevertedWith } from "@/test/protocol/helpers/reverts";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
 const configurations = {
@@ -48,32 +41,15 @@ const limits = {
 };
 const firstValidator = "0x0000000000000000000000000000000000000000000000000096000000000028";
 
-function revertedWith(error: unknown, data: Hex): boolean {
-  const revert =
-    error instanceof BaseError &&
-    error.walk(
-      (cause) =>
-        cause instanceof ContractFunctionRevertedError ||
-        (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-    );
-  if (revert instanceof ContractFunctionRevertedError) {
-    return revert.raw === data;
-  }
-  return revert instanceof Error && "data" in revert && revert.data === data;
-}
-
 describe("TopUpGateway acceptance", function () {
   let client: DevRpcClient;
   let gateway: Contract<typeof TopUpGateway_ABI>;
   let expected: (typeof configurations)[keyof typeof configurations];
   let governance: ReturnType<typeof getGovernanceContracts>;
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     governance = getGovernanceContracts(network);
     gateway = contract(TopUpGateway_ABI, expected.gateway);
@@ -118,7 +94,7 @@ describe("TopUpGateway acceptance", function () {
           ],
           { from: governance.voting.address },
         ),
-        (error: unknown) => revertedWith(error, data),
+        (error: unknown) => isRevertedWith(error, data),
         `initialize ${target.address}`,
       );
     }
@@ -164,7 +140,7 @@ describe("TopUpGateway acceptance", function () {
   it("rejects unauthorized top-ups, limit changes, pauses and resumes", async function () {
     const stranger = "0x000000000000000000000000000000000000bEEF";
     const unauthorized = (name: string) => (error: unknown) =>
-      revertedWith(
+      isRevertedWith(
         error,
         encodeErrorResult({
           abi: TopUpGateway_ABI,

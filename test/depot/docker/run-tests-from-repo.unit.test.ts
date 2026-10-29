@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import sinon from "sinon";
 
-import { runTestsFromRepo } from "../../../src/docker";
+import { runTestsFromRepo } from "@/src/docker";
 
 describe("repository suite exit codes", () => {
   const originalCwd = process.cwd();

@@ -3,13 +3,10 @@ import { assert } from "chai";
 import ts from "typescript";
 import path from "node:path";
 import { readFileSync } from "node:fs";
-import { OmnibusBase_ABI } from "../../../abi/OmnibusBase.abi";
-import { ExampleContractOmnibusVoteStateValidator_ABI } from "../../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.abi";
-import {
-  renderCustomOmnibusDeployment,
-  renderDefaultOmnibusDeployment,
-} from "../../../src/omnibuses/omnibus-deployment";
-import { lintVoteSources } from "../../../src/omnibuses/address-lint";
+import { OmnibusBase_ABI } from "@/abi/OmnibusBase.abi";
+import { ExampleContractOmnibusVoteStateValidator_ABI } from "@/omnibuses/_example_contract_omnibus/_example_contract_omnibus.abi";
+import { renderCustomOmnibusDeployment, renderDefaultOmnibusDeployment } from "@/src/omnibuses/omnibus-deployment";
+import { lintVoteSources } from "@/src/omnibuses/address-lint";
 
 const OMNIBUS_ADDRESS = "0x1234567890AbcdEF1234567890aBcdef12345678";
 

@@ -2,9 +2,9 @@ import { assert } from "chai";
 import { rejects } from "node:assert/strict";
 import sinon from "sinon";
 import { Address, parseEther } from "viem";
-import { LDO_VOTERS_BY_NETWORK_NAME } from "../../../src/aragon-votes-tools/constants";
-import { passAragonVote } from "../../../src/aragon-votes-tools/testing";
-import { DevRpcClient } from "../../../src/network";
+import { LDO_VOTERS_BY_NETWORK_NAME } from "@/src/aragon-votes-tools/constants";
+import { passAragonVote } from "@/src/aragon-votes-tools/testing";
+import { DevRpcClient } from "@/src/network";
 
 describe("passAragonVote temporary balances", () => {
   afterEach(() => sinon.restore());

@@ -1,11 +1,12 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { rejects } from "node:assert/strict";
-import { BaseError, ContractFunctionRevertedError, encodeErrorResult, zeroAddress } from "viem";
+import { encodeErrorResult, zeroAddress } from "viem";
 import { OssifiableProxy_ABI } from "@/abi/OssifiableProxy.abi";
 import { WithdrawalQueue_ABI } from "@/abi/WithdrawalQueue.abi";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { isRevertedWith } from "@/test/protocol/helpers/reverts";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
 const configurations = {
@@ -33,12 +34,9 @@ describe("WithdrawalQueue acceptance", function () {
   let expected: (typeof configurations)[keyof typeof configurations];
   let governance: ReturnType<typeof getGovernanceContracts>;
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     governance = getGovernanceContracts(network);
     queue = contract(WithdrawalQueue_ABI, expected.queue);
@@ -64,19 +62,7 @@ describe("WithdrawalQueue acceptance", function () {
     for (const target of [queue, contract(WithdrawalQueue_ABI, expected.implementation)]) {
       await rejects(
         client.simulate(target, "initialize", [admin], { from: governance.voting.address }),
-        (error: unknown) => {
-          const revert =
-            error instanceof BaseError &&
-            error.walk(
-              (cause) =>
-                cause instanceof ContractFunctionRevertedError ||
-                (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-            );
-          if (revert instanceof ContractFunctionRevertedError) {
-            return revert.raw === expectedRevert;
-          }
-          return revert instanceof Error && "data" in revert && revert.data === expectedRevert;
-        },
+        (error: unknown) => isRevertedWith(error, expectedRevert),
         `initialize ${target.address}`,
       );
     }

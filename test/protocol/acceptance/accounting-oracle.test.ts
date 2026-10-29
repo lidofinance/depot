@@ -1,10 +1,11 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { isRevertedWith } from "@/test/protocol/helpers/reverts";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 import { rejects } from "node:assert/strict";
-import { BaseError, ContractFunctionRevertedError, encodeErrorResult, zeroHash } from "viem";
+import { encodeErrorResult, zeroHash } from "viem";
 import { OssifiableProxy_ABI } from "@/abi/OssifiableProxy.abi";
 import { HashConsensus_ABI } from "@/abi/HashConsensus.abi";
 import { AccountingOracle_ABI } from "@/abi/AccountingOracle.abi";
@@ -64,12 +65,9 @@ describe("AccountingOracle acceptance", function () {
   let expected: (typeof configurations)[keyof typeof configurations];
   let governance: ReturnType<typeof getGovernanceContracts>;
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     governance = getGovernanceContracts(network);
     oracle = contract(AccountingOracle_ABI, expected.oracle);
@@ -84,6 +82,10 @@ describe("AccountingOracle acceptance", function () {
       "implementation",
     );
     assert.equal((await client.read(proxy, "proxy__getAdmin")).toLowerCase(), expected.admin.toLowerCase(), "admin");
+    assert.isTrue(
+      await client.read(oracle, "hasRole", [await client.read(oracle, "DEFAULT_ADMIN_ROLE"), expected.admin]),
+      "DEFAULT_ADMIN_ROLE holder",
+    );
   });
 
   it("has the expected version and consensus connection", async function () {
@@ -97,26 +99,13 @@ describe("AccountingOracle acceptance", function () {
   });
 
   it("cannot initialize the proxy or petrified implementation again", async function () {
-    const admin = await client.read(oracle, "getRoleMember", [await client.read(oracle, "DEFAULT_ADMIN_ROLE"), 0n]);
     const expectedRevert = encodeErrorResult({ abi: AccountingOracle_ABI, errorName: "NonZeroContractVersionOnInit" });
     for (const target of [oracle, contract(AccountingOracle_ABI, expected.implementation)]) {
       await rejects(
-        client.simulate(target, "initialize", [admin, expected.consensus, expected.consensusVersion, 1n], {
+        client.simulate(target, "initialize", [expected.admin, expected.consensus, expected.consensusVersion, 1n], {
           from: governance.voting.address,
         }),
-        (error: unknown) => {
-          const revert =
-            error instanceof BaseError &&
-            error.walk(
-              (cause) =>
-                cause instanceof ContractFunctionRevertedError ||
-                (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-            );
-          if (revert instanceof ContractFunctionRevertedError) {
-            return revert.raw === expectedRevert;
-          }
-          return revert instanceof Error && "data" in revert && revert.data === expectedRevert;
-        },
+        (error: unknown) => isRevertedWith(error, expectedRevert),
         `initialize ${target.address}`,
       );
     }

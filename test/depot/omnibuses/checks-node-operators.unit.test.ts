@@ -2,10 +2,10 @@ import { rejects } from "node:assert/strict";
 import sinon from "sinon";
 import { createPublicClient, custom, encodeAbiParameters, walletActions } from "viem";
 
-import { NodeOperatorsRegistry_ABI } from "../../../abi/NodeOperatorsRegistry.abi";
-import { contract } from "../../../src/contracts";
-import { DevRpcClient } from "../../../src/network/dev-rpc-client";
-import checks from "../../../src/omnibuses/checks/staking-router";
+import { NodeOperatorsRegistry_ABI } from "@/abi/NodeOperatorsRegistry.abi";
+import { contract } from "@/src/contracts";
+import { DevRpcClient } from "@/src/network/dev-rpc-client";
+import checks from "@/src/omnibuses/checks/staking-router";
 
 const REGISTRY = "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5";
 const REWARD = "0xF45C77EadD434612fCD93db978B3E36B0D58eC99";

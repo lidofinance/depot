@@ -3,11 +3,11 @@ import { assert } from "chai";
 import sinon from "sinon";
 import { createPublicClient, custom, encodeAbiParameters, encodeFunctionData, walletActions } from "viem";
 
-import { ACL_ABI } from "../../../abi/ACL.abi";
-import { contract } from "../../../src/contracts";
-import { DevRpcClient } from "../../../src/network/dev-rpc-client";
-import checks from "../../../src/omnibuses/checks/access-control";
-import { AclOp, aclIfElse, aclParam } from "../../../src/omnibuses/acl-permission-params";
+import { ACL_ABI } from "@/abi/ACL.abi";
+import { contract } from "@/src/contracts";
+import { DevRpcClient } from "@/src/network/dev-rpc-client";
+import checks from "@/src/omnibuses/checks/access-control";
+import { AclOp, aclIfElse, aclParam } from "@/src/omnibuses/acl-permission-params";
 
 const ACL = "0x9895F0F17cc1d1891b6f18ee0b483B6f221b37Bb";
 const REGISTRY = "0x55032650b14df07b85bF18A3a3eC8E0Af2e028d5";

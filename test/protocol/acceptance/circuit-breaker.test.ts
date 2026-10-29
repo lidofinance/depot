@@ -1,9 +1,8 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { parseAbi } from "viem";
-import { CSVerifier_ABI } from "@/abi/CSVerifier.abi";
 import { contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 
 const circuitBreakerAbi = parseAbi([
   "function ADMIN() view returns (address)",
@@ -18,6 +17,12 @@ const circuitBreakerAbi = parseAbi([
   "function getPausableCount(address pauser) view returns (uint256)",
   "function isPauserLive(address pauser) view returns (bool)",
   "function heartbeatExpiry(address pauser) view returns (uint256)",
+]);
+const accessControlAbi = parseAbi([
+  "function PAUSE_ROLE() view returns (bytes32)",
+  "function RESUME_ROLE() view returns (bytes32)",
+  "function getRoleMember(bytes32 role, uint256 index) view returns (address)",
+  "function getRoleMemberCount(bytes32 role) view returns (uint256)",
 ]);
 
 const configurations = {
@@ -104,19 +109,15 @@ const configurations = {
 } as const;
 
 describe("Circuit Breaker acceptance", function () {
-  const inheritedClient = (this.ctx as Context & { client?: DevRpcClient }).client;
-  const network = inheritedClient?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-  if (network !== "mainnet" && network !== "hoodi") {
-    throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-  }
+  // Network is needed while collecting per-pausable tests, before any hook runs
+  const network = getAcceptanceNetwork(this.ctx);
   const expected = configurations[network];
   const circuitBreaker = contract(circuitBreakerAbi, expected.circuitBreaker);
   const pausers = [...new Set(expected.pausables.map(([, pauser]) => pauser))];
   let client: DevRpcClient;
 
   before(async function () {
-    client =
-      inheritedClient ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+    client = await connectAcceptanceClient(this, network);
   });
 
   it("has the expected administrator, durations and bounds", async function () {
@@ -125,27 +126,27 @@ describe("Circuit Breaker acceptance", function () {
       expected.agent.toLowerCase(),
       "administrator",
     );
-    const values = expected.values;
+    const circuitBreakerValues = expected.values;
     for (const [name, value] of [
-      ["MIN_PAUSE_DURATION", values.minPauseDuration],
-      ["MAX_PAUSE_DURATION", values.maxPauseDuration],
-      ["MIN_HEARTBEAT_INTERVAL", values.minHeartbeatInterval],
-      ["MAX_HEARTBEAT_INTERVAL", values.maxHeartbeatInterval],
-      ["pauseDuration", values.initialPauseDuration],
-      ["heartbeatInterval", values.initialHeartbeatInterval],
+      ["MIN_PAUSE_DURATION", circuitBreakerValues.minPauseDuration],
+      ["MAX_PAUSE_DURATION", circuitBreakerValues.maxPauseDuration],
+      ["MIN_HEARTBEAT_INTERVAL", circuitBreakerValues.minHeartbeatInterval],
+      ["MAX_HEARTBEAT_INTERVAL", circuitBreakerValues.maxHeartbeatInterval],
+      ["pauseDuration", circuitBreakerValues.initialPauseDuration],
+      ["heartbeatInterval", circuitBreakerValues.initialHeartbeatInterval],
     ] as const) {
       assert.equal(await client.read(circuitBreaker, name), BigInt(value), name);
     }
     assert.isTrue(
-      0 < values.minPauseDuration &&
-        values.minPauseDuration <= values.initialPauseDuration &&
-        values.initialPauseDuration <= values.maxPauseDuration,
+      0 < circuitBreakerValues.minPauseDuration &&
+        circuitBreakerValues.minPauseDuration <= circuitBreakerValues.initialPauseDuration &&
+        circuitBreakerValues.initialPauseDuration <= circuitBreakerValues.maxPauseDuration,
       "pause duration bounds",
     );
     assert.isTrue(
-      0 < values.minHeartbeatInterval &&
-        values.minHeartbeatInterval <= values.initialHeartbeatInterval &&
-        values.initialHeartbeatInterval <= values.maxHeartbeatInterval,
+      0 < circuitBreakerValues.minHeartbeatInterval &&
+        circuitBreakerValues.minHeartbeatInterval <= circuitBreakerValues.initialHeartbeatInterval &&
+        circuitBreakerValues.initialHeartbeatInterval <= circuitBreakerValues.maxHeartbeatInterval,
       "heartbeat interval bounds",
     );
   });
@@ -182,7 +183,7 @@ describe("Circuit Breaker acceptance", function () {
   describe("pause role holders", function () {
     for (const [pausable] of expected.pausables) {
       it(`gives the pause role on ${pausable} exactly to Circuit Breaker and Reseal Manager`, async function () {
-        const target = contract(CSVerifier_ABI, pausable);
+        const target = contract(accessControlAbi, pausable);
         const role = await client.read(target, "PAUSE_ROLE");
         assert.equal(await client.read(target, "getRoleMemberCount", [role]), 2n, "pause role count");
         const holders = await Promise.all([0n, 1n].map((index) => client.read(target, "getRoleMember", [role, index])));
@@ -198,7 +199,7 @@ describe("Circuit Breaker acceptance", function () {
   describe("resume role holders", function () {
     for (const [pausable] of expected.pausables) {
       it(`gives the resume role on ${pausable} only to Reseal Manager`, async function () {
-        const target = contract(CSVerifier_ABI, pausable);
+        const target = contract(accessControlAbi, pausable);
         const role = await client.read(target, "RESUME_ROLE");
         assert.equal(await client.read(target, "getRoleMemberCount", [role]), 1n, "resume role count");
         assert.equal(

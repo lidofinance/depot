@@ -1,6 +1,6 @@
 import { assert } from "chai";
 
-import { progressOf } from "../../../src/docker";
+import { progressOf } from "@/src/docker";
 
 describe("container test progress", () => {
   it("reports progress from the staking-modules log even though individual results are hidden", () => {

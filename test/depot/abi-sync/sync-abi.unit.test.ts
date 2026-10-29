@@ -4,9 +4,9 @@ import { assert } from "chai";
 import sinon from "sinon";
 import { Abi } from "abitype";
 
-import { deps, syncAbi } from "../../../src/abi-sync";
-import { deps as sourceDeps } from "../../../src/abi-sync/abi-source";
-import { NetworkName } from "../../../src/network";
+import { deps, syncAbi } from "@/src/abi-sync";
+import { deps as sourceDeps } from "@/src/abi-sync/abi-source";
+import { NetworkName } from "@/src/network";
 
 const PROJECT_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 

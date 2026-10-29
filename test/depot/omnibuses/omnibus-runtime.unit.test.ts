@@ -5,16 +5,16 @@ import { encodeFunctionData, encodeFunctionResult, TransactionReceipt } from "vi
 
 import { Address } from "abitype";
 
-import { IGovernance_ABI } from "../../../abi/IGovernance.abi";
-import { EvmScriptParser } from "../../../src/aragon-votes-tools";
-import { testingDeps } from "../../../src/aragon-votes-tools/testing";
-import { HexStrPrefixed } from "../../../src/common/bytes";
-import { Contract } from "../../../src/contracts";
-import { DevRpcClient } from "../../../src/network";
-import { Omnibus, OmnibusConfig, VoteCall } from "../../../src/omnibuses";
-import { ProposalStatus } from "../../../src/omnibuses/dual-governance";
-import { getGovernanceContracts } from "../../../src/omnibuses/governance-contracts";
-import { TxTrace, TxTraceCallItem } from "../../../src/traces/tx-traces";
+import { IGovernance_ABI } from "@/abi/IGovernance.abi";
+import { EvmScriptParser } from "@/src/aragon-votes-tools";
+import { testingDeps } from "@/src/aragon-votes-tools/testing";
+import { HexStrPrefixed } from "@/src/common/bytes";
+import { Contract } from "@/src/contracts";
+import { DevRpcClient } from "@/src/network";
+import { Omnibus, OmnibusConfig, VoteCall } from "@/src/omnibuses";
+import { ProposalStatus } from "@/src/omnibuses/dual-governance";
+import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
+import { TxTrace, TxTraceCallItem } from "@/src/traces/tx-traces";
 import { eventLog } from "../helpers/event-log";
 
 const governance = getGovernanceContracts("mainnet");

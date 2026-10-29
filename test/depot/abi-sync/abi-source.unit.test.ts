@@ -12,8 +12,8 @@ import {
   readAbiFromFile,
   readImplementationOnChain,
   toConstantName,
-} from "../../../src/abi-sync/abi-source";
-import { ContractInfo } from "../../../src/contract-info-resolver/types";
+} from "@/src/abi-sync/abi-source";
+import { ContractInfo } from "@/src/contract-info-resolver/types";
 
 const PROJECT_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 

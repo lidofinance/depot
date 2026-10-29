@@ -4,11 +4,11 @@ import Docker from "dockerode";
 import { rejects } from "node:assert/strict";
 import { createHardhatRuntimeEnvironment } from "hardhat/hre";
 import type { HardhatRuntimeEnvironment } from "hardhat/types/hre";
-import { Omnibus } from "../../../src/omnibuses/omnibus";
+import { Omnibus } from "@/src/omnibuses/omnibus";
 
-import { DevRpcClient } from "../../../src/network";
-import { getRepositorySuites, runRepositorySuites, multiTestDeps, omnibusTaskBuilders } from "../../../tasks/omnibuses";
-import { containerDeps, runRepoTests } from "../../../tasks/sub-tasks/containers";
+import { DevRpcClient } from "@/src/network";
+import { getRepositorySuites, runRepositorySuites, multiTestDeps, omnibusTaskBuilders } from "@/tasks/omnibuses";
+import { containerDeps, runRepoTests } from "@/tasks/sub-tasks/containers";
 
 interface ForkState {
   value: string;

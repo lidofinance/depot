@@ -1,20 +1,12 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { rejects } from "node:assert/strict";
-import {
-  BaseError,
-  ContractFunctionRevertedError,
-  encodeErrorResult,
-  type Hex,
-  keccak256,
-  parseAbi,
-  toHex,
-  zeroHash,
-} from "viem";
+import { encodeErrorResult, keccak256, parseAbi, toHex, zeroHash } from "viem";
 import { LidoLocator_ABI } from "@/abi/LidoLocator.abi";
 import { OssifiableProxy_ABI } from "@/abi/OssifiableProxy.abi";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { isRevertedWith } from "@/test/protocol/helpers/reverts";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
 const accessControl = [
@@ -104,27 +96,13 @@ const firstValidator = "0x000000000000000000000000000000000000000000000000009600
 const limits = { maxRequests: 2900n, perFrame: 1n, frameDuration: 30n, maxGroups: 10n, executionDelay: 86400n };
 const stranger = "0x000000000000000000000000000000000000bEEF";
 
-function revertedWith(error: unknown, data: Hex): boolean {
-  const revert =
-    error instanceof BaseError &&
-    error.walk(
-      (cause) =>
-        cause instanceof ContractFunctionRevertedError ||
-        (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-    );
-  if (revert instanceof ContractFunctionRevertedError) {
-    return revert.raw === data;
-  }
-  return revert instanceof Error && "data" in revert && revert.data === data;
-}
-
 function unauthorized(name: string): (error: unknown) => boolean {
   const data = encodeErrorResult({
     abi: gatewayAbi,
     errorName: "AccessControlUnauthorizedAccount",
     args: [stranger, keccak256(toHex(name))],
   });
-  return (error: unknown) => revertedWith(error, data);
+  return (error: unknown) => isRevertedWith(error, data);
 }
 
 describe("Consolidation acceptance", function () {
@@ -135,12 +113,9 @@ describe("Consolidation acceptance", function () {
   let expected: (typeof configurations)[keyof typeof configurations];
   let governance: ReturnType<typeof getGovernanceContracts>;
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     governance = getGovernanceContracts(network);
     gateway = contract(gatewayAbi, expected.gateway);
@@ -239,7 +214,7 @@ describe("Consolidation acceptance", function () {
             [expected.agent, expected.batchSize, limits.maxGroups, limits.executionDelay],
             { from: governance.voting.address },
           ),
-          (error: unknown) => revertedWith(error, data),
+          (error: unknown) => isRevertedWith(error, data),
           `initialize ${target.address}`,
         );
       }
@@ -322,7 +297,7 @@ describe("Consolidation acceptance", function () {
       for (const target of [migrator, contract(migratorAbi, expected.migratorImplementation)]) {
         await rejects(
           client.simulate(target, "initialize", [expected.agent], { from: governance.voting.address }),
-          (error: unknown) => revertedWith(error, data),
+          (error: unknown) => isRevertedWith(error, data),
           `initialize ${target.address}`,
         );
       }

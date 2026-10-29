@@ -3,7 +3,7 @@ import Docker from "dockerode";
 import { Readable } from "node:stream";
 import sinon from "sinon";
 
-import { buildRepo } from "../../../src/docker";
+import { buildRepo } from "@/src/docker";
 
 const SHA = "2824e21157bf13ef1c3c2c605ca54749270f4c35";
 const ARCH = "amd64";

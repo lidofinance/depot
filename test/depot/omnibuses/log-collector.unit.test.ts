@@ -2,10 +2,10 @@ import { Address } from "abitype";
 import { assert } from "chai";
 import { Log } from "viem";
 
-import { ERC20_ABI } from "../../../abi/ERC20.abi";
-import { contract } from "../../../src/contracts";
-import { LogCollector } from "../../../src/omnibuses/log-collector";
-import { event } from "../../../src/omnibuses/event-helpers";
+import { ERC20_ABI } from "@/abi/ERC20.abi";
+import { contract } from "@/src/contracts";
+import { LogCollector } from "@/src/omnibuses/log-collector";
+import { event } from "@/src/omnibuses/event-helpers";
 import { eventLog } from "../helpers/event-log";
 
 const TOKEN: Address = "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32";

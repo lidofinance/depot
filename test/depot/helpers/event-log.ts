@@ -1,6 +1,6 @@
 import { encodeAbiParameters, encodeEventTopics, Hex, Log } from "viem";
 
-import { Contract } from "../../../src/contracts";
+import { Contract } from "@/src/contracts";
 
 export function eventLog(emitter: Contract, eventName: string, args: unknown[], overrides: Partial<Log> = {}): Log {
   const abiEvent = emitter.abi.find((item) => item.type === "event" && item.name === eventName);

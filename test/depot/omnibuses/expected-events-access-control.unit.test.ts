@@ -1,12 +1,12 @@
 import { assert } from "chai";
 import { Log, pad, toHex } from "viem";
 
-import { ACL_ABI } from "../../../abi/ACL.abi";
-import { AccessControl_ABI } from "../../../abi/AccessControl.abi";
-import { contract } from "../../../src/contracts";
-import { aclParam, AclOp } from "../../../src/omnibuses/acl-permission-params";
-import events from "../../../src/omnibuses/expected-events/access-control";
-import { LogCollector } from "../../../src/omnibuses/log-collector";
+import { ACL_ABI } from "@/abi/ACL.abi";
+import { AccessControl_ABI } from "@/abi/AccessControl.abi";
+import { contract } from "@/src/contracts";
+import { aclParam, AclOp } from "@/src/omnibuses/acl-permission-params";
+import events from "@/src/omnibuses/expected-events/access-control";
+import { LogCollector } from "@/src/omnibuses/log-collector";
 import { eventLog } from "../helpers/event-log";
 
 const ACL = "0x9895F0F17cc1d1891b6f18ee0b483B6f221b37Bb";

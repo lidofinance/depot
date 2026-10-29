@@ -1,13 +1,13 @@
 import { assert } from "chai";
 import { Address, Hex, Log, toEventSelector } from "viem";
 
-import { Agent_ABI } from "../../../abi/Agent.abi";
-import { ERC20_ABI } from "../../../abi/ERC20.abi";
-import { Finance_ABI } from "../../../abi/Finance.abi";
-import { Lido_ABI } from "../../../abi/Lido.abi";
-import { contract } from "../../../src/contracts";
-import financeEvents from "../../../src/omnibuses/expected-events/finance";
-import { LogCollector } from "../../../src/omnibuses/log-collector";
+import { Agent_ABI } from "@/abi/Agent.abi";
+import { ERC20_ABI } from "@/abi/ERC20.abi";
+import { Finance_ABI } from "@/abi/Finance.abi";
+import { Lido_ABI } from "@/abi/Lido.abi";
+import { contract } from "@/src/contracts";
+import financeEvents from "@/src/omnibuses/expected-events/finance";
+import { LogCollector } from "@/src/omnibuses/log-collector";
 import { eventLog } from "../helpers/event-log";
 
 const FINANCE = "0xB9E5CBB9CA5b0d659238807E84D0176930753d86";

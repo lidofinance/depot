@@ -7,6 +7,7 @@ Rules for writing tests in `test/`.
 - `test/depot/<module>/<name>.unit.test.ts` — Depot logic, no network, mock dependencies.
 - `test/depot/<module>/<name>.integration.test.ts` — Depot integration paths with in-process Hardhat; fork cases require `ETH_MAINNET_RPC_URL`.
 - `test/protocol/acceptance/` — shared checks of deployed protocol state after vote/DG execution and event checks, before snapshot restore.
+- `test/protocol/helpers/` — acceptance infrastructure only (client, revert matching, impersonation, oracle reports); expected values stay in each suite.
 - `test/protocol/snapshot/` — reserved for future upgrade snapshot suites; no snapshot tests yet.
 
 Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`. Shared Depot helpers live in `test/depot/helpers/`.
@@ -17,7 +18,7 @@ npm run test:depot:integration  # no separate node required
 npm run test:all                # both Depot suites
 ```
 
-Protocol acceptance runs through `omnibus:test`, which loads `test/protocol/acceptance/locator.test.ts` explicitly; Depot globs select only `test/depot/`.
+Protocol acceptance runs through `omnibus:test`, which loads the ordered `ACCEPTANCE_SUITES` list from `tasks/sub-tasks/acceptance.ts` and fails if a suite in `test/protocol/acceptance/` is missing from it; Depot globs select only `test/depot/`.
 
 ## When to write which
 
@@ -82,8 +83,8 @@ describe("ModuleName", () => {
 
 ```typescript
 import { assert } from "chai";
-import { DevRpcClient } from "../../../src/network/dev-rpc-client";
-import { HexStrPrefixed } from "../../../src/common/bytes";
+import { DevRpcClient } from "@/src/network/dev-rpc-client";
+import { HexStrPrefixed } from "@/src/common/bytes";
 import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
 import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
 
@@ -119,6 +120,7 @@ Solidity mocks live in `contracts/mocks/`:
 - `MockERC20.sol` — mintable ERC20
 - `MockVoting.sol` — newVote/executeVote/getVote + events
 - `MockTokenManager.sol` — forward(evmScript) with EVM script parsing
+- `MockHashConsensus.sol` — minimal HashConsensus for AccountingOracle `setConsensusContract` guards
 
 Deploy helper: `test/depot/helpers/deploy-mock-governance.ts`
 

@@ -1,7 +1,7 @@
-import { assert } from "../../../src/common/assert";
+import { assert } from "@/src/common/assert";
 import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, encodeFunctionResult } from "viem";
-import { TxTrace, TxTraceCallItem, TxTraceItem } from "../../../src/traces/tx-traces";
-import fmt from "../../../src/common/format";
+import { TxTrace, TxTraceCallItem, TxTraceItem } from "@/src/traces/tx-traces";
+import fmt from "@/src/common/format";
 
 const testAbi = [
   {

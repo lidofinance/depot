@@ -1,9 +1,9 @@
 import { assert } from "chai";
 
-import { AllowedRecipientsRegistry_ABI } from "../../../abi/AllowedRecipientsRegistry.abi";
-import { contract } from "../../../src/contracts";
-import allowedRecipients from "../../../src/omnibuses/expected-events/allowed-recipients";
-import { LogCollector } from "../../../src/omnibuses/log-collector";
+import { AllowedRecipientsRegistry_ABI } from "@/abi/AllowedRecipientsRegistry.abi";
+import { contract } from "@/src/contracts";
+import allowedRecipients from "@/src/omnibuses/expected-events/allowed-recipients";
+import { LogCollector } from "@/src/omnibuses/log-collector";
 import { eventLog } from "../helpers/event-log";
 
 const REGISTRY = "0x8d8b35cA51e7808098afF4918C21Ce428c943F89";

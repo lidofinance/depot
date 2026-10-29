@@ -8,13 +8,13 @@ import {
   create,
   AccountAlreadyExistsError,
   NoKeystoreError,
-} from "../../../src/hardhat-keystores/named-keystores";
-import { NamedKeystore } from "../../../src/hardhat-keystores/named-keystore";
-import { NamedKeystoresStorage } from "../../../src/hardhat-keystores/named-keystores-storage";
+} from "@/src/hardhat-keystores/named-keystores";
+import { NamedKeystore } from "@/src/hardhat-keystores/named-keystore";
+import { NamedKeystoresStorage } from "@/src/hardhat-keystores/named-keystores-storage";
 import { getRandomPrivateKey } from "../helpers/keystore-helpers";
 import { afterEach } from "mocha";
 import sinon from "sinon";
-import prompt from "../../../src/common/prompt";
+import prompt from "@/src/common/prompt";
 
 chai.use(chaiAsPromised);
 const { expect } = chai;

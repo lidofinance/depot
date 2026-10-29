@@ -1,7 +1,7 @@
 import { assert } from "chai";
 
-import { expectedEvents } from "../../../src/omnibuses/expected-events";
-import { getGovernanceContracts } from "../../../src/omnibuses/governance-contracts";
+import { expectedEvents } from "@/src/omnibuses/expected-events";
+import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
 describe("Kernel expected events", () => {
   it("checks the app base namespace, app ID and new implementation", () => {

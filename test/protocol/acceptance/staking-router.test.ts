@@ -1,11 +1,12 @@
 import { assert } from "chai";
-import type { Context } from "mocha";
 import { rejects } from "node:assert/strict";
-import { BaseError, ContractFunctionRevertedError, encodeErrorResult } from "viem";
+import { encodeErrorResult } from "viem";
 import { OssifiableProxy_ABI } from "@/abi/OssifiableProxy.abi";
 import { StakingRouter_ABI } from "@/abi/StakingRouter.abi";
 import { contract, type Contract } from "@/src/contracts";
-import { createDevRpcClient, DevRpcClient } from "@/src/network";
+import { DevRpcClient } from "@/src/network";
+import { isRevertedWith } from "@/test/protocol/helpers/reverts";
+import { connectAcceptanceClient, getAcceptanceNetwork } from "@/test/protocol/helpers/client";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 
 const configurations = {
@@ -183,12 +184,9 @@ describe("StakingRouter acceptance", function () {
   let expected: (typeof configurations)[keyof typeof configurations];
   let voting: ReturnType<typeof getGovernanceContracts>["voting"];
 
-  before(async function (this: Context & { client?: DevRpcClient }) {
-    const network = this.client?.getNetworkName() ?? process.env.TEST_NETWORK ?? "mainnet";
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Acceptance is not configured for ${network}; use --skip-acceptance to skip it explicitly`);
-    }
-    client = this.client ?? (await createDevRpcClient(network, process.env.TEST_RPC_URL ?? "http://localhost:8545"));
+  before(async function () {
+    const network = getAcceptanceNetwork(this);
+    client = await connectAcceptanceClient(this, network);
     expected = configurations[network];
     stakingRouter = contract(StakingRouter_ABI, expected.stakingRouter);
     voting = getGovernanceContracts(network).voting;
@@ -226,20 +224,7 @@ describe("StakingRouter acceptance", function () {
         client.simulate(target, "initialize", [expected.admin, expected.withdrawalCredentials, 0n], {
           from: voting.address,
         }),
-        (error: unknown) => {
-          const revert =
-            error instanceof BaseError &&
-            error.walk(
-              (cause) =>
-                cause instanceof ContractFunctionRevertedError ||
-                (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-            );
-          if (revert instanceof ContractFunctionRevertedError) {
-            return revert.raw === invalidInitialization;
-          }
-          // In-process EDR exposes revert bytes without an RPC error code.
-          return revert instanceof Error && "data" in revert && revert.data === invalidInitialization;
-        },
+        (error: unknown) => isRevertedWith(error, invalidInitialization),
         `initialize ${target.address}`,
       );
     }
@@ -248,19 +233,7 @@ describe("StakingRouter acceptance", function () {
   it("cannot finalize the proxy upgrade again", async function () {
     await rejects(
       client.simulate(stakingRouter, "finalizeUpgrade_v4", [0n], { from: voting.address }),
-      (error: unknown) => {
-        const revert =
-          error instanceof BaseError &&
-          error.walk(
-            (cause) =>
-              cause instanceof ContractFunctionRevertedError ||
-              (cause instanceof Error && "data" in cause && typeof cause.data === "string"),
-          );
-        if (revert instanceof ContractFunctionRevertedError) {
-          return revert.raw === invalidInitialization;
-        }
-        return revert instanceof Error && "data" in revert && revert.data === invalidInitialization;
-      },
+      (error: unknown) => isRevertedWith(error, invalidInitialization),
       "finalizeUpgrade_v4 proxy",
     );
   });

@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import { Address } from "viem";
 
-import { DevRpcClient } from "../../../src/network/dev-rpc-client";
+import { DevRpcClient } from "@/src/network/dev-rpc-client";
 import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
 import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
 
