@@ -189,6 +189,53 @@ describe("Omnibus runtime completion", () => {
     sinon.assert.calledOnceWithExactly(client.revert, "0x01");
   });
 
+  it("runs reference setup before governance and isolates comparison before acceptance", async () => {
+    const { omnibus, client, afterExecution } = await fixture();
+    client.snapshot.onSecondCall().resolves("0x02");
+    client.withSnapshot.callThrough();
+    const beforeExecution = sinon.stub<[], Promise<void>>().resolves();
+    const compareUpgraded = sinon.stub<[], Promise<void>>().resolves();
+
+    await omnibus.test(client, afterExecution, { beforeExecution, afterExecution: compareUpgraded });
+
+    sinon.assert.callOrder(beforeExecution, client.write, compareUpgraded, afterExecution);
+    assert.deepEqual(
+      client.revert.getCalls().map((call) => call.args),
+      [["0x02"], ["0x01"]],
+    );
+    assert.isTrue(client.revert.firstCall.calledBefore(afterExecution.firstCall));
+    assert.isTrue(client.revert.lastCall.calledAfter(afterExecution.firstCall));
+  });
+
+  it("restores the baseline when reference setup fails without executing governance", async () => {
+    const { omnibus, client, afterExecution } = await fixture();
+    const failure = new Error("Reference scenario failed");
+    const beforeExecution = sinon.stub<[], Promise<void>>().rejects(failure);
+    const compareUpgraded = sinon.stub<[], Promise<void>>().resolves();
+
+    await rejects(omnibus.test(client, afterExecution, { beforeExecution, afterExecution: compareUpgraded }), failure);
+    sinon.assert.notCalled(client.write);
+    sinon.assert.notCalled(compareUpgraded);
+    sinon.assert.notCalled(afterExecution);
+    sinon.assert.calledOnceWithExactly(client.revert, "0x01");
+  });
+
+  it("restores comparison and outer snapshots on an undeclared upgrade change", async () => {
+    const { omnibus, client, afterExecution } = await fixture();
+    client.snapshot.onSecondCall().resolves("0x02");
+    client.withSnapshot.callThrough();
+    const failure = new Error("Undeclared storage change");
+    const beforeExecution = sinon.stub<[], Promise<void>>().resolves();
+    const compareUpgraded = sinon.stub<[], Promise<void>>().rejects(failure);
+
+    await rejects(omnibus.test(client, afterExecution, { beforeExecution, afterExecution: compareUpgraded }), failure);
+    sinon.assert.notCalled(afterExecution);
+    assert.deepEqual(
+      client.revert.getCalls().map((call) => call.args),
+      [["0x02"], ["0x01"]],
+    );
+  });
+
   it("propagates a hook failure and restores its snapshot", async () => {
     const { omnibus, client, afterExecution } = await fixture();
     const failure = new Error("Post-execution hook failed");

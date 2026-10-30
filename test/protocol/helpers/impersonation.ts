@@ -5,8 +5,12 @@ import { DevRpcClient } from "@/src/network";
 export class ImpersonatedAccounts {
   readonly #accounts = new Set<Address>();
 
-  async impersonate(client: DevRpcClient, account: Address): Promise<void> {
-    await client.impersonate(account, parseEther("10"));
+  async impersonate(
+    client: DevRpcClient,
+    account: Address,
+    { preserveBalance = false }: { preserveBalance?: boolean } = {},
+  ): Promise<void> {
+    await client.impersonate(account, preserveBalance ? undefined : parseEther("10"));
     this.#accounts.add(account);
   }
 

@@ -27,6 +27,7 @@ import {
   OmnibusConfig,
   OmnibusFormatParams,
   PassVoteResult,
+  UpgradeSnapshotHooks,
   VoteCall,
 } from "./omnibus-types";
 
@@ -44,6 +45,10 @@ export type {
   TestProposalFnCtx,
   TestVoteFn,
   TestVoteFnCtx,
+  SnapshotExpectedChange,
+  SnapshotSuiteName,
+  UpgradeSnapshotConfig,
+  UpgradeSnapshotHooks,
   VoteCall,
 } from "./omnibus-types";
 
@@ -108,6 +113,10 @@ export class Omnibus<
 
   get quorumReached() {
     return this.#config.quorumReached;
+  }
+
+  get upgradeSnapshot() {
+    return this.#config.upgradeSnapshot;
   }
 
   get name() {
@@ -356,7 +365,11 @@ export class Omnibus<
     await processPendingProposals(client, submittedProposalIds);
   }
 
-  async test(client: DevRpcClient, afterExecution?: (client: DevRpcClient) => Promise<void>) {
+  async test(
+    client: DevRpcClient,
+    afterExecution?: (client: DevRpcClient) => Promise<void>,
+    snapshotHooks?: UpgradeSnapshotHooks,
+  ) {
     if (this.#config.executedAt !== undefined) {
       throw new Error(
         `Omnibus "${this.name}" was executed at block ${this.#config.executedAt}. ` +
@@ -440,6 +453,7 @@ export class Omnibus<
     // ---
 
     try {
+      await snapshotHooks?.beforeExecution();
       try {
         console.log(fmt.padded("Testing Aragon vote..."));
         await this.#config.testVote({
@@ -527,6 +541,9 @@ export class Omnibus<
       for (const { logs, events } of testedProposals.values()) {
         events.assertTail();
         logs.assertNothingLeft();
+      }
+      if (snapshotHooks) {
+        await client.withSnapshot(snapshotHooks.afterExecution);
       }
       await afterExecution?.(client);
       console.log(fmt.success(`All tests for omnibus "${this.name}" have passed successfully`));
