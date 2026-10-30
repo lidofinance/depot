@@ -67,6 +67,8 @@ describe("First slots snapshot", function () {
     let targetBlock = 0n;
     let targetTimestamp = 0n;
     let before: Record<string, unknown> = {};
+    // Fixed by the reference capture so both captures expand the same arrays
+    const arrayLengths = new Map<string, bigint>();
 
     async function align(): Promise<void> {
       const current = await client.viemClient.getBlock({ blockTag: "latest" });
@@ -84,15 +86,22 @@ describe("First slots snapshot", function () {
       await client.setTime(targetTimestamp);
     }
 
-    async function capture(): Promise<Record<string, unknown>> {
+    async function capture(phase: "reference" | "upgraded"): Promise<Record<string, unknown>> {
+      if (phase === "reference") {
+        arrayLengths.clear();
+      }
       const snapshot: Record<string, unknown> = {};
       for (const [, address] of targets) {
         for (let slot = 0n; slot < 16n; slot++) {
           const key = `${address.toLowerCase()}/${toHex(slot, { size: 32 })}`;
           const word = await readStorageWord(client, address, slot, targetBlock);
           snapshot[key] = word;
-          const length = BigInt(word);
-          if (length > 0n && length < 32n) {
+          const rootValue = BigInt(word);
+          if (phase === "reference" && rootValue > 0n && rootValue < 32n) {
+            arrayLengths.set(key, rootValue);
+          }
+          const length = arrayLengths.get(key);
+          if (length !== undefined) {
             snapshot[`${key}/array`] = await readStorageArray(client, address, slot, length, targetBlock);
           }
         }
@@ -111,18 +120,13 @@ describe("First slots snapshot", function () {
         targetTimestamp = initial.timestamp + 14n * 24n * 60n * 60n;
         before = await client.withSnapshot(async () => {
           await align();
-          return capture();
+          return capture("reference");
         });
       },
       afterExecution: async () => {
         await align();
-        const after = await capture();
-        const upgradedObservations: Record<string, unknown> = {};
-        for (const key of Object.keys(before)) {
-          assert.property(after, key, `missing upgraded storage observation: ${key}`);
-          upgradedObservations[key] = after[key];
-        }
-        assertSnapshot(context, "first-slots/init", before, upgradedObservations);
+        const after = await capture("upgraded");
+        assertSnapshot(context, "first-slots/init", before, after);
       },
     });
   });

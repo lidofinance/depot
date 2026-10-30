@@ -124,6 +124,12 @@ describe("Lido upgrade snapshot", function () {
         args: [stranger, expected.stethWhale],
         blockNumber,
       }),
+      "allowance(eth_whale,some_contract)": await client.viemClient.readContract({
+        ...lido,
+        functionName: "allowance",
+        args: [ethWhale, someContract],
+        blockNumber,
+      }),
       "sharesOf(eth_whale)": await client.viemClient.readContract({
         ...lido,
         functionName: "sharesOf",
