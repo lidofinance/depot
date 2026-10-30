@@ -100,6 +100,7 @@ export async function sendAsOracleMember(
   member: Address,
   target: Address,
   data: Hex,
+  gasPrice?: bigint,
 ): Promise<TransactionReceipt> {
   const memberCall = await resolveMemberCall(client, impersonated, member, target, data);
   // Preflight surfaces revert data even on nodes that mine reverted transactions
@@ -109,6 +110,7 @@ export async function sendAsOracleMember(
     to: memberCall.to,
     data: memberCall.data,
     chain: client.viemClient.chain,
+    gasPrice,
   });
   const receipt = await client.viemClient.waitForTransactionReceipt({ hash });
   assert.equal(receipt.status, "success", "oracle member transaction");

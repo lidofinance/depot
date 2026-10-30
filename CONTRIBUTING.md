@@ -63,7 +63,7 @@ Tests are grouped by purpose:
 - `test/depot/<module>/<name>.unit.test.ts` — Depot logic, no network.
 - `test/depot/<module>/<name>.integration.test.ts` — Depot integration paths with in-process Hardhat; fork cases require `ETH_MAINNET_RPC_URL`.
 - `test/protocol/acceptance/` — shared checks of deployed protocol state after vote/DG execution, before snapshot restore.
-- `test/protocol/snapshot/` — reserved for future upgrade snapshot suites; no snapshot tests yet.
+- `test/protocol/snapshot/` — opt-in old/upgraded comparisons through `omnibus:test`; see [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md).
 
 Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`. Shared Depot helpers live in `test/depot/helpers/`.
 
@@ -73,7 +73,7 @@ npm run test:depot:integration  # no separate node required
 npm run test:all                # both Depot suites
 ```
 
-`test:all` runs Depot tests; protocol acceptance runs through `omnibus:test`.
+`test:all` runs Depot tests; protocol acceptance and opted-in upgrade snapshots run through `omnibus:test`.
 
 See `test/AGENTS.md` for detailed testing conventions (mocking rules, templates, mock contracts).
 

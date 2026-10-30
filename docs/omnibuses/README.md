@@ -14,6 +14,7 @@ Each directory keeps its Markdown description, Solidity payload and TypeScript w
 | [Finance](../../omnibuses/_example_finance_omnibus)                                 | Automatic deployment, stETH payment with share/balance checks and a script match against vote #200. |
 | [Agent / DG / Kernel](../../omnibuses/_example_agent_dg_kernel_omnibus)             | Explicit proposal metadata, Agent forwards and Kernel implementation/permission checks.             |
 | [Permissions / Node operators](../../omnibuses/_example_permissions_node_operators) | ACL parameter grants, permission-use probes, node-operator changes and grouped events.              |
+| [Upgrade snapshot](../../omnibuses/_example_upgrade_snapshot)                       | Opt-in `upgradeSnapshot` with a selected storage word and a declared expected change.               |
 
 For Easy Track and allowed-recipient operations, see the helper catalogue and the paired library/event tests it links. Full protocol regressions use the [cross-repository runbook](WRITING_OMNIBUS.md#cross-repository-checks) and [mount examples](../../mount/README.md).
 

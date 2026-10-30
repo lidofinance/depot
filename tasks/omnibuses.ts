@@ -40,12 +40,13 @@ import { adoptAragonVoting } from "../src/aragon-votes-tools";
 import { renderCustomOmnibusDeployment, renderDefaultOmnibusDeployment } from "../src/omnibuses/omnibus-deployment";
 import { assertVoteAddresses } from "../src/omnibuses/address-lint";
 import { runAcceptance } from "./sub-tasks/acceptance";
+import { runSnapshots } from "./sub-tasks/snapshot";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const FORK_BLOCK_DESCRIPTION = "Fork block number; defaults to the latest block";
 
-export const omnibusTaskDeps = { getOmnibusesDir: () => path.resolve(__dirname, "..", "omnibuses") };
+export const omnibusTaskDeps = { getOmnibusesDir: () => path.resolve(__dirname, "..", "omnibuses"), runSnapshots };
 
 export const omnibusTaskBuilders: Array<ReturnType<typeof task>> = [];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -316,6 +317,12 @@ defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
       await prepareOmnibus(hre, client, omnibus);
       await printEvmScript(name, omnibus.getEvmScript());
       await omnibus.test(client, taskArgs.skipAcceptance ? undefined : runAcceptance);
+      const { upgradeSnapshot } = omnibus;
+      if (upgradeSnapshot) {
+        await omnibusTaskDeps.runSnapshots(client, upgradeSnapshot, (hooks) => omnibus.test(client, undefined, hooks), {
+          createsVote: !omnibus.voteId,
+        });
+      }
     },
   );
 

@@ -37,6 +37,33 @@ export interface DeployOmnibusContractCtx {
   deployContract: <T extends Contract>(contractName: string, args: unknown[]) => Promise<T>;
 }
 
+export const SNAPSHOT_SUITES = [
+  "lido-snapshot",
+  "plain-submit",
+  "dsm",
+  "node-operators-registry",
+  "voting",
+  "first-slots",
+] as const;
+
+export type SnapshotSuiteName = (typeof SNAPSHOT_SUITES)[number];
+
+export interface SnapshotExpectedChange {
+  before?: unknown;
+  after: unknown;
+}
+
+export interface UpgradeSnapshotConfig {
+  suites: readonly SnapshotSuiteName[];
+  expectedChanges?: Readonly<Record<string, SnapshotExpectedChange>>;
+  storage?: readonly { address: Address; slot: HexStrPrefixed }[];
+}
+
+export interface UpgradeSnapshotHooks {
+  beforeExecution: () => Promise<void>;
+  afterExecution: () => Promise<void>;
+}
+
 export interface OmnibusConfig<$Network extends NetworkName, $DeployedContracts extends Record<string, Contract>> {
   network: $Network;
 
@@ -61,6 +88,7 @@ export interface OmnibusConfig<$Network extends NetworkName, $DeployedContracts 
 
   testVote: TestVoteFn<$DeployedContracts>;
   testProposal?: TestProposalFn<$DeployedContracts>;
+  upgradeSnapshot?: UpgradeSnapshotConfig;
 
   deploy?: (ctx: DeployOmnibusContractCtx) => Promise<$DeployedContracts>;
   deployment?: $DeployedContracts;

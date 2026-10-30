@@ -86,7 +86,7 @@ Format Solidity with `forge fmt`: the pre-commit hook and CI run `forge fmt --ch
 
 Each acceptance suite keeps its assertions, setup and fixed expectations in one file under `test/protocol/acceptance/`. Register a new suite in `ACCEPTANCE_SUITES` (`tasks/sub-tasks/acceptance.ts`); the runner fails on an unregistered file, and negative suites stay last. The `omnibus:test` task runs Mocha with its prepared client through the post-execution callback of `Omnibus.test()`, after the vote, all DG proposals and event checks, before snapshot restore. A failing suite fails the task. Use `--skip-acceptance` when testing a historical deployment or a network without configured expectations. Direct `Omnibus.test(client)` calls run only the omnibus's own checks unless a callback is supplied. Changes to checked configuration require updating the expectations from an independent deployment source.
 
-Depot tests live under `test/depot/<module>/`: unit tests use `*.unit.test.ts`, and integration tests use `*.integration.test.ts` with in-process Hardhat environments (fork cases require `ETH_MAINNET_RPC_URL`). `npm test` is a shortcut for `test:depot:unit`; `test:all` runs both Depot suites. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`. `test/protocol/snapshot/` is reserved for future upgrade snapshot suites.
+Depot tests live under `test/depot/<module>/`: unit tests use `*.unit.test.ts`, and integration tests use `*.integration.test.ts` with in-process Hardhat environments (fork cases require `ETH_MAINNET_RPC_URL`). `npm test` is a shortcut for `test:depot:unit`; `test:all` runs both Depot suites. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`. Upgrade snapshot suites live under `test/protocol/snapshot/` and run only when the vote opts in as described below.
 
 Depot test globs select only `test/depot/`; `omnibus:test` loads the suites listed in `ACCEPTANCE_SUITES`. To run one suite alone against an existing fork, use `TEST_NETWORK=hoodi TEST_RPC_URL=http://localhost:8545 npx mocha --no-config --node-option import=tsx --timeout 600000 test/protocol/acceptance/locator.test.ts` (or `TEST_NETWORK=mainnet`, or another suite file).
 
@@ -97,6 +97,32 @@ Record the chosen network/block, deployed source revision, test results and payl
 ```bash
 npx hardhat omnibus:trace <name>
 ```
+
+### Upgrade snapshots
+
+Set `upgradeSnapshot` on an upgrade wrapper to select source suites and declare intentional changes. Operational votes omit it. Suites are `lido-snapshot`, `plain-submit`, `dsm`, `node-operators-registry`, `voting` and `first-slots`.
+
+```typescript
+upgradeSnapshot: {
+  suites: ["first-slots"],
+  storage: [{ address: LOCATOR, slot: IMPLEMENTATION_SLOT }],
+  expectedChanges: {
+    [`first-slots/init/${LOCATOR.toLowerCase()}/${IMPLEMENTATION_SLOT}`]: {
+      after: NEW_IMPLEMENTATION_WORD,
+    },
+  },
+},
+```
+
+Expected-change keys are the suite/scenario/frame/field path shown by a failing comparison. Declare them from the vote's intended effects, never from an observed diff. `after` is mandatory; optional `before` pins both sides. A declaration must represent a real observed change; stale or unobserved entries fail. Domain tolerances remain in their suite and are not expanded by the runner. `storage` selects additional raw words in `first-slots`; its original 22 targets, root slots 0–15 and array expansion for lengths 1–31 remain bounded; the reference capture fixes which arrays both captures expand.
+
+`omnibus:test` first runs the ordinary vote/all DG/event checks with acceptance once on a clean state. Each selected snapshot case then independently runs this lifecycle on the prepared client without acceptance: source fixture → reference actions/capture inside a reverted snapshot → ordinary vote/all DG/event checks → upgraded actions/capture/comparison inside another reverted snapshot → existing outer restore. Suite module fixtures are scoped to the snapshot run. Preserve source-specific role grants: NOR grants once before both runs, as in Scripts; Lido grants in each run, because Scripts re-grants after the upgrade. EVM revert does not stop impersonation, so use `ImpersonatedAccounts` and stop tracked accounts before reverting. It funds accounts with 10 ETH unless `{ preserveBalance: true }` is passed. Compile required mocks narrowly and clear the artifact cache before reading new artifacts.
+
+`--skip-acceptance` suppresses the clean-pass acceptance only. Direct `Omnibus.test(client, afterExecution, hooks)` supplies the before/comparison hooks but does not load protocol suites; the CLI's `runSnapshots` supplies them. A selected case must execute its upgrade; empty selection, skipped coverage and comparison failures fail the run. Executed votes retain the ordinary `executedAt` rejection.
+
+Block/time alignment is suite-specific, not global: first-slots/DSM use a preselected target and fail if governance exceeds it; Lido aligns block height; Voting/plain-submit preserve their source observations without asserting gas/ETH/time equality. DSM pins each action's block to the previous timestamp plus one second and keeps the agreed absolute 1 second tolerance (the source accidentally used a relative tolerance of 100%). Lido funding is 100000 ETH (the source double-converted units). Source Lido role regrant still does not prove ACL preservation. When the upgrade starts a new vote (no `voteId`), Voting expects `votesLength` to grow by exactly one in every frame and repeats the launch's LDO funding transfer in its reference run, since the Hoodi funder is one of its voters.
+
+The [upgrade snapshot example](../../omnibuses/_example_upgrade_snapshot/_example_upgrade_snapshot.md) is a local payload using a real Locator upgrade call from #204. Its command proves only that selected mechanism when actually run; the undeclared-change rejection is covered by the Depot integration test. Current acceptance is not a historical expectation profile, so the command explicitly skips it. Full mainnet/Hoodi scenario coverage still requires separately recorded fork runs.
 
 ### Cross-repository checks
 
