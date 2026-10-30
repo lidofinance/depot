@@ -23,7 +23,7 @@ Write unit or integration tests for existing TypeScript code. Respect project co
 
 3. **Locate test file**
 
-   Tests go in `test/<module>/<name>.(unit|integration).test.ts`, mirroring source structure. Do NOT put tests in `src/`.
+   Depot tests go in `test/depot/<module>/<name>.(unit|integration).test.ts`, mirroring source structure. Protocol acceptance and upgrade snapshot suites go in `test/protocol/acceptance/` and `test/protocol/snapshot/` as plain `.test.ts` files. Per-vote checks stay beside the payload in `omnibuses/<name>/`.
 
 4. **Write tests**
 
@@ -40,8 +40,8 @@ Write unit or integration tests for existing TypeScript code. Respect project co
    Run the new tests:
 
    ```bash
-   npm test                            # unit
-   npm run test:integration            # integration (needs hardhat node)
+   npm run test:depot:unit              # Depot unit
+   npm run test:depot:integration       # Depot integration
    ```
 
    Run typecheck:
@@ -84,7 +84,7 @@ export function doThing() {
 **Test stubs the container (plain object — works in ESM):**
 
 ```typescript
-import { thingDeps, doThing } from "../../src/feature/thing";
+import { thingDeps, doThing } from "@/src/feature/thing";
 
 it("does the thing", () => {
   sinon.stub(thingDeps, "externalFn").returns("mocked");
@@ -112,17 +112,17 @@ it("handles API response", async () => {
 });
 ```
 
-Helper pattern for multiple responses, see `test/contracts/etherscan-provider.unit.test.ts`.
+Helper pattern for multiple responses, see `test/depot/contracts/etherscan-provider.unit.test.ts`.
 
 ## Integration test pattern
 
 Connects to a running hardhat node, deploys mocks from `contracts/mocks/`, overrides DI containers:
 
 ```typescript
-import { createDevRpcClient } from "../../src/network/network";
+import { createDevRpcClient } from "@/src/network/network";
 import { deployMockGovernance } from "../helpers/deploy-mock-governance";
-import { lifecycleDeps } from "../../src/aragon-votes-tools/lifecycle";
-import type { HexStrPrefixed } from "../../src/common/bytes";
+import { lifecycleDeps } from "@/src/aragon-votes-tools/lifecycle";
+import type { HexStrPrefixed } from "@/src/common/bytes";
 
 const RPC_URL = process.env.TEST_RPC_URL ?? "http://localhost:8545";
 
@@ -182,6 +182,6 @@ Extend existing mocks before adding new ones. If you add a new mock:
 
 - `test/AGENTS.md` — naming, templates, mock rules
 - `CONTRIBUTING.md` — TS/ESM conventions
-- Real integration test: `test/aragon-votes/lifecycle.integration.test.ts`
-- Real unit test with fetch mock: `test/contracts/etherscan-provider.unit.test.ts`
-- Real unit test with DI stub: `test/traces/tx-tracer.unit.test.ts`
+- Real integration test: `test/depot/aragon-votes/lifecycle.integration.test.ts`
+- Real unit test with fetch mock: `test/depot/contracts/etherscan-provider.unit.test.ts`
+- Real unit test with DI stub: `test/depot/traces/tx-tracer.unit.test.ts`

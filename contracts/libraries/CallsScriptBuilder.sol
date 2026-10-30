@@ -20,11 +20,11 @@ library CallsScriptBuilderUtils {
         res = addCall(create(), to, data);
     }
 
-    function addCall(CallsScriptBuilder memory self, address to, bytes memory data)
-        internal
-        pure
-        returns (CallsScriptBuilder memory)
-    {
+    function addCall(
+        CallsScriptBuilder memory self,
+        address to,
+        bytes memory data
+    ) internal pure returns (CallsScriptBuilder memory) {
         self._result = bytes.concat(self._result, bytes20(to), bytes4(uint32(data.length)), data);
         return self;
     }

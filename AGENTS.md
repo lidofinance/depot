@@ -6,7 +6,9 @@ Follow `CONTRIBUTING.md` for coding conventions (TypeScript, async safety, error
 
 ## Skills
 
-Project skills live in `.agents/skills/`. For omnibus work, follow `.agents/skills/omnibus-writer/SKILL.md`.
+Project skills live in `.agents/skills/`. For omnibus authoring or fork tests, follow [.agents/skills/omnibus-writer-sol/SKILL.md](.agents/skills/omnibus-writer-sol/SKILL.md).
+
+For ABI/interface generation, source selection or regeneration review, read [docs/ABI_SYNC.md](docs/ABI_SYNC.md).
 
 ## Project overview
 
@@ -17,17 +19,19 @@ Hardhat 3 + TypeScript + Viem project for building, testing, and launching Lido 
 ```bash
 # Omnibus lifecycle
 npm run omnibus:create              # scaffold new omnibus from template
-npm run omnibus:test -- <name>      # run omnibus tests on local hardhat node
-npm run omnibus:simulate -- <name>  # simulate omnibus execution
-npm run omnibus:run -- <name>       # launch omnibus on mainnet/testnet
-npm run omnibus:contract -- <name>  # generate Solidity contract (opt-in)
-npm run omnibus:build -- <name>     # compile generated Solidity contract
+npm run omnibus:build -- <name>     # compile the authored Solidity contract
+npm run omnibus:test -- <name>      # test an unexecuted omnibus on a local fork
+npx hardhat omnibus:trace <name>    # inspect execution traces
+npx hardhat omnibus:deploy <name>   # local deployment rehearsal
+npx hardhat omnibus:launch <name>   # local launch rehearsal
+npm run lint:vote-addresses -- omnibuses/<name> # validate vote-local addresses
 
 # Quality
 npm run lint                        # ESLint (0 errors, 0 warnings expected)
 npm run lint:fix                    # auto-fix
-npm test                            # unit tests (mocha)
-npm run test:integration            # integration tests (needs hardhat node on :8545)
+npm run test:depot:unit              # Depot unit tests (npm test is a shortcut)
+npm run test:depot:integration       # Depot integration tests (in-process Hardhat)
+npm run test:all                     # both Depot suites
 npx tsc --noEmit                    # typecheck
 ```
 
@@ -44,13 +48,17 @@ src/
   hardhat/              # HH3 task runner helpers
   ipfs/                 # IPFS/Pinata upload
   network/              # RPC client (viem), DevRpcClient with test actions
-  omnibuses/            # omnibus runtime, blueprints, checks, contract generator
+  omnibuses/            # Solidity contract reader, runtime, state/event checks
   traces/               # transaction tracing (debug_traceTransaction)
 tasks/                  # Hardhat tasks (omnibus:*, keystore:*)
 omnibuses/              # actual omnibus scripts and templates
-test/                   # all tests
+test/depot/             # Depot unit/integration tests and helpers
+test/protocol/acceptance/ # deployed protocol checks after vote/DG execution
+test/protocol/snapshot/  # opt-in upgrade state/action comparisons
 contracts/mocks/        # mock Solidity contracts for integration tests
 ```
+
+Use [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md) for fork pinning, exact proposal metadata, event grouping and deployment/launch authorization. Solidity owns the payload; the TypeScript wrapper owns per-vote `testVote`/`testProposal` checks and custom deployment. Per-vote checks stay in `omnibuses/<name>/*.ts`. Shared acceptance runs after vote/DG execution; upgrade snapshots compare isolated scenarios before and after execution, as described in the writing guide.
 
 ## Verification checklist
 
@@ -59,5 +67,6 @@ Before submitting changes, verify:
 ```bash
 npx tsc --noEmit         # 0 errors
 npm run lint             # 0 errors, 0 warnings
-npm test                 # all passing
+npm run test:depot:unit  # all passing
+npm run test:depot:integration # report fork cases skipped without ETH_MAINNET_RPC_URL
 ```

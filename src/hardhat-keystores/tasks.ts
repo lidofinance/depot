@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { task } from "hardhat/config";
-import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 
 import prompt from "../common/prompt";
 import { getKeystores } from "./get-keystores";

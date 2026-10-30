@@ -21,6 +21,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: depot
+          submodules: true
 
       - name: Setup depot
         uses: ./depot/.github/actions/prepare_depot
@@ -30,9 +31,9 @@ jobs:
         working-directory: depot
 
       - name: Run unit tests
-        run: npm run test
+        run: npm run test:depot:unit
         working-directory: depot
 
       - name: Run integration tests
-        run: npm run test:integration
+        run: npm run test:depot:integration
         working-directory: depot

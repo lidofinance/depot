@@ -5,8 +5,8 @@ import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20, ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-    error AlreadyInitialized();
-    error SampleReverted(address sender, string message);
+error AlreadyInitialized();
+error SampleReverted(address sender, string message);
 
 interface IIssuableERC20 {
     function mint(address account, uint256 value) external;
@@ -23,11 +23,7 @@ contract HelloWorld {
 }
 
 contract IssuableERC20 is IIssuableERC20, Ownable, ERC20 {
-    constructor(
-        address owner,
-        string memory name,
-        string memory symbol
-    ) Ownable(owner) ERC20(name, symbol) {
+    constructor(address owner, string memory name, string memory symbol) Ownable(owner) ERC20(name, symbol) {
         new HelloWorld();
     }
 

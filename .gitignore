@@ -28,3 +28,9 @@ etherscan-cache
 .envrc
 cache_forge/
 out_forge/
+
+# python bytecode from the mounted scripts tests
+__pycache__/
+
+# written by omnibus:test on every run
+*.evm-script.hex

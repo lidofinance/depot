@@ -1,0 +1,92 @@
+name: Stonks tests CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-tests:
+    name: Stonks post-vote integration tests
+    if: github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DOTENV_CONFIG_PATH: /dev/null
+      ETH_MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+      ETH_LOCAL_RPC_PORT: "8545"
+      GIT_BRANCH_STONKS: main
+      NODE_OPTIONS: --max_old_space_size=6144
+
+    steps:
+      - name: Checkout depot repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: depot
+          persist-credentials: false
+
+      - name: Setup depot
+        uses: ./depot/.github/actions/prepare_depot
+
+      - name: Resolve fork block and stonks revision
+        id: inputs
+        working-directory: depot
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+
+          if (!process.env.ETH_MAINNET_RPC_URL) throw new Error("MAINNET_RPC_URL secret is required");
+          const blockResponse = await fetch(process.env.ETH_MAINNET_RPC_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBlockByNumber", params: ["finalized", false] }),
+          });
+          const { result: block } = await blockResponse.json();
+          if (!blockResponse.ok || !/^0x[0-9a-f]+$/i.test(block?.number) || !/^0x[0-9a-f]{64}$/i.test(block?.hash)) {
+            throw new Error("Could not resolve the finalized mainnet block");
+          }
+          const forkBlock = Number.parseInt(block.number, 16);
+          const revisionResponse = await fetch(`https://api.github.com/repos/lidofinance/stonks/git/ref/heads/${process.env.GIT_BRANCH_STONKS}`, {
+            headers: { "User-Agent": "depot-ci" },
+          });
+          const { object } = await revisionResponse.json();
+          if (!revisionResponse.ok || object?.type !== "commit" || !/^[0-9a-f]{40}$/i.test(object?.sha)) {
+            throw new Error("Could not resolve the stonks revision");
+          }
+          const inputs = {
+            omnibus: "_example_tiny_omnibus",
+            forkBlock,
+            forkBlockHash: block.hash,
+            stonksBranch: process.env.GIT_BRANCH_STONKS,
+            stonksSha: object.sha,
+          };
+          mkdirSync("logs", { recursive: true });
+          writeFileSync("logs/stonks-inputs.json", JSON.stringify(inputs, null, 2) + "\n");
+          appendFileSync(process.env.GITHUB_OUTPUT, `fork-block=${forkBlock}\ngit-sha=${object.sha}\n`);
+          console.log(JSON.stringify(inputs, null, 2));
+          NODE
+
+      - name: Apply omnibus and run stonks post-vote suites
+        working-directory: depot
+        shell: bash
+        env:
+          GIT_SHA_STONKS: ${{ steps.inputs.outputs.git-sha }}
+        run: npm run omnibus:multi-test -- _example_tiny_omnibus --repo stonks --fork-block "${{ steps.inputs.outputs.fork-block }}" 2>&1 | tee logs/stonks-multi-test.log
+
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: stonks-post-vote
+          path: |
+            depot/logs/stonks-inputs.json
+            depot/logs/stonks-multi-test.log
+            depot/logs/lido-stonks.log
+          retention-days: 14

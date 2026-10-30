@@ -2,18 +2,23 @@
 
 Rules for writing tests in `test/`.
 
-## File naming
+## Layout and running
 
-- `test/<module>/<name>.unit.test.ts` — fast, no network, mock dependencies
-- `test/<module>/<name>.integration.test.ts` — needs running hardhat node
+- `test/depot/<module>/<name>.unit.test.ts` — Depot logic, no network, mock dependencies.
+- `test/depot/<module>/<name>.integration.test.ts` — Depot integration paths with in-process Hardhat; fork cases require `ETH_MAINNET_RPC_URL`.
+- `test/protocol/acceptance/` — shared checks of deployed protocol state after vote/DG execution and event checks, before snapshot restore.
+- `test/protocol/helpers/` — protocol test mechanics (client, revert matching, impersonation, oracle reports, snapshot comparison and storage reads); expected values stay in each suite.
+- `test/protocol/snapshot/` — opt-in old/upgraded comparisons through `omnibus:test`; see [the writing guide](../docs/omnibuses/WRITING_OMNIBUS.md).
 
-## Running
+Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`. Shared Depot helpers live in `test/depot/helpers/`.
 
 ```bash
-npm test                    # unit tests only
-npm run test:integration    # integration tests (start hardhat node first)
-npm run test:all            # both
+npm run test:depot:unit         # npm test is a shortcut
+npm run test:depot:integration  # no separate node required
+npm run test:all                # both Depot suites
 ```
+
+Protocol acceptance runs through `omnibus:test`, which loads the ordered `ACCEPTANCE_SUITES` list from `tasks/sub-tasks/acceptance.ts` and fails if a suite in `test/protocol/acceptance/` is missing from it; Depot globs select only `test/depot/`. Upgrade votes opt in with `upgradeSnapshot`; `omnibus:test` runs acceptance once on a clean pass, then `tasks/sub-tasks/snapshot.ts` runs each selected snapshot case through the full vote/DG lifecycle with its own fixtures and without acceptance. Expected changes belong to the vote, domain assertions to the suite.
 
 ## When to write which
 
@@ -25,7 +30,7 @@ npm run test:all            # both
 
 **Integration tests** — anything that calls smart contracts:
 
-- Deploy mock contracts from `contracts/mocks/` on local hardhat node
+- Deploy mock contracts from `contracts/mocks/` in an in-process Hardhat environment
 - Use `DevRpcClient` for `snapshot()`/`revert()` between tests
 - Override DI containers (`lifecycleDeps`, `testingDeps`, `tracerDeps`) to point to mock contract addresses
 
@@ -78,18 +83,20 @@ describe("ModuleName", () => {
 
 ```typescript
 import { assert } from "chai";
-import { createDevRpcClient } from "../../src/network/network";
-import { deployMockGovernance } from "../helpers/deploy-mock-governance";
-import { HexStrPrefixed } from "../../src/common/bytes";
-
-const RPC_URL = process.env.TEST_RPC_URL ?? "http://localhost:8545";
+import { DevRpcClient } from "@/src/network/dev-rpc-client";
+import { HexStrPrefixed } from "@/src/common/bytes";
+import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
+import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
 
 describe("feature (integration)", function () {
-  let client, snapshotId;
+  let client: DevRpcClient;
+  let mocks: MockGovernanceContracts;
+  let snapshotId: HexStrPrefixed;
 
   before(async function () {
-    client = await createDevRpcClient("mainnet", RPC_URL);
-    // deploy mocks, override DI containers
+    client = await createInProcessDevRpcClient();
+    const [deployer] = await client.getAccounts();
+    mocks = await deployMockGovernance(client, deployer);
   });
 
   beforeEach(async function () {
@@ -100,8 +107,8 @@ describe("feature (integration)", function () {
     await client.revert(snapshotId);
   });
 
-  it("interacts with contracts", async function () {
-    // real contract calls on local hardhat node
+  it("starts with zero token supply", async function () {
+    assert.equal(await client.read(mocks.ldo, "totalSupply"), 0n);
   });
 });
 ```
@@ -113,8 +120,9 @@ Solidity mocks live in `contracts/mocks/`:
 - `MockERC20.sol` — mintable ERC20
 - `MockVoting.sol` — newVote/executeVote/getVote + events
 - `MockTokenManager.sol` — forward(evmScript) with EVM script parsing
+- `MockHashConsensus.sol` — minimal HashConsensus for AccountingOracle `setConsensusContract` guards
 
-Deploy helper: `test/helpers/deploy-mock-governance.ts`
+Deploy helper: `test/depot/helpers/deploy-mock-governance.ts`
 
 ## Review checklist for tests
 

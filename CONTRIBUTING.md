@@ -58,16 +58,22 @@ Project uses `"type": "module"`. Key constraints:
 
 ## Tests
 
-All tests live in `test/` (not in `src/`):
+Tests are grouped by purpose:
 
-- `test/<module>/<name>.unit.test.ts` — fast, no network
-- `test/<module>/<name>.integration.test.ts` — needs hardhat node
+- `test/depot/<module>/<name>.unit.test.ts` — Depot logic, no network.
+- `test/depot/<module>/<name>.integration.test.ts` — Depot integration paths with in-process Hardhat; fork cases require `ETH_MAINNET_RPC_URL`.
+- `test/protocol/acceptance/` — shared checks of deployed protocol state after vote/DG execution, before snapshot restore.
+- `test/protocol/snapshot/` — opt-in old/upgraded comparisons through `omnibus:test`; see [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md).
+
+Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`. Shared Depot helpers live in `test/depot/helpers/`.
 
 ```bash
-npm test                    # unit tests
-npm run test:integration    # integration tests
-npm run test:all            # both
+npm run test:depot:unit         # npm test is a shortcut
+npm run test:depot:integration  # no separate node required
+npm run test:all                # both Depot suites
 ```
+
+`test:all` runs Depot tests; protocol acceptance and opted-in upgrade snapshots run through `omnibus:test`.
 
 See `test/AGENTS.md` for detailed testing conventions (mocking rules, templates, mock contracts).
 
@@ -83,5 +89,6 @@ See `test/AGENTS.md` for detailed testing conventions (mocking rules, templates,
 ```bash
 npx tsc --noEmit         # 0 errors
 npm run lint             # 0 errors, 0 warnings
-npm test                 # all passing
+npm run test:depot:unit  # all passing
+npm run test:depot:integration # report fork cases skipped without ETH_MAINNET_RPC_URL
 ```

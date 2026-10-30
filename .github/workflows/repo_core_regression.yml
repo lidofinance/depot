@@ -24,7 +24,7 @@ jobs:
           - 8545:8545
         env:
           ETH_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
-          HARDFORK: cancun
+          HARDFORK: prague
 
     steps:
       ################################################################
@@ -85,5 +85,6 @@ jobs:
         working-directory: core
         env:
           RPC_URL: http://127.0.0.1:8545
+          NETWORK: mainnet
           NODE_OPTIONS: --max_old_space_size=7200
           NETWORK_STATE_FILE: deployed-mainnet.json

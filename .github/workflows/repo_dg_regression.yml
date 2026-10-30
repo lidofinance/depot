@@ -46,6 +46,9 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: lidofinance/dual-governance
+          # TODO
+          # Temporarily pin develop for SR3-compatible regression helpers (DG #369).
+          ref: cc407b472199585b21d33b14c6b3067a6b62de96
           path: dual-governance
           persist-credentials: false
 
@@ -54,7 +57,7 @@ jobs:
       ################################################################
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@8789b3e21e6c11b2697f5eb56eddae542f746c10 # v1
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
         with:
           version: "v1.5.1"
 
@@ -76,7 +79,7 @@ jobs:
       - name: Setup Node.js for dual-governance
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: "20.16.0"
+          node-version: 22
           cache: npm
           cache-dependency-path: dual-governance/package-lock.json
 

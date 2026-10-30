@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:22-bookworm-slim
 
 ARG NODE_VERSION=lts
 ARG YARN_VERSION=4.5.0
@@ -7,7 +7,7 @@ ARG GITHUB_ORG=lidofinance
 ARG GIT_BRANCH=master
 ARG BUILD_VERSION='latest'
 
-RUN apk add --no-cache git
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare yarn@${YARN_VERSION}
 
 RUN echo "build tag: ${BUILD_VERSION}"
