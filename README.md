@@ -37,8 +37,14 @@ npm run omnibus:test -- <name> --fork-block <block>
 npx hardhat omnibus:trace <name>
 npx tsc --noEmit
 npm run lint
-npm test
+npm run test:depot:unit
+npm run test:depot:integration
+npm run test:all
 ```
+
+Depot unit and integration tests live under `test/depot/<module>/`; `npm test` is a shortcut for `test:depot:unit`, and `test:all` runs both Depot suites. Integration tests create Hardhat environments in process; fork cases require `ETH_MAINNET_RPC_URL`.
+
+Shared deployed-protocol checks live in `test/protocol/acceptance/` and run through `omnibus:test` after the vote and all DG proposals, before snapshot restore. `test/protocol/snapshot/` is reserved for future upgrade snapshot suites. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`.
 
 `omnibus:test` rejects recorded execution (`executedAt` defined); trace is the historical inspection path. See the guide for complete event coverage, snapshots, deployment recording and public lifecycle fields.
 

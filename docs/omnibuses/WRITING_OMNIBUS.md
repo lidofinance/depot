@@ -57,7 +57,7 @@ Export `Omnibus.create({ network, testVote, testProposal? })`. Keep `voteId`, `l
 - All submitted proposal IDs must be processed before returning. Optional `passProposals(ids)` supports staged execution and returns results in requested ID order; `[]` does not satisfy completion. Keep state and event assertions for each executed call.
 - Verify permissions through the appropriate ACL/OZ checks and a relevant allowed/denied call. Arrange explicit timing for time-window actions, accounting for governance delays.
 
-The core requires execution and complete receipt consumption after both callbacks. It snapshots before `testVote` and restores after `testProposal`, also on failure. Temporary changes persist between callbacks; add an inner snapshot only when a particular probe requires local rollback.
+The core requires execution and complete receipt consumption after both callbacks. It snapshots before `testVote` and restores after `testProposal` and the optional post-execution callback, also on failure. Temporary changes persist between callbacks; add an inner snapshot only when a particular probe requires local rollback.
 
 **Executed votes are not replayed by `omnibus:test`.** Any defined `executedAt`, including zero and regardless of `voteId`, is rejected before the test snapshot. Choosing an earlier fork block does not bypass this guard. Preserve lifecycle facts and use `omnibus:trace` to inspect historical execution.
 
@@ -76,12 +76,19 @@ npm run omnibus:build -- <name>
 npm run omnibus:test -- <name> --fork-block <block>
 npx tsc --noEmit
 npm run lint
-npm test
+npm run test:depot:unit
+npm run test:depot:integration
 ```
 
 Format Solidity with `forge fmt`: the pre-commit hook and CI run `forge fmt --check` on vote contracts. Run address lint from the project root (npm and Husky do this). Build, test and deploy run address-lint guards; launch has no such guard, so use the explicit validation path above before launch. A clean linter result does not prove that an address belongs to the intended deployment.
 
 `omnibus:test` prepares the contract, validates its payload, saves `<name>.evm-script.hex`, and then runs the vote/proposal tests. Configure `ETH_MAINNET_RPC_URL` or `ETH_HOODI_RPC_URL` for the chosen network. `--fork-block` is available on test and multi-test. A reachable local node must already be at the requested block; a mismatch fails rather than resetting that node. If test cannot connect locally, it creates an in-process fork at the requested block. Without a pin, a new fork starts at latest and a reused node retains its current state. When authoring a vote that has already executed on-chain, pin a block before its execution; otherwise the before-state is the state the vote already produced.
+
+Each acceptance suite keeps its assertions, setup and fixed expectations in one file under `test/protocol/acceptance/`. Register a new suite in `ACCEPTANCE_SUITES` (`tasks/sub-tasks/acceptance.ts`); the runner fails on an unregistered file, and negative suites stay last. The `omnibus:test` task runs Mocha with its prepared client through the post-execution callback of `Omnibus.test()`, after the vote, all DG proposals and event checks, before snapshot restore. A failing suite fails the task. Use `--skip-acceptance` when testing a historical deployment or a network without configured expectations. Direct `Omnibus.test(client)` calls run only the omnibus's own checks unless a callback is supplied. Changes to checked configuration require updating the expectations from an independent deployment source.
+
+Depot tests live under `test/depot/<module>/`: unit tests use `*.unit.test.ts`, and integration tests use `*.integration.test.ts` with in-process Hardhat environments (fork cases require `ETH_MAINNET_RPC_URL`). `npm test` is a shortcut for `test:depot:unit`; `test:all` runs both Depot suites. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`. `test/protocol/snapshot/` is reserved for future upgrade snapshot suites.
+
+Depot test globs select only `test/depot/`; `omnibus:test` loads the suites listed in `ACCEPTANCE_SUITES`. To run one suite alone against an existing fork, use `TEST_NETWORK=hoodi TEST_RPC_URL=http://localhost:8545 npx mocha --no-config --node-option import=tsx --timeout 600000 test/protocol/acceptance/locator.test.ts` (or `TEST_NETWORK=mainnet`, or another suite file).
 
 Examples depend on the state of their named contracts, operators and permissions. Their recorded historical results do not prove that a fresh latest-state run succeeds. The permissions/node-operators integration suite skips its two fork cases only when `ETH_MAINNET_RPC_URL` is undefined; malformed configured values or connection errors remain failures. Record skipped tests separately.
 

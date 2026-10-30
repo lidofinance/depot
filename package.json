@@ -32,9 +32,10 @@
     "fmt:sol:check": "forge fmt --check",
     "prepare": "husky && node scripts/sync-skills.js",
     "sync-skills": "node scripts/sync-skills.js",
-    "test": "nyc --reporter text-summary mocha",
-    "test:integration": "mocha --config .mocharc.integration.json",
-    "test:all": "npm test && npm run test:integration"
+    "test": "npm run test:depot:unit --",
+    "test:depot:unit": "nyc --reporter text-summary mocha",
+    "test:depot:integration": "mocha --config .mocharc.integration.json",
+    "test:all": "npm run test:depot:unit && npm run test:depot:integration"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
