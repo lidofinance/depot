@@ -11,12 +11,17 @@ export class ImpersonatedAccounts {
   }
 
   async stopAll(client: DevRpcClient): Promise<void> {
-    try {
-      for (const account of this.#accounts) {
+    const errors: unknown[] = [];
+    for (const account of this.#accounts) {
+      try {
         await client.stopImpersonating(account);
+        this.#accounts.delete(account);
+      } catch (error) {
+        errors.push(error);
       }
-    } finally {
-      this.#accounts.clear();
+    }
+    if (errors.length > 0) {
+      throw new AggregateError(errors, "Failed to stop impersonating accounts");
     }
   }
 }
