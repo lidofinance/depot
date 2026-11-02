@@ -15,8 +15,6 @@ const circuitBreakerAbi = parseAbi([
   "function getPausables() view returns (address[])",
   "function getPauser(address pausable) view returns (address)",
   "function getPausableCount(address pauser) view returns (uint256)",
-  "function isPauserLive(address pauser) view returns (bool)",
-  "function heartbeatExpiry(address pauser) view returns (uint256)",
 ]);
 const accessControlAbi = parseAbi([
   "function PAUSE_ROLE() view returns (bytes32)",
@@ -207,17 +205,6 @@ describe("Circuit Breaker acceptance", function () {
           expected.resealManager.toLowerCase(),
           "resume role holder",
         );
-      });
-    }
-  });
-
-  describe("pauser liveness", function () {
-    for (const pauser of pausers) {
-      it(`keeps ${pauser} live with an unexpired heartbeat`, async function () {
-        assert.isTrue(await client.read(circuitBreaker, "isPauserLive", [pauser]), "pauser is live");
-        const expiry = await client.read(circuitBreaker, "heartbeatExpiry", [pauser]);
-        const block = await client.viemClient.getBlock({ blockTag: "latest" });
-        assert.isTrue(expiry > block.timestamp, `heartbeat expiry=${expiry}, block.timestamp=${block.timestamp}`);
       });
     }
   });

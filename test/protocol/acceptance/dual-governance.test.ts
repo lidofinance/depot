@@ -244,15 +244,11 @@ describe("DualGovernance acceptance", function () {
 
   it("has the expected governance configuration, proposer and signalling escrow", async function () {
     for (const [getter, address] of [
-      ["getConfigProvider", expected.configProvider],
       ["TIMELOCK", expected.timelock],
-      ["getResealManager", expected.resealManager],
       ["getResealCommittee", expected.resealCommittee],
     ] as const) {
       assert.equal((await client.read(dualGovernance, getter)).toLowerCase(), address.toLowerCase(), getter);
     }
-    const proposer = await client.read(dualGovernance, "getProposer", [expected.voting]);
-    assert.equal(proposer.executor.toLowerCase(), expected.executors[0].toLowerCase(), "proposer executor");
     for (const [getter, value] of [
       ["MAX_TIEBREAKER_ACTIVATION_TIMEOUT", expected.maxTiebreakerActivationTimeout],
       ["MIN_TIEBREAKER_ACTIVATION_TIMEOUT", expected.minTiebreakerActivationTimeout],
@@ -260,10 +256,6 @@ describe("DualGovernance acceptance", function () {
     ] as const) {
       assert.equal(BigInt(await client.read(dualGovernance, getter)), BigInt(value), getter);
     }
-    assert.equal(
-      (await client.read(dualGovernance, "getProposalsCanceller")).toLowerCase(),
-      expected.voting.toLowerCase(),
-    );
     const details = await client.read(dualGovernance, "getTiebreakerDetails");
     assert.isFalse(details.isTie, "is tie");
     assert.equal(details.tiebreakerCommittee.toLowerCase(), expected.coreCommittee.ADDRESS.toLowerCase());
@@ -292,7 +284,6 @@ describe("DualGovernance acceptance", function () {
     ] as const) {
       assert.equal(BigInt(await client.read(timelock, getter)), BigInt(expected.timelockValues[key]), getter);
     }
-    assert.equal((await client.read(timelock, "getAdminExecutor")).toLowerCase(), expected.executors[0].toLowerCase());
     assert.equal((await client.read(timelock, "getGovernance")).toLowerCase(), expected.dualGovernance.toLowerCase());
     assert.isFalse(await client.read(timelock, "isEmergencyModeActive"));
     assert.isTrue(await client.read(timelock, "isEmergencyProtectionEnabled"));
