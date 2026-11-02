@@ -29,6 +29,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { getRpcUrl } from "../src/network/network";
 import files from "../src/common/files";
 import { uploadDescription } from "./sub-tasks/upload-description";
+import { calculateCid, getUrlByCidV1 } from "../src/ipfs/utils";
 import { DevRpcClient, RpcClient, WriteContractOptions } from "../src/network";
 import { createTimedSpinner } from "../src/common/spinner";
 import { ProposalStatus } from "../src/omnibuses/dual-governance";
@@ -41,12 +42,17 @@ import { renderCustomOmnibusDeployment, renderDefaultOmnibusDeployment } from ".
 import { assertVoteAddresses } from "../src/omnibuses/address-lint";
 import { runAcceptance } from "./sub-tasks/acceptance";
 import { runSnapshots } from "./sub-tasks/snapshot";
+import { errorMessage, KnownError } from "../src/common/errors";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const FORK_BLOCK_DESCRIPTION = "Fork block number; defaults to the latest block";
 
-export const omnibusTaskDeps = { getOmnibusesDir: () => path.resolve(__dirname, "..", "omnibuses"), runSnapshots };
+export const omnibusTaskDeps = {
+  getOmnibusesDir: () => path.resolve(__dirname, "..", "omnibuses"),
+  runSnapshots,
+  uploadDescription,
+};
 
 export const omnibusTaskBuilders: Array<ReturnType<typeof task>> = [];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,24 +92,24 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
     );
 
     if (omnibusName.length === 0) {
-      throw new Error("Name can't be empty");
+      throw new KnownError("Name can't be empty");
     }
 
     const omnibusNameRegExp = /^\d{4}_\d{2}_\d{2}(_[a-z0-9_]*)?$/gi;
 
     if (!omnibusNameRegExp.test(omnibusName)) {
-      throw new Error("Invalid name. Omnibus name should match patter: yyyy_dd_mm_some_optional_info");
+      throw new KnownError("Invalid name. Omnibus name should match pattern: yyyy_mm_dd_some_optional_info");
     }
 
     const newOmnibusDir = path.join(omnibusTaskDeps.getOmnibusesDir(), omnibusName);
     const archivedOmnibusDir = await findArchivedOmnibusDir(omnibusName);
 
     if (archivedOmnibusDir) {
-      throw new Error(`Omnibus ${omnibusName} is already archived at ${archivedOmnibusDir}`);
+      throw new KnownError(`Omnibus ${omnibusName} is already archived at ${archivedOmnibusDir}`);
     }
 
     if (await files.touchDir(newOmnibusDir)) {
-      throw new Error(`Omnibus ${newOmnibusDir} already exist`);
+      throw new KnownError(`Omnibus ${newOmnibusDir} already exist`);
     }
 
     const templateDirName = "_omnibus_template";
@@ -160,19 +166,19 @@ defineTask("omnibus:archive", "Move launched omnibus to archive folder")
     const omnibus = await loadOmnibus(name);
 
     if (!omnibus.voteId) {
-      throw new Error(`Omnibus "${name}" "voteId" property is not set`);
+      throw new KnownError(`Omnibus "${name}" "voteId" property is not set`);
     }
 
     if (!omnibus.launchedAt) {
-      throw new Error(`Omnibus "${name}" launchedAt property is not set`);
+      throw new KnownError(`Omnibus "${name}" launchedAt property is not set`);
     }
 
     if (omnibus.quorumReached === undefined) {
-      throw new Error(`Omnibus doesn't have "quorumReached" property set`);
+      throw new KnownError(`Omnibus doesn't have "quorumReached" property set`);
     }
 
     if (!omnibus.executedAt && omnibus.quorumReached !== false) {
-      throw new Error(`Omnibus doesn't have "executedAt" property set and "quorumReached" is not false`);
+      throw new KnownError(`Omnibus doesn't have "executedAt" property set and "quorumReached" is not false`);
     }
 
     const omnibusPath = path.join(omnibusTaskDeps.getOmnibusesDir(), name);
@@ -244,7 +250,7 @@ defineTask("omnibus:deploy", "Deploy the contracts of an omnibus")
       const deployedAddresses = Object.fromEntries(
         Object.entries(deployment).map(([name, contract]) => [name, contract.address]),
       );
-      throw new Error(`Omnibus contracts already deployed at ${JSON.stringify(deployedAddresses)}`);
+      throw new KnownError(`Omnibus contracts already deployed at ${JSON.stringify(deployedAddresses)}`);
     }
 
     if (broadcast && defaultContractName) {
@@ -267,15 +273,18 @@ defineTask("omnibus:deploy", "Deploy the contracts of an omnibus")
       );
     }
 
-    const deployer = privateKeyToAccount(await getKeystores(hre).unlock());
+    const deployedContracts = await withSender(hre, client, broadcast, async (deployer) => {
+      console.log(`Network: ${client.getNetworkName()}`);
+      console.log(`Deployer: ${deployer.address}`);
+      console.log(`Balance: ${await client.getBalance(deployer.address)}`);
 
-    console.log(`Network: ${client.getNetworkName()}`);
-    console.log(`Deployer: ${deployer.address}`);
-    console.log(`Balance: ${await client.getBalance(deployer.address)}`);
-
-    await prompt.confirmOrAbort(`Deploy omnibus contract(s)?`);
-    const deployedContracts = await deployOmnibusForLaunch(hre, client, omnibus, defaultContractName, {
-      from: deployer,
+      const deployMessage = `Deploy omnibus contract(s) on chain ${await client.viemClient.getChainId()}?`;
+      if (broadcast) {
+        await prompt.confirmByTypingOrAbort(deployMessage, omnibus.network);
+      } else {
+        await prompt.confirmOrAbort(deployMessage);
+      }
+      return deployOmnibusForLaunch(hre, client, omnibus, defaultContractName, { from: deployer.from });
     });
 
     console.log(`Deployed omnibus contracts:`);
@@ -382,7 +391,7 @@ export function getRepositorySuites(repo?: string): RepositorySuite[] {
   }
   const selected = repositories.find((repository) => repository === repo);
   if (!selected) {
-    throw new Error(`Unsupported repo "${repo}"`);
+    throw new KnownError(`Unsupported repo "${repo}". Expected one of: ${repositories.join(", ")}`);
   }
   return [selected];
 }
@@ -391,7 +400,7 @@ export function getRepositorySuites(repo?: string): RepositorySuite[] {
 function assertMountDirectories(repositories: readonly RepositorySuite[]): void {
   for (const repository of repositories) {
     if (!multiTestDeps.pathExists(path.join(process.cwd(), "mount", repository))) {
-      throw new Error(`Mount directory mount/${repository} does not exist`);
+      throw new KnownError(`Mount directory mount/${repository} does not exist`);
     }
   }
 }
@@ -466,7 +475,7 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
           await stopOwnNode();
         } catch (stopError) {
           // the test failure is the actionable one, a failed cleanup only gets reported
-          console.error(`Failed to stop the local RPC node: ${(stopError as Error).message}`);
+          console.error(`Failed to stop the local RPC node: ${errorMessage(stopError)}`);
         }
         throw error;
       }
@@ -498,7 +507,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
     const omnibus = await loadOmnibus(name);
 
     if (omnibus.voteId || omnibus.launchedAt || omnibus.executedAt) {
-      throw new Error(`The omnibus "${omnibus.voteId}" already lunched. Aborting...`);
+      throw new KnownError(`The omnibus "${name}" already launched. Aborting...`);
     }
 
     const client = broadcast ? await createRpcClient(omnibus.network) : await prepareDevRpcClient(omnibus.network, hre);
@@ -507,7 +516,8 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
 
     const description = await readOmnibusDescriptionFile(name);
 
-    const descriptionUrl = await uploadDescription(name, description, false);
+    // the CID is computed locally, the upload waits for the broadcast confirmation
+    const descriptionUrl = getUrlByCidV1(await calculateCid(description));
     const voteDescription = omnibus.formatDescription(descriptionUrl);
     const evmScript = omnibus.getEvmScript();
 
@@ -539,36 +549,41 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
       );
     }
 
-    const pilot = privateKeyToAccount(await getKeystores(hre).unlock());
+    const { receipt, voteId } = await withSender(hre, client, broadcast, async (pilot) => {
+      const { ldo, tokenManager } = getGovernanceContracts(omnibus.network);
+      const [chainId, nonce, ethBalance, ldoBalanceInitial] = await Promise.all([
+        client.viemClient.getChainId(),
+        client.getTransactionCount({ address: pilot.address }),
+        client.getBalance(pilot.address),
+        client.read(ldo, "balanceOf", [pilot.address]),
+      ]);
+      let ldoBalance = ldoBalanceInitial;
 
-    const { ldo } = getGovernanceContracts(omnibus.network);
-    const [nonce, ethBalance, ldoBalanceInitial] = await Promise.all([
-      client.getTransactionCount({ address: pilot.address }),
-      client.getBalance(pilot.address),
-      client.read(ldo, "balanceOf", [pilot.address]),
-    ]);
-    let ldoBalance = ldoBalanceInitial;
+      if (client instanceof DevRpcClient && ldoBalance === 0n) {
+        const spinner = createTimedSpinner("Preparing pilot for the test launch...");
+        await setupLdoHolder(client, pilot.address);
+        ldoBalance = await client.read(ldo, "balanceOf", [pilot.address]);
+        spinner.succeed("Pilot was successfully prepared. Make sure account will heave enough LDO on launch");
+        console.log();
+      }
 
-    if (!broadcast && ldoBalance === 0n) {
-      const spinner = createTimedSpinner("Preparing pilot for the test launch...");
-      await setupLdoHolder(client as DevRpcClient, pilot.address);
-      ldoBalance = await client.read(ldo, "balanceOf", [pilot.address]);
-      spinner.succeed("Pilot was successfully prepared. Make sure account will heave enough LDO on launch");
       console.log();
-    }
 
-    console.log();
+      console.log(`Pilot: ${format.address(pilot.address)}`);
+      console.log(`    - nonce: ${nonce}`);
+      console.log(`    - ETH balance: ${formatEther(ethBalance)}`);
+      console.log(`    - LDO balance: ${formatEther(ldoBalance)}`);
+      console.log();
 
-    console.log(`Pilot: ${format.address(pilot.address)}`);
-    console.log(`    - nonce: ${nonce}`);
-    console.log(`    - ETH balance: ${formatEther(ethBalance)}`);
-    console.log(`    - LDO balance: ${formatEther(ldoBalance)}`);
-    console.log();
+      const launchMessage = `Proceed? The vote will be started via ${tokenManager.address} on chain ${chainId}`;
+      if (broadcast) {
+        await prompt.confirmByTypingOrAbort(launchMessage, omnibus.network);
+        await omnibusTaskDeps.uploadDescription(name, description, false);
+      } else {
+        await prompt.confirmOrAbort(launchMessage);
+      }
 
-    await prompt.confirmOrAbort(`Proceed?`);
-
-    const { receipt, voteId } = await startAragonVote(client, evmScript, voteDescription, {
-      from: pilot,
+      return startAragonVote(client, evmScript, voteDescription, { from: pilot.from });
     });
 
     console.log(`Vote id ${voteId} successfully launched:`);
@@ -705,9 +720,7 @@ async function resolveOmnibusDir(name: string): Promise<string> {
 
   const archivedDir = await findArchivedOmnibusDir(name);
   if (!archivedDir) {
-    throw new Error(
-      `Omnibus "${name}" not found in ${activeDir} or ${path.join(omnibusTaskDeps.getOmnibusesDir(), "_archive", "<network>", name)}`,
-    );
+    throw new KnownError(`Omnibus "${name}" not found in ${activeDir} or omnibuses/_archive/*/${name}`);
   }
   return archivedDir;
 }
@@ -725,6 +738,37 @@ export async function recordDefaultOmnibusDeployment(omnibusScriptPath: string, 
   const source = await fs.readFile(omnibusScriptPath, "utf-8");
   const updatedSource = renderDefaultOmnibusDeployment(source, address);
   await fs.writeFile(omnibusScriptPath, updatedSource, "utf-8");
+}
+
+interface Sender {
+  address: Address;
+  from: WriteContractOptions["from"];
+}
+
+// a dry run never decrypts the key: a transaction signed for a fork can be replayed on the real network
+async function withSender<T>(
+  hre: HardhatRuntimeEnvironment,
+  client: RpcClient,
+  broadcast: boolean,
+  action: (sender: Sender) => Promise<T>,
+): Promise<T> {
+  const keystores = getKeystores(hre);
+  if (broadcast) {
+    const account = privateKeyToAccount(await keystores.unlock());
+    return action({ address: account.address, from: account });
+  }
+  if (!(client instanceof DevRpcClient)) {
+    throw new Error(`A dry run without "--broadcast" must run on a dev RPC node`);
+  }
+  const { address } = await keystores.select();
+  await client.impersonate(address);
+  try {
+    return await action({ address, from: address });
+  } finally {
+    await client.stopImpersonating(address).catch((error: unknown) => {
+      console.error(`Failed to stop impersonating ${address}: ${errorMessage(error)}`);
+    });
+  }
 }
 
 export function deployOmnibusForLaunch(
@@ -769,7 +813,10 @@ async function prepareLocalRpcNode(network: NetworkName, forkBlock?: bigint): Pr
     runningNodeClient = await multiTestDeps.createDevRpcClient(network, localRpcUrl);
     console.log(fmt.success(`Successfully connected to the RPC node at ${localRpcUrl}\n`));
   } catch (error) {
-    console.log(fmt.padded(`Failed to connect to local RPC: "${(error as Error).message.split("\n")[0]}"`, 4));
+    if (error instanceof KnownError) {
+      throw error;
+    }
+    console.log(fmt.padded(`Failed to connect to local RPC: "${errorMessage(error).split("\n")[0]}"`, 4));
   }
   if (runningNodeClient) {
     await assertForkBlock(runningNodeClient, forkBlock);
@@ -778,7 +825,7 @@ async function prepareLocalRpcNode(network: NetworkName, forkBlock?: bigint): Pr
 
   const foreignContainer = await multiTestDeps.findContainerByName(name);
   if (foreignContainer) {
-    throw new Error(
+    throw new KnownError(
       `The node container "${name}" exists but is not reachable at ${localRpcUrl}. ` +
         `Stop it or wait until it is ready — the runner will not replace a container it does not own.`,
     );
@@ -787,7 +834,7 @@ async function prepareLocalRpcNode(network: NetworkName, forkBlock?: bigint): Pr
   logBlue(`Run ${name} container${forkBlock ? ` pinned to block ${forkBlock}` : ""}`);
   const container = await multiTestDeps.runImageInBackground(name, image, cmd, false, {
     Env: [`ETH_RPC_URL=${getRpcUrl(network)}`],
-    HostConfig: { PortBindings: { "8545/tcp": [{ HostPort: port }] } },
+    HostConfig: { PortBindings: { "8545/tcp": [{ HostIp: env.ETH_LOCAL_RPC_BIND_IP(), HostPort: port }] } },
   });
 
   try {
@@ -807,6 +854,9 @@ async function connectToStartedNode(network: NetworkName, port: string): Promise
     try {
       return await multiTestDeps.createDevRpcClient(network, getLocalRpcUrl(port));
     } catch (error) {
+      if (error instanceof KnownError) {
+        throw error;
+      }
       if (Date.now() >= deadline) {
         throw error;
       }
@@ -820,7 +870,7 @@ function resolveForkBlock(taskArg: string): bigint | undefined {
     return undefined;
   }
   if (!/^[1-9]\d*$/.test(taskArg)) {
-    throw new Error(`Fork block must be a positive integer, got "${taskArg}"`);
+    throw new KnownError(`Fork block must be a positive integer, got "${taskArg}"`);
   }
   return BigInt(taskArg);
 }
@@ -832,7 +882,7 @@ async function assertForkBlock(client: DevRpcClient, forkBlock?: bigint) {
   }
   const blockNumber = await client.getBlockNumber();
   if (blockNumber !== forkBlock) {
-    throw new Error(
+    throw new KnownError(
       `The RPC node at ${client.getRpcUrl()} is at block ${blockNumber}, but fork block ${forkBlock} was requested. ` +
         `Restart the node at that block or drop the --fork-block pin.`,
     );
@@ -851,7 +901,10 @@ async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntime
     standaloneClient = await createDevRpcClient(networkName, localDevRpcUrl);
     console.log(fmt.success(`Successfully connected to the RPC node at ${localDevRpcUrl}\n`));
   } catch (error) {
-    console.log(fmt.padded(`Failed to connect to local RPC: "${(error as Error).message.split("\n")[0]}"`, 4));
+    if (error instanceof KnownError) {
+      throw error;
+    }
+    console.log(fmt.padded(`Failed to connect to local RPC: "${errorMessage(error).split("\n")[0]}"`, 4));
     console.log(fmt.padded(`Trying to connect the in-process hardhat dev RPC node...`, 2));
   }
   if (standaloneClient) {
@@ -893,7 +946,7 @@ async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntime
     networkConnection = (await connectLocalDevNetwork()) as typeof networkConnection;
   } catch (error) {
     throw new Error(
-      `Failed to connect to local in-process dev network "default": ${(error as Error).message}. ` +
+      `Failed to connect to local in-process dev network "default": ${errorMessage(error)}. ` +
         `Run without "--network" for local dev execution or start a standalone local RPC node.`,
     );
   }
@@ -959,7 +1012,7 @@ export async function prepareOmnibus(
       console.log(`  - "${name}" - ${contract.label}[${contract.address}]`);
     }
   } else {
-    throw new Error(
+    throw new KnownError(
       `Omnibus contracts was not deployed. Use "omnibus:deploy <omnibus_name> --broadcast" command to deploy contracts`,
     );
   }

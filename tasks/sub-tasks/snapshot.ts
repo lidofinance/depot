@@ -2,6 +2,7 @@ import Mocha from "mocha";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { redactError } from "@/src/common/redact";
 import type { DevRpcClient } from "@/src/network";
 import { SNAPSHOT_SUITES, type UpgradeSnapshotConfig, type UpgradeSnapshotHooks } from "@/src/omnibuses/omnibus-types";
 import type { SnapshotContext } from "@/test/protocol/helpers/snapshot";
@@ -69,8 +70,9 @@ export async function runSnapshots(
             resolve();
           }
         });
+        // the reporter prints the errors after the run, and a forking node puts its RPC URL into them
         runner.on("fail", (_test: Mocha.Test, error: Error) => {
-          errors.push(error);
+          errors.push(redactError(error));
         });
       });
       const unobserved = Object.keys(config.expectedChanges ?? {}).filter((key) => !checkedChanges.has(key));

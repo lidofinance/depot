@@ -1,5 +1,7 @@
 import prompts from "prompts";
 
+import { KnownError } from "./errors";
+
 export interface SelectChoice {
   value: string;
   title: string;
@@ -13,15 +15,15 @@ export interface PasswordOptions {
   confirmation?: boolean; // true by default
 }
 
-class OperationAbortedError extends Error {
+class OperationAbortedError extends KnownError {
   constructor() {
     super("Operation was aborted by the user");
   }
 }
 
-class PasswordConfirmationMismatchError extends Error {
+class PasswordConfirmationMismatchError extends KnownError {
   constructor() {
-    super("Password confirmation does not mismatch the password. Aborting...");
+    super("Password confirmation does not match the password. Aborting...");
   }
 }
 
@@ -51,6 +53,14 @@ async function confirmOrAbort(message?: string, autoConfirm = false) {
 
   const isConfirmed = await promptDeps.toggle(message ?? "Confirm?");
   if (!isConfirmed) {
+    throw new OperationAbortedError();
+  }
+}
+
+/** A stray Enter must not send to a live network, so the user types the expected value */
+async function confirmByTypingOrAbort(message: string, expected: string) {
+  const answer = await text(`${message}\n  Type "${expected}" to confirm:`);
+  if (answer.trim() !== expected) {
     throw new OperationAbortedError();
   }
 }
@@ -115,12 +125,8 @@ async function sigint() {
 }
 
 async function text(message: string): Promise<string> {
-  const { value } = await prompts({
-    name: "value",
-    type: "text",
-    message,
-  });
-  return value;
+  const { value } = await prompts({ name: "value", type: "text", message }, DEFAULT_PROMPTS_OPTIONS);
+  return String(value ?? "");
 }
 
 export default {
@@ -129,6 +135,7 @@ export default {
   select,
   confirm,
   confirmOrAbort,
+  confirmByTypingOrAbort,
   password,
   sigint,
 };

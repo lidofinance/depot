@@ -72,9 +72,8 @@ describe("network: pure helpers", () => {
       expect(getLocalRpcUrl("19545")).to.equal("http://localhost:19545");
     });
 
-    it("returns input unchanged when already an http URL", () => {
-      expect(getLocalRpcUrl("http://other:8545")).to.equal("http://other:8545");
-      expect(getLocalRpcUrl("https://node.example")).to.equal("https://node.example");
+    it("rejects a URL, so a remote node cannot pass for the local one", () => {
+      expect(() => getLocalRpcUrl("https://node.example")).to.throw("must be a port number");
     });
   });
 
@@ -149,6 +148,7 @@ describe("network: client factories (provider overload)", () => {
   it("createDevRpcClient returns DevRpcClient when chainId matches", async () => {
     const provider = makeProvider((method) => {
       if (method === "eth_chainId") return chainIdHex(MAINNET_CHAIN_ID);
+      if (method === "web3_clientVersion") return "anvil/v0.2.0";
       throw new Error(`unexpected method: ${method}`);
     });
 
@@ -161,6 +161,7 @@ describe("network: client factories (provider overload)", () => {
   it("createDevRpcClient returns DevRpcClient for hardhat chainId regardless of requested network", async () => {
     const provider = makeProvider((method) => {
       if (method === "eth_chainId") return chainIdHex(HARDHAT_CHAIN_ID);
+      if (method === "web3_clientVersion") return "anvil/v0.2.0";
       throw new Error(`unexpected method: ${method}`);
     });
 
@@ -172,6 +173,7 @@ describe("network: client factories (provider overload)", () => {
   it("createDevRpcClient throws when chainId is neither hardhat nor the requested network", async () => {
     const provider = makeProvider((method) => {
       if (method === "eth_chainId") return chainIdHex(HOODI_CHAIN_ID);
+      if (method === "web3_clientVersion") return "anvil/v0.2.0";
       throw new Error(`unexpected method: ${method}`);
     });
 

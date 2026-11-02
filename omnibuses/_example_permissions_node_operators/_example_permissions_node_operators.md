@@ -26,7 +26,7 @@ Renew the Consensys key permission for operator 21, rename it to Consensys (Depo
 
 Historical read-only checks on 2026-09-06 at mainnet block **25918463** confirmed the Agent is the permission manager, the stored grant is exactly `arg0 EQ 21`, operator 21 is active, and module 1 resolves to the curated NodeOperatorsRegistry. Its vetted/deposited key counts are 11213/11150, so deactivation also emits the vetted-key reset. The test reads these values before execution and checks their changes.
 
-Run the example with the current CLI: `npm run omnibus:test -- _example_permissions_node_operators`. This command does not pin a block: a new in-process fork starts at latest, while an existing local node keeps its current state, so the operator and permission assumptions must still hold. Reproducing the recorded block requires the deferred `--fork-block` support; the historical run below used that option.
+Run the example with the current CLI: `npm run omnibus:test -- _example_permissions_node_operators`. This command does not pin a block: a new in-process fork starts at latest, while an existing local node keeps its current state, so the operator and permission assumptions must still hold. To reproduce the recorded block, add `--fork-block 25918463`; the historical run below used it.
 
 The domain integration test requires `ETH_MAINNET_RPC_URL`; its two tests are skipped when the variable is absent. It revokes and restores the permission on an isolated local fork, compares the generated calldata byte-for-byte with the live permission, and exercises permitted and denied signing-key removal. These checks cover this proposal's effects; they do not replace the protocol permission inventory.
 

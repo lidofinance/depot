@@ -20,6 +20,7 @@ jobs:
     env:
       ETH_MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
       GIT_BRANCH_STAKING_MODULES: develop
+      ETH_LOCAL_RPC_BIND_IP: "0.0.0.0"
       DOTENV_CONFIG_PATH: /dev/null
 
     steps:

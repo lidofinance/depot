@@ -331,8 +331,6 @@ export class Omnibus<
       } else {
         console.log(traceResult);
       }
-    } catch (error) {
-      console.error("omnibus.trace() failed with error:", error);
     } finally {
       await client.revert(snapshotId);
     }

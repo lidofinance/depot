@@ -4,23 +4,25 @@ import { RpcClient } from "./rpc-client";
 import { createWalletClient, custom, CustomTransport, http, HttpTransport, publicActions } from "viem";
 import { hardhat, holesky, hoodi, mainnet } from "viem/chains";
 import { DevRpcClient } from "./dev-rpc-client";
+import { KnownError } from "../common/errors";
 
 export type NetworkName = "mainnet" | "holesky" | "hoodi";
 export type ChainId = typeof MAINNET_CHAIN_ID | typeof HOLESKY_CHAIN_ID | typeof HOODI_CHAIN_ID;
 
-class UnsupportedNetwork extends Error {
+class UnsupportedNetwork extends KnownError {
   constructor(networkName: string) {
     super(`Unsupported chain ${networkName}`);
   }
 }
 
-class UnsupportedChainId extends Error {
+class UnsupportedChainId extends KnownError {
   constructor(chainId: number) {
     super(`Unsupported chain ${chainId}`);
   }
 }
 
 const HARDHAT_CHAIN_ID = 31337;
+const RPC_TIMEOUT_MS = 3_000_000;
 export const HOODI_CHAIN_ID = 560048;
 export const MAINNET_CHAIN_ID = 1;
 export const HOLESKY_CHAIN_ID = 17000;
@@ -70,25 +72,34 @@ export async function createRpcClient(
   return new RpcClient(network, viemClient);
 }
 
-export async function createDevRpcClient(network: NetworkName, rpcUrl?: string): Promise<DevRpcClient>;
+export async function createDevRpcClient(network: NetworkName, rpcUrl: string): Promise<DevRpcClient>;
 export async function createDevRpcClient(network: NetworkName, provider: EthereumProvider): Promise<DevRpcClient>;
 export async function createDevRpcClient(
   network: NetworkName,
-  rpcUrlOrProvider: string | undefined | EthereumProvider,
+  rpcUrlOrProvider: string | EthereumProvider,
 ): Promise<DevRpcClient> {
-  const viemClient =
-    typeof rpcUrlOrProvider === "string" || rpcUrlOrProvider === undefined
-      ? await createDevPublicWalletClientFromNetwork(network, rpcUrlOrProvider ?? getRpcUrl(network))
-      : await createDevPublicWalletClientFromProvider(network, rpcUrlOrProvider);
+  const transport =
+    typeof rpcUrlOrProvider === "string"
+      ? http(rpcUrlOrProvider, { timeout: RPC_TIMEOUT_MS })
+      : custom(rpcUrlOrProvider);
+  const client = new DevRpcClient(network, createPublicWalletClient(network, transport));
 
-  return new DevRpcClient(network, viemClient);
+  // node type first: callers fall back to the in-process node on any error but a KnownError
+  await assertDevNode(client);
+  const chainId = await client.viemClient.getChainId();
+  if (chainId === HARDHAT_CHAIN_ID) {
+    return new DevRpcClient(network, createWalletClient({ chain: hardhat, transport }).extend(publicActions));
+  }
+  assertChainId(network, chainId);
+  return client;
 }
 
-export function getLocalRpcUrl(port: string | number) {
-  if (typeof port === "string" && /^https?:\/\//i.test(port)) {
-    return port;
+export function getLocalRpcUrl(port: string | number): string {
+  const portNumber = Number(port);
+  if (!/^\d+$/.test(String(port)) || portNumber < 1 || portNumber > 65535) {
+    throw new KnownError(`ETH_LOCAL_RPC_PORT must be a port number, got "${port}"`);
   }
-  return `http://localhost:${port}`;
+  return `http://localhost:${portNumber}`;
 }
 
 export default {
@@ -106,22 +117,32 @@ export default {
 // Helper Methods
 // ---
 
-async function createPublicWalletClientFromNetwork(network: NetworkName, rpcUrl: string) {
-  const transport = http(rpcUrl, { timeout: 300_0000 });
-  const viemClient = createPublicWalletClient(network, transport);
-  const chainId = await viemClient.getChainId();
+const DEV_NODE_NAMES = new Set(["hardhat", "anvil"]);
 
-  if (chainId !== getChainIdByNetworkName(network)) {
-    throw new Error(`Unexpected chain id`);
+function assertChainId(network: NetworkName, chainId: number) {
+  const expectedChainId = getChainIdByNetworkName(network);
+  if (chainId !== expectedChainId) {
+    throw new KnownError(`Unexpected chain id ${chainId} of the RPC node, expected ${expectedChainId} (${network})`);
   }
+}
 
+async function assertDevNode(client: DevRpcClient) {
+  const { name } = await client.getNodeInfo();
+  if (!DEV_NODE_NAMES.has(name)) {
+    throw new KnownError(`Refusing a "${name}" node as the dev RPC node: only hardhat and anvil are allowed`);
+  }
+}
+
+async function createPublicWalletClientFromNetwork(network: NetworkName, rpcUrl: string) {
+  const transport = http(rpcUrl, { timeout: RPC_TIMEOUT_MS });
+  const viemClient = createPublicWalletClient(network, transport);
+  assertChainId(network, await viemClient.getChainId());
   return viemClient;
 }
 
 async function createPublicWalletClientFromProvider(network: NetworkName, provider: EthereumProvider) {
   const transport = custom(provider);
   const viemClient = createPublicWalletClient(network, transport);
-
   const chainId = await viemClient.getChainId();
 
   if (chainId === HARDHAT_CHAIN_ID) {
@@ -130,43 +151,8 @@ async function createPublicWalletClientFromProvider(network: NetworkName, provid
     return createWalletClient({ chain: hardhat, transport }).extend(publicActions);
   }
 
-  if (chainId === getChainIdByNetworkName(network)) {
-    return viemClient;
-  }
-
-  throw new Error(`Unexpected chain id`);
-}
-
-async function createDevPublicWalletClientFromNetwork(network: NetworkName, rpcUrl: string) {
-  const transport = http(rpcUrl, { timeout: 300_0000 });
-  const viemClient = createPublicWalletClient(network, transport);
-  const chainId = await viemClient.getChainId();
-
-  if (chainId === HARDHAT_CHAIN_ID) {
-    return createWalletClient({ chain: hardhat, transport }).extend(publicActions);
-  }
-
-  if (chainId === getChainIdByNetworkName(network)) {
-    return viemClient;
-  }
-
-  throw new Error(`Unexpected chain id`);
-}
-
-async function createDevPublicWalletClientFromProvider(network: NetworkName, provider: EthereumProvider) {
-  const transport = custom(provider);
-  const viemClient = createPublicWalletClient(network, transport);
-  const chainId = await viemClient.getChainId();
-
-  if (chainId === HARDHAT_CHAIN_ID) {
-    return createWalletClient({ chain: hardhat, transport }).extend(publicActions);
-  }
-
-  if (chainId === getChainIdByNetworkName(network)) {
-    return viemClient;
-  }
-
-  throw new Error(`Unexpected chain id`);
+  assertChainId(network, chainId);
+  return viemClient;
 }
 
 function createPublicWalletClient<T extends HttpTransport | CustomTransport>(network: NetworkName, transport: T) {

@@ -40,7 +40,7 @@ Current command:
 npm run omnibus:test -- _example_agent_dg_kernel_omnibus
 ```
 
-The results below were recorded on 2026-09-06 with Node 22.10.0 on an isolated in-process mainnet fork at block **25918463**, using the then-available `--fork-block 25918463` option. The current CLI does not support that option.
+The results below were recorded on 2026-09-06 with Node 22.10.0 on an isolated in-process mainnet fork at block **25918463**, using `--fork-block 25918463`.
 
 - The 1248-byte EVM script has keccak256 `0xf7917291a3e907f88ebc2c01fdd2674a74ca57b842dfa7842e59fd21bb5b4318`. It matched the script of the freshly executed vote **205** through `isValidVoteScript`.
 - Vote enact submitted proposal **14** and left the fixture app on V1. Proposal execution granted the temporary role, upgraded the selected Kernel app to V2 and revoked the role. Version reads returned 1 before execution and 2 afterwards.

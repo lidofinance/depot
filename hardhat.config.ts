@@ -7,7 +7,7 @@ import { keystoreTaskBuilders } from "./src/hardhat-keystores/tasks";
 import { abiTaskBuilders } from "./tasks/abi";
 
 import { ContractInfoResolver } from "./src/contract-info-resolver/contract-info-resolver";
-import { findContainerByName, stopContainer } from "./src/docker";
+import { withCliErrorBoundary } from "./src/hardhat/task-errors";
 
 const etherscanToken = env.ETHERSCAN_TOKEN();
 
@@ -18,57 +18,10 @@ if (etherscanToken) {
 }
 ContractInfoResolver.enableInMemoryCache();
 
-let isShuttingDown = false;
-
-process.on("SIGINT", () => {
-  console.log("SIGINT");
-  if (!isShuttingDown) {
-    isShuttingDown = true;
-    void stopDockerContainers();
-  }
-});
-
-process.on("SIGTERM", () => {
-  console.log("SIGTERM");
-  if (!isShuttingDown) {
-    isShuttingDown = true;
-    void stopDockerContainers();
-  }
-});
-
-async function stopDockerContainers() {
-  const containerNames = [
-    "lido-core",
-    "lido-scripts",
-    "lido-scripts-1",
-    "lido-dual-governance",
-    "lido-staking-modules",
-    "lido-staking-modules-1",
-    "lido-stonks",
-    "hh-rpc-node",
-  ];
-  const containers = await Promise.all(containerNames.map((name) => findContainerByName(name)));
-
-  const stopContainerPromises: Promise<unknown>[] = [];
-  for (let i = 0; i < containerNames.length; ++i) {
-    const name = containerNames[i];
-    const container = containers[i];
-    if (container) {
-      console.log(`Stopping container ${name} initiated`);
-      stopContainerPromises.push(stopContainer(container, name));
-    }
-  }
-
-  console.log("Waiting for containers stopped...");
-  await Promise.allSettled(stopContainerPromises);
-}
-
 const config: HardhatUserConfig = {
-  tasks: [
-    ...omnibusTaskBuilders.map((taskBuilder) => taskBuilder.build()),
-    ...keystoreTaskBuilders.map((taskBuilder) => taskBuilder.build()),
-    ...abiTaskBuilders.map((taskBuilder) => taskBuilder.build()),
-  ],
+  tasks: [...omnibusTaskBuilders, ...keystoreTaskBuilders, ...abiTaskBuilders].map((taskBuilder) =>
+    withCliErrorBoundary(taskBuilder.build()),
+  ),
   paths: {
     sources: {
       solidity: ["contracts", "omnibuses"],

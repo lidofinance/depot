@@ -38,7 +38,11 @@ describe("omnibus:test acceptance option", () => {
     );
     await writeFile(path.join(snapshotDirectory, "snapshot_fixture.md"), "");
     process.env = { ...originalEnv, ETH_MAINNET_RPC_URL: "http://localhost:18545" };
-    globalThis.fetch = () => Promise.resolve(Response.json({ jsonrpc: "2.0", id: 0, result: "0x1" }));
+    globalThis.fetch = (_input: string | URL | Request, init?: RequestInit) => {
+      const { method } = JSON.parse(String(init?.body)) as { method: string };
+      const result = method === "web3_clientVersion" ? "HardhatNetwork/3.0.0/@nomicfoundation/edr" : "0x1";
+      return Promise.resolve(Response.json({ jsonrpc: "2.0", id: 0, result }));
+    };
     sinon.stub(console, "log");
     sinon.stub(omnibusTaskDeps, "getOmnibusesDir").returns(root);
     sinon.stub(Omnibus.prototype, "hasDeployMethod").returns(true);

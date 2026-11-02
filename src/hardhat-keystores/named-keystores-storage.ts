@@ -3,6 +3,9 @@ import fs from "fs/promises";
 import { KeyStore } from "web3-types";
 import { NamedKeystore } from "./named-keystore";
 
+const KEYSTORE_EXTENSION = ".json";
+const KEYSTORE_FILE_MODE = 0o600;
+
 export class NamedKeystoresStorage {
   private static instances: Record<string, NamedKeystoresStorage> = {};
   public static create(keystoresDir: string): NamedKeystoresStorage {
@@ -29,6 +32,21 @@ export class NamedKeystoresStorage {
     this.accounts.push(acc);
   }
 
+  async replace(keystore: NamedKeystore): Promise<void> {
+    await this.checkKeystoresDir();
+    const keystorePath = this.getKeystorePath(keystore.name);
+    // not ending in ".json", so a leftover temp file is never loaded as a keystore
+    const tempPath = `${keystorePath}.tmp`;
+    try {
+      await fs.writeFile(tempPath, keystore.toJson(), { mode: KEYSTORE_FILE_MODE });
+      await fs.rename(tempPath, keystorePath);
+    } catch (error) {
+      await fs.rm(tempPath, { force: true }).catch(() => undefined);
+      throw error;
+    }
+    this.accounts = [...this.accounts.filter((existing) => existing.name !== keystore.name), keystore];
+  }
+
   async all(): Promise<NamedKeystore[]> {
     await this.loadAccountsFromFS();
     return this.accounts;
@@ -44,11 +62,14 @@ export class NamedKeystoresStorage {
       return;
     }
     await this.checkKeystoresDir();
-    const fileNames = await fs.readdir(this.keystoresDir);
+    const fileNames = (await fs.readdir(this.keystoresDir)).filter((fileName) => fileName.endsWith(KEYSTORE_EXTENSION));
     this.accounts = await Promise.all(
       fileNames.map(
         async (fileName) =>
-          new NamedKeystore(fileName.split(".")[0] ?? fileName, JSON.parse(await this.read(fileName)) as KeyStore),
+          new NamedKeystore(
+            fileName.slice(0, -KEYSTORE_EXTENSION.length),
+            JSON.parse(await this.read(fileName)) as KeyStore,
+          ),
       ),
     );
     this.isLoaded = true;
@@ -60,11 +81,11 @@ export class NamedKeystoresStorage {
 
   private async write(keystore: NamedKeystore) {
     await this.checkKeystoresDir();
-    await fs.writeFile(this.getKeystorePath(keystore.name), keystore.toJson());
+    await fs.writeFile(this.getKeystorePath(keystore.name), keystore.toJson(), { mode: KEYSTORE_FILE_MODE });
   }
 
   private getKeystorePath(name: string) {
-    return path.join(this.keystoresDir, `${name}.json`);
+    return path.join(this.keystoresDir, `${name}${KEYSTORE_EXTENSION}`);
   }
 
   private async checkKeystoresDir() {

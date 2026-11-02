@@ -10,20 +10,28 @@ import {
   ContractFunctionName,
   CreateEventFilterParameters,
   CustomTransport,
+  encodeDeployData,
+  encodeFunctionData,
   GetFilterLogsParameters,
   GetTransactionCountParameters,
   GetTransactionParameters,
   GetTransactionReceiptParameters,
+  Hash,
+  Hex,
   HttpTransport,
+  keccak256,
+  LocalAccount,
   MaybeAbiEventName,
   MaybeExtractEventArgsFromAbi,
   PublicClient,
   ReadContractReturnType,
+  TransactionReceipt,
   WalletClient,
 } from "viem";
 import { Contract } from "../contracts";
 import { NetworkName } from "./network";
 import { HexStrPrefixed } from "../common/bytes";
+import { errorMessage, KnownError } from "../common/errors";
 
 interface NodeInfo {
   name: string;
@@ -44,6 +52,22 @@ export interface WriteContractOptions {
   maxFeePerGas?: bigint;
   maxPriorityFeePerGas?: bigint;
   disableSimulation?: boolean;
+}
+
+interface TransactionData {
+  to?: Address;
+  data: Hex;
+}
+
+function isLocalAccount(from: Address | Account): from is LocalAccount {
+  return typeof from === "object" && from.type === "local";
+}
+
+function rerunError(failure: string, hash: Hash, cause: unknown): KnownError {
+  return new KnownError(
+    `${failure}: ${errorMessage(cause).split("\n")[0]}. Do not rerun: check ${hash} and the sender nonce in a block explorer`,
+    cause instanceof Error ? cause : undefined,
+  );
 }
 
 export class RpcClient {
@@ -80,9 +104,15 @@ export class RpcClient {
   >(c: contract, functionName: functionName, args: args, options: WriteContractOptions) {
     const { request } = await this.simulate(c, functionName, args, options);
 
+    if (isLocalAccount(options.from)) {
+      // widened: viem cannot resolve the encoder overload for a generic ABI
+      const abi: Abi = c.abi;
+      const encodedFunctionName: string = functionName;
+      const data = encodeFunctionData({ abi, functionName: encodedFunctionName, args: args as unknown[] });
+      return this.#signAndSend(options.from, { to: c.address, data }, options);
+    }
     const txHash = await this.viemClient.writeContract(request);
-    const receipt = await this.viemClient.waitForTransactionReceipt({ hash: txHash });
-    return receipt;
+    return this.#waitForSuccessfulReceipt(txHash);
   }
 
   async read<
@@ -109,16 +139,21 @@ export class RpcClient {
   }
 
   async deployContract(input: DeployContractInput, options: WriteContractOptions) {
-    const hash = await this.viemClient.deployContract({
-      abi: input.abi,
-      args: input.args,
-      bytecode: input.bytecode,
-      chain: this.viemClient.chain,
-      account: options.from,
-      maxFeePerGas: options.maxFeePerGas,
-      maxPriorityFeePerGas: options.maxPriorityFeePerGas,
-    });
-    const receipt = await this.viemClient.waitForTransactionReceipt({ hash });
+    let receipt: TransactionReceipt;
+    if (isLocalAccount(options.from)) {
+      receipt = await this.#signAndSend(options.from, { data: encodeDeployData(input) }, options);
+    } else {
+      const hash = await this.viemClient.deployContract({
+        abi: input.abi,
+        args: input.args,
+        bytecode: input.bytecode,
+        chain: this.viemClient.chain,
+        account: options.from,
+        maxFeePerGas: options.maxFeePerGas,
+        maxPriorityFeePerGas: options.maxPriorityFeePerGas,
+      });
+      receipt = await this.#waitForSuccessfulReceipt(hash);
+    }
     if (!receipt.contractAddress) {
       throw new Error(`Contract deploy failed`);
     }
@@ -127,6 +162,46 @@ export class RpcClient {
 
   getNetworkName() {
     return this.#networkName;
+  }
+
+  // the hash is printed before sending: a dropped response must not hide a transaction already in the mempool
+  async #signAndSend(
+    account: LocalAccount,
+    transaction: TransactionData,
+    options: WriteContractOptions,
+  ): Promise<TransactionReceipt> {
+    const request = await this.viemClient.prepareTransactionRequest({
+      ...transaction,
+      account,
+      chain: this.viemClient.chain,
+      maxFeePerGas: options.maxFeePerGas,
+      maxPriorityFeePerGas: options.maxPriorityFeePerGas,
+    });
+    const serializedTransaction = await this.viemClient.signTransaction({ ...request, chain: this.viemClient.chain });
+    const hash = keccak256(serializedTransaction);
+    console.log(`Sending transaction ${hash}`);
+
+    try {
+      await this.viemClient.sendRawTransaction({ serializedTransaction });
+    } catch (error) {
+      throw rerunError(`Sending transaction ${hash} failed`, hash, error);
+    }
+    return this.#waitForSuccessfulReceipt(hash);
+  }
+
+  async #waitForSuccessfulReceipt(hash: Hash): Promise<TransactionReceipt> {
+    let receipt: TransactionReceipt;
+    try {
+      receipt = await this.viemClient.waitForTransactionReceipt({ hash });
+    } catch (error) {
+      throw rerunError(`Waiting for the receipt of transaction ${hash} failed`, hash, error);
+    }
+    if (receipt.status !== "success") {
+      throw new KnownError(
+        `Transaction ${hash} reverted in block ${receipt.blockNumber}. Do not rerun before finding the revert reason`,
+      );
+    }
+    return receipt;
   }
 
   getBalance(address: Address) {

@@ -49,4 +49,4 @@ Report the network/block, commands, results, saved payload hash, source/deployme
 
 When authoring from a description, derive the payload from that description and verified contract interfaces. Fetching the target's ABI differs from copying another implementation of the vote. Perform an independent comparison to an existing vote's script when that verification is requested; do not use it to fill unspecified payload inputs silently.
 
-Deployment, publication and launch follow the guide and the user's authorization. A local launch may still contact the configured IPFS provider. A successful local rehearsal does not establish public deployment or lifecycle facts.
+Deployment, publication and launch follow the guide and the user's authorization. A local rehearsal (no `--broadcast`) uses a local dev node, selects a keystore account without unlocking it and skips the IPFS upload; `--broadcast` needs typed network-name confirmation. A successful local rehearsal does not establish public deployment or lifecycle facts.
