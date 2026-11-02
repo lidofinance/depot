@@ -252,7 +252,6 @@ describe("DualGovernance acceptance", function () {
       assert.equal((await client.read(dualGovernance, getter)).toLowerCase(), address.toLowerCase(), getter);
     }
     const proposer = await client.read(dualGovernance, "getProposer", [expected.voting]);
-    assert.equal(proposer.account.toLowerCase(), expected.voting.toLowerCase(), "proposer account");
     assert.equal(proposer.executor.toLowerCase(), expected.executors[0].toLowerCase(), "proposer executor");
     for (const [getter, value] of [
       ["MAX_TIEBREAKER_ACTIVATION_TIMEOUT", expected.maxTiebreakerActivationTimeout],

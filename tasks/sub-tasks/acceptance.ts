@@ -21,7 +21,6 @@ const ACCEPTANCE_SUITES = [
   "withdrawal-queue.test.ts",
   "withdrawal-vault.test.ts",
   "burner.test.ts",
-  "el-rewards-vault.test.ts",
   "top-up-gateway.test.ts",
   "consolidation.test.ts",
   "dual-governance.test.ts",

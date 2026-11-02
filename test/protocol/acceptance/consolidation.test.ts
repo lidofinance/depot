@@ -44,8 +44,6 @@ const migratorAbi = parseAbi([
   ...accessControl,
   "function getStakingRouter() view returns (address)",
   "function getConsolidationBus() view returns (address)",
-  "function sourceModuleId() view returns (uint256)",
-  "function targetModuleId() view returns (uint256)",
   "function initialize(address admin)",
   "function allowPair(uint256 sourceOperatorId, uint256 targetOperatorId, address submitter)",
   "function disallowPair(uint256 sourceOperatorId, uint256 targetOperatorId)",
@@ -66,10 +64,6 @@ const configurations = {
     committee: "0x2570e0b22AD904501dfB0d49575991ACB801dD91",
     easyTrackExecutor: "0xFE5986E06210aC1eCC1aDCafc0cc7f8D63B3F977",
     batchSize: 200n,
-    sourceModuleId: 1n,
-    curatedModuleId: 1n,
-    targetModuleId: 4n,
-    curatedV2ModuleId: 4n,
   },
   hoodi: {
     gateway: "0xC9991Bb865d025364BCbBd99f36e85889Fb68e69",
@@ -85,10 +79,6 @@ const configurations = {
     committee: "0x84DffcfB232594975C608DE92544Ff239a24c9E9",
     easyTrackExecutor: "0x79a20FD0FA36453B2F45eAbab19bfef43575Ba9E",
     batchSize: 200n,
-    sourceModuleId: 1n,
-    curatedModuleId: 1n,
-    targetModuleId: 5n,
-    curatedV2ModuleId: 5n,
   },
 } as const;
 
@@ -263,7 +253,7 @@ describe("Consolidation acceptance", function () {
       assert.equal((await client.read(proxy, "proxy__getAdmin")).toLowerCase(), expected.agent.toLowerCase(), "admin");
     });
 
-    it("has the expected router, bus and source and target module IDs", async function () {
+    it("has the expected router and bus", async function () {
       assert.equal(
         (await client.read(migrator, "getStakingRouter")).toLowerCase(),
         expected.stakingRouter.toLowerCase(),
@@ -273,22 +263,6 @@ describe("Consolidation acceptance", function () {
         (await client.read(migrator, "getConsolidationBus")).toLowerCase(),
         expected.bus.toLowerCase(),
         "bus",
-      );
-      assert.equal(
-        await client.read(migrator, "sourceModuleId"),
-        expected.sourceModuleId,
-        "consolidation source module",
-      );
-      assert.equal(await client.read(migrator, "sourceModuleId"), expected.curatedModuleId, "Curated source module");
-      assert.equal(
-        await client.read(migrator, "targetModuleId"),
-        expected.targetModuleId,
-        "consolidation target module",
-      );
-      assert.equal(
-        await client.read(migrator, "targetModuleId"),
-        expected.curatedV2ModuleId,
-        "Curated v2 target module",
       );
     });
 

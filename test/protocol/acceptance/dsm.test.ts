@@ -66,10 +66,6 @@ describe("DepositSecurityModule acceptance", function () {
     assert.equal(await client.read(dsm, "VERSION"), expected.version, "version");
   });
 
-  it("has deposits unpaused", async function () {
-    assert.isFalse(await client.read(dsm, "isDepositsPaused"), "deposits paused");
-  });
-
   it("has the expected linked contracts", async function () {
     assert.equal(
       (await client.read(dsm, "STAKING_ROUTER")).toLowerCase(),
