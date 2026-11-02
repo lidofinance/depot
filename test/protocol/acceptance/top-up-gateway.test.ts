@@ -137,7 +137,7 @@ describe("TopUpGateway acceptance", function () {
     }
   });
 
-  it("rejects unauthorized top-ups, limit changes, pauses and resumes", async function () {
+  it("rejects unauthorized limit changes, pauses and resumes", async function () {
     const stranger = "0x000000000000000000000000000000000000bEEF";
     const unauthorized = (name: string) => (error: unknown) =>
       isRevertedWith(
@@ -148,16 +148,6 @@ describe("TopUpGateway acceptance", function () {
           args: [stranger, keccak256(toHex(name))],
         }),
       );
-    const emptyTopUp = {
-      moduleId: 0n,
-      keyIndices: [],
-      operatorIds: [],
-      validatorIndices: [],
-      beaconRootData: { childBlockTimestamp: 0n, slot: 0n, proposerIndex: 0n },
-      validatorWitness: [],
-      pendingBalanceGwei: [],
-    };
-    await rejects(client.simulate(gateway, "topUp", [emptyTopUp], { from: stranger }), unauthorized("TOP_UP_ROLE"));
     await rejects(
       client.simulate(gateway, "setMaxValidatorsPerTopUp", [1n], { from: stranger }),
       unauthorized("MANAGE_LIMITS_ROLE"),

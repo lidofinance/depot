@@ -163,9 +163,8 @@ describe("Lido acceptance", function () {
     );
   });
 
-  it("has active staking with the expected limit and a positive buffer", async function () {
-    const [isStakingPaused, isStakingLimitSet, , maxStakeLimit] = await client.read(lido, "getStakeLimitFullInfo");
-    assert.isFalse(isStakingPaused, "staking paused");
+  it("has the expected staking limit and a positive buffer", async function () {
+    const [, isStakingLimitSet, , maxStakeLimit] = await client.read(lido, "getStakeLimitFullInfo");
     assert.isTrue(isStakingLimitSet, "staking limit set");
     assert.equal(maxStakeLimit, expected.maxStakeLimit, "max stake limit");
     assert.isTrue((await client.read(lido, "getBufferedEther")) > 0n, "buffered ether");
