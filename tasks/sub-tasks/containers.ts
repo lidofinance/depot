@@ -1,17 +1,38 @@
-import { buildRepo, Repos, runTestsFromRepo } from "../../src/docker";
+import { buildRepo, RepositorySuite, runTestsFromRepo } from "../../src/docker";
 import * as env from "../../src/common/env";
 import { logBlue } from "../../src/common/color";
 import Docker from "dockerode";
 import type { ContainerCreateOptions } from "dockerode";
+import type { NetworkName } from "../../src/network/network";
 
 export const containerDeps = { buildRepo, runTestsFromRepo };
+
+/**
+ * Networks each repo's own CI runs its regressions on;
+ * only core has Hoodi (core `.github/workflows/tests-integration-hoodi.yml`)
+ */
+export const SUITE_NETWORKS: Record<RepositorySuite, readonly NetworkName[]> = {
+  core: ["mainnet", "hoodi"],
+  "dual-governance": ["mainnet"],
+  "staking-modules": ["mainnet"],
+  scripts: ["mainnet"],
+  stonks: ["mainnet"],
+};
+
+export const REPO_BRANCHES: Record<RepositorySuite, () => string> = {
+  core: env.GIT_BRANCH_CORE,
+  "dual-governance": env.GIT_BRANCH_DG,
+  scripts: env.GIT_BRANCH_SCRIPTS,
+  "staking-modules": env.GIT_BRANCH_STAKING_MODULES,
+  stonks: env.GIT_BRANCH_STONKS,
+};
 
 function getDockerLocalRpcUrl() {
   return `http://host.docker.internal:${env.ETH_LOCAL_RPC_PORT()}`;
 }
 
 /** `--pattern default` runs the example mounted from `mount/<repo>`, in the path layout each repo expects */
-const DEFAULT_PATTERNS: Record<Exclude<Repos, "depot">, string> = {
+const DEFAULT_PATTERNS: Record<RepositorySuite, string> = {
   core: "test/custom/_example_omnibus_test_for_core_repo.ts",
   scripts: "tests/custom/_example_omnibus_test_for_scripts_repo.py",
   "dual-governance": "test/custom/*",
@@ -20,53 +41,41 @@ const DEFAULT_PATTERNS: Record<Exclude<Repos, "depot">, string> = {
 };
 
 export async function runRepoTests(
-  repo: Exclude<Repos, "depot">,
+  repo: RepositorySuite,
   pattern?: string,
-  hideDebug = false,
   shouldMountTests = false,
+  network: NetworkName = "mainnet",
 ) {
   const resolvedPattern = pattern === "default" ? DEFAULT_PATTERNS[repo] : pattern;
   if (repo === "core") {
-    return runCoreTests(resolvedPattern, hideDebug, shouldMountTests);
+    return runCoreTests(network, resolvedPattern, shouldMountTests);
   } else if (repo === "dual-governance") {
-    return runDgTests(resolvedPattern, hideDebug, shouldMountTests);
+    return runDgTests(resolvedPattern, shouldMountTests);
   } else if (repo === "scripts") {
-    return runScriptsTests(resolvedPattern, hideDebug, shouldMountTests);
+    return runScriptsTests(resolvedPattern, shouldMountTests);
   } else if (repo === "staking-modules") {
-    return runStakingModulesTests(resolvedPattern, hideDebug, shouldMountTests);
+    return runStakingModulesTests(resolvedPattern, shouldMountTests);
   } else if (repo === "stonks") {
-    return runStonksTests(resolvedPattern, hideDebug, shouldMountTests);
+    return runStonksTests(resolvedPattern, shouldMountTests);
   }
   throw new Error(`Unsupported repo "${repo}"`);
 }
 
-const runCoreTests = async (
-  pattern: string = "test/integration/**/*.ts",
-  hideDebug = false,
-  shouldMountTests = false,
-) => {
-  const repo: Repos = "core";
+const runCoreTests = async (network: NetworkName, pattern?: string, shouldMountTests = false) => {
+  const repo = "core";
 
-  // same as core's scripts/run-test-integration.sh, but with a custom test pattern
-  const cmd = [
-    "bash",
-    "-c",
-    `. scripts/utils/migration-env.sh && prepare_migration_env test && yarn hardhat --network "$RUN_NETWORK" test ${pattern} --disabletracer`,
-  ];
+  // the pattern is data for bash globbing, never part of the command string
+  const cmd = pattern
+    ? ["bash", "-c", "shopt -s globstar && yarn test:integration $CORE_TEST_PATTERN"]
+    : ["yarn", "test:integration"];
 
   const config: Docker.ContainerCreateOptions = {
     Env: [
-      `LOCAL_RPC_URL=${getDockerLocalRpcUrl()}`,
       `RPC_URL=${getDockerLocalRpcUrl()}`,
-      "NETWORK=mainnet",
-      "RUN_NETWORK=local",
-      "MODE=forking",
-      "AUTO_CONFIRM=true",
-      "ALLOW_SKIP_STEPS=true",
-      "SKIP_INTERFACES_CHECK=true",
-      "SKIP_CONTRACT_SIZE=true",
-      "SKIP_GAS_REPORT=true",
-      "SKIP_LINT_SOLIDITY=true",
+      `NETWORK=${network}`,
+      // as core `.github/workflows/tests-integration-mainnet.yml`
+      "NODE_OPTIONS=--max_old_space_size=10240",
+      ...(pattern ? [`CORE_TEST_PATTERN=${pattern}`] : []),
     ],
   };
 
@@ -76,45 +85,46 @@ const runCoreTests = async (
     };
   }
 
-  const imageTag = await containerDeps.buildRepo(repo, env.GIT_BRANCH_CORE(), hideDebug);
+  const imageTag = await containerDeps.buildRepo(repo, REPO_BRANCHES[repo]());
   await runTests(repo, imageTag, cmd, config);
 };
 
-const runScriptsTests = async (pattern?: string, hideDebug = false, shouldMountTests = false) => {
-  const repo: Repos = "scripts";
+const runScriptsTests = async (pattern?: string, shouldMountTests = false) => {
+  const repo = "scripts";
 
-  const cmd0 = !pattern ? ["make", "test-1/2"] : ["poetry", "run", "brownie", "test", pattern];
-  const cmd1 = !pattern ? ["make", "test-2/2"] : ["poetry", "run", "brownie", "test", pattern];
+  // vote, acceptance and snapshot tests live in depot, the regression suite stays in scripts
+  const cmd = !pattern
+    ? ["poetry", "run", "brownie", "test", "tests/regression", "--durations=20", "--network", "mfh-1"]
+    : ["poetry", "run", "brownie", "test", pattern];
 
-  const Env: string[] = [
-    `PINATA_CLOUD_TOKEN=${env.PINATA_JWT()}`,
-    `ETHERSCAN_TOKEN=${env.ETHERSCAN_TOKEN()}`,
-    `SECONDARY_NETWORK=mfh-1`,
-    `MAX_GET_LOGS_RANGE=10000`,
-  ];
-  const config: Docker.ContainerCreateOptions = { Env };
+  const config: Docker.ContainerCreateOptions = {
+    Env: [
+      `PINATA_CLOUD_TOKEN=${env.PINATA_JWT()}`,
+      `ETHERSCAN_TOKEN=${env.ETHERSCAN_TOKEN()}`,
+      `MAX_GET_LOGS_RANGE=10000`,
+      `ETH_RPC_URL=${getDockerLocalRpcUrl()}`,
+    ],
+  };
   if (shouldMountTests) {
     config.HostConfig = {
       Mounts: [{ Source: `${process.cwd()}/mount/scripts`, Target: "/root/scripts/tests/custom", Type: "bind" }],
     };
   }
 
-  const config0 = { ...config, Env: [...Env, `ETH_RPC_URL=${getDockerLocalRpcUrl()}`] };
-  const config1 = { ...config, Env: [...Env, `ETH_RPC_URL=${getDockerLocalRpcUrl()}`] };
-
-  const imageTag = await containerDeps.buildRepo(repo, env.GIT_BRANCH_SCRIPTS(), hideDebug);
-  await Promise.all([runTests(repo, imageTag, cmd0, config0), runTests(repo, imageTag, cmd1, config1, 1)]);
+  const imageTag = await containerDeps.buildRepo(repo, REPO_BRANCHES[repo]());
+  await runTests(repo, imageTag, cmd, config);
 };
 
-const runDgTests = async (pattern?: string, hideDebug = false, shouldMountTests = false) => {
-  const repo: Repos = "dual-governance";
+const runDgTests = async (pattern?: string, shouldMountTests = false) => {
+  const repo = "dual-governance";
 
+  // `--load-accounts` collects stETH/wstETH holders first, as DG `.github/workflows/pull-request.yml` does
   const cmd = !pattern
     ? ["npm", "run", "test:regressions", "--", "--load-accounts"]
     : ["npm", "run", "test", "--", "--match-path", pattern];
 
   const config: Docker.ContainerCreateOptions = {
-    Env: [`MAINNET_RPC_URL=${getDockerLocalRpcUrl()}`, `DEPLOY_ARTIFACT_FILE_NAME=deploy-artifact-mainnet.toml`],
+    Env: [`MAINNET_RPC_URL=${getDockerLocalRpcUrl()}`, "DEPLOY_ARTIFACT_FILE_NAME=deploy-artifact-mainnet.toml"],
   };
   if (shouldMountTests) {
     config.HostConfig = {
@@ -127,16 +137,16 @@ const runDgTests = async (pattern?: string, hideDebug = false, shouldMountTests 
       ],
     };
   }
-  const imageTag = await containerDeps.buildRepo(repo, env.GIT_BRANCH_DG(), hideDebug);
+  const imageTag = await containerDeps.buildRepo(repo, REPO_BRANCHES[repo]());
   await runTests(repo, imageTag, cmd, config);
 };
 
-const runStakingModulesTests = async (pattern?: string, hideDebug = false, shouldMountTests = false) => {
+const runStakingModulesTests = async (pattern?: string, shouldMountTests = false) => {
   const repo = "staking-modules";
   const cmd = pattern
     ? ["forge", "test", "--match-path", pattern, "-vvv", "--show-progress", "--summary", "--detailed"]
     : ["just", "test-integration"];
-  const imageTag = await containerDeps.buildRepo(repo, env.GIT_BRANCH_STAKING_MODULES(), hideDebug);
+  const imageTag = await containerDeps.buildRepo(repo, REPO_BRANCHES[repo]());
   const deployments = [
     "./artifacts/mainnet/csm/upgrade-v3-mainnet.json",
     "./artifacts/mainnet/curated/deploy-mainnet.json",
@@ -162,7 +172,7 @@ const runStakingModulesTests = async (pattern?: string, hideDebug = false, shoul
   }
 };
 
-const runStonksTests = async (pattern?: string, hideDebug = false, shouldMountTests = false) => {
+const runStonksTests = async (pattern?: string, shouldMountTests = false) => {
   const repo = "stonks";
   const cmd = [
     "bash",
@@ -181,11 +191,17 @@ const runStonksTests = async (pattern?: string, hideDebug = false, shouldMountTe
       Mounts: [{ Source: `${process.cwd()}/mount/stonks`, Target: "/usr/src/app/test/custom", Type: "bind" }],
     };
   }
-  const imageTag = await containerDeps.buildRepo(repo, env.GIT_BRANCH_STONKS(), hideDebug);
+  const imageTag = await containerDeps.buildRepo(repo, REPO_BRANCHES[repo]());
   await runTests(repo, imageTag, cmd, config);
 };
 
-const runTests = async (repo: Repos, imageTag: string, cmd: string[], config: ContainerCreateOptions, instance = 0) => {
+const runTests = async (
+  repo: RepositorySuite,
+  imageTag: string,
+  cmd: string[],
+  config: ContainerCreateOptions,
+  instance = 0,
+) => {
   logBlue(`Running test from ${repo} repo: \n"${cmd.join(" ")}"`);
   await containerDeps.runTestsFromRepo(repo, imageTag, cmd, config, instance);
 };

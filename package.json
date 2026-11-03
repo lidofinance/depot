@@ -5,7 +5,6 @@
     "omnibus:create": "hardhat omnibus:create",
     "omnibus:build": "hardhat omnibus:build",
     "omnibus:test": "hardhat omnibus:test",
-    "omnibus:ci-prepare": "hardhat omnibus:ci-prepare",
     "omnibus:multi-test": "hardhat omnibus:multi-test",
     "abi:sync": "hardhat abi:sync",
     "ks:add": "hardhat keystore:add",

@@ -2,6 +2,7 @@ import { assert } from "chai";
 import sinon from "sinon";
 import Docker from "dockerode";
 import { rejects } from "node:assert/strict";
+import path from "node:path";
 import { createHardhatRuntimeEnvironment } from "hardhat/hre";
 import type { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 import { Omnibus } from "@/src/omnibuses/omnibus";
@@ -213,22 +214,76 @@ describe("new repository target commands", () => {
 
     await runRepoTests("scripts", "default");
 
-    for (const call of run.getCalls()) {
-      assert.deepEqual(call.args[2], [
-        "poetry",
-        "run",
-        "brownie",
-        "test",
-        "tests/custom/_example_omnibus_test_for_scripts_repo.py",
-      ]);
-    }
+    sinon.assert.calledOnce(run);
+    assert.deepEqual(run.firstCall.args[2], [
+      "poetry",
+      "run",
+      "brownie",
+      "test",
+      "tests/custom/_example_omnibus_test_for_scripts_repo.py",
+    ]);
+  });
+
+  it("runs core through its native integration script", async () => {
+    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
+    const pattern = "test/integration/**/*.ts";
+
+    await runRepoTests("core");
+    await runRepoTests("core", pattern);
+
+    const [native, custom] = run.getCalls();
+    assert.deepEqual(native.args[2], ["yarn", "test:integration"]);
+    assert.includeMembers(native.args[3].Env ?? [], ["RPC_URL=http://host.docker.internal:18549", "NETWORK=mainnet"]);
+    assert.notInclude(custom.args[2].join(" "), pattern);
+    assert.include(custom.args[2].join(" "), "shopt -s globstar && yarn test:integration $CORE_TEST_PATTERN");
+    assert.include(custom.args[3].Env ?? [], `CORE_TEST_PATTERN=${pattern}`);
+  });
+
+  it("binds core to the vote network", async () => {
+    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
+
+    await runRepoTests("core", undefined, false, "hoodi");
+
+    assert.include(run.firstCall.args[3].Env ?? [], "NETWORK=hoodi");
+  });
+
+  it("runs the dual-governance regressions with the holders loaded first", async () => {
+    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
+
+    await runRepoTests("dual-governance");
+
+    sinon.assert.calledOnce(run);
+    assert.deepEqual(run.firstCall.args[2], ["npm", "run", "test:regressions", "--", "--load-accounts"]);
+    assert.includeMembers(run.firstCall.args[3].Env ?? [], [
+      "MAINNET_RPC_URL=http://host.docker.internal:18549",
+      "DEPLOY_ARTIFACT_FILE_NAME=deploy-artifact-mainnet.toml",
+    ]);
+  });
+
+  it("runs only the scripts regression suite in one container", async () => {
+    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
+
+    await runRepoTests("scripts");
+
+    sinon.assert.calledOnce(run);
+    assert.deepEqual(run.firstCall.args[2], [
+      "poetry",
+      "run",
+      "brownie",
+      "test",
+      "tests/regression",
+      "--durations=20",
+      "--network",
+      "mfh-1",
+    ]);
+    assert.include(run.firstCall.args[3].Env ?? [], "ETH_RPC_URL=http://host.docker.internal:18549");
   });
 
   it("passes a custom stonks pattern as data and mounts its test directory", async () => {
     const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
     const pattern = "test/custom/**/*.ts";
 
-    await runRepoTests("stonks", pattern, false, true);
+    await runRepoTests("stonks", pattern, true);
 
     const [, , cmd, config] = run.firstCall.args;
     assert.notInclude(cmd.join(" "), pattern);
@@ -248,13 +303,14 @@ describe("omnibus multi-test task lifecycle", () => {
   let prepare: sinon.SinonStub;
   let pass: sinon.SinonStub;
   let runRepo: sinon.SinonStub;
+  let log: sinon.SinonStub;
 
   before(async () => {
     hre = await createHardhatRuntimeEnvironment({ tasks: omnibusTaskBuilders.map((builder) => builder.build()) });
   });
 
   beforeEach(() => {
-    sinon.stub(console, "log");
+    log = sinon.stub(console, "log");
     client = sinon.createStubInstance(DevRpcClient);
     client.snapshot.resolves("0x1");
     client.revert.resolves();
@@ -320,7 +376,43 @@ describe("omnibus multi-test task lifecycle", () => {
     }
   }
 
-  it("rejects a missing mount directory before loading the omnibus or the node", async () => {
+  it("runs and requires mounts only for the suites that cover the vote network", async () => {
+    const prepareNode = sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs: false });
+    const pathExists = sinon
+      .stub(multiTestDeps, "pathExists")
+      .callsFake((mountPath) => mountPath.endsWith(path.join("mount", "core")));
+    const hoodiOmnibus = Omnibus.create({ network: "hoodi", upgrade: false, testVote: () => Promise.resolve() });
+    sinon.stub(hoodiOmnibus, "passOmnibus").resolves();
+    load.resolves(hoodiOmnibus);
+
+    await hre.tasks.getTask("omnibus:multi-test").run({ name: "fixture", mountTests: true });
+
+    sinon.assert.calledWithExactly(prepareNode, "hoodi", undefined);
+    sinon.assert.calledOnce(pathExists);
+    sinon.assert.calledWith(
+      log,
+      "Skipping dual-governance, scripts, staking-modules, stonks: no hoodi regression suite",
+    );
+    assert.deepEqual(
+      runRepo.getCalls().map((call) => [call.args[0], call.args[3]]),
+      [["core", "hoodi"]],
+    );
+  });
+
+  it("rejects a repo without a suite for the vote network before starting the node", async () => {
+    const prepareNode = sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs: true });
+    load.resolves(Omnibus.create({ network: "hoodi", upgrade: false, testVote: () => Promise.resolve() }));
+
+    await rejects(
+      hre.tasks.getTask("omnibus:multi-test").run({ name: "fixture", repo: "scripts" }),
+      /No hoodi regression suite in scripts/,
+    );
+
+    sinon.assert.notCalled(prepareNode);
+    sinon.assert.notCalled(runRepo);
+  });
+
+  it("rejects a missing mount directory before starting the node", async () => {
     const prepareNode = sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs: true });
     sinon.stub(multiTestDeps, "pathExists").returns(false);
 
@@ -329,7 +421,6 @@ describe("omnibus multi-test task lifecycle", () => {
       /Mount directory mount\/core does not exist/,
     );
 
-    sinon.assert.notCalled(load);
     sinon.assert.notCalled(prepareNode);
     sinon.assert.notCalled(runRepo);
   });

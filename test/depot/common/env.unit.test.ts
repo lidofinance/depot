@@ -61,7 +61,7 @@ describe("environment helpers", () => {
 
     expect(env.GITHUB_ORG()).to.equal("lidofinance");
     expect(env.GIT_BRANCH_SCRIPTS()).to.equal("master");
-    expect(env.GIT_BRANCH_DG()).to.equal("main");
+    expect(env.GIT_BRANCH_DG()).to.equal("develop");
     expect(env.GIT_BRANCH_CORE()).to.equal("master");
     expect(env.GIT_BRANCH_STAKING_MODULES()).to.equal("develop");
     expect(env.GIT_BRANCH_STONKS()).to.equal("main");
@@ -80,10 +80,13 @@ describe("environment helpers", () => {
     delete process.env.GIT_SHA_STONKS;
 
     expect(env.GIT_SHA_SCRIPTS()).to.equal("");
-    expect(env.GIT_SHA_DG()).to.equal("");
+    expect(env.GIT_SHA_DG()).to.equal("cc407b472199585b21d33b14c6b3067a6b62de96");
     expect(env.GIT_SHA_CORE()).to.equal("");
     expect(env.GIT_SHA_STAKING_MODULES()).to.equal("");
     expect(env.GIT_SHA_STONKS()).to.equal("");
+
+    process.env.GIT_SHA_DG = "";
+    expect(env.GIT_SHA_DG()).to.equal("cc407b472199585b21d33b14c6b3067a6b62de96");
 
     process.env.GIT_SHA_SCRIPTS = "sha1";
     process.env.GIT_SHA_DG = "sha2";
@@ -97,11 +100,8 @@ describe("environment helpers", () => {
     expect(env.GIT_SHA_STONKS()).to.equal("sha5");
   });
 
-  it("returns default HH node image", () => {
-    delete process.env.HH_NODE_IMAGE;
-    expect(env.HH_NODE_IMAGE()).to.equal("ghcr.io/lidofinance/hardhat-node:2.26.0");
-
-    process.env.HH_NODE_IMAGE = "custom-node";
-    expect(env.HH_NODE_IMAGE()).to.equal("custom-node");
+  it("derives the HH node image from the network", () => {
+    expect(env.HH_NODE_IMAGE("mainnet")).to.equal("ghcr.io/lidofinance/hardhat-node:2.28.0");
+    expect(env.HH_NODE_IMAGE("hoodi")).to.equal("ghcr.io/lidofinance/hardhat-node:2.28.0-hoodi");
   });
 });

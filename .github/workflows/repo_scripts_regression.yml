@@ -13,13 +13,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  candidate:
-    name: Find candidate vote
-    if: ${{ !github.event.pull_request.draft }}
+  run-tests:
+    name: Scripts post-vote regression
+    if: ${{ !github.event.pull_request.draft && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      mainnet: ${{ steps.find.outputs.name }}
+    timeout-minutes: 120
+    env:
+      DOTENV_CONFIG_PATH: /dev/null
+      ETH_MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+      ETHERSCAN_TOKEN: ${{ secrets.ETHERSCAN_TOKEN }}
+      ETH_LOCAL_RPC_BIND_IP: "0.0.0.0"
 
     steps:
       - name: Checkout depot repository
@@ -29,106 +32,48 @@ jobs:
           persist-credentials: false
 
       - name: Find candidate vote
-        id: find
+        id: candidate
         uses: ./depot/.github/actions/find_candidate
         with:
           network: mainnet
 
-  run-tests-1:
-    name: Scripts fork tests 1/2
-    needs: candidate
-    if: ${{ !github.event.pull_request.draft && needs.candidate.outputs.mainnet != '' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 100
-    env:
-      OMNIBUS: ${{ needs.candidate.outputs.mainnet }}
-
-    services:
-      hardhat-node:
-        image: ghcr.io/lidofinance/hardhat-node:2.26.0
-        ports:
-          - 8545:8545
-        env:
-          ETH_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
-          HARDFORK: cancun
-
-    steps:
-      - name: Checkout depot repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          path: depot
-
       - name: Setup depot
+        if: ${{ steps.candidate.outputs.name != '' }}
         uses: ./depot/.github/actions/prepare_depot
 
-      - name: Checkout scripts repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Prepare regression inputs
+        id: regression
+        if: ${{ steps.candidate.outputs.name != '' }}
+        uses: ./depot/.github/actions/prepare_regression
         with:
-          path: scripts
-          repository: lidofinance/scripts
-          persist-credentials: false
+          repo: scripts
+          network: mainnet
+          omnibus: ${{ steps.candidate.outputs.name }}
 
-      - name: Prepare scripts
-        uses: ./depot/.github/actions/prepare_scripts
-
-      - name: Run vote
-        uses: ./depot/.github/actions/run_depot_vote
-        with:
-          omnibus: ${{ env.OMNIBUS }}
-
-      - name: Run script tests 1/2
-        run: make test-1/2
-        working-directory: scripts
+      - name: Apply the candidate and run scripts suites
+        if: ${{ steps.candidate.outputs.name != '' }}
+        working-directory: depot
+        shell: bash
         env:
-          ETHERSCAN_TOKEN: ${{ secrets.ETHERSCAN_TOKEN }}
-          ETH_RPC_URL: http://127.0.0.1:8545
+          OMNIBUS: ${{ steps.candidate.outputs.name }}
+          FORK_BLOCK: ${{ steps.regression.outputs.fork-block }}
+        run: npx hardhat omnibus:multi-test "$OMNIBUS" --repo scripts --fork-block "$FORK_BLOCK" 2>&1 | tee logs/multi-test.log
 
-  run-tests-2:
-    name: Scripts fork tests 2/2
-    needs: candidate
-    if: ${{ !github.event.pull_request.draft && needs.candidate.outputs.mainnet != '' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 100
-    env:
-      OMNIBUS: ${{ needs.candidate.outputs.mainnet }}
-
-    services:
-      hardhat-node:
-        image: ghcr.io/lidofinance/hardhat-node:2.26.0
-        ports:
-          - 8546:8545
-        env:
-          ETH_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
-          HARDFORK: cancun
-
-    steps:
-      - name: Checkout depot repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Save repo image
+        if: ${{ always() && steps.regression.outcome == 'success' }}
+        uses: ./depot/.github/actions/save_repo_image
         with:
-          path: depot
+          image-tag: ${{ steps.regression.outputs.image-tag }}
+          cache-key: ${{ steps.regression.outputs.cache-key }}
+          cache-hit: ${{ steps.regression.outputs.cache-hit }}
 
-      - name: Setup depot
-        uses: ./depot/.github/actions/prepare_depot
-
-      - name: Checkout scripts repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Upload regression evidence
+        if: ${{ always() && steps.candidate.outputs.name != '' }}
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          path: scripts
-          repository: lidofinance/scripts
-          persist-credentials: false
-
-      - name: Prepare scripts
-        uses: ./depot/.github/actions/prepare_scripts
-
-      - name: Run vote
-        uses: ./depot/.github/actions/run_depot_vote
-        with:
-          omnibus: ${{ env.OMNIBUS }}
-          rpc-port: "8546"
-
-      - name: Run script tests 2/2
-        run: make test-2/2
-        working-directory: scripts
-        env:
-          ETHERSCAN_TOKEN: ${{ secrets.ETHERSCAN_TOKEN }}
-          ETH_RPC_URL: http://127.0.0.1:8546
+          name: scripts-regression
+          # the node log can carry the fork RPC URL in upstream request errors
+          path: |
+            depot/logs/
+            !depot/logs/hh-rpc-node.log
+          retention-days: 14

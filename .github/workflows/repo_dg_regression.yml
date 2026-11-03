@@ -13,13 +13,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  candidate:
-    name: Find candidate vote
-    if: ${{ !github.event.pull_request.draft }}
+  run-tests:
+    name: Dual Governance post-vote regression
+    if: ${{ !github.event.pull_request.draft && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      mainnet: ${{ steps.find.outputs.name }}
+    timeout-minutes: 120
+    env:
+      DOTENV_CONFIG_PATH: /dev/null
+      ETH_MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+      ETH_LOCAL_RPC_BIND_IP: "0.0.0.0"
 
     steps:
       - name: Checkout depot repository
@@ -29,109 +31,48 @@ jobs:
           persist-credentials: false
 
       - name: Find candidate vote
-        id: find
+        id: candidate
         uses: ./depot/.github/actions/find_candidate
         with:
           network: mainnet
 
-  dual-governance-regression:
-    name: "Regression tests"
-    needs: candidate
-    if: ${{ !github.event.pull_request.draft && needs.candidate.outputs.mainnet != '' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 100
-
-    env:
-      HARDHAT_NODE_URL: "http://127.0.0.1:8545"
-      OMNIBUS: ${{ needs.candidate.outputs.mainnet }}
-
-    services:
-      hardhat-node:
-        image: ghcr.io/lidofinance/hardhat-node:2.26.0
-        ports:
-          - 8545:8545
-        env:
-          ETH_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
-          HARDFORK: cancun
-
-    steps:
-      - name: Checkout depot repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          path: depot
-
       - name: Setup depot
+        if: ${{ steps.candidate.outputs.name != '' }}
         uses: ./depot/.github/actions/prepare_depot
 
-      ################################################################
-      # Clone dual-governance repository
-      ################################################################
-
-      - name: Checkout dual-governance repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Prepare regression inputs
+        id: regression
+        if: ${{ steps.candidate.outputs.name != '' }}
+        uses: ./depot/.github/actions/prepare_regression
         with:
-          repository: lidofinance/dual-governance
-          # TODO
-          # Temporarily pin develop for SR3-compatible regression helpers (DG #369).
-          ref: cc407b472199585b21d33b14c6b3067a6b62de96
-          path: dual-governance
-          persist-credentials: false
+          repo: dual-governance
+          network: mainnet
+          omnibus: ${{ steps.candidate.outputs.name }}
 
-      ################################################################
-      # Set up Foundry
-      ################################################################
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
-        with:
-          version: "v1.5.1"
-
-      ################################################################
-      # Setup cache for dependencies
-      ################################################################
-
-      - name: Cache Forge dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: dual-governance/lib
-          key: forge-${{ hashFiles('dual-governance/foundry.toml') }}
-          restore-keys: forge-
-
-      ################################################################
-      # Install dependencies
-      ################################################################
-
-      - name: Setup Node.js for dual-governance
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: dual-governance/package-lock.json
-
-      - name: Install Node.js dependencies for dual-governance
-        run: npm ci
-        working-directory: dual-governance
-
-      - name: Install Forge dependencies
-        run: forge install
-        working-directory: dual-governance
-
-      ################################################################
-      # Run vote
-      ################################################################
-
-      - name: Run vote
-        uses: ./depot/.github/actions/run_depot_vote
-        with:
-          omnibus: ${{ env.OMNIBUS }}
-
-      ################################################################
-      # Run test
-      ################################################################
-
-      - name: Run regression tests
-        run: npm run test:regressions -- --load-accounts
+      - name: Apply the candidate and run dual-governance suites
+        if: ${{ steps.candidate.outputs.name != '' }}
+        working-directory: depot
+        shell: bash
         env:
-          MAINNET_RPC_URL: ${{ env.HARDHAT_NODE_URL }}
-          DEPLOY_ARTIFACT_FILE_NAME: deploy-artifact-mainnet.toml
-        working-directory: dual-governance
+          OMNIBUS: ${{ steps.candidate.outputs.name }}
+          FORK_BLOCK: ${{ steps.regression.outputs.fork-block }}
+        run: npx hardhat omnibus:multi-test "$OMNIBUS" --repo dual-governance --fork-block "$FORK_BLOCK" 2>&1 | tee logs/multi-test.log
+
+      - name: Save repo image
+        if: ${{ always() && steps.regression.outcome == 'success' }}
+        uses: ./depot/.github/actions/save_repo_image
+        with:
+          image-tag: ${{ steps.regression.outputs.image-tag }}
+          cache-key: ${{ steps.regression.outputs.cache-key }}
+          cache-hit: ${{ steps.regression.outputs.cache-hit }}
+
+      - name: Upload regression evidence
+        if: ${{ always() && steps.candidate.outputs.name != '' }}
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: dual-governance-regression
+          # the node log can carry the fork RPC URL in upstream request errors
+          path: |
+            depot/logs/
+            !depot/logs/hh-rpc-node.log
+          retention-days: 14

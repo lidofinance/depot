@@ -13,13 +13,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  candidate:
-    name: Find candidate vote
-    if: ${{ !github.event.pull_request.draft }}
+  run-tests:
+    name: Staking Modules post-vote regression
+    if: ${{ !github.event.pull_request.draft && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      mainnet: ${{ steps.find.outputs.name }}
+    timeout-minutes: 120
+    env:
+      DOTENV_CONFIG_PATH: /dev/null
+      ETH_MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+      ETH_LOCAL_RPC_BIND_IP: "0.0.0.0"
 
     steps:
       - name: Checkout depot repository
@@ -29,71 +31,48 @@ jobs:
           persist-credentials: false
 
       - name: Find candidate vote
-        id: find
+        id: candidate
         uses: ./depot/.github/actions/find_candidate
         with:
           network: mainnet
 
-  run-tests:
-    name: Staking Modules post-vote regression
-    needs: candidate
-    if: ${{ !github.event.pull_request.draft && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) && needs.candidate.outputs.mainnet != '' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    env:
-      ETH_MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
-      OMNIBUS: ${{ needs.candidate.outputs.mainnet }}
-      GIT_BRANCH_STAKING_MODULES: develop
-      ETH_LOCAL_RPC_BIND_IP: "0.0.0.0"
-      DOTENV_CONFIG_PATH: /dev/null
-
-    steps:
-      - name: Checkout depot repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          path: depot
-          persist-credentials: false
-
       - name: Setup depot
+        if: ${{ steps.candidate.outputs.name != '' }}
         uses: ./depot/.github/actions/prepare_depot
 
-      - name: Pin regression inputs
-        working-directory: depot
-        shell: bash
-        run: |
-          node --input-type=module <<'NODE'
-          import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
-          const rpcResponse = await fetch(process.env.ETH_MAINNET_RPC_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBlockByNumber", params: ["finalized", false] }),
-          });
-          const { result: block } = await rpcResponse.json();
-          if (!rpcResponse.ok || !block?.number || !block.hash) throw new Error("Could not resolve finalized fork block");
-          const branch = process.env.GIT_BRANCH_STAKING_MODULES;
-          const refResponse = await fetch(`https://api.github.com/repos/lidofinance/staking-modules/git/refs/heads/${branch}`);
-          const { object } = await refResponse.json();
-          if (!refResponse.ok || !/^[a-f0-9]{40}$/.test(object?.sha ?? "")) throw new Error("Could not resolve staking-modules SHA");
-          const forkBlock = BigInt(block.number).toString();
-          appendFileSync(process.env.GITHUB_ENV, `FORK_BLOCK=${forkBlock}\nGIT_SHA_STAKING_MODULES=${object.sha}\n`);
-          mkdirSync("logs", { recursive: true });
-          writeFileSync("logs/staking-modules-inputs.json", JSON.stringify({
-            omnibus: process.env.OMNIBUS, branch, sha: object.sha, forkBlock, forkBlockHash: block.hash,
-          }, null, 2) + "\n");
-          NODE
+      - name: Prepare regression inputs
+        id: regression
+        if: ${{ steps.candidate.outputs.name != '' }}
+        uses: ./depot/.github/actions/prepare_regression
+        with:
+          repo: staking-modules
+          network: mainnet
+          omnibus: ${{ steps.candidate.outputs.name }}
 
-      - name: Run CSM and Curated integration tests after the omnibus
+      - name: Apply the candidate and run staking-modules suites
+        if: ${{ steps.candidate.outputs.name != '' }}
         working-directory: depot
         shell: bash
-        run: npm run omnibus:multi-test -- "$OMNIBUS" --repo staking-modules --fork-block "$FORK_BLOCK" 2>&1 | tee logs/staking-modules-multi-test.log
+        env:
+          OMNIBUS: ${{ steps.candidate.outputs.name }}
+          FORK_BLOCK: ${{ steps.regression.outputs.fork-block }}
+        run: npx hardhat omnibus:multi-test "$OMNIBUS" --repo staking-modules --fork-block "$FORK_BLOCK" 2>&1 | tee logs/multi-test.log
+
+      - name: Save repo image
+        if: ${{ always() && steps.regression.outcome == 'success' }}
+        uses: ./depot/.github/actions/save_repo_image
+        with:
+          image-tag: ${{ steps.regression.outputs.image-tag }}
+          cache-key: ${{ steps.regression.outputs.cache-key }}
+          cache-hit: ${{ steps.regression.outputs.cache-hit }}
 
       - name: Upload regression evidence
-        if: always()
+        if: ${{ always() && steps.candidate.outputs.name != '' }}
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: staking-modules-regression
+          # the node log can carry the fork RPC URL in upstream request errors
           path: |
-            depot/logs/staking-modules-inputs.json
-            depot/logs/staking-modules-multi-test.log
-            depot/logs/lido-staking-modules.log
-            depot/logs/lido-staking-modules-1.log
+            depot/logs/
+            !depot/logs/hh-rpc-node.log
+          retention-days: 14

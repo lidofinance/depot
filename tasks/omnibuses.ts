@@ -10,8 +10,14 @@ import fmt from "../src/common/format";
 
 import { EthereumProvider } from "hardhat/types/providers";
 import { HardhatRuntimeEnvironment } from "hardhat/types/hre";
-import { findContainerByName, Repos, runImageInBackground, stopContainer } from "../src/docker";
-import { runRepoTests } from "./sub-tasks/containers";
+import {
+  findContainerByName,
+  RepositorySuite,
+  resolveRepoImage,
+  runImageInBackground,
+  stopContainer,
+} from "../src/docker";
+import { REPO_BRANCHES, runRepoTests, SUITE_NETWORKS } from "./sub-tasks/containers";
 import { Address, formatEther } from "viem";
 import {
   createDevRpcClient,
@@ -362,8 +368,6 @@ export const multiTestDeps = {
   localRpcNodeConnectTimeoutMs: 120_000,
 };
 
-type RepositorySuite = Exclude<Repos, "depot">;
-
 export function getRepositorySuites(repo?: string): RepositorySuite[] {
   const repositories: RepositorySuite[] = ["core", "dual-governance", "scripts", "staking-modules", "stonks"];
   if (!repo) {
@@ -425,11 +429,20 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
       const normalizedRepo = repo || undefined;
       const normalizedPattern = pattern || undefined;
       const repoNamesToTest = getRepositorySuites(normalizedRepo);
-      if (mountTests) {
-        assertMountDirectories(repoNamesToTest);
-      }
       const omnibus = normalizedName ? await multiTestDeps.loadOmnibus(normalizedName) : undefined;
-      const node = await multiTestDeps.prepareLocalRpcNode(omnibus?.network ?? "mainnet", forkBlock);
+      const network = omnibus?.network ?? "mainnet";
+      const suites = repoNamesToTest.filter((repository) => SUITE_NETWORKS[repository].includes(network));
+      const skipped = repoNamesToTest.filter((repository) => !suites.includes(repository));
+      if (!suites.length) {
+        throw new KnownError(`No ${network} regression suite in ${skipped.join(", ")}`);
+      }
+      if (skipped.length) {
+        console.log(`Skipping ${skipped.join(", ")}: no ${network} regression suite`);
+      }
+      if (mountTests) {
+        assertMountDirectories(suites);
+      }
+      const node = await multiTestDeps.prepareLocalRpcNode(network, forkBlock);
       const stopOwnNode = async () => {
         if (node.startedByUs) {
           await multiTestDeps.stopLocalRpcNode();
@@ -445,9 +458,8 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
             console.log("Omnibus name doesn't pass. Run tests without passing any omnibuses");
           }
 
-          const hideDebug = repoNamesToTest.length > 1;
-          await runRepositorySuites(node.client, repoNamesToTest, (repository) =>
-            multiTestDeps.runRepoTests(repository, normalizedPattern, hideDebug, mountTests),
+          await runRepositorySuites(node.client, suites, (repository) =>
+            multiTestDeps.runRepoTests(repository, normalizedPattern, mountTests, network),
           );
         });
       } catch (error) {
@@ -463,15 +475,19 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
     },
   );
 
-defineTask("omnibus:ci-prepare", "Apply the omnibus on the local CI node: Aragon vote and all its DG proposals")
-  .addPositionalArgument({ name: "name", description: "Name of the omnibus to run" })
-  .setAction(async (taskArgs: { name: string }, hre: HardhatRuntimeEnvironment) => {
-    const { name } = taskArgs;
-    const omnibus = await loadOmnibus(name);
-
-    const client = await createDevRpcClient(omnibus.network, getLocalRpcUrl(env.ETH_LOCAL_RPC_PORT()));
-    await prepareOmnibus(hre, client, omnibus);
-    await omnibus.passOmnibus(client);
+defineTask("omnibus:repo-image", "Prints the commit and image tag a regression repo is built from, as one JSON line")
+  .addOption({
+    name: "repo",
+    description: "Name of the repo: core|scripts|dual-governance|staking-modules|stonks",
+    defaultValue: "",
+  })
+  .setAction(async (taskArgs: { repo: string }) => {
+    if (!taskArgs.repo) {
+      throw new KnownError("--repo is required");
+    }
+    const [repository] = getRepositorySuites(taskArgs.repo);
+    const image = await resolveRepoImage(repository, REPO_BRANCHES[repository]());
+    console.log(JSON.stringify(image));
   });
 
 type OmnibusLaunchParams = {
@@ -784,7 +800,7 @@ async function prepareLocalRpcNode(network: NetworkName, forkBlock?: bigint): Pr
   const name = LOCAL_RPC_NODE_CONTAINER;
   // the image starts `hardhat node` forking from the latest block; the pin goes through the CLI flag
   const cmd = forkBlock ? ["npx", "hardhat", "node", "--fork-block-number", forkBlock.toString()] : ["npm", "start"];
-  const image = env.HH_NODE_IMAGE();
+  const image = env.HH_NODE_IMAGE(network);
 
   const port = env.ETH_LOCAL_RPC_PORT();
   const localRpcUrl = getLocalRpcUrl(port);

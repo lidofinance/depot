@@ -2,16 +2,17 @@ FROM node:20.16.0-bookworm-slim
 ARG TARGETARCH
 
 ARG GITHUB_ORG=lidofinance
-ARG GIT_BRANCH=main
-ARG BUILD_VERSION=latest
+ARG GIT_SHA
 
 RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /root/
-RUN echo "build tag: ${BUILD_VERSION}"
-RUN git clone -b ${GIT_BRANCH} --single-branch https://github.com/${GITHUB_ORG}/dual-governance.git /root/dual-governance
-
 WORKDIR /root/dual-governance
+RUN git init -q \
+    && git remote add origin "https://github.com/${GITHUB_ORG}/dual-governance.git" \
+    && git fetch -q --depth 1 origin "${GIT_SHA}" \
+    && git checkout -q --detach FETCH_HEAD \
+    && test "$(git rev-parse HEAD)" = "${GIT_SHA}"
+LABEL org.opencontainers.image.revision="${GIT_SHA}"
 
 RUN curl -L https://foundry.paradigm.xyz | bash
 ENV PATH="$PATH:/root/.foundry/bin"
