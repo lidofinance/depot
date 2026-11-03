@@ -1,5 +1,6 @@
 import Docker, { Container } from "dockerode";
 import * as env from "../common/env";
+import { errorMessage, KnownError } from "../common/errors";
 import process from "node:process";
 import chalk from "chalk";
 import { createWriteStream, mkdirSync, readFileSync } from "node:fs";
@@ -8,8 +9,9 @@ import util from "node:util";
 import { Transform } from "node:stream";
 import { finished } from "node:stream/promises";
 import os from "os";
+import * as ownedContainers from "./owned-containers";
 
-type ContainerRunResponse = [{ StatusCode: number }, Container, id: string, Record<string, object>];
+type ContainerRunResponse = [{ StatusCode: number }, Container];
 
 const docker = new Docker();
 
@@ -142,13 +144,55 @@ export async function stopContainer(container: Container, name: string, isTmpCon
     await container.rename({ name: tmpName });
   }
   await container.stop();
+  ownedContainers.untrack(container);
 }
 
 export async function findContainerByName(name: string) {
   const containersInfo = await docker.listContainers();
 
-  const containerInfo = containersInfo.find(({ Names }) => Names?.some((item) => item.endsWith(name)));
+  // docker prefixes names with a slash; a suffix match would also pick up `/other-project-${name}`
+  const containerInfo = containersInfo.find(({ Names }) => Names?.includes(`/${name}`));
   return containerInfo ? docker.getContainer(containerInfo?.Id) : null;
+}
+
+// a Created or Exited container keeps its name, and `listContainers()` without `all` does not show it
+async function removeStaleContainer(name: string): Promise<void> {
+  const containersInfo = await docker.listContainers({ all: true });
+  const staleInfo = containersInfo.find(({ Names, State }) => State !== "running" && Names?.includes(`/${name}`));
+  if (staleInfo) {
+    logGreen(`Remove stale container ${name} (${staleInfo.State})`);
+    await docker.getContainer(staleInfo.Id).remove({ force: true });
+  }
+}
+
+// the callback form of `docker.run` reports the container on creation, so a shutdown can stop it
+function runOwnedContainer(
+  image: string,
+  cmd: string[],
+  output: NodeJS.WritableStream | NodeJS.WritableStream[],
+  options: Docker.ContainerCreateOptions,
+): Promise<ContainerRunResponse> {
+  return new Promise((resolve, reject) => {
+    docker
+      .run(
+        image,
+        cmd,
+        output,
+        options,
+        {},
+        (error: unknown, status?: { StatusCode: number }, container?: Container) => {
+          if (container) {
+            ownedContainers.untrack(container);
+          }
+          if (error || !status || !container) {
+            reject(error ?? new Error(`Container ${String(options.name)} stop working, but status code not found`));
+            return;
+          }
+          resolve([status, container]);
+        },
+      )
+      .on("container", ownedContainers.track);
+  });
 }
 
 const delay = (ms: number) => new Promise<undefined>((resolve) => setTimeout(resolve, ms));
@@ -183,6 +227,7 @@ export async function runImageInBackground(
     logGreen(`Previous hardhat-node container found`);
     await stopContainer(containerOld, name, true);
   }
+  await removeStaleContainer(name);
 
   const stdout = getStdout(name);
 
@@ -203,17 +248,20 @@ export async function runImageInBackground(
     logGreen(`Image pulled...`);
   }
 
-  // not working with await yet
-  void docker.run(imageName, cmd, stdout, {
+  // the run settles only when the container exits, which before the node is ready is a failed launch
+  const launchFailure = runOwnedContainer(imageName, cmd, stdout, {
     Tty: false,
     name,
     ...config,
     HostConfig: { AutoRemove: true, ...config?.HostConfig },
-  });
+  }).then(
+    ([status]) => Promise.reject(new KnownError(`Container ${name} exited with status ${status.StatusCode}`)),
+    (error: unknown) => Promise.reject(new KnownError(`Container ${name} failed to run: ${errorMessage(error)}`)),
+  );
   logGreen(`Wait for ${name} container launch`);
 
   // TODO: add background run to hardhat container node instead
-  await delay(2_000);
+  await Promise.race([delay(2_000), launchFailure]);
 
   const container = await findContainerByName(name);
   if (!container) {
@@ -222,7 +270,11 @@ export async function runImageInBackground(
   const logs = await container.logs({ follow: true, stdout: true });
 
   logGreen(`Wait for ${name} container initiated`);
-  const result = await Promise.race([delay(10_000), waitMessage(logs, "Started HTTP and WebSocket JSON-RPC server")]);
+  const result = await Promise.race([
+    delay(10_000),
+    waitMessage(logs, "Started HTTP and WebSocket JSON-RPC server"),
+    launchFailure,
+  ]);
 
   console.log(result ? chalk.bold.green(result) : chalk.bold.red(`${name} container initiated timeout`));
   return container;
@@ -448,8 +500,6 @@ export async function runTestsFromRepo(
   config: Docker.ContainerCreateOptions,
   instance = 0,
 ) {
-  const docker = new Docker();
-
   const key = !instance ? repo : `${repo}-${instance}`;
   const name = `lido-${key}`;
 
@@ -464,12 +514,13 @@ export async function runTestsFromRepo(
   if (container) {
     await stopContainer(container, name, true);
   }
+  await removeStaleContainer(name);
 
   logGreen(`Running command on image ${imageTag} \n"${cmd.join(" ")}"`);
   const stopFollowing = followProgress(name, logFilePath);
   let data: ContainerRunResponse;
   try {
-    data = await docker.run(imageTag, cmd, output, {
+    data = await runOwnedContainer(imageTag, cmd, output, {
       Tty: false,
       name,
       platform: getTargetPlatformArgs(repo).TARGETPLATFORM,
@@ -483,9 +534,6 @@ export async function runTestsFromRepo(
   }
 
   const [statusInfo] = data;
-  if (!statusInfo.hasOwnProperty?.("StatusCode")) {
-    throw new Error(`Container ${name} stop working, but status code not found`);
-  }
   const exitedCleanly = statusInfo.StatusCode === 0;
 
   console.log(chalk.bold(`\n${exitedCleanly ? "✔" : "✖"} ${name} · ${cmd.join(" ")} · full log: ${logFilePath}`));

@@ -7,11 +7,7 @@ import type { ContainerCreateOptions } from "dockerode";
 export const containerDeps = { buildRepo, runTestsFromRepo };
 
 function getDockerLocalRpcUrl() {
-  const localRpc = String(env.ETH_LOCAL_RPC_PORT());
-  const hostRpcUrl = /^https?:\/\//i.test(localRpc) ? localRpc : `http://localhost:${localRpc}`;
-  return hostRpcUrl
-    .replace("://localhost", "://host.docker.internal")
-    .replace("://127.0.0.1", "://host.docker.internal");
+  return `http://host.docker.internal:${env.ETH_LOCAL_RPC_PORT()}`;
 }
 
 /** `--pattern default` runs the example mounted from `mount/<repo>`, in the path layout each repo expects */

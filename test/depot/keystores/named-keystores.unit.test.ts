@@ -112,7 +112,7 @@ describe("NamedKeystores", () => {
 
     await namedKeystores.add(name, privateKey, mainPass);
     await expect(namedKeystores.unlock(name, "wrong-password")).to.be.rejectedWith(
-      "Key derivation failed - possibly wrong password",
+      'Wrong password for the account "test"',
     );
   });
 

@@ -1,4 +1,5 @@
 import Docker from "dockerode";
+import { EventEmitter } from "node:events";
 import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { rejects } from "node:assert/strict";
 import { tmpdir } from "node:os";
@@ -7,10 +8,21 @@ import sinon from "sinon";
 
 import { runTestsFromRepo } from "@/src/docker";
 
+// the callback form of `docker.run` that finishes once the container exits
+function exitWith(statusCode: number) {
+  return (...args: unknown[]) => {
+    const callback = args.at(-1);
+    if (typeof callback === "function") {
+      setImmediate(() => callback(null, { StatusCode: statusCode }, new Docker().getContainer("lido-core")));
+    }
+    return new EventEmitter();
+  };
+}
+
 describe("repository suite exit codes", () => {
   const originalCwd = process.cwd();
   let fixtureDir: string;
-  let run: sinon.SinonStub<Parameters<Docker["run"]>, ReturnType<Docker["run"]>>;
+  let run: sinon.SinonStub;
 
   beforeEach(async () => {
     fixtureDir = await mkdtemp(path.join(tmpdir(), "depot-suite-exit-"));
@@ -30,7 +42,7 @@ describe("repository suite exit codes", () => {
   });
 
   it("fails a suite container killed with SIGTERM instead of reporting it as passed", async () => {
-    run.resolves([{ StatusCode: 143 }, new Docker().getContainer("lido-core"), "lido-core", {}]);
+    run.callsFake(exitWith(143));
 
     await rejects(
       runTestsFromRepo("core", "depot/core:pinned", ["npm", "test"], {}),
@@ -39,7 +51,7 @@ describe("repository suite exit codes", () => {
   });
 
   it("accepts only a zero exit code", async () => {
-    run.resolves([{ StatusCode: 0 }, new Docker().getContainer("lido-core"), "lido-core", {}]);
+    run.callsFake(exitWith(0));
 
     await runTestsFromRepo("core", "depot/core:pinned", ["npm", "test"], {});
 

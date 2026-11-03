@@ -4,14 +4,16 @@ Depot builds, tests and launches Lido governance omnibuses. The Solidity vote co
 
 ## Install
 
-Use Node 22 (`nvm use`) and npm. Install Foundry with Forge 1.8.1 (`foundryup --install v1.8.1`) for Solidity formatting; Docker is needed for cross-repository suites.
+Use Node 22 (`nvm use`; run `nvm install` first if the version is missing) and npm. Install Foundry with Forge 1.8.1 (`foundryup --install v1.8.1`) for Solidity formatting; Docker is needed for cross-repository suites.
 
 ```bash
+git submodule update --init
 nvm use
-npm install
+npm ci
+npx hardhat compile
 ```
 
-Configure the required endpoints and services locally using the documented names in `.env.example`. Keep credentials out of commits. Fork execution needs the selected network's RPC (`ETH_MAINNET_RPC_URL` or `ETH_HOODI_RPC_URL`; the Hoodi variable is not listed in `.env.example`); authoring and static checks do not require publishing or sending public transactions.
+Configure the required endpoints and services locally using the documented names in `.env.example`. Keep credentials out of commits. Fork execution needs the selected network's RPC (`ETH_MAINNET_RPC_URL` or `ETH_HOODI_RPC_URL`); authoring and static checks do not require publishing or sending public transactions.
 
 ## Write an omnibus
 
@@ -28,7 +30,7 @@ Use `npm run abi:sync -- <Name>` when a required ABI/interface is missing or sta
 
 ## Commands
 
-Run from the repository root; replace `<name>` and `<block>` with the intended omnibus and fork block.
+Run from the repository root; replace `<name>` with the intended omnibus. `<block>` is a block at which the network state matches what the test expects (before the vote executes); without `--fork-block` the latest block is used.
 
 ```bash
 npm run omnibus:build -- <name>
@@ -52,7 +54,7 @@ Cross-repository tests and mounted test examples are described in [the runbook](
 
 ## Deployment and launch
 
-Use `npx hardhat omnibus:deploy <name>` and `npx hardhat omnibus:launch <name>` for local rehearsals. These commands still use keystores and may publish the description to a configured IPFS provider. Public transactions require `--broadcast` on each command and explicit authorization. Follow the [deployment runbook](docs/omnibuses/WRITING_OMNIBUS.md#7-rehearse-deployment-and-launch) before running either path.
+Use `npx hardhat omnibus:deploy <name>` and `npx hardhat omnibus:launch <name>` for local rehearsals on a local dev node, without unlocking the key or uploading to IPFS. Public transactions require `--broadcast`, typing the network name to confirm, and explicit authorization. Follow the [deployment runbook](docs/omnibuses/WRITING_OMNIBUS.md#7-rehearse-deployment-and-launch) before running either path.
 
 ## Contributing
 

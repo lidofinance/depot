@@ -120,12 +120,11 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
     const keystore = await getOrSelect(name);
 
     const account = await NamedKeystore.fromPrivateKey(
-      name,
+      keystore.name,
       await keystore.decrypt(oldPassword ?? (await promptCurrentPassword(keystore.name))),
       newPassword ?? (await promptNewPassword()),
     );
-    await storage.del(name);
-    await storage.add(account);
+    await storage.replace(account);
     return account;
   }
 
@@ -137,7 +136,7 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
     }
 
     const accountName = await prompt.select(
-      "Select an account to unlock:",
+      "Select an account:",
       keystores.map((keystore) => ({ title: keystore.format(), value: keystore.name })),
     );
 

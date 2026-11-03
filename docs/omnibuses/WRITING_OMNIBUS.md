@@ -137,14 +137,14 @@ Docker and each target's configured dependencies are required. Set the intended 
 
 ## 7. Rehearse deployment and launch
 
-Before the first run, import an existing key with `npm run ks:add -- <name>` or generate a new account with `npm run ks:gen -- <name>`. Both commands prompt for a password to encrypt the keystore; deploy and launch prompt for that password to unlock it.
+Before the first run, import an existing key with `npm run ks:add -- <name>` or generate a new account with `npm run ks:gen -- <name>`. Both commands prompt for a password to encrypt the keystore. Deploy and launch always ask to select a keystore account; only `--broadcast` prompts for the password to unlock it.
 
 ```bash
 npx hardhat omnibus:deploy <name>
 npx hardhat omnibus:launch <name>
 ```
 
-Both use a local fork unless `--broadcast` is set. They still unlock a keystore and ask for confirmation. Launch attempts to upload the Markdown to IPFS when a provider is configured; otherwise it offers to continue without upload. Treat publication as an external action even during a local rehearsal.
+Without `--broadcast` both run only on a hardhat or anvil node at `localhost:$ETH_LOCAL_RPC_PORT` (falling back to the in-process node when nothing listens), send from the selected account by impersonation without unlocking it, and upload nothing to IPFS. With `--broadcast` you type the network name to confirm, the description is uploaded after that, and each transaction hash is printed before sending. After a send error or timeout, check the hash and nonce in an explorer instead of rerunning.
 
 Deploy, launch and trace do not accept `--fork-block`. For a pinned rehearsal, use a local node already at the intended state and keep it alive across commands. Local deployment does not record wrapper addresses; launch can deploy the contract itself. To rehearse reuse, supply `deployment.omnibus` for that same local node. Run build/address checks before launch because launch does not add an address-lint gate.
 

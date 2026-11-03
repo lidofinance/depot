@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { redactError } from "@/src/common/redact";
 import { DevRpcClient } from "@/src/network";
 
 const ACCEPTANCE_DIR = fileURLToPath(new URL("../../test/protocol/acceptance/", import.meta.url));
@@ -55,13 +56,15 @@ export async function runAcceptance(client: DevRpcClient): Promise<void> {
       },
     });
     await new Promise<void>((resolve, reject) => {
-      mocha.run((failures) => {
+      const runner = mocha.run((failures) => {
         if (failures > 0) {
           reject(new Error(`Acceptance checks failed: ${failures}`));
         } else {
           resolve();
         }
       });
+      // the reporter prints the errors after the run, and a forking node puts its RPC URL into them
+      runner.on("fail", (_test: Mocha.Test, error: Error) => redactError(error));
     });
   } finally {
     mocha.dispose();

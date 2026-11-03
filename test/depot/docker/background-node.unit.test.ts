@@ -1,5 +1,6 @@
 import { assert } from "chai";
 import Docker from "dockerode";
+import { EventEmitter } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -14,7 +15,7 @@ describe("background node container ownership", () => {
   let clock: sinon.SinonFakeTimers;
   let container: Docker.Container;
   let logs: PassThrough;
-  let run: sinon.SinonStub<Parameters<Docker["run"]>, ReturnType<Docker["run"]>>;
+  let run: sinon.SinonStub;
 
   beforeEach(async () => {
     fixtureDir = await mkdtemp(path.join(tmpdir(), "depot-background-node-"));
@@ -25,9 +26,9 @@ describe("background node container ownership", () => {
     logs = new PassThrough();
     sinon.stub(container, "logs").resolves(logs);
     sinon.stub(Docker.prototype, "getContainer").returns(container);
-    const listed = sinon.stub(Docker.prototype, "listContainers");
-    listed.onFirstCall().resolves([]);
-    listed.onSecondCall().resolves([
+    // the lookup before the run, the stale container check, the lookup after the run
+    const listed = sinon.stub(Docker.prototype, "listContainers").resolves([]);
+    listed.onThirdCall().resolves([
       {
         Id: "owned-node",
         Names: ["/fixture-node"],
@@ -57,7 +58,8 @@ describe("background node container ownership", () => {
         Containers: 0,
       },
     ]);
-    run = sinon.stub(Docker.prototype, "run").resolves();
+    run = sinon.stub(Docker.prototype, "run");
+    run.returns(new EventEmitter());
   });
 
   afterEach(async () => {

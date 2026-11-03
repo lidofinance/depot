@@ -1,6 +1,10 @@
 import "dotenv/config";
 
+import { KnownError } from "./errors";
+
 export const ETH_LOCAL_RPC_PORT = () => getOptionalEnvVar("ETH_LOCAL_RPC_PORT", "8545");
+// A native Linux engine reaches host.docker.internal through the bridge gateway, so CI binds 0.0.0.0
+export const ETH_LOCAL_RPC_BIND_IP = () => getOptionalEnvVar("ETH_LOCAL_RPC_BIND_IP", "127.0.0.1");
 
 export const ETH_MAINNET_RPC_URL = () => getRequiredEnvVar("ETH_MAINNET_RPC_URL");
 export const ETH_HOLESKY_RPC_URL = () => getRequiredEnvVar("ETH_HOLESKY_RPC_URL");
@@ -32,8 +36,8 @@ export const IMAGE_PLATFORM = (repo: string) =>
 
 export function getRequiredEnvVar(name: string) {
   const value = process.env[name];
-  if (value === undefined) {
-    throw new Error(`required ENV variable "${name}" is not set`);
+  if (value === undefined || value.trim() === "") {
+    throw new KnownError(`required ENV variable "${name}" is not set`);
   }
   return value;
 }
