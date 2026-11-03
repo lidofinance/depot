@@ -13,11 +13,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-tests-1:
-    name: Scripts fork tests 1/2
+  candidate:
+    name: Find candidate vote
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mainnet: ${{ steps.find.outputs.name }}
+
+    steps:
+      - name: Checkout depot repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: depot
+          persist-credentials: false
+
+      - name: Find candidate vote
+        id: find
+        uses: ./depot/.github/actions/find_candidate
+        with:
+          network: mainnet
+
+  run-tests-1:
+    name: Scripts fork tests 1/2
+    needs: candidate
+    if: ${{ !github.event.pull_request.draft && needs.candidate.outputs.mainnet != '' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 100
+    env:
+      OMNIBUS: ${{ needs.candidate.outputs.mainnet }}
 
     services:
       hardhat-node:
@@ -49,6 +73,8 @@ jobs:
 
       - name: Run vote
         uses: ./depot/.github/actions/run_depot_vote
+        with:
+          omnibus: ${{ env.OMNIBUS }}
 
       - name: Run script tests 1/2
         run: make test-1/2
@@ -59,9 +85,12 @@ jobs:
 
   run-tests-2:
     name: Scripts fork tests 2/2
-    if: ${{ !github.event.pull_request.draft }}
+    needs: candidate
+    if: ${{ !github.event.pull_request.draft && needs.candidate.outputs.mainnet != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 100
+    env:
+      OMNIBUS: ${{ needs.candidate.outputs.mainnet }}
 
     services:
       hardhat-node:
@@ -94,6 +123,7 @@ jobs:
       - name: Run vote
         uses: ./depot/.github/actions/run_depot_vote
         with:
+          omnibus: ${{ env.OMNIBUS }}
           rpc-port: "8546"
 
       - name: Run script tests 2/2

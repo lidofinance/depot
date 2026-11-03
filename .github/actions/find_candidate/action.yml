@@ -1,0 +1,40 @@
+name: "Find candidate vote"
+description: "Resolve the current candidate vote in omnibuses/ongoing/<network>/"
+
+inputs:
+  network:
+    description: "Network folder under omnibuses/ongoing/"
+    required: true
+
+outputs:
+  name:
+    description: "Candidate vote name, empty when there is none"
+    value: ${{ steps.find.outputs.name }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Find candidate vote
+      id: find
+      shell: bash
+      working-directory: depot
+      env:
+        NETWORK: ${{ inputs.network }}
+      run: |
+        set -euo pipefail
+        if [[ ! "$NETWORK" =~ ^[a-z0-9_]+$ ]]; then
+          echo "::error::Invalid network: $NETWORK"
+          exit 1
+        fi
+        dir="omnibuses/ongoing/$NETWORK"
+        name=""
+        if [[ -d "$dir" ]]; then
+          # Several candidates are allowed for now; the first by name is tested.
+          name="$(find "$dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | LC_ALL=C sort | head -n 1)"
+        fi
+        if [[ -n "$name" && ! "$name" =~ ^[a-z0-9_]+$ ]]; then
+          echo "::error::Invalid candidate name in $dir"
+          exit 1
+        fi
+        echo "Candidate for $NETWORK: ${name:-<none>}"
+        echo "name=$name" >> "$GITHUB_OUTPUT"

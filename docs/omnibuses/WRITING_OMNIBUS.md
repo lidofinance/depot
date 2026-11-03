@@ -19,7 +19,7 @@ omnibuses/ongoing/<network>/<name>/
   <name>.ts
 ```
 
-It fills the network, the `upgrade` flag, contract name and Voting address. `ongoing/<network>/` holds the network's current candidate; CI rejects more than one per network. Executed votes move to `archive/<network>/`, and reference patterns live in `examples/`. Commands find a vote by name in any of these folders, and the folder network must match the wrapper's `network`. Complete the Markdown and call list before testing: the empty Solidity scaffold compiles, but its call-count check rejects an incomplete list.
+It fills the network, the `upgrade` flag, contract name and Voting address. `ongoing/<network>/` holds the network's current candidate; CI tests the first one by name. Executed votes move to `archive/<network>/`, and reference patterns live in `examples/`. Commands find a vote by name in any of these folders, and the folder network must match the wrapper's `network`. Complete the Markdown and call list before testing: the empty Solidity scaffold compiles, but its call-count check rejects an incomplete list.
 
 ## 2. Describe the payload
 
@@ -51,7 +51,7 @@ Choose the execution route from the target's authority: Voting, DG executor or A
 
 Export `Omnibus.create({ network, testVote, testProposal? })`. Keep `voteId`, `launchedAt`, `executedAt` and `quorumReached` undefined until their actual public milestones. There is no TS `calls` builder, blueprint or contract-generation step: the runtime reads calls and script from the deployed Solidity contract and checks their consistency.
 
-- In `testVote`, read before-state, await `passOmnibus()`, register every `voteEvents.item(title, domainEvents)`, and assert resulting state/balance changes. Read expected public constants through a typed contract ABI, as in [the tiny test](../../omnibuses/_example_tiny_omnibus/_example_tiny_omnibus.ts). Prefer bound `checks.*` from the callback context where they fit.
+- In `testVote`, read before-state, await `passOmnibus()`, register every `voteEvents.item(title, domainEvents)`, and assert resulting state/balance changes. Read expected public constants through a typed contract ABI, as in [the tiny test](../../omnibuses/examples/_example_tiny_omnibus/_example_tiny_omnibus.ts). Prefer bound `checks.*` from the callback context where they fit.
 - A submitting item still needs `voteEvents.item(title)` when it has no additional domain events. The helper supplies its Voting/DG envelope; this does not check proposal execution.
 - In `testProposal`, await `passProposals()` and register each `proposalEvents[i].call(j, domainEvents)`. For multiple Agent-forwarded calls, supply one array per nested call, including empty groups. See [Agent event grouping](../../.agents/skills/omnibus-writer-sol/HELPERS.md#agent-and-dual-governance).
 - All submitted proposal IDs must be processed before returning. Optional `passProposals(ids)` supports staged execution and returns results in requested ID order; `[]` does not satisfy completion. Keep state and event assertions for each executed call.
@@ -65,7 +65,7 @@ The core requires execution and complete receipt consumption after both callback
 
 The default deployment needs exactly one non-test `.sol` in the omnibus folder, a contract named after that file and a zero-argument constructor. The runner compiles and deploys it on the local fork automatically.
 
-For constructor arguments or auxiliary contracts, implement `deploy({ deployContract })` and return the vote contract as `omnibus` alongside other handles. A `deployment` mapping supplies already deployed contracts. See [the custom-deployment example](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts). Both paths validate the Solidity calls/script and exact DG metadata during preparation.
+For constructor arguments or auxiliary contracts, implement `deploy({ deployContract })` and return the vote contract as `omnibus` alongside other handles. A `deployment` mapping supplies already deployed contracts. See [the custom-deployment example](../../omnibuses/examples/_example_contract_omnibus/_example_contract_omnibus.ts). Both paths validate the Solidity calls/script and exact DG metadata during preparation.
 
 ## 6. Build and test
 

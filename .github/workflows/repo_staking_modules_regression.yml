@@ -13,13 +13,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  candidate:
+    name: Find candidate vote
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mainnet: ${{ steps.find.outputs.name }}
+
+    steps:
+      - name: Checkout depot repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: depot
+          persist-credentials: false
+
+      - name: Find candidate vote
+        id: find
+        uses: ./depot/.github/actions/find_candidate
+        with:
+          network: mainnet
+
   run-tests:
     name: Staking Modules post-vote regression
-    if: ${{ !github.event.pull_request.draft && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
+    needs: candidate
+    if: ${{ !github.event.pull_request.draft && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) && needs.candidate.outputs.mainnet != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
       ETH_MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+      OMNIBUS: ${{ needs.candidate.outputs.mainnet }}
       GIT_BRANCH_STAKING_MODULES: develop
       ETH_LOCAL_RPC_BIND_IP: "0.0.0.0"
       DOTENV_CONFIG_PATH: /dev/null
@@ -55,14 +78,14 @@ jobs:
           appendFileSync(process.env.GITHUB_ENV, `FORK_BLOCK=${forkBlock}\nGIT_SHA_STAKING_MODULES=${object.sha}\n`);
           mkdirSync("logs", { recursive: true });
           writeFileSync("logs/staking-modules-inputs.json", JSON.stringify({
-            omnibus: "_example_tiny_omnibus", branch, sha: object.sha, forkBlock, forkBlockHash: block.hash,
+            omnibus: process.env.OMNIBUS, branch, sha: object.sha, forkBlock, forkBlockHash: block.hash,
           }, null, 2) + "\n");
           NODE
 
       - name: Run CSM and Curated integration tests after the omnibus
         working-directory: depot
         shell: bash
-        run: npm run omnibus:multi-test -- _example_tiny_omnibus --repo staking-modules --fork-block "$FORK_BLOCK" 2>&1 | tee logs/staking-modules-multi-test.log
+        run: npm run omnibus:multi-test -- "$OMNIBUS" --repo staking-modules --fork-block "$FORK_BLOCK" 2>&1 | tee logs/staking-modules-multi-test.log
 
       - name: Upload regression evidence
         if: always()

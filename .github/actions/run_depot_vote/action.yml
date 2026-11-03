@@ -2,6 +2,9 @@ name: "Run depot vote"
 description: "Execute omnibus vote on forked hardhat node"
 
 inputs:
+  omnibus:
+    description: "Name of the omnibus to apply"
+    required: true
   rpc-port:
     description: "Port of the local hardhat node"
     required: false
@@ -28,10 +31,10 @@ runs:
       shell: bash
       run: docker ps -a && docker logs $(docker ps -aq --filter "ancestor=ghcr.io/lidofinance/hardhat-node:2.26.0") 2>&1 || echo "Could not fetch container logs"
 
-    ## TODO: make real script here
     - name: Run Vote
       shell: bash
-      run: npm run omnibus:ci-prepare
+      run: npm run omnibus:ci-prepare -- "$OMNIBUS"
       working-directory: depot
       env:
+        OMNIBUS: ${{ inputs.omnibus }}
         ETH_LOCAL_RPC_PORT: ${{ inputs.rpc-port }}

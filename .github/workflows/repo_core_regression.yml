@@ -13,11 +13,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run-tests:
-    name: Core repo tests in docker
+  candidate:
+    name: Find candidate vote
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mainnet: ${{ steps.find.outputs.name }}
+
+    steps:
+      - name: Checkout depot repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: depot
+          persist-credentials: false
+
+      - name: Find candidate vote
+        id: find
+        uses: ./depot/.github/actions/find_candidate
+        with:
+          network: mainnet
+
+  run-tests:
+    name: Core repo tests in docker
+    needs: candidate
+    if: ${{ !github.event.pull_request.draft && needs.candidate.outputs.mainnet != '' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      OMNIBUS: ${{ needs.candidate.outputs.mainnet }}
 
     services:
       hardhat-node:
@@ -78,6 +102,8 @@ jobs:
 
       - name: Run vote
         uses: ./depot/.github/actions/run_depot_vote
+        with:
+          omnibus: ${{ env.OMNIBUS }}
 
       ################################################################
       # Run tests

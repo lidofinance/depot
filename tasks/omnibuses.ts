@@ -35,7 +35,6 @@ import { logBlue } from "../src/common/color";
 import { getGovernanceContracts } from "../src/omnibuses/governance-contracts";
 import { getKeystores } from "../src/hardhat-keystores";
 import { runHardhatTask } from "../src/hardhat/run-task";
-import { adoptAragonVoting } from "../src/aragon-votes-tools";
 import { renderCustomOmnibusDeployment, renderDefaultOmnibusDeployment } from "../src/omnibuses/omnibus-deployment";
 import { assertVoteAddresses } from "../src/omnibuses/address-lint";
 import { runAcceptance } from "./sub-tasks/acceptance";
@@ -464,7 +463,7 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
     },
   );
 
-defineTask("omnibus:ci-prepare", "Prepare omnibus vote on CI (adopt aragon voting on local node)")
+defineTask("omnibus:ci-prepare", "Apply the omnibus on the local CI node: Aragon vote and all its DG proposals")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to run" })
   .setAction(async (taskArgs: { name: string }, hre: HardhatRuntimeEnvironment) => {
     const { name } = taskArgs;
@@ -472,7 +471,7 @@ defineTask("omnibus:ci-prepare", "Prepare omnibus vote on CI (adopt aragon votin
 
     const client = await createDevRpcClient(omnibus.network, getLocalRpcUrl(env.ETH_LOCAL_RPC_PORT()));
     await prepareOmnibus(hre, client, omnibus);
-    await adoptAragonVoting(client, omnibus.getEvmScript(), omnibus.formatDescription());
+    await omnibus.passOmnibus(client);
   });
 
 type OmnibusLaunchParams = {

@@ -13,14 +13,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  candidate:
+    name: Find candidate vote
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mainnet: ${{ steps.find.outputs.name }}
+
+    steps:
+      - name: Checkout depot repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: depot
+          persist-credentials: false
+
+      - name: Find candidate vote
+        id: find
+        uses: ./depot/.github/actions/find_candidate
+        with:
+          network: mainnet
+
   run-tests:
     name: Stonks post-vote integration tests
-    if: ${{ !github.event.pull_request.draft && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
+    needs: candidate
+    if: ${{ !github.event.pull_request.draft && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) && needs.candidate.outputs.mainnet != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
       DOTENV_CONFIG_PATH: /dev/null
       ETH_MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+      OMNIBUS: ${{ needs.candidate.outputs.mainnet }}
       ETH_LOCAL_RPC_PORT: "8545"
       ETH_LOCAL_RPC_BIND_IP: "0.0.0.0"
       GIT_BRANCH_STONKS: main
@@ -63,7 +86,7 @@ jobs:
             throw new Error("Could not resolve the stonks revision");
           }
           const inputs = {
-            omnibus: "_example_tiny_omnibus",
+            omnibus: process.env.OMNIBUS,
             forkBlock,
             forkBlockHash: block.hash,
             stonksBranch: process.env.GIT_BRANCH_STONKS,
@@ -80,7 +103,7 @@ jobs:
         shell: bash
         env:
           GIT_SHA_STONKS: ${{ steps.inputs.outputs.git-sha }}
-        run: npm run omnibus:multi-test -- _example_tiny_omnibus --repo stonks --fork-block "${{ steps.inputs.outputs.fork-block }}" 2>&1 | tee logs/stonks-multi-test.log
+        run: npm run omnibus:multi-test -- "$OMNIBUS" --repo stonks --fork-block "${{ steps.inputs.outputs.fork-block }}" 2>&1 | tee logs/stonks-multi-test.log
 
       - name: Upload test evidence
         if: always()
