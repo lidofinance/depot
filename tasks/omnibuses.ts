@@ -48,6 +48,7 @@ const FORK_BLOCK_DESCRIPTION = "Fork block number; defaults to the latest block"
 
 export const omnibusTaskDeps = {
   getOmnibusesDir: () => path.resolve(__dirname, "..", "omnibuses"),
+  assertNodeOnRealChain,
   runSnapshots,
   uploadDescription,
 };
@@ -300,7 +301,9 @@ defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
       const { name } = taskArgs;
       assertVoteAddresses(await resolveOmnibusDir(name));
       const omnibus = await loadOmnibus(name);
-      const client = await prepareDevRpcClient(omnibus.network, hre, resolveForkBlock(taskArgs.forkBlock));
+      const forkBlock = resolveForkBlock(taskArgs.forkBlock);
+      const client = await prepareDevRpcClient(omnibus.network, hre, forkBlock);
+      await omnibusTaskDeps.assertNodeOnRealChain(client, omnibus.network, forkBlock);
       await prepareOmnibus(hre, client, omnibus);
       await printEvmScript(name, omnibus.getEvmScript());
       await omnibus.test(client, taskArgs.skipAcceptance ? undefined : runAcceptance);
@@ -800,6 +803,7 @@ async function prepareLocalRpcNode(network: NetworkName, forkBlock?: bigint): Pr
   }
   if (runningNodeClient) {
     await assertForkBlock(runningNodeClient, forkBlock);
+    await omnibusTaskDeps.assertNodeOnRealChain(runningNodeClient, network, forkBlock);
     return { client: runningNodeClient, startedByUs: false };
   }
 
@@ -868,6 +872,29 @@ async function assertForkBlock(client: DevRpcClient, forkBlock?: bigint) {
     );
   }
   console.log(fmt.padded(`Fork pinned to block ${forkBlock}`, 2));
+}
+
+const STALE_NODE_BLOCKS = 50n;
+
+/** A locally mined block or another network changes the block hash; storage cheats without a block are not detected. */
+async function assertNodeOnRealChain(client: DevRpcClient, network: NetworkName, forkBlock?: bigint) {
+  const nodeBlock = await client.viemClient.getBlock();
+  const remoteClient = await createRpcClient(network);
+  const remoteLatest = await remoteClient.getBlockNumber();
+  const remoteBlock =
+    nodeBlock.number <= remoteLatest ? await remoteClient.viemClient.getBlock({ blockNumber: nodeBlock.number }) : null;
+  if (remoteBlock?.hash !== nodeBlock.hash) {
+    throw new KnownError(
+      `The RPC node at ${client.getRpcUrl()} is not on the ${network} chain at block ${nodeBlock.number}: ` +
+        `it has local blocks or forks another network. Restart the node.`,
+    );
+  }
+  const lag = remoteLatest - nodeBlock.number;
+  if (forkBlock === undefined && lag > STALE_NODE_BLOCKS) {
+    console.log(
+      chalk.yellow(`⚠ The RPC node is ${lag} blocks behind ${network} latest; restart it to test the current state.`),
+    );
+  }
 }
 
 async function prepareDevRpcClient(networkName: NetworkName, hre: HardhatRuntimeEnvironment, forkBlock?: bigint) {

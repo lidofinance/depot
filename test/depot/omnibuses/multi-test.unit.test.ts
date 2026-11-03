@@ -7,7 +7,13 @@ import type { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 import { Omnibus } from "@/src/omnibuses/omnibus";
 
 import { DevRpcClient } from "@/src/network";
-import { getRepositorySuites, runRepositorySuites, multiTestDeps, omnibusTaskBuilders } from "@/tasks/omnibuses";
+import {
+  getRepositorySuites,
+  runRepositorySuites,
+  multiTestDeps,
+  omnibusTaskBuilders,
+  omnibusTaskDeps,
+} from "@/tasks/omnibuses";
 import { containerDeps, runRepoTests } from "@/tasks/sub-tasks/containers";
 
 interface ForkState {
@@ -357,6 +363,7 @@ describe("multi-test local node acquisition", () => {
     findContainer = sinon.stub(multiTestDeps, "findContainerByName").resolves(null);
     stopNode = sinon.stub(multiTestDeps, "stopLocalRpcNode").resolves();
     sleep = sinon.stub(multiTestDeps, "sleep").resolves();
+    sinon.stub(omnibusTaskDeps, "assertNodeOnRealChain").resolves();
   });
 
   afterEach(() => {

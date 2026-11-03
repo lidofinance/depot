@@ -62,6 +62,10 @@ async function prepareDualGovernanceState(client: DevRpcClient) {
 }
 
 export async function processPendingProposals(client: DevRpcClient, proposalIds: bigint[]) {
+  if (proposalIds.length === 0) {
+    return [];
+  }
+
   const { timelock, dualGovernance } = getGovernanceContracts(client.getNetworkName());
 
   const [timestamp, [stranger], afterSubmitDelay, afterScheduleDelay] = await Promise.all([

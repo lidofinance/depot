@@ -45,6 +45,7 @@ describe("omnibus:test acceptance option", () => {
     };
     sinon.stub(console, "log");
     sinon.stub(omnibusTaskDeps, "getOmnibusesDir").returns(root);
+    sinon.stub(omnibusTaskDeps, "assertNodeOnRealChain").resolves();
     sinon.stub(Omnibus.prototype, "hasDeployMethod").returns(true);
     sinon.stub(Omnibus.prototype, "getDeployment").returns({
       omnibus: Omnibus.deployedContract("0x0000000000000000000000000000000000000001"),
