@@ -54,7 +54,7 @@ tasks/                  # Hardhat tasks (omnibus:*, keystore:*)
 omnibuses/              # actual omnibus scripts and templates
 test/depot/             # Depot unit/integration tests and helpers
 test/protocol/acceptance/ # deployed protocol checks after vote/DG execution
-test/protocol/snapshot/  # opt-in upgrade state/action comparisons
+test/protocol/snapshot/  # upgrade state/action comparisons, run for upgrade: true
 contracts/mocks/        # mock Solidity contracts for integration tests
 ```
 

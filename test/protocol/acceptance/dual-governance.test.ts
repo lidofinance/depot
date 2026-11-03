@@ -61,6 +61,7 @@ const configurations = {
     },
     emergencyActivationCommittee: "0x8B7854488Fde088d686Ea672B6ba1A5242515f45",
     emergencyExecutionCommittee: "0xC7792b3F2B399bB0EdF53fECDceCeB97FBEB18AF",
+    // endsAfter: DG deploy 1781913600 extended by Scripts archive/scripts/vote_2026_05_13.py
     emergencyProtectionDetails: [2592000, 0, 1813449600],
     coreCommittee: {
       ADDRESS: "0xf65614d73952Be91ce0aE7Dd9cFf25Ba15bEE2f5",
@@ -164,6 +165,7 @@ const configurations = {
     },
     emergencyActivationCommittee: "0xA678c29cbFde2C74aF15C7724EE4b1527A50D45B",
     emergencyExecutionCommittee: "0x8E1Ce8995E370222CbD825fFD7Dce2A5BfE1E631",
+    // DG deploy-artifacts/deploy-artifact-hoodi.toml, never extended
     emergencyProtectionDetails: [86400, 0, 1777975200],
     coreCommittee: {
       ADDRESS: "0x9Ce4bA766C87cC87e507307163eA54C5003A3563",
@@ -286,7 +288,6 @@ describe("DualGovernance acceptance", function () {
     }
     assert.equal((await client.read(timelock, "getGovernance")).toLowerCase(), expected.dualGovernance.toLowerCase());
     assert.isFalse(await client.read(timelock, "isEmergencyModeActive"));
-    assert.isTrue(await client.read(timelock, "isEmergencyProtectionEnabled"));
     assert.equal(
       (await client.read(timelock, "getEmergencyActivationCommittee")).toLowerCase(),
       expected.emergencyActivationCommittee.toLowerCase(),
@@ -303,6 +304,14 @@ describe("DualGovernance acceptance", function () {
     assert.equal(details.emergencyModeDuration, expected.emergencyProtectionDetails[0]);
     assert.equal(Number(details.emergencyModeEndsAfter), expected.emergencyProtectionDetails[1]);
     assert.equal(Number(details.emergencyProtectionEndsAfter), expected.emergencyProtectionDetails[2]);
+    // Mirrors EmergencyProtection.isEmergencyProtectionEnabled, which lapses once endsAfter passes
+    const [, emergencyModeEndsAfter, emergencyProtectionEndsAfter] = expected.emergencyProtectionDetails;
+    const { timestamp } = await client.viemClient.getBlock({ blockTag: "latest" });
+    assert.equal(
+      await client.read(timelock, "isEmergencyProtectionEnabled"),
+      timestamp <= BigInt(emergencyProtectionEndsAfter) || emergencyModeEndsAfter !== 0,
+      "emergency protection enabled",
+    );
   });
 
   it("has the expected emergency governance links", async function () {

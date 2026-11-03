@@ -1,6 +1,6 @@
 # Upgrade snapshot example
 
-Opt-in `upgradeSnapshot` on a one-item payload that repeats the Locator upgrade call from Scripts vote #204 (`upgrade_2026_08_05`). It does not reproduce the complete historical vote or alter its recorded lifecycle. Use mainnet fork block **25724758**.
+`upgrade: true` on a one-item payload that repeats the Locator upgrade call from Scripts vote #204 (`upgrade_2026_08_05`). It does not reproduce the complete historical vote or alter its recorded lifecycle. Run it on a current mainnet fork: the snapshot suites target current deployments, and at the #204 block **25724758** the current DSM does not exist yet (deployed at 25940562).
 
 <!-- OMNIBUS_DESCRIPTION -->
 
@@ -19,8 +19,8 @@ Upgrade Lido Locator to 0xF2Ffb952e129a63F0614Ff87126E1d4a494A2313 for a local u
 
 <!-- DG_PROPOSAL_DESCRIPTIONS -->
 
-It selects the `first-slots` suite with an additional explicit observation of the Locator EIP-1967 implementation slot and declares only its exact new implementation as an allowed change. The other suites do not observe that slot.
+`omnibus:test` runs every upgrade snapshot suite. None of them reads the Locator EIP-1967 implementation slot; `testProposal` asserts that slot holds exactly the new implementation.
 
-Command: `npm run omnibus:test -- _example_upgrade_snapshot --fork-block 25724758 --skip-acceptance`.
+Command: `npm run omnibus:test -- _example_upgrade_snapshot --skip-acceptance`.
 
-Current acceptance expectations do not describe the historical fork block, so the command skips them. The rejection of an undeclared change is covered by `test/depot/omnibuses/upgrade-snapshot.integration.test.ts`. This example does not prove all six snapshot suites or current mainnet/Hoodi runtime coverage.
+The command skips the clean-pass acceptance; snapshot cases never run it. The rejection of a sampled-slot change is covered by `test/depot/omnibuses/upgrade-snapshot.integration.test.ts`. A green run covers mainnet at its fork block only, not Hoodi.

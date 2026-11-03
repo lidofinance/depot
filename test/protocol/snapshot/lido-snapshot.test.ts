@@ -57,10 +57,7 @@ describe("Lido upgrade snapshot", function () {
 
   before(async function () {
     context = getSnapshotContext(this);
-    const network = context.client.getNetworkName();
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Unsupported snapshot network ${network}`);
-    }
+    const { network } = context;
     expected = configurations[network];
     lido = contract(Lido_ABI, expected.lido);
     governance = getGovernanceContracts(network);
@@ -437,8 +434,8 @@ describe("Lido upgrade snapshot", function () {
           const scope = `lido-snapshot/${scenario}/${before.name}`;
           const oldState = { ...before.snapshot };
           const newState = { ...after.snapshot };
-          assertWithinTolerance(context, scope, "getPooledEthByShares(100)", oldState, newState, 2n);
-          assertSnapshot(context, scope, oldState, newState);
+          assertWithinTolerance(scope, "getPooledEthByShares(100)", oldState, newState, 2n);
+          assertSnapshot(scope, oldState, newState);
         }
       },
     });

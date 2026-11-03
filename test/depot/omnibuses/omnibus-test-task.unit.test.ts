@@ -34,7 +34,7 @@ describe("omnibus:test acceptance option", () => {
     await mkdir(snapshotDirectory);
     await writeFile(
       path.join(snapshotDirectory, "snapshot_fixture.ts"),
-      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: true, upgradeSnapshot: { suites: ["voting"] }, testVote: async () => {} });`,
+      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: true, testVote: async () => {} });`,
     );
     await writeFile(path.join(snapshotDirectory, "snapshot_fixture.md"), "");
     process.env = { ...originalEnv, ETH_MAINNET_RPC_URL: "http://localhost:18545" };
@@ -63,8 +63,9 @@ describe("omnibus:test acceptance option", () => {
   });
 
   for (const skipAcceptance of [false, true]) {
-    it(`forwards skipAcceptance=${skipAcceptance} from the registered task`, async () => {
+    it(`forwards skipAcceptance=${skipAcceptance} from the registered task and skips snapshots without upgrade`, async () => {
       const test = sinon.stub(Omnibus.prototype, "test").resolves();
+      const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").resolves();
 
       await hre.tasks.getTask("omnibus:test").run({
         name: "fixture",
@@ -74,17 +75,16 @@ describe("omnibus:test acceptance option", () => {
       sinon.assert.calledOnce(test);
       assert.instanceOf(test.firstCall.args[0], DevRpcClient);
       assert.strictEqual(test.firstCall.args[1], skipAcceptance ? undefined : runAcceptance);
+      sinon.assert.notCalled(runSnapshots);
     });
 
     it(`runs acceptance=${!skipAcceptance} once on a clean pass, separately from snapshot cases`, async () => {
       const test = sinon.stub(Omnibus.prototype, "test").resolves();
       const hooks = { beforeExecution: sinon.stub().resolves(), afterExecution: sinon.stub().resolves() };
-      const runSnapshots = sinon
-        .stub(omnibusTaskDeps, "runSnapshots")
-        .callsFake(async (_client, _config, testUpgrade) => {
-          await testUpgrade(hooks);
-          await testUpgrade(hooks);
-        });
+      const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").callsFake(async (_client, testUpgrade) => {
+        await testUpgrade(hooks);
+        await testUpgrade(hooks);
+      });
 
       await hre.tasks.getTask("omnibus:test").run({
         name: "snapshot_fixture",
@@ -98,8 +98,7 @@ describe("omnibus:test acceptance option", () => {
       }
       sinon.assert.calledOnce(runSnapshots);
       assert.isTrue(test.firstCall.calledBefore(runSnapshots.firstCall));
-      assert.deepEqual(runSnapshots.firstCall.args[1], { suites: ["voting"] });
-      assert.deepEqual(runSnapshots.firstCall.args[3], { createsVote: true });
+      assert.deepEqual(runSnapshots.firstCall.args[2], { createsVote: true });
     });
   }
 });

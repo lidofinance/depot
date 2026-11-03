@@ -19,7 +19,7 @@ Resolve payload-changing gaps before writing calls:
 - Every submitting vote item needs its own exact fenced DG description. The title of the submitting item is not a substitute for that metadata.
 - Preserve one call per numbered item at its parent level. Combine calls into one Agent forward only when the description groups them that way.
 
-Ask the author whether the vote contains a protocol upgrade and record the answer as `upgrade` in the wrapper; never infer it from the payload.
+Ask the author whether the vote contains a protocol upgrade and record the answer as `upgrade` in the wrapper; never infer it from the payload. `upgrade: true` makes `omnibus:test` run every upgrade snapshot suite; there is nothing to select or declare. Assert the vote's intended upgrade effects, such as new implementation addresses, in `testVote`/`testProposal`.
 
 Report unresolved inputs by item and ask for the information that changes the payload. Do not close such a gap by an external lookup or an assumption; implementation starts only after the author resolves it. Continue directly when they are resolved; existing authorization to obtain an ABI or implement an agreed action remains valid. Prior state omitted from the description is separate: read it on the intended fork and assert the strongest supported before/after relation instead of inventing a historical value.
 

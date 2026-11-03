@@ -312,9 +312,8 @@ defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
       await prepareOmnibus(hre, client, omnibus);
       await printEvmScript(name, omnibus.getEvmScript());
       await omnibus.test(client, taskArgs.skipAcceptance ? undefined : runAcceptance);
-      const { upgradeSnapshot } = omnibus;
-      if (upgradeSnapshot) {
-        await omnibusTaskDeps.runSnapshots(client, upgradeSnapshot, (hooks) => omnibus.test(client, undefined, hooks), {
+      if (omnibus.upgrade) {
+        await omnibusTaskDeps.runSnapshots(client, (hooks) => omnibus.test(client, undefined, hooks), {
           createsVote: !omnibus.voteId,
         });
       }

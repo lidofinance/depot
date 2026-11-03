@@ -13,15 +13,6 @@ const proxy = contract(OssifiableProxy_ABI, LOCATOR);
 export default Omnibus.create({
   network: "mainnet",
   upgrade: true,
-  upgradeSnapshot: {
-    suites: ["first-slots"],
-    storage: [{ address: LOCATOR, slot: IMPLEMENTATION_SLOT }],
-    expectedChanges: {
-      [`first-slots/init/${LOCATOR.toLowerCase()}/${IMPLEMENTATION_SLOT}`]: {
-        after: toHex(BigInt(IMPLEMENTATION), { size: 32 }),
-      },
-    },
-  },
   testVote: async ({ client, passOmnibus }) => {
     const before = await client.read(proxy, "proxy__getImplementation");
     assert.notEqual(before.toLowerCase(), IMPLEMENTATION.toLowerCase(), "Locator is already upgraded");
@@ -35,5 +26,10 @@ export default Omnibus.create({
     const { proposalEvents } = await passProposals();
     proposalEvents[0].call(0, expectedEvents.proxy.upgraded(proxy, { implementation: IMPLEMENTATION }));
     assert.equal((await client.read(proxy, "proxy__getImplementation")).toLowerCase(), IMPLEMENTATION.toLowerCase());
+    assert.equal(
+      await client.viemClient.getStorageAt({ address: LOCATOR, slot: IMPLEMENTATION_SLOT }),
+      toHex(BigInt(IMPLEMENTATION), { size: 32 }),
+      "Locator EIP-1967 implementation slot",
+    );
   },
 });

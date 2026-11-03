@@ -8,7 +8,7 @@ Rules for writing tests in `test/`.
 - `test/depot/<module>/<name>.integration.test.ts` — Depot integration paths with in-process Hardhat; fork cases require `ETH_MAINNET_RPC_URL`.
 - `test/protocol/acceptance/` — shared checks of deployed protocol state after vote/DG execution and event checks, before snapshot restore.
 - `test/protocol/helpers/` — protocol test mechanics (client, revert matching, impersonation, oracle reports, snapshot comparison and storage reads); expected values stay in each suite.
-- `test/protocol/snapshot/` — opt-in old/upgraded comparisons through `omnibus:test`; see [the writing guide](../docs/omnibuses/WRITING_OMNIBUS.md).
+- `test/protocol/snapshot/` — old/upgraded comparisons that `omnibus:test` runs for `upgrade: true` votes; see [the writing guide](../docs/omnibuses/WRITING_OMNIBUS.md).
 
 Per-vote `testVote`/`testProposal` checks stay in the vote wrapper `omnibuses/ongoing/<network>/<name>/<name>.ts`. Shared Depot helpers live in `test/depot/helpers/`.
 
@@ -18,7 +18,7 @@ npm run test:depot:integration  # no separate node required
 npm run test:all                # both Depot suites
 ```
 
-Protocol acceptance runs through `omnibus:test`, which loads the ordered `ACCEPTANCE_SUITES` list from `tasks/sub-tasks/acceptance.ts` and fails if a suite in `test/protocol/acceptance/` is missing from it; Depot globs select only `test/depot/`. Upgrade votes opt in with `upgradeSnapshot`; `omnibus:test` runs acceptance once on a clean pass, then `tasks/sub-tasks/snapshot.ts` runs each selected snapshot case through the full vote/DG lifecycle with its own fixtures and without acceptance. Expected changes belong to the vote, domain assertions to the suite.
+Protocol acceptance runs through `omnibus:test`, which loads the ordered `ACCEPTANCE_SUITES` list from `tasks/sub-tasks/acceptance.ts` and fails if a suite in `test/protocol/acceptance/` is missing from it; Depot globs select only `test/depot/`. For `upgrade: true` votes `omnibus:test` runs acceptance once on a clean pass, then `tasks/sub-tasks/snapshot.ts` runs every snapshot case through the full vote/DG lifecycle with its own fixtures and without acceptance. Allowed differences live in each suite next to its comparison; vote-specific effects belong to the wrapper tests.
 
 ## When to write which
 

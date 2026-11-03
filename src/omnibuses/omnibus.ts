@@ -45,9 +45,6 @@ export type {
   TestProposalFnCtx,
   TestVoteFn,
   TestVoteFnCtx,
-  SnapshotExpectedChange,
-  SnapshotSuiteName,
-  UpgradeSnapshotConfig,
   UpgradeSnapshotHooks,
   VoteCall,
 } from "./omnibus-types";
@@ -84,10 +81,6 @@ export class Omnibus<
   constructor(config: OmnibusConfig<$Network, $DeployedContracts>) {
     this.#contracts = getGovernanceContracts(config.network);
 
-    if (config.upgradeSnapshot && !config.upgrade) {
-      throw new Error("upgradeSnapshot requires upgrade: true");
-    }
-
     this.#config = Object.freeze(config);
 
     if (!this.#config.deploy) {
@@ -119,8 +112,8 @@ export class Omnibus<
     return this.#config.quorumReached;
   }
 
-  get upgradeSnapshot() {
-    return this.#config.upgradeSnapshot;
+  get upgrade() {
+    return this.#config.upgrade;
   }
 
   get name() {
