@@ -1,5 +1,4 @@
 import chalk from "chalk";
-import ts from "typescript";
 import { task } from "hardhat/config";
 
 import { passAragonVote, setupLdoHolder, startAragonVote } from "../src/aragon-votes-tools";
@@ -27,7 +26,6 @@ import { Omnibus } from "../src/omnibuses/omnibus";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getRpcUrl } from "../src/network/network";
-import files from "../src/common/files";
 import { uploadDescription } from "./sub-tasks/upload-description";
 import { calculateCid, getUrlByCidV1 } from "../src/ipfs/utils";
 import { DevRpcClient, RpcClient, WriteContractOptions } from "../src/network";
@@ -101,16 +99,15 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
       throw new KnownError("Invalid name. Omnibus name should match pattern: yyyy_mm_dd_some_optional_info");
     }
 
-    const newOmnibusDir = path.join(omnibusTaskDeps.getOmnibusesDir(), omnibusName);
-    const archivedOmnibusDir = await findArchivedOmnibusDir(omnibusName);
-
-    if (archivedOmnibusDir) {
-      throw new KnownError(`Omnibus ${omnibusName} is already archived at ${archivedOmnibusDir}`);
+    const [existingOmnibusDir] = await findOmnibusDirs(omnibusName);
+    if (existingOmnibusDir) {
+      throw new KnownError(`Omnibus ${omnibusName} already exists at ${existingOmnibusDir}`);
     }
 
-    if (await files.touchDir(newOmnibusDir)) {
-      throw new KnownError(`Omnibus ${newOmnibusDir} already exist`);
-    }
+    const upgrade = await prompt.confirm("Does the vote contain a protocol upgrade?");
+
+    const newOmnibusDir = path.join(omnibusTaskDeps.getOmnibusesDir(), "ongoing", network, omnibusName);
+    await fs.mkdir(path.dirname(newOmnibusDir), { recursive: true });
 
     const templateDirName = "_omnibus_template";
     const templatePath = path.join(omnibusTaskDeps.getOmnibusesDir(), templateDirName);
@@ -138,7 +135,11 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
     // replace network name in the omnibus script
     const omnibusScriptContent = await fs.readFile(omnibusScriptPath, "utf-8");
 
-    await fs.writeFile(omnibusScriptPath, omnibusScriptContent.replace("mainnet", network), { encoding: "utf-8" });
+    await fs.writeFile(
+      omnibusScriptPath,
+      omnibusScriptContent.replace("mainnet", network).replace("upgrade: false", `upgrade: ${upgrade}`),
+      { encoding: "utf-8" },
+    );
 
     const omnibusContractContent = await fs.readFile(omnibusContractPath, "utf-8");
     await fs.writeFile(
@@ -181,11 +182,14 @@ defineTask("omnibus:archive", "Move launched omnibus to archive folder")
       throw new KnownError(`Omnibus doesn't have "executedAt" property set and "quorumReached" is not false`);
     }
 
-    const omnibusPath = path.join(omnibusTaskDeps.getOmnibusesDir(), name);
-    const archivePath = path.join(omnibusTaskDeps.getOmnibusesDir(), "_archive", omnibus.network, name);
+    const omnibusPath = await resolveOmnibusDir(name);
+    const ongoingPath = path.join(omnibusTaskDeps.getOmnibusesDir(), "ongoing", omnibus.network, name);
+    if (omnibusPath !== ongoingPath) {
+      throw new KnownError(`Only an ongoing omnibus can be archived; "${name}" is at ${omnibusPath}`);
+    }
+    const archivePath = path.join(omnibusTaskDeps.getOmnibusesDir(), "archive", omnibus.network, name);
 
     await fs.cp(omnibusPath, archivePath, { errorOnExist: true, recursive: true });
-    await rebaseArchivedImports(archivePath);
     await fs.rm(omnibusPath, { recursive: true });
 
     console.log(`Omnibus ${name} was archived to ${archivePath}`);
@@ -199,32 +203,6 @@ defineTask("omnibus:build", "Build Solidity omnibus contract(s) for the given om
     await buildOmnibusContracts(hre, name);
     console.log(fmt.success(`Omnibus contracts for "${name}" compiled successfully`));
   });
-
-async function rebaseArchivedImports(archiveDir: string): Promise<void> {
-  for (const entry of await fs.readdir(archiveDir, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.endsWith(".ts")) {
-      continue;
-    }
-    const archivedFile = path.join(archiveDir, entry.name);
-    const originalSource = await fs.readFile(archivedFile, "utf-8");
-    const parsed = ts.createSourceFile(archivedFile, originalSource, ts.ScriptTarget.Latest);
-    let source = originalSource;
-    for (const statement of [...parsed.statements].reverse()) {
-      if (!ts.isImportDeclaration(statement)) {
-        continue;
-      }
-      const specifier = statement.moduleSpecifier;
-      if (ts.isStringLiteral(specifier) && specifier.text.startsWith("../")) {
-        // _archive/<network> adds two levels; imports within the vote directory stay unchanged.
-        const start = specifier.getStart(parsed) + 1;
-        source = source.slice(0, start) + "../../" + source.slice(start);
-      }
-    }
-    if (source !== originalSource) {
-      await fs.writeFile(archivedFile, source, "utf-8");
-    }
-  }
-}
 
 function omnibusNameToDescriptionHeader(omnibusName: string) {
   return omnibusName
@@ -674,9 +652,13 @@ async function readOmnibusDescriptionFile(name: string): Promise<string> {
 }
 
 export async function loadOmnibus(name: string): Promise<Omnibus> {
-  const omnibusModulePath = await getOmnibusScriptPath(name);
-  const omnibusModule = await import(pathToFileURL(omnibusModulePath).href);
+  const omnibusDir = await resolveOmnibusDir(name);
+  const omnibusModule = await import(pathToFileURL(path.join(omnibusDir, `${name}.ts`)).href);
   const omnibus: Omnibus = omnibusModule.default;
+  const [stage, networkDir] = path.relative(omnibusTaskDeps.getOmnibusesDir(), omnibusDir).split(path.sep);
+  if (stage !== "examples" && networkDir !== omnibus.network) {
+    throw new KnownError(`Omnibus "${name}" targets ${omnibus.network} but lives in ${stage}/${networkDir}`);
+  }
   omnibus.setName(name);
   return omnibus;
 }
@@ -692,37 +674,35 @@ async function isDirectory(dirPath: string): Promise<boolean> {
   }
 }
 
-/** `omnibuses/_archive/<network>/<name>`, or `undefined` when the omnibus is not archived. */
-async function findArchivedOmnibusDir(name: string): Promise<string | undefined> {
-  const networkDirs = (await isDirectory(path.join(omnibusTaskDeps.getOmnibusesDir(), "_archive")))
-    ? await fs.readdir(path.join(omnibusTaskDeps.getOmnibusesDir(), "_archive"))
-    : [];
-  const archivedDirs: string[] = [];
-  for (const networkDir of networkDirs) {
-    const archivedDir = path.join(omnibusTaskDeps.getOmnibusesDir(), "_archive", networkDir, name);
-    if (await isDirectory(archivedDir)) {
-      archivedDirs.push(archivedDir);
+/** Directories named `name` among `ongoing/<network>/`, `archive/<network>/` and `examples/`. */
+async function findOmnibusDirs(name: string): Promise<string[]> {
+  const omnibusesDir = omnibusTaskDeps.getOmnibusesDir();
+  const candidates = [path.join(omnibusesDir, "examples", name)];
+  for (const stage of ["ongoing", "archive"]) {
+    const stageDir = path.join(omnibusesDir, stage);
+    const networkDirs = (await isDirectory(stageDir)) ? await fs.readdir(stageDir) : [];
+    candidates.push(...networkDirs.map((networkDir) => path.join(stageDir, networkDir, name)));
+  }
+  const omnibusDirs: string[] = [];
+  for (const candidate of candidates) {
+    if (await isDirectory(candidate)) {
+      omnibusDirs.push(candidate);
     }
   }
-
-  if (archivedDirs.length > 1) {
-    throw new Error(`Omnibus "${name}" is archived for several networks: ${archivedDirs.join(", ")}`);
-  }
-  return archivedDirs[0];
+  return omnibusDirs;
 }
 
-/** An omnibus lives in `omnibuses/<name>` until it is archived to `omnibuses/_archive/<network>/<name>`. */
 async function resolveOmnibusDir(name: string): Promise<string> {
-  const activeDir = path.join(omnibusTaskDeps.getOmnibusesDir(), name);
-  if (await isDirectory(activeDir)) {
-    return activeDir;
+  const omnibusDirs = await findOmnibusDirs(name);
+  if (omnibusDirs.length === 0) {
+    throw new KnownError(
+      `Omnibus "${name}" not found in omnibuses/{ongoing,archive}/<network>/ or omnibuses/examples/`,
+    );
   }
-
-  const archivedDir = await findArchivedOmnibusDir(name);
-  if (!archivedDir) {
-    throw new KnownError(`Omnibus "${name}" not found in ${activeDir} or omnibuses/_archive/*/${name}`);
+  if (omnibusDirs.length > 1) {
+    throw new KnownError(`Omnibus "${name}" exists in several directories: ${omnibusDirs.join(", ")}`);
   }
-  return archivedDir;
+  return omnibusDirs[0];
 }
 
 async function getOmnibusScriptPath(name: string): Promise<string> {

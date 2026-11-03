@@ -2,12 +2,12 @@ import { rejects } from "node:assert/strict";
 import { assert } from "chai";
 import { parseAbi, parseEther } from "viem";
 
-import { ACL_ABI } from "../../abi/ACL.abi";
-import { NodeOperatorsRegistry_ABI } from "../../abi/NodeOperatorsRegistry.abi";
-import { StakingRouter_ABI } from "../../abi/StakingRouter.abi";
-import { contract, Contract } from "../../src/contracts";
-import { DevRpcClient } from "../../src/network";
-import { aclParam, AclOp, expectedEvents as ev, Omnibus } from "../../src/omnibuses";
+import { ACL_ABI } from "@/abi/ACL.abi";
+import { NodeOperatorsRegistry_ABI } from "@/abi/NodeOperatorsRegistry.abi";
+import { StakingRouter_ABI } from "@/abi/StakingRouter.abi";
+import { contract, Contract } from "@/src/contracts";
+import { DevRpcClient } from "@/src/network";
+import { aclParam, AclOp, expectedEvents as ev, Omnibus } from "@/src/omnibuses";
 
 const constantsAbi = parseAbi([
   "function ACL() view returns (address)",
@@ -75,6 +75,7 @@ async function readSettings(client: DevRpcClient, omnibus: Contract) {
 
 export default Omnibus.create({
   network: "mainnet",
+  upgrade: false,
   voteId: undefined,
   launchedAt: undefined,
   executedAt: undefined,

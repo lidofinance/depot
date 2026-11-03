@@ -34,7 +34,7 @@ Run from the repository root; replace `<name>` with the intended omnibus. `<bloc
 
 ```bash
 npm run omnibus:build -- <name>
-npm run lint:vote-addresses -- omnibuses/<name>
+npm run lint:vote-addresses -- omnibuses/ongoing/<network>/<name>
 npm run omnibus:test -- <name> --fork-block <block>
 npx hardhat omnibus:trace <name>
 npx tsc --noEmit
@@ -54,7 +54,7 @@ Cross-repository tests and mounted test examples are described in [the runbook](
 
 ## Deployment and launch
 
-Use `npx hardhat omnibus:deploy <name>` and `npx hardhat omnibus:launch <name>` for local rehearsals on a local dev node, without unlocking the key or uploading to IPFS. Public transactions require `--broadcast`, typing the network name to confirm, and explicit authorization. Follow the [deployment runbook](docs/omnibuses/WRITING_OMNIBUS.md#7-rehearse-deployment-and-launch) before running either path.
+Use `npx hardhat omnibus:deploy <name>` and `npx hardhat omnibus:launch <name>` for local rehearsals on a local dev node, without unlocking the key or uploading to IPFS. Public transactions require `--broadcast`, typing the network name to confirm, and are performed only by a human. Follow the [deployment runbook](docs/omnibuses/WRITING_OMNIBUS.md#7-rehearse-deployment-and-launch) before running either path.
 
 ## Contributing
 

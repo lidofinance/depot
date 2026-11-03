@@ -84,6 +84,10 @@ export class Omnibus<
   constructor(config: OmnibusConfig<$Network, $DeployedContracts>) {
     this.#contracts = getGovernanceContracts(config.network);
 
+    if (config.upgradeSnapshot && !config.upgrade) {
+      throw new Error("upgradeSnapshot requires upgrade: true");
+    }
+
     this.#config = Object.freeze(config);
 
     if (!this.#config.deploy) {

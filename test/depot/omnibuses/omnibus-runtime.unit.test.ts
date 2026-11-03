@@ -152,6 +152,7 @@ describe("Omnibus runtime completion", () => {
     sinon.stub(testingDeps, "getExecuteReceipt").resolves(voteReceipt);
     const omnibus = Omnibus.create({
       network: "mainnet",
+      upgrade: false,
       voteId: 1,
       deployment: { omnibus: Omnibus.deployedContract(sender) },
       testVote: async ({ passOmnibus }) => {

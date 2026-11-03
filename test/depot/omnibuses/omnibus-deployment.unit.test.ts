@@ -4,7 +4,7 @@ import ts from "typescript";
 import path from "node:path";
 import { readFileSync } from "node:fs";
 import { OmnibusBase_ABI } from "@/abi/OmnibusBase.abi";
-import { ExampleContractOmnibusVoteStateValidator_ABI } from "@/omnibuses/_example_contract_omnibus/_example_contract_omnibus.abi";
+import { ExampleContractOmnibusVoteStateValidator_ABI } from "@/omnibuses/examples/_example_contract_omnibus/_example_contract_omnibus.abi";
 import { renderCustomOmnibusDeployment, renderDefaultOmnibusDeployment } from "@/src/omnibuses/omnibus-deployment";
 import { lintVoteSources } from "@/src/omnibuses/address-lint";
 
@@ -16,6 +16,7 @@ describe("default omnibus deployment", () => {
     ``,
     `export default Omnibus.create({`,
     `  network: "mainnet",`,
+    `  upgrade: false,`,
     `  testVote: async () => {},`,
     `});`,
     ``,
@@ -61,7 +62,7 @@ describe("default omnibus deployment", () => {
 
 describe("custom omnibus deployment", () => {
   it("typechecks when pasted into the existing custom-deploy wrapper", () => {
-    const wrapperPath = path.resolve("omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts");
+    const wrapperPath = path.resolve("omnibuses/examples/_example_contract_omnibus/_example_contract_omnibus.ts");
     const wrapper = readFileSync(wrapperPath, "utf-8");
     const contracts = {
       omnibus: {

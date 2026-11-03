@@ -1,7 +1,8 @@
-import { Omnibus } from "../../src/omnibuses";
+import { Omnibus } from "@/src/omnibuses";
 
 export default Omnibus.create({
   network: "mainnet",
+  upgrade: false,
 
   voteId: undefined,
   launchedAt: undefined,

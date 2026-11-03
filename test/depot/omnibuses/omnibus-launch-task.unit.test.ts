@@ -76,12 +76,12 @@ describe("omnibus:launch dry run", () => {
 
   beforeEach(async () => {
     root = await mkdtemp(path.resolve("omnibuses/_launch_task_"));
-    const directory = path.join(root, "fixture");
-    await mkdir(directory);
+    const directory = path.join(root, "ongoing", "mainnet", "fixture");
+    await mkdir(directory, { recursive: true });
     const module = path.relative(directory, path.resolve("src/omnibuses/omnibus"));
     await writeFile(
       path.join(directory, "fixture.ts"),
-      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", testVote: async () => {} });`,
+      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: false, testVote: async () => {} });`,
     );
     await writeFile(path.join(directory, "fixture.md"), "Launch fixture description");
     process.env = { ...originalEnv, ETH_MAINNET_RPC_URL: "http://localhost:18545", ETH_LOCAL_RPC_PORT: "18546" };

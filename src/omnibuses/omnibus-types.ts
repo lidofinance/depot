@@ -66,6 +66,8 @@ export interface UpgradeSnapshotHooks {
 
 export interface OmnibusConfig<$Network extends NetworkName, $DeployedContracts extends Record<string, Contract>> {
   network: $Network;
+  /** Whether the vote upgrades the protocol; the author answers this explicitly. */
+  upgrade: boolean;
 
   /**
    * When the omnibus was launched, contains the id of the vote.

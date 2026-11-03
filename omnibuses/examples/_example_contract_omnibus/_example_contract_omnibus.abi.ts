@@ -1,4 +1,4 @@
-import { Contract } from "../../src/contracts";
+import { Contract } from "@/src/contracts";
 
 export const ExampleContractOmnibusVoteStateValidator_ABI = [
   {

@@ -38,7 +38,7 @@ For two children with no domain events use `[[], []]`; spreading two helpers int
 
 `voteEvents.item(title)` checks the Voting/DG submission envelope. `proposal.call` supplies the executor and Agent-forward envelopes. The underlying `ev.agent.forwarded` assumes a **DG proposal executed through AdminExecutor**; it is not a generic Voting-forward helper. Do not invoke it again around a `proposal.call` expectation.
 
-For a full example with metadata and authority checks, see [Agent / DG / Kernel](../../../omnibuses/_example_agent_dg_kernel_omnibus).
+For a full example with metadata and authority checks, see [Agent / DG / Kernel](../../../omnibuses/examples/_example_agent_dg_kernel_omnibus).
 
 ## Kernel
 
@@ -90,7 +90,7 @@ voteEvents.item(title, ev.finance.tokenPaid({ finance, vault, token }, { recipie
 
 For stETH use `ev.finance.stethPaid({ finance, vault, steth }, { recipient, amount, reference, shares })`. These inputs are contract handles. Resolve the paying vault through Finance; it is the token-event sender, not Voting. The helpers allow optional repeated `NewPeriod`, then validate payment/transfer/vault events, with `TransferShares` added for stETH.
 
-Read balances and shares before the payment. Determine `shares` using `getSharesByPooledEth(amount)` at the payment's state, accounting for earlier rate-changing actions. Assert exact share deltas and justified token rounding tolerance. These ERC20/stETH helpers do not describe a native-ETH payment. See [the tiny example](../../../omnibuses/_example_tiny_omnibus) and [Finance example](../../../omnibuses/_example_finance_omnibus).
+Read balances and shares before the payment. Determine `shares` using `getSharesByPooledEth(amount)` at the payment's state, accounting for earlier rate-changing actions. Assert exact share deltas and justified token rounding tolerance. These ERC20/stETH helpers do not describe a native-ETH payment. See [the tiny example](../../../omnibuses/examples/_example_tiny_omnibus) and [Finance example](../../../omnibuses/examples/_example_finance_omnibus).
 
 ## Permissions
 
@@ -131,7 +131,7 @@ Pass the same structured `params` to `ev.accessControl.permissionGranted` and th
 await checks.accessControl.checkAragonPermissionParams({ contracts: { acl }, entity, app, role, params });
 ```
 
-The storage check compares all decoded node fields. See the complete grant and permission-use test in [Permissions / Node operators](../../../omnibuses/_example_permissions_node_operators).
+The storage check compares all decoded node fields. See the complete grant and permission-use test in [Permissions / Node operators](../../../omnibuses/examples/_example_permissions_node_operators).
 
 ## Node operators
 

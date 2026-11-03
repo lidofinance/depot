@@ -11,7 +11,7 @@ import { lifecycleDeps, startAragonVote } from "@/src/aragon-votes-tools/lifecyc
 import { HexStrPrefixed } from "@/src/common/bytes";
 import { Omnibus } from "@/src/omnibuses";
 import { Contract } from "@/src/contracts";
-import contractExample from "@/omnibuses/_example_contract_omnibus/_example_contract_omnibus";
+import contractExample from "@/omnibuses/examples/_example_contract_omnibus/_example_contract_omnibus";
 import { decodeSubmitProposalMetadata, isSubmitProposalCall } from "@/src/omnibuses/omnibus-contract-calls";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 import { GovernanceContracts } from "@/src/omnibuses/governance-contracts";
@@ -28,7 +28,7 @@ describe("production omnibus deployment (integration)", function () {
   let snapshotId: HexStrPrefixed;
   let tempDir: string | undefined;
   let createdArchiveRoot: string | undefined;
-  const archiveDirectory = path.resolve("omnibuses/_archive/mainnet");
+  const archiveDirectory = path.resolve("omnibuses/archive/mainnet");
   let originalLifecycleDeps: typeof lifecycleDeps.getGovernanceContracts;
 
   before(async function () {
@@ -73,6 +73,7 @@ describe("production omnibus deployment (integration)", function () {
   it("deploys, reloads an archived recorded contract, prepares it, and launches a vote", async function () {
     const deployingOmnibus = Omnibus.create({
       network: "mainnet",
+      upgrade: false,
       testVote: async () => {},
     });
     const deployment = await deployOmnibusForLaunch(hre, client, deployingOmnibus, "MockOmnibus", {
@@ -85,6 +86,7 @@ describe("production omnibus deployment (integration)", function () {
       ``,
       `export default Omnibus.create({`,
       `  network: "mainnet",`,
+      `  upgrade: false,`,
       `  testVote: async () => {},`,
       `});`,
       ``,
@@ -117,6 +119,7 @@ describe("production omnibus deployment (integration)", function () {
   it("prepares the custom deployment with contract metadata independent of item titles", async function () {
     const omnibus = Omnibus.create<"mainnet", Record<string, Contract>>({
       network: "mainnet",
+      upgrade: false,
       deploy: ({ client: deployClient }) =>
         contractExample.deployOmnibusContracts(hre.artifacts, deployClient, { from: deployer }),
       testVote: async () => {},
@@ -141,12 +144,16 @@ describe("production omnibus deployment (integration)", function () {
     const { receipt } = await startAragonVote(client, omnibus.getEvmScript(), description, { from: deployer });
     assert.isOk(receipt.transactionHash);
 
-    tempDir = await mkdtemp(path.resolve("omnibuses/_test_production_"));
+    tempDir = await mkdtemp(path.resolve("omnibuses/examples/_test_production_"));
     const name = path.basename(tempDir);
-    const markdown = await readFile("omnibuses/_example_contract_omnibus/_example_contract_omnibus.md", "utf-8");
+    const markdown = await readFile(
+      "omnibuses/examples/_example_contract_omnibus/_example_contract_omnibus.md",
+      "utf-8",
+    );
     await writeFile(path.join(tempDir, `${name}.md`), markdown.replace(metadata, `${metadata} `));
     const reloaded = Omnibus.create({
       network: "mainnet",
+      upgrade: false,
       deployment,
       deploy: () => Promise.resolve(deployment),
       testVote: async () => {},
@@ -168,7 +175,7 @@ describe("production omnibus deployment (integration)", function () {
   });
 
   it("rejects default deployment for contracts with constructor arguments", async function () {
-    const omnibus = Omnibus.create({ network: "mainnet", testVote: async () => {} });
+    const omnibus = Omnibus.create({ network: "mainnet", upgrade: false, testVote: async () => {} });
     const deploy = sinon.spy(client, "deployContract");
     await rejects(
       deployOmnibusForLaunch(hre, client, omnibus, "MockVoting", { from: deployer }),

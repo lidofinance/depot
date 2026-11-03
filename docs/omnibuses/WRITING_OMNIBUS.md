@@ -10,16 +10,16 @@ From the repository root:
 npm run omnibus:create
 ```
 
-Select `mainnet` or `hoodi` and a date-based name such as `2026_09_10_example`. The command creates:
+Select `mainnet` or `hoodi`, a date-based name such as `2026_09_10_example`, and answer whether the vote contains a protocol upgrade. The command creates:
 
 ```text
-omnibuses/<name>/
+omnibuses/ongoing/<network>/<name>/
   <name>.md
   Omnibus_<name>.sol
   <name>.ts
 ```
 
-It fills the network, contract name and Voting address. Complete the Markdown and call list before testing: the empty Solidity scaffold compiles, but its call-count check rejects an incomplete list.
+It fills the network, the `upgrade` flag, contract name and Voting address. `ongoing/<network>/` holds the network's current candidate; CI rejects more than one per network. Executed votes move to `archive/<network>/`, and reference patterns live in `examples/`. Commands find a vote by name in any of these folders, and the folder network must match the wrapper's `network`. Complete the Markdown and call list before testing: the empty Solidity scaffold compiles, but its call-count check rejects an incomplete list.
 
 ## 2. Describe the payload
 
@@ -71,7 +71,7 @@ For constructor arguments or auxiliary contracts, implement `deploy({ deployCont
 
 ```bash
 npm run fmt:sol
-npm run lint:vote-addresses -- omnibuses/<name>
+npm run lint:vote-addresses -- omnibuses/ongoing/<network>/<name>
 npm run omnibus:build -- <name>
 npm run omnibus:test -- <name> --fork-block <block>
 npx tsc --noEmit
@@ -122,7 +122,7 @@ Expected-change keys are the suite/scenario/frame/field path shown by a failing 
 
 Block/time alignment is suite-specific, not global: first-slots/DSM use a preselected target and fail if governance exceeds it; Lido aligns block height; Voting/plain-submit preserve their source observations without asserting gas/ETH/time equality. DSM pins each action's block to the previous timestamp plus one second and keeps the agreed absolute 1 second tolerance (the source accidentally used a relative tolerance of 100%). Lido funding is 100000 ETH (the source double-converted units). Source Lido role regrant still does not prove ACL preservation. When the upgrade starts a new vote (no `voteId`), Voting expects `votesLength` to grow by exactly one in every frame and repeats the launch's LDO funding transfer in its reference run, since the Hoodi funder is one of its voters.
 
-The [upgrade snapshot example](../../omnibuses/_example_upgrade_snapshot/_example_upgrade_snapshot.md) is a local payload using a real Locator upgrade call from #204. Its command proves only that selected mechanism when actually run; the undeclared-change rejection is covered by the Depot integration test. Current acceptance is not a historical expectation profile, so the command explicitly skips it. Full mainnet/Hoodi scenario coverage still requires separately recorded fork runs.
+The [upgrade snapshot example](../../omnibuses/examples/_example_upgrade_snapshot/_example_upgrade_snapshot.md) is a local payload using a real Locator upgrade call from #204. Its command proves only that selected mechanism when actually run; the undeclared-change rejection is covered by the Depot integration test. Current acceptance is not a historical expectation profile, so the command explicitly skips it. Full mainnet/Hoodi scenario coverage still requires separately recorded fork runs.
 
 ### Cross-repository checks
 
@@ -150,7 +150,7 @@ Deploy, launch and trace do not accept `--fork-block`. For a pinned rehearsal, u
 
 ## 8. Public deployment and lifecycle
 
-After the required review and fork checks, public deployment and public vote creation each require explicit authorization and `--broadcast`:
+After the required review and fork checks, a human performs public deployment and public vote creation with `--broadcast`. Agents never run these commands against Mainnet/Hoodi and never read keystore contents:
 
 ```bash
 npx hardhat omnibus:deploy <name> --broadcast

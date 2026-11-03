@@ -12,6 +12,7 @@ const proxy = contract(OssifiableProxy_ABI, LOCATOR);
 
 export default Omnibus.create({
   network: "mainnet",
+  upgrade: true,
   upgradeSnapshot: {
     suites: ["first-slots"],
     storage: [{ address: LOCATOR, slot: IMPLEMENTATION_SLOT }],

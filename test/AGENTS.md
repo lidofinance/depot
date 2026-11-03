@@ -10,7 +10,7 @@ Rules for writing tests in `test/`.
 - `test/protocol/helpers/` — protocol test mechanics (client, revert matching, impersonation, oracle reports, snapshot comparison and storage reads); expected values stay in each suite.
 - `test/protocol/snapshot/` — opt-in old/upgraded comparisons through `omnibus:test`; see [the writing guide](../docs/omnibuses/WRITING_OMNIBUS.md).
 
-Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`. Shared Depot helpers live in `test/depot/helpers/`.
+Per-vote `testVote`/`testProposal` checks stay in the vote wrapper `omnibuses/ongoing/<network>/<name>/<name>.ts`. Shared Depot helpers live in `test/depot/helpers/`.
 
 ```bash
 npm run test:depot:unit         # npm test is a shortcut

@@ -22,19 +22,19 @@ describe("omnibus:test acceptance option", () => {
 
   beforeEach(async () => {
     root = await mkdtemp(path.resolve("omnibuses/_acceptance_task_"));
-    const directory = path.join(root, "fixture");
-    await mkdir(directory);
+    const directory = path.join(root, "ongoing", "mainnet", "fixture");
+    await mkdir(directory, { recursive: true });
     const module = path.relative(directory, path.resolve("src/omnibuses/omnibus"));
     await writeFile(
       path.join(directory, "fixture.ts"),
-      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", testVote: async () => {} });`,
+      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: false, testVote: async () => {} });`,
     );
     await writeFile(path.join(directory, "fixture.md"), "");
-    const snapshotDirectory = path.join(root, "snapshot_fixture");
+    const snapshotDirectory = path.join(root, "ongoing", "mainnet", "snapshot_fixture");
     await mkdir(snapshotDirectory);
     await writeFile(
       path.join(snapshotDirectory, "snapshot_fixture.ts"),
-      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgradeSnapshot: { suites: ["voting"] }, testVote: async () => {} });`,
+      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: true, upgradeSnapshot: { suites: ["voting"] }, testVote: async () => {} });`,
     );
     await writeFile(path.join(snapshotDirectory, "snapshot_fixture.md"), "");
     process.env = { ...originalEnv, ETH_MAINNET_RPC_URL: "http://localhost:18545" };

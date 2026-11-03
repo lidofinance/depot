@@ -1,15 +1,15 @@
 import { assert } from "chai";
 import { decodeFunctionData } from "viem";
-import { event, expectedEvents as ev, Omnibus } from "../../src/omnibuses";
-import { decodeSubmitProposal } from "../../src/omnibuses/vote-events";
-import { createContracts, OmnibusBaseContract } from "../../src/contracts";
-import { Agent_ABI } from "../../abi/Agent.abi";
-import { MiniMeToken_ABI } from "../../abi/MiniMeToken.abi";
-import { Finance_ABI } from "../../abi/Finance.abi";
-import { EasyTrack_ABI } from "../../abi/EasyTrack.abi";
-import { NodeOperatorsRegistry_ABI } from "../../abi/NodeOperatorsRegistry.abi";
-import { StakingRouter_ABI } from "../../abi/StakingRouter.abi";
-import { StETH_ABI } from "../../abi/StETH.abi";
+import { event, expectedEvents as ev, Omnibus } from "@/src/omnibuses";
+import { decodeSubmitProposal } from "@/src/omnibuses/vote-events";
+import { createContracts, OmnibusBaseContract } from "@/src/contracts";
+import { Agent_ABI } from "@/abi/Agent.abi";
+import { MiniMeToken_ABI } from "@/abi/MiniMeToken.abi";
+import { Finance_ABI } from "@/abi/Finance.abi";
+import { EasyTrack_ABI } from "@/abi/EasyTrack.abi";
+import { NodeOperatorsRegistry_ABI } from "@/abi/NodeOperatorsRegistry.abi";
+import { StakingRouter_ABI } from "@/abi/StakingRouter.abi";
+import { StETH_ABI } from "@/abi/StETH.abi";
 import { ExampleContractOmnibusVoteStateValidatorContract } from "./_example_contract_omnibus.abi";
 
 const LDO = "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32";
@@ -74,6 +74,7 @@ const contracts = createContracts({
 
 export default Omnibus.create({
   network: "mainnet",
+  upgrade: false,
 
   voteId: undefined, // Vote ID should be set only if omnibus is already started.
   launchedAt: undefined, // Launch block number should be set only if omnibus was successfully launched.

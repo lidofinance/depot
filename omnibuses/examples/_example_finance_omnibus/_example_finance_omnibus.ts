@@ -1,11 +1,11 @@
 import { assert } from "chai";
 import { parseAbi } from "viem";
 
-import { Agent_ABI } from "../../abi/Agent.abi";
-import { Finance_ABI } from "../../abi/Finance.abi";
-import { Lido_ABI } from "../../abi/Lido.abi";
-import { contract, createContracts } from "../../src/contracts";
-import { expectedEvents as ev, Omnibus } from "../../src/omnibuses";
+import { Agent_ABI } from "@/abi/Agent.abi";
+import { Finance_ABI } from "@/abi/Finance.abi";
+import { Lido_ABI } from "@/abi/Lido.abi";
+import { contract, createContracts } from "@/src/contracts";
+import { expectedEvents as ev, Omnibus } from "@/src/omnibuses";
 
 const FINANCE = "0xB9E5CBB9CA5b0d659238807E84D0176930753d86";
 const AGENT = "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c";
@@ -27,6 +27,7 @@ const voteConstantsAbi = parseAbi([
 
 export default Omnibus.create({
   network: "mainnet",
+  upgrade: false,
   voteId: undefined,
   launchedAt: undefined,
   executedAt: undefined,

@@ -3,12 +3,12 @@ import hre from "hardhat";
 import { rejects } from "node:assert/strict";
 import { Address, parseAbi, parseEther } from "viem";
 
-import { ACL_ABI } from "../../abi/ACL.abi";
-import { Kernel_ABI } from "../../abi/Kernel.abi";
-import { contract, createContracts } from "../../src/contracts";
-import { runHardhatTask } from "../../src/hardhat/run-task";
-import { DevRpcClient } from "../../src/network";
-import { expectedEvents as ev, Omnibus } from "../../src/omnibuses";
+import { ACL_ABI } from "@/abi/ACL.abi";
+import { Kernel_ABI } from "@/abi/Kernel.abi";
+import { contract, createContracts } from "@/src/contracts";
+import { runHardhatTask } from "@/src/hardhat/run-task";
+import { DevRpcClient } from "@/src/network";
+import { expectedEvents as ev, Omnibus } from "@/src/omnibuses";
 
 const AGENT = "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c";
 const ACL = "0x9895F0F17cc1d1891b6f18ee0b483B6f221b37Bb";
@@ -58,6 +58,7 @@ async function checkApp(client: DevRpcClient, vote: Awaited<ReturnType<typeof re
 
 export default Omnibus.create({
   network: "mainnet",
+  upgrade: false,
   voteId: undefined,
   launchedAt: undefined,
   executedAt: undefined,
