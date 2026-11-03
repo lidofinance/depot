@@ -3,6 +3,7 @@ name: Scripts tests CI
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -14,6 +15,7 @@ concurrency:
 jobs:
   run-tests-1:
     name: Scripts fork tests 1/2
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 100
 
@@ -57,6 +59,7 @@ jobs:
 
   run-tests-2:
     name: Scripts fork tests 2/2
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 100
 
