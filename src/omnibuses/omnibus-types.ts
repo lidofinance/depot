@@ -47,27 +47,13 @@ export interface OmnibusConfig<$Network extends NetworkName, $DeployedContracts 
   /** Whether the vote upgrades the protocol; `omnibus:test` then runs every upgrade snapshot suite. */
   upgrade: boolean;
 
-  /**
-   * When the omnibus was launched, contains the id of the vote.
-   */
+  /** Recorded by `omnibus:launch --broadcast`: the id of the Aragon vote. */
   voteId?: number;
-
-  /**
-   * Contains the info about the omnibus launching - the number of the block where the omnibus was launched.
-   */
-  launchedAt?: number | undefined;
-  /**
-   * Contains the info about the omnibus quorum - was it reached during the vote or not.
-   */
-  quorumReached?: boolean;
-  /**
-   * Contains the info about the omnibus execution - the number of the block with execution transaction.
-   * Used by omnibus:archive and omnibus:trace; omnibus:test rejects executed votes.
-   */
-  executedAt?: number | undefined;
 
   testVote: TestVoteFn<$DeployedContracts>;
   testProposal?: TestProposalFn<$DeployedContracts>;
+  /** Final-state assertions after the whole vote is applied; also the check of an already executed vote. */
+  testFinalState?: TestFinalStateFn<$DeployedContracts>;
 
   deploy?: (ctx: DeployOmnibusContractCtx) => Promise<$DeployedContracts>;
   deployment?: $DeployedContracts;
@@ -111,6 +97,13 @@ export interface TestProposalFnCtx<
 export interface TestProposalFn<$DeployedContracts extends Record<string, Contract>> {
   (ctx: TestProposalFnCtx<$DeployedContracts>): Promise<void>;
 }
+
+export interface TestFinalStateFn<$DeployedContracts extends Record<string, Contract>> {
+  (ctx: TestFnCommonCtx<$DeployedContracts>): Promise<void>;
+}
+
+/** Where the vote is on chain; `omnibus:test` picks its checks by it. */
+export type VoteStage = "not-launched" | "voting" | "dg-pending" | "executed";
 
 export type BoundChecks = {
   [K in keyof typeof checks]: BindFirstParam<(typeof checks)[K]>;

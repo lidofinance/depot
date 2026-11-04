@@ -48,7 +48,7 @@ Depot unit and integration tests live under `test/depot/<module>/`; `npm test` i
 
 Shared deployed-protocol checks live in `test/protocol/acceptance/` and run through `omnibus:test` after the vote and all DG proposals, before snapshot restore. `test/protocol/snapshot/` is reserved for future upgrade snapshot suites. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`.
 
-`omnibus:test` rejects recorded execution (`executedAt` defined); trace is the historical inspection path. See the guide for complete event coverage, snapshots, deployment recording and public lifecycle fields.
+`omnibus:test` picks its checks by the on-chain state of `voteId`: an executed vote is compared with its contract and checked by `testFinalState` and acceptance; trace is the historical inspection path. See the guide for complete event coverage, snapshots, deployment recording and public lifecycle fields.
 
 Cross-repository tests and mounted test examples are described in [the runbook](docs/omnibuses/WRITING_OMNIBUS.md#cross-repository-checks) and [mount/README.md](mount/README.md). Build checks, local models and live fork suites provide different evidence; report their results separately.
 

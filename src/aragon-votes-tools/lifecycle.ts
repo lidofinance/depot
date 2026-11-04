@@ -5,6 +5,7 @@ import { HexStrPrefixed } from "../common/bytes";
 import { getEventAbi } from "../contracts/contracts";
 import { Voting_ABI } from "../../abi/Voting.abi";
 import { getGovernanceContracts } from "../omnibuses/governance-contracts";
+import { KnownError } from "../common/errors";
 
 export const lifecycleDeps = { getGovernanceContracts };
 
@@ -57,19 +58,16 @@ export async function executeAragonVote(client: RpcClient, voteId: bigint, txOpt
   return client.write(voting, "executeVote", [voteId], txOptions);
 }
 
-export async function getExecuteReceipt(client: RpcClient, voteId: bigint, fromBlock?: number | bigint) {
+/** `fromBlock` is the vote snapshot block: ExecuteVote can't be earlier. */
+export async function getExecuteReceipt(client: RpcClient, voteId: bigint, fromBlock: bigint) {
   const { voting } = lifecycleDeps.getGovernanceContracts(client.getNetworkName());
-  const executeVoteFilter = await client.createEventFilter({
-    address: voting.address,
-    event: getEventAbi(voting, "ExecuteVote"),
-    args: [voteId],
-    fromBlock: fromBlock ? BigInt(fromBlock) : undefined,
-  });
-  const executeLogs = await client.getFilterLogs({ filter: executeVoteFilter });
-  if (executeLogs.length === 0) {
-    throw new Error(`ExecuteVote event with id ${voteId} is not found at block ${fromBlock}`);
+  // stateless eth_getLogs: filter ids don't survive a load-balanced public RPC
+  const [executeLog] = await client.getLogsInWindows(
+    { address: voting.address, event: getEventAbi(voting, "ExecuteVote"), args: { voteId }, fromBlock },
+    true,
+  );
+  if (!executeLog) {
+    throw new KnownError(`ExecuteVote event of vote ${voteId} not found from block ${fromBlock}`);
   }
-  return client.getTransactionReceipt({
-    hash: executeLogs[0].transactionHash,
-  });
+  return client.getTransactionReceipt({ hash: executeLog.transactionHash });
 }

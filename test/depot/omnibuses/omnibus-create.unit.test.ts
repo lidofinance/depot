@@ -58,11 +58,7 @@ describe("omnibus:create", () => {
     let source = await readFile(wrapperPath, "utf-8");
     source =
       `import { network } from "./helper";\n` +
-      source
-        .replace('network: "mainnet"', "network")
-        .replace("voteId: undefined", "voteId: 1")
-        .replace("launchedAt: undefined", "launchedAt: 1")
-        .replace("quorumReached: undefined", "quorumReached: false");
+      source.replace('network: "mainnet"', "network").replace("voteId: undefined", "voteId: 1");
     await writeFile(wrapperPath, source);
     await writeFile(
       path.join(directory, "helper.ts"),
@@ -72,6 +68,13 @@ describe("omnibus:create", () => {
 export const network = MiniMeToken_ABI.length ? "mainnet" : "hoodi";
 `,
     );
+    // a rejected vote: closed and not executed
+    const client = sinon.createStubInstance(RpcClient);
+    client.getNetworkName.returns("mainnet");
+    client.read.withArgs(sinon.match.any, "votesLength").resolves(2n as never);
+    client.read.withArgs(sinon.match.any, "getVote").resolves([false, false] as never);
+    client.read.withArgs(sinon.match.any, "canExecute").resolves(false as never);
+    sinon.stub(omnibusTaskDeps, "createRpcClient").resolves(client);
     await hre.tasks.getTask(["omnibus:archive"]).run({ name });
     await rejects(readdir(directory), { code: "ENOENT" });
     const archive = path.join(omnibusesDir, "archive/mainnet", name);
@@ -136,9 +139,6 @@ export const network = MiniMeToken_ABI.length ? "mainnet" : "hoodi";
       assert.equal(omnibus.network, network);
       assert.isFalse(omnibus.hasDeployMethod());
       assert.isUndefined(omnibus.voteId);
-      assert.isUndefined(omnibus.launchedAt);
-      assert.isUndefined(omnibus.executedAt);
-      assert.isUndefined(omnibus.quorumReached);
     });
   }
 

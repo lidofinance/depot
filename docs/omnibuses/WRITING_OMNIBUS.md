@@ -49,17 +49,27 @@ Choose the execution route from the target's authority: Voting, DG executor or A
 
 ## 4. Write the TypeScript tests
 
-Export `Omnibus.create({ network, testVote, testProposal? })`. Keep `voteId`, `launchedAt`, `executedAt` and `quorumReached` undefined until their actual public milestones. There is no TS `calls` builder, blueprint or contract-generation step: the runtime reads calls and script from the deployed Solidity contract and checks their consistency.
+Export `Omnibus.create({ network, testVote, testProposal?, testFinalState? })`. Keep `voteId` undefined: `omnibus:launch --broadcast` records it. There is no TS `calls` builder, blueprint or contract-generation step: the runtime reads calls and script from the deployed Solidity contract and checks their consistency.
 
 - In `testVote`, read before-state, await `passOmnibus()`, register every `voteEvents.item(title, domainEvents)`, and assert resulting state/balance changes. Read expected public constants through a typed contract ABI, as in [the tiny test](../../omnibuses/examples/_example_tiny_omnibus/_example_tiny_omnibus.ts). Prefer bound `checks.*` from the callback context where they fit.
 - A submitting item still needs `voteEvents.item(title)` when it has no additional domain events. The helper supplies its Voting/DG envelope; this does not check proposal execution.
 - In `testProposal`, await `passProposals()` and register each `proposalEvents[i].call(j, domainEvents)`. For multiple Agent-forwarded calls, supply one array per nested call, including empty groups. See [Agent event grouping](../../.agents/skills/omnibus-writer-sol/HELPERS.md#agent-and-dual-governance).
 - All submitted proposal IDs must be processed before returning. Optional `passProposals(ids)` supports staged execution and returns results in requested ID order; `[]` does not satisfy completion. Keep state and event assertions for each executed call.
 - Verify permissions through the appropriate ACL/OZ checks and a relevant allowed/denied call. Arrange explicit timing for time-window actions, accounting for governance delays.
+- In `testFinalState({ client, checks, deployment })`, assert the state the whole vote leaves, without before-state or events (Scripts' "after DG" checks). It runs after the proposals and their events, before acceptance, and is the only per-vote check of an already executed vote.
 
 The core requires execution and complete receipt consumption after both callbacks. It snapshots before `testVote` and restores after `testProposal` and the optional post-execution callback, also on failure. Temporary changes persist between callbacks; add an inner snapshot only when a particular probe requires local rollback.
 
-**Executed votes are not replayed by `omnibus:test`.** Any defined `executedAt`, including zero and regardless of `voteId`, is rejected before the test snapshot. Choosing an earlier fork block does not bypass this guard. Preserve lifecycle facts and use `omnibus:trace` to inspect historical execution.
+**`omnibus:test` picks its checks by the on-chain state of `voteId`** at the fork block; wrapper fields do not mark execution.
+
+| On chain                           | What runs                                                                                                                                                                | Not applicable                                           |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| no `voteId`                        | new vote on the fork, `testVote`, all DG, events, `testFinalState`, acceptance, upgrade snapshot                                                                         | —                                                        |
+| vote not executed                  | on-chain `getVote(voteId).script` equals the contract's; the same with the real vote, voting only in its main phase                                                      | —                                                        |
+| vote executed, DG proposal pending | on-chain `getVote(voteId).script` and `getProposalCalls` equal the contract's; `testProposal` executes the proposal on the fork, DG events, `testFinalState`, acceptance | `testVote`, Aragon events, upgrade snapshot              |
+| everything executed                | the same comparison; `testFinalState` and acceptance on the current block                                                                                                | `testVote`, `testProposal`, all events, upgrade snapshot |
+
+The task prints which checks ran and which do not apply. Any `voteId` needs a recorded `deployment.omnibus`: the payload is read from the real contract, never from a local deploy. Execution logs are searched from the vote snapshot block. A fork block before the vote, a rejected vote or a cancelled DG proposal fails the run. A missing `testFinalState` is a warning. A later vote that changes the checked state fails the run; investigate it by hand. CI tests an executed candidate in `ongoing/` the same way, so it stays green while its on-chain state is right. Use `omnibus:trace` to inspect the historical execution.
 
 ## 5. Configure deployment
 
@@ -106,7 +116,7 @@ Suites carry mainnet and Hoodi expectations; `tasks/sub-tasks/snapshot.ts` rejec
 
 `omnibus:test` first runs the ordinary vote/all DG/event checks with acceptance once on a clean state. Each snapshot case then independently runs this lifecycle on the prepared client without acceptance: source fixture → reference actions/capture inside a reverted snapshot → ordinary vote/all DG/event checks → upgraded actions/capture/comparison inside another reverted snapshot → existing outer restore. Suite module fixtures are scoped to the snapshot run. Preserve source-specific role grants: NOR grants once before both runs, as in Scripts; Lido grants in each run, because Scripts re-grants after the upgrade. EVM revert does not stop impersonation, so use `ImpersonatedAccounts` and stop tracked accounts before reverting. It funds accounts with 10 ETH unless `{ preserveBalance: true }` is passed. Compile required mocks narrowly and clear the artifact cache before reading new artifacts.
 
-`--skip-acceptance` suppresses the clean-pass acceptance only. Direct `Omnibus.test(client, afterExecution, hooks)` supplies the before/comparison hooks but does not load protocol suites; the CLI's `runSnapshots` supplies them. Every case must execute its upgrade; a run with no cases, pending cases, a case that skips the upgrade or a comparison failure fails. Executed votes retain the ordinary `executedAt` rejection.
+`--skip-acceptance` suppresses the clean-pass acceptance only. Direct `Omnibus.test(client, afterExecution, hooks)` supplies the before/comparison hooks but does not load protocol suites; the CLI's `runSnapshots` supplies them. Every case must execute its upgrade; a run with no cases, pending cases, a case that skips the upgrade or a comparison failure fails. Snapshots run only while the Aragon vote is not executed on chain.
 
 Block/time alignment is suite-specific, not global: first-slots/DSM use a preselected target and fail if governance exceeds it; Lido aligns block height; Voting/plain-submit preserve their source observations without asserting gas/ETH/time equality. DSM pins each action's block to the previous timestamp plus one second and keeps the agreed absolute 1 second tolerance (the source accidentally used a relative tolerance of 100%). Lido funding is 100000 ETH (the source double-converted units). Source Lido role regrant still does not prove ACL preservation. When the upgrade starts a new vote (no `voteId`), Voting expects `votesLength` to grow by exactly one in every frame and repeats the launch's LDO funding transfer in its reference run, since the Hoodi funder is one of its voters.
 
@@ -145,6 +155,8 @@ npx hardhat omnibus:deploy <name> --broadcast
 npx hardhat omnibus:launch <name> --broadcast
 ```
 
-Successful default broadcast deployment records `deployment.omnibus` in the wrapper; record custom deployment handles explicitly. Launch reads the deployed contract and displays its items and payload. Compare the saved EVM script and `getEVMScript()` with the created vote, and check `isValidVoteScript(voteId)`.
+Successful default broadcast deployment records `deployment.omnibus` in the wrapper; record custom deployment handles explicitly. Launch reads the deployed contract and displays its items and payload. Broadcast launch records `voteId` in the wrapper; every launch then checks `isValidVoteScript(voteId)` of the contract. Local rehearsals record nothing.
 
-Record `voteId` and `launchedAt` (block number) after the real launch; `executedAt` after execution; `quorumReached` when known. Local rehearsals establish none of those public facts.
+After execution, `omnibus:test <name>` checks the executed vote (see section 4). `omnibus:archive <name>` reads the network: it moves the vote when the Aragon vote and all its DG proposals are executed, or when the vote finished without result (rejected, or a DG proposal cancelled, with a warning), and refuses otherwise with the unfinished items. `omnibus:pass-aragon-vote <network> <voteId>` passes a not executed vote on the fork, voting only in its main phase, and refuses an executed one.
+
+If the payload changes after the audit: remove `deployment` from the wrapper, redeploy, let the new address show in the PR diff and have that address re-audited. Launch uses only the recorded address.

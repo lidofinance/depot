@@ -76,10 +76,7 @@ export default Omnibus.create({
   network: "mainnet",
   upgrade: false,
 
-  voteId: undefined, // Vote ID should be set only if omnibus is already started.
-  launchedAt: undefined, // Launch block number should be set only if omnibus was successfully launched.
-  executedAt: undefined, // Execution block number should be set only if vote is passed and omnibus was successfully executed.
-  quorumReached: undefined, // Should be set to true if quorum was reached during the vote.
+  voteId: undefined, // recorded by omnibus:launch --broadcast
 
   async deploy({ deployContract }) {
     const voteStateValidator = await deployContract<ExampleContractOmnibusVoteStateValidatorContract>(

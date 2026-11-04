@@ -29,9 +29,6 @@ export default Omnibus.create({
   network: "mainnet",
   upgrade: false,
   voteId: undefined,
-  launchedAt: undefined,
-  executedAt: undefined,
-  quorumReached: undefined,
 
   testVote: async ({ client, checks, passOmnibus, deployment }) => {
     assert.strictEqual(

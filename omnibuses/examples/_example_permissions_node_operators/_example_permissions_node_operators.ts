@@ -77,9 +77,6 @@ export default Omnibus.create({
   network: "mainnet",
   upgrade: false,
   voteId: undefined,
-  launchedAt: undefined,
-  executedAt: undefined,
-  quorumReached: undefined,
 
   testVote: async ({ client, checks, passOmnibus, deployment }) => {
     const settings = await readSettings(client, deployment.omnibus);

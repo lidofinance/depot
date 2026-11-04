@@ -36,6 +36,7 @@ describe("passAragonVote temporary balances", () => {
     client.read
       .withArgs(sinon.match.any, "getVote", sinon.match.any)
       .resolves([true, false, 0n, 0n, 0n, 1n, 2n, 0n, 2n] as never);
+    client.read.withArgs(sinon.match.any, "getVotePhase", sinon.match.any).resolves(0 as never);
     client.read.withArgs(sinon.match.any, "canVote", sinon.match.any).resolves(true as never);
     client.read.withArgs(sinon.match.any, "canExecute", sinon.match.any).resolves(true as never);
     client.read.withArgs(sinon.match.any, "voteTime", sinon.match.any).resolves(1n as never);
@@ -71,5 +72,23 @@ describe("passAragonVote temporary balances", () => {
     await rejects(passAragonVote(client, 1n), /vote failed/);
     assert.equal(balances.get(agent), parseEther("100"));
     assert.isEmpty([...impersonated]);
+  });
+
+  it("only executes a vote in the objection phase", async () => {
+    const { client } = fixture();
+    client.read.withArgs(sinon.match.any, "getVotePhase", sinon.match.any).resolves(1 as never);
+    client.write.resolves({} as never);
+    await passAragonVote(client, 1n);
+    sinon.assert.neverCalledWith(client.write, sinon.match.any, "vote");
+    sinon.assert.calledOnceWithMatch(client.write, sinon.match.any, "executeVote", [1n]);
+  });
+
+  it("refuses a vote that is already executed", async () => {
+    const { client } = fixture();
+    client.read
+      .withArgs(sinon.match.any, "getVote", sinon.match.any)
+      .resolves([false, true, 0n, 0n, 0n, 1n, 2n, 0n, 2n] as never);
+    await rejects(passAragonVote(client, 1n), /Vote 1 is already executed/);
+    sinon.assert.notCalled(client.write);
   });
 });

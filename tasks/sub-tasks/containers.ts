@@ -101,7 +101,7 @@ const runScriptsTests = async (pattern?: string, shouldMountTests = false) => {
     Env: [
       `PINATA_CLOUD_TOKEN=${env.PINATA_JWT()}`,
       `ETHERSCAN_TOKEN=${env.ETHERSCAN_TOKEN()}`,
-      `MAX_GET_LOGS_RANGE=10000`,
+      `MAX_GET_LOGS_RANGE=4999`,
       `ETH_RPC_URL=${getDockerLocalRpcUrl()}`,
     ],
   };

@@ -3,16 +3,14 @@ import {
   AbiEvent,
   Account,
   Address,
-  BlockNumber,
   BlockTag,
   Chain,
   ContractFunctionArgs,
   ContractFunctionName,
-  CreateEventFilterParameters,
   CustomTransport,
   encodeDeployData,
   encodeFunctionData,
-  GetFilterLogsParameters,
+  GetLogsParameters,
   GetTransactionCountParameters,
   GetTransactionParameters,
   GetTransactionReceiptParameters,
@@ -21,8 +19,7 @@ import {
   HttpTransport,
   keccak256,
   LocalAccount,
-  MaybeAbiEventName,
-  MaybeExtractEventArgsFromAbi,
+  Log,
   PublicClient,
   ReadContractReturnType,
   TransactionReceipt,
@@ -57,6 +54,17 @@ export interface WriteContractOptions {
 interface TransactionData {
   to?: Address;
   data: Hex;
+}
+
+// many RPCs cap eth_getLogs at 5000 blocks, both ends inclusive
+const GET_LOGS_WINDOW = 4999n;
+
+export interface LogsQuery {
+  address: Address;
+  event: AbiEvent;
+  args?: GetLogsParameters<AbiEvent>["args"];
+  fromBlock: bigint;
+  toBlock?: bigint;
 }
 
 function isLocalAccount(from: Address | Account): from is LocalAccount {
@@ -247,29 +255,25 @@ export class RpcClient {
     return this.viemClient.getTransactionCount(args);
   }
 
-  getFilterLogs<
-    abi extends Abi | readonly unknown[] | undefined,
-    eventName extends string | undefined,
-    strict extends boolean | undefined = undefined,
-    fromBlock extends BlockNumber | BlockTag | undefined = undefined,
-    toBlock extends BlockNumber | BlockTag | undefined = undefined,
-  >(args: GetFilterLogsParameters<abi, eventName, strict, fromBlock, toBlock>) {
-    return this.viemClient.getFilterLogs(args);
-  }
-
-  createEventFilter<
-    abiEvent extends AbiEvent | undefined = undefined,
-    abiEvents extends readonly AbiEvent[] | readonly unknown[] | undefined = abiEvent extends AbiEvent
-      ? [abiEvent]
-      : undefined,
-    strict extends boolean | undefined = undefined,
-    fromBlock extends BlockNumber | BlockTag | undefined = undefined,
-    toBlock extends BlockNumber | BlockTag | undefined = undefined,
-    _EventName extends string | undefined = MaybeAbiEventName<abiEvent>,
-    _Args extends MaybeExtractEventArgsFromAbi<abiEvents, _EventName> | undefined = undefined,
-  >(
-    args?: CreateEventFilterParameters<abiEvent, abiEvents, strict, fromBlock, toBlock, _EventName, _Args> | undefined,
-  ) {
-    return this.viemClient.createEventFilter(args);
+  /** Searches forward from `fromBlock` to `toBlock` (default latest); `firstMatch` stops at the first window with logs. */
+  async getLogsInWindows(query: LogsQuery, firstMatch = false) {
+    const lastBlock = query.toBlock ?? (await this.getBlockNumber());
+    const logs: Log<bigint, number, false>[] = [];
+    for (let windowStart = query.fromBlock; windowStart <= lastBlock; windowStart += GET_LOGS_WINDOW) {
+      const windowEnd = windowStart + GET_LOGS_WINDOW - 1n;
+      logs.push(
+        ...(await this.viemClient.getLogs({
+          address: query.address,
+          event: query.event,
+          args: query.args,
+          fromBlock: windowStart,
+          toBlock: windowEnd < lastBlock ? windowEnd : lastBlock,
+        })),
+      );
+      if (firstMatch && logs.length > 0) {
+        break;
+      }
+    }
+    return logs;
   }
 }

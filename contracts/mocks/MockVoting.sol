@@ -89,7 +89,15 @@ contract MockVoting {
         nay = v.nay;
         votingPower = v.votingPower;
         script = "";
-        phase = block.timestamp >= v.startDate + voteTime ? 2 : 0;
+        phase = _votePhase(v);
+    }
+
+    function getVotePhase(uint256 _voteId) external view returns (uint8) {
+        return _votePhase(_votes[_voteId]);
+    }
+
+    function _votePhase(Vote storage v) private view returns (uint8) {
+        return block.timestamp >= v.startDate + voteTime ? 2 : 0;
     }
 
     function canVote(uint256 _voteId, address _voter) external view returns (bool) {

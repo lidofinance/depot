@@ -5,7 +5,11 @@ import path from "node:path";
 import { readFileSync } from "node:fs";
 import { OmnibusBase_ABI } from "@/abi/OmnibusBase.abi";
 import { ExampleContractOmnibusVoteStateValidator_ABI } from "@/omnibuses/examples/_example_contract_omnibus/_example_contract_omnibus.abi";
-import { renderCustomOmnibusDeployment, renderDefaultOmnibusDeployment } from "@/src/omnibuses/omnibus-deployment";
+import {
+  renderCustomOmnibusDeployment,
+  renderDefaultOmnibusDeployment,
+  renderVoteId,
+} from "@/src/omnibuses/omnibus-deployment";
 import { lintVoteSources } from "@/src/omnibuses/address-lint";
 
 const OMNIBUS_ADDRESS = "0x1234567890AbcdEF1234567890aBcdef12345678";
@@ -56,6 +60,40 @@ describe("default omnibus deployment", () => {
     assert.throws(
       () => renderDefaultOmnibusDeployment(deployedWrapper, OMNIBUS_ADDRESS),
       /already contains a "deployment" section/,
+    );
+  });
+});
+
+describe("recorded voteId", () => {
+  const wrapper = `export default Omnibus.create({\n  voteId: undefined,\n  testVote: async () => {},\n});\n`;
+
+  it("replaces an undefined voteId", () => {
+    assert.equal(renderVoteId(wrapper, 7n), wrapper.replace("voteId: undefined", "voteId: 7"));
+  });
+
+  it("refuses to overwrite a recorded value", () => {
+    assert.throws(
+      () => renderVoteId(wrapper.replace("voteId: undefined", "voteId: 6"), 7n),
+      /"voteId" must be undefined/,
+    );
+  });
+
+  it("appends a missing voteId after every property and spread", () => {
+    assert.equal(
+      renderVoteId(`export default Omnibus.create({\n  ...base,\n  testVote,\n});\n`, 7n),
+      `export default Omnibus.create({\n  ...base,\n  testVote,\n  voteId: 7,\n});\n`,
+    );
+    assert.equal(
+      renderVoteId(`export default Omnibus.create({ ...base })`, 7n),
+      `export default Omnibus.create({ ...base, voteId: 7 })`,
+    );
+    assert.equal(renderVoteId(`export default Omnibus.create({})`, 7n), `export default Omnibus.create({ voteId: 7 })`);
+  });
+
+  it("refuses an undefined voteId a later spread could override", () => {
+    assert.throws(
+      () => renderVoteId(`export default Omnibus.create({ voteId: undefined, ...base })`, 7n),
+      /must follow every spread/,
     );
   });
 });

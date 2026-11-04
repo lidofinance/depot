@@ -79,7 +79,7 @@ describe("omnibus:test acceptance option", () => {
     });
 
     it(`runs acceptance=${!skipAcceptance} once on a clean pass, separately from snapshot cases`, async () => {
-      const test = sinon.stub(Omnibus.prototype, "test").resolves();
+      const test = sinon.stub(Omnibus.prototype, "test").resolves("not-launched");
       const hooks = { beforeExecution: sinon.stub().resolves(), afterExecution: sinon.stub().resolves() };
       const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").callsFake(async (_client, testUpgrade) => {
         await testUpgrade(hooks);
@@ -101,4 +101,13 @@ describe("omnibus:test acceptance option", () => {
       assert.deepEqual(runSnapshots.firstCall.args[2], { createsVote: true });
     });
   }
+
+  it("skips upgrade snapshots for a vote executed on chain", async () => {
+    sinon.stub(Omnibus.prototype, "test").resolves("dg-pending");
+    const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").resolves();
+
+    await hre.tasks.getTask("omnibus:test").run({ name: "snapshot_fixture" });
+
+    sinon.assert.notCalled(runSnapshots);
+  });
 });

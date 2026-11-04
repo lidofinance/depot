@@ -20,7 +20,6 @@ describe("aragon vote testing tools (integration)", function () {
   let originalTestingDeps: {
     getGovernanceContracts: typeof testingDeps.getGovernanceContracts;
     startAragonVote: typeof testingDeps.startAragonVote;
-    getExecuteReceipt: typeof testingDeps.getExecuteReceipt;
   };
 
   before(async function () {

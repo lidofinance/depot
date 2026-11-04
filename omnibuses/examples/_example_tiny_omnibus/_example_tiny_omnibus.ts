@@ -28,9 +28,6 @@ export default Omnibus.create({
   upgrade: false,
 
   voteId: undefined,
-  launchedAt: undefined,
-  executedAt: undefined,
-  quorumReached: undefined,
 
   testVote: async ({ client, checks, passOmnibus, deployment }) => {
     const voteConstants = contract(voteConstantsAbi, deployment.omnibus.address);

@@ -3,7 +3,7 @@ import prompt from "../common/prompt";
 
 import { PrivateKey } from "../common/types";
 import { NamedKeystore } from "./named-keystore";
-import { NamedKeystoresStorage } from "./named-keystores-storage";
+import { assertKeystoreName, NamedKeystoresStorage } from "./named-keystores-storage";
 import { KnownError } from "../common/errors";
 
 export class NoKeystoreError extends KnownError {
@@ -77,6 +77,7 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
   }
 
   async function add(name: string, privateKey?: string, password?: string): Promise<NamedKeystore> {
+    assertKeystoreName(name);
     const existedAccount = await storage.get(name);
     if (existedAccount) {
       throw new AccountAlreadyExistsError(existedAccount);
@@ -98,6 +99,7 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
   }
 
   async function generate(name: string, password?: string): Promise<NamedKeystore> {
+    assertKeystoreName(name);
     const existedAccount = await storage.get(name);
     if (existedAccount) {
       throw new AccountAlreadyExistsError(existedAccount);

@@ -7,11 +7,10 @@ import { Address } from "abitype";
 
 import { IGovernance_ABI } from "@/abi/IGovernance.abi";
 import { EvmScriptParser } from "@/src/aragon-votes-tools";
-import { testingDeps } from "@/src/aragon-votes-tools/testing";
 import { HexStrPrefixed } from "@/src/common/bytes";
 import { Contract } from "@/src/contracts";
 import { DevRpcClient } from "@/src/network";
-import { Omnibus, OmnibusConfig, VoteCall } from "@/src/omnibuses";
+import { Omnibus, OmnibusConfig, TestProposalFnCtx, VoteCall } from "@/src/omnibuses";
 import { ProposalStatus } from "@/src/omnibuses/dual-governance";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 import { TxTrace, TxTraceCallItem } from "@/src/traces/tx-traces";
@@ -97,7 +96,17 @@ function traceWithSingleCall(): TxTrace {
 describe("Omnibus runtime completion", () => {
   afterEach(() => sinon.restore());
 
-  async function fixture(overrides: Partial<OmnibusConfig<"mainnet", Record<string, Contract>>> = {}, count = 2) {
+  // executed on chain: the vote, and the proposals when their status is Executed
+  interface ChainState {
+    voteExecuted: boolean;
+    proposalStatus: ProposalStatus;
+  }
+
+  async function fixture(
+    overrides: Partial<OmnibusConfig<"mainnet", Record<string, Contract>>> = {},
+    count = 2,
+    chain: ChainState = { voteExecuted: false, proposalStatus: ProposalStatus.Scheduled },
+  ) {
     const afterExecution = sinon.stub<[DevRpcClient], Promise<void>>().resolves();
     const voteCalls = calls.slice(0, count);
     const evmScript = EvmScriptParser.encode(
@@ -123,11 +132,19 @@ describe("Omnibus runtime completion", () => {
     client.snapshot.resolves("0x01");
     client.getAccounts.resolves([sender]);
     client.getChainTime.resolves(1);
+    client.getBalance.resolves(0n);
+    client.getLogsInWindows.resolves([{ transactionHash: voteReceipt.transactionHash }] as never);
+    client.getTransactionReceipt.resolves(voteReceipt);
     client.read.callsFake((_contract, name, args) => {
       const responses: Record<string, unknown> = {
         getOmnibusCalls: voteCalls,
         getEVMScript: evmScript,
-        getVote: [false, true],
+        votesLength: 2n,
+        getVotePhase: 0,
+        getVote: [!chain.voteExecuted, chain.voteExecuted, 0n, 0n, 0n, 1n, 2n, 0n, 2n, evmScript],
+        canVote: false,
+        voteTime: 0n,
+        PCT_BASE: 100n,
         getAfterSubmitDelay: 0,
         getAfterScheduleDelay: 0,
         getConfigProvider: sender,
@@ -136,9 +153,13 @@ describe("Omnibus runtime completion", () => {
         getDualGovernanceConfig: {},
         getEffectiveState: 1,
         canExecute: true,
+        canScheduleProposal: true,
       };
       if (name === "getProposalDetails") {
-        return Promise.resolve({ id: args[0], status: ProposalStatus.Scheduled } as never);
+        return Promise.resolve({ id: args[0], status: chain.proposalStatus } as never);
+      }
+      if (name === "getProposalCalls") {
+        return Promise.resolve(proposalCalls[proposalIds.indexOf(args[0] as bigint)] as never);
       }
       if (!(name in responses)) {
         throw new Error(`Unexpected read ${name}`);
@@ -146,10 +167,12 @@ describe("Omnibus runtime completion", () => {
       return Promise.resolve(responses[name] as never);
     });
     client.write.callsFake((_contract, name, args) => {
+      if (name === "executeVote" || name === "scheduleProposal") {
+        return Promise.resolve(voteReceipt);
+      }
       assert.equal(name, "execute");
       return Promise.resolve(proposalReceipts[proposalIds.indexOf(args[0] as bigint)]);
     });
-    sinon.stub(testingDeps, "getExecuteReceipt").resolves(voteReceipt);
     const omnibus = Omnibus.create({
       network: "mainnet",
       upgrade: false,
@@ -166,16 +189,20 @@ describe("Omnibus runtime completion", () => {
       ...overrides,
     });
     await omnibus.loadAndValidateOmnibusContractCalls(client);
-    return { omnibus, client, voteReceipt, proposalReceipts, afterExecution };
+    return { omnibus, client, voteReceipt, proposalReceipts, afterExecution, evmScript };
+  }
+
+  function executedProposals(client: sinon.SinonStubbedInstance<DevRpcClient>) {
+    return client.write
+      .getCalls()
+      .filter((call) => call.args[1] === "execute")
+      .map((call) => call.args[2]);
   }
 
   it("runs the hook after complete vote and proposal validation and before reverting", async () => {
     const { omnibus, client, afterExecution } = await fixture();
-    await omnibus.test(client, afterExecution);
-    assert.deepEqual(
-      client.write.getCalls().map((call) => call.args[2]),
-      [[11n], [12n]],
-    );
+    assert.equal(await omnibus.test(client, afterExecution), "voting");
+    assert.deepEqual(executedProposals(client), [[11n], [12n]]);
     sinon.assert.calledOnceWithExactly(afterExecution, client);
     assert.isTrue(client.write.lastCall.calledBefore(afterExecution.firstCall));
     sinon.assert.callOrder(afterExecution, client.revert);
@@ -186,7 +213,7 @@ describe("Omnibus runtime completion", () => {
     const { omnibus, client, afterExecution } = await fixture();
     await omnibus.test(client);
     sinon.assert.notCalled(afterExecution);
-    sinon.assert.calledTwice(client.write);
+    assert.lengthOf(executedProposals(client), 2);
     sinon.assert.calledOnceWithExactly(client.revert, "0x01");
   });
 
@@ -324,7 +351,7 @@ describe("Omnibus runtime completion", () => {
       },
     });
     await rejects(omnibus.test(client), /Proposal 99 was not submitted by this vote/);
-    sinon.assert.notCalled(client.write);
+    assert.isEmpty(executedProposals(client));
   });
 
   it("requires the vote callback to execute the vote", async () => {
@@ -364,18 +391,167 @@ describe("Omnibus runtime completion", () => {
   it("accepts a vote without proposals", async () => {
     const { omnibus, client, afterExecution } = await fixture({ testProposal: undefined }, 0);
     await omnibus.test(client, afterExecution);
-    sinon.assert.notCalled(client.write);
+    assert.isEmpty(executedProposals(client));
     sinon.assert.calledOnceWithExactly(afterExecution, client);
   });
 
-  it("rejects executedAt before taking a snapshot even without a vote ID", async () => {
-    const testVote = sinon.stub().resolves();
-    const { omnibus, client } = await fixture({ executedAt: 1, voteId: undefined, testVote });
+  describe("a launched vote", () => {
+    it("rejects a voting-stage script that differs from the contract before any fork action", async () => {
+      const testVote = sinon.stub().resolves();
+      const { omnibus, client } = await fixture({ testVote });
+      client.read
+        .withArgs(sinon.match.any, "getVote")
+        .resolves([true, false, 0n, 0n, 0n, 1n, 2n, 0n, 2n, "0x00000001"] as never);
 
-    await rejects(omnibus.test(client), /executed at block 1/);
-    sinon.assert.notCalled(client.snapshot);
-    sinon.assert.notCalled(client.revert);
-    sinon.assert.notCalled(testVote);
+      await rejects(omnibus.test(client), /On-chain script of vote 1 differs/);
+      sinon.assert.notCalled(client.snapshot);
+      sinon.assert.notCalled(testVote);
+    });
+
+    it("rejects a fork block before the vote was started", async () => {
+      const { omnibus, client } = await fixture();
+      client.read.withArgs(sinon.match.any, "votesLength").resolves(1n as never);
+      client.getBlockNumber.resolves(20n);
+
+      await rejects(omnibus.test(client), /Fork block 20 is before vote 1 was started/);
+      sinon.assert.notCalled(client.snapshot);
+    });
+
+    it("rejects a rejected vote", async () => {
+      const { omnibus, client, evmScript } = await fixture();
+      client.read.withArgs(sinon.match.any, "canExecute").resolves(false as never);
+      client.read
+        .withArgs(sinon.match.any, "getVote")
+        .resolves([false, false, 0n, 0n, 0n, 1n, 2n, 0n, 2n, evmScript] as never);
+
+      await rejects(omnibus.test(client), /Vote 1 was rejected, nothing to test/);
+      sinon.assert.notCalled(client.write);
+    });
+
+    it("rejects a cancelled DG proposal", async () => {
+      const { omnibus, client } = await fixture({}, 2, {
+        voteExecuted: true,
+        proposalStatus: ProposalStatus.Cancelled,
+      });
+
+      await rejects(omnibus.test(client), /Proposal 11 is cancelled, nothing to test/);
+      sinon.assert.notCalled(client.snapshot);
+    });
+  });
+
+  describe("a vote executed on chain", () => {
+    function callbacks() {
+      return {
+        testVote: sinon.stub().resolves(),
+        testProposal: sinon
+          .stub<[TestProposalFnCtx<Record<string, Contract>>], Promise<void>>()
+          .callsFake(async ({ passProposals }) => {
+            const { proposalEvents } = await passProposals();
+            proposalEvents.forEach((proposal) => proposal.call(0));
+          }),
+        testFinalState: sinon.stub().resolves(),
+      };
+    }
+
+    it("executes pending DG proposals on the fork, skipping the vote callback", async () => {
+      const authored = callbacks();
+      const { omnibus, client, afterExecution } = await fixture(authored, 2, {
+        voteExecuted: true,
+        proposalStatus: ProposalStatus.Submitted,
+      });
+
+      assert.equal(await omnibus.test(client, afterExecution), "dg-pending");
+
+      sinon.assert.notCalled(authored.testVote);
+      sinon.assert.calledOnce(authored.testProposal);
+      sinon.assert.callOrder(authored.testProposal, authored.testFinalState, afterExecution);
+      assert.deepEqual(executedProposals(client), [[11n], [12n]]);
+      assert.isFalse(client.write.calledWith(sinon.match.any, "executeVote"));
+    });
+
+    it("checks only the current state once everything is executed", async () => {
+      const authored = callbacks();
+      const { omnibus, client, afterExecution } = await fixture(authored, 2, {
+        voteExecuted: true,
+        proposalStatus: ProposalStatus.Executed,
+      });
+
+      assert.equal(await omnibus.test(client, afterExecution), "executed");
+
+      sinon.assert.notCalled(authored.testVote);
+      sinon.assert.notCalled(authored.testProposal);
+      sinon.assert.notCalled(client.write);
+      sinon.assert.callOrder(authored.testFinalState, afterExecution);
+      sinon.assert.calledOnceWithExactly(client.revert, "0x01");
+    });
+
+    it("passes without testFinalState", async () => {
+      const { omnibus, client, afterExecution } = await fixture({ testFinalState: undefined }, 2, {
+        voteExecuted: true,
+        proposalStatus: ProposalStatus.Executed,
+      });
+
+      assert.equal(await omnibus.test(client, afterExecution), "executed");
+      sinon.assert.calledOnce(afterExecution);
+    });
+
+    it("fails on a final-state assertion", async () => {
+      const failure = new Error("Unexpected final state");
+      const { omnibus, client, afterExecution } = await fixture({ testFinalState: sinon.stub().rejects(failure) }, 2, {
+        voteExecuted: true,
+        proposalStatus: ProposalStatus.Executed,
+      });
+
+      await rejects(omnibus.test(client, afterExecution), failure);
+      sinon.assert.notCalled(afterExecution);
+    });
+
+    it("rejects a vote script that differs from the contract before any check", async () => {
+      const authored = callbacks();
+      const { omnibus, client } = await fixture(authored, 2, {
+        voteExecuted: true,
+        proposalStatus: ProposalStatus.Executed,
+      });
+      client.read
+        .withArgs(sinon.match.any, "getVote")
+        .resolves([false, true, 0n, 0n, 0n, 1n, 2n, 0n, 2n, "0x00000001"] as never);
+
+      await rejects(omnibus.test(client), /On-chain script of vote 1 differs/);
+      sinon.assert.notCalled(client.snapshot);
+      sinon.assert.notCalled(authored.testFinalState);
+    });
+
+    it("rejects on-chain proposal calls that differ from the contract", async () => {
+      const { omnibus, client } = await fixture(callbacks(), 2, {
+        voteExecuted: true,
+        proposalStatus: ProposalStatus.Submitted,
+      });
+      client.read.withArgs(sinon.match.any, "getProposalCalls", [12n]).resolves(proposalCalls[0] as never);
+
+      await rejects(omnibus.test(client), /On-chain calls of DG proposal 12 differ/);
+      sinon.assert.notCalled(client.write);
+    });
+
+    it("refuses upgrade snapshot hooks", async () => {
+      const { omnibus, client } = await fixture(callbacks(), 2, {
+        voteExecuted: true,
+        proposalStatus: ProposalStatus.Submitted,
+      });
+      const hooks = { beforeExecution: sinon.stub().resolves(), afterExecution: sinon.stub().resolves() };
+
+      await rejects(omnibus.test(client, undefined, hooks), /Upgrade snapshots need a vote/);
+      sinon.assert.notCalled(hooks.beforeExecution);
+    });
+  });
+
+  it("runs testFinalState after the proposals and before acceptance on a fresh pass", async () => {
+    const testFinalState = sinon.stub().resolves();
+    const { omnibus, client, afterExecution } = await fixture({ testFinalState });
+
+    await omnibus.test(client, afterExecution);
+
+    assert.isTrue(client.write.lastCall.calledBefore(testFinalState.firstCall));
+    sinon.assert.callOrder(testFinalState, afterExecution);
   });
 
   it("requires testProposal even when all submitted proposals report Executed", async () => {
@@ -384,7 +560,7 @@ describe("Omnibus runtime completion", () => {
       status: ProposalStatus.Executed,
     } as never);
     client.getBlockNumber.resolves(20n);
-    client.getFilterLogs.resolves(proposalReceipts[0].logs);
+    client.getLogsInWindows.resolves(proposalReceipts[0].logs);
     client.getTransactionReceipt.resolves(proposalReceipts[0]);
 
     await rejects(omnibus.test(client), /testProposal function is not defined/);

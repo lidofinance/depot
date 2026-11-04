@@ -67,10 +67,10 @@ describe("aragon vote lifecycle (integration)", function () {
 
   it("getExecuteReceipt finds ExecuteVote event receipt", async function () {
     const dummyEvmScript = "0x00000001" as HexStrPrefixed;
-    const { voteId } = await startAragonVote(client, dummyEvmScript, "Vote for receipt", { from: deployer });
+    const { voteId, receipt } = await startAragonVote(client, dummyEvmScript, "Vote for receipt", { from: deployer });
     const execReceipt = await executeAragonVote(client, voteId, { from: deployer });
 
-    const foundReceipt = await getExecuteReceipt(client, voteId);
+    const foundReceipt = await getExecuteReceipt(client, voteId, receipt.blockNumber);
 
     assert.equal(foundReceipt.transactionHash, execReceipt.transactionHash);
   });
