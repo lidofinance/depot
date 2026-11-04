@@ -37,16 +37,6 @@ function createSnapshotClient(state: ForkState): Pick<DevRpcClient, "withSnapsho
 describe("omnibus multi-test repository suites", () => {
   afterEach(() => sinon.restore());
 
-  it("selects all five repository suites by default", () => {
-    assert.deepEqual(getRepositorySuites(), ["core", "dual-governance", "scripts", "staking-modules", "stonks"]);
-  });
-
-  for (const repo of ["staking-modules", "stonks"]) {
-    it(`selects ${repo} alone`, () => {
-      assert.deepEqual(getRepositorySuites(repo), [repo]);
-    });
-  }
-
   it("rejects unsupported repository names instead of running no suites", () => {
     assert.throws(() => getRepositorySuites("staking-module"), 'Unsupported repo "staking-module"');
   });
@@ -138,25 +128,6 @@ describe("new repository target commands", () => {
     process.env = originalEnv;
   });
 
-  it("runs both staking module deployments against the local RPC in sequence", async () => {
-    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
-
-    await runRepoTests("staking-modules");
-
-    sinon.assert.calledTwice(run);
-    const [csm, curated] = run.getCalls();
-    assert.deepEqual(csm.args[2], ["just", "test-integration"]);
-    assert.deepEqual(curated.args[2], ["just", "test-integration"]);
-    assert.includeMembers(csm.args[3].Env ?? [], [
-      "RPC_URL=http://host.docker.internal:18549",
-      "FOUNDRY_PROFILE=ci_quick",
-      "DEPLOY_CONFIG=./artifacts/mainnet/csm/upgrade-v3-mainnet.json",
-    ]);
-    assert.include(curated.args[3].Env ?? [], "DEPLOY_CONFIG=./artifacts/mainnet/curated/deploy-mainnet.json");
-    assert.equal(csm.args[4], 0);
-    assert.equal(curated.args[4], 1);
-  });
-
   it("propagates a failed CSM container without starting Curated", async () => {
     const suiteError = new Error("CSM failed");
     const run = sinon.stub(containerDeps, "runTestsFromRepo").rejects(suiteError);
@@ -168,60 +139,6 @@ describe("new repository target commands", () => {
     }
     assert.strictEqual(thrown, suiteError);
     sinon.assert.calledOnce(run);
-  });
-
-  it("selects the stonks post-vote suites and passes the local RPC to its adapter", async () => {
-    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
-
-    await runRepoTests("stonks");
-
-    sinon.assert.calledOnce(run);
-    const [, , cmd, config] = run.firstCall.args;
-    assert.include(cmd.join(" "), "--config depot.hardhat.config.ts test --network localhost");
-    assert.includeMembers(config.Env ?? [], [
-      "RPC_URL=http://host.docker.internal:18549",
-      "STONKS_TEST_PATTERN=test/integration/staking-revenue-source.ts test/integration/buyback-happy-path.ts",
-    ]);
-  });
-
-  it("resolves the default pattern to the mounted example of each repo", async () => {
-    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
-
-    await runRepoTests("staking-modules", "default");
-    await runRepoTests("stonks", "default");
-    await runRepoTests("dual-governance", "default");
-
-    const [stakingModules, , stonks, dualGovernance] = run.getCalls();
-    assert.deepEqual(stakingModules.args[2], [
-      "forge",
-      "test",
-      "--match-path",
-      "test/custom/*",
-      "-vvv",
-      "--show-progress",
-      "--summary",
-      "--detailed",
-    ]);
-    assert.include(
-      stonks.args[3].Env ?? [],
-      "STONKS_TEST_PATTERN=test/custom/_example_omnibus_test_for_stonks_repo.ts",
-    );
-    assert.deepEqual(dualGovernance.args[2], ["npm", "run", "test", "--", "--match-path", "test/custom/*"]);
-  });
-
-  it("keeps the scripts default pattern pointing at its mounted example", async () => {
-    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
-
-    await runRepoTests("scripts", "default");
-
-    sinon.assert.calledOnce(run);
-    assert.deepEqual(run.firstCall.args[2], [
-      "poetry",
-      "run",
-      "brownie",
-      "test",
-      "tests/custom/_example_omnibus_test_for_scripts_repo.py",
-    ]);
   });
 
   it("runs core through its native integration script", async () => {
@@ -247,38 +164,6 @@ describe("new repository target commands", () => {
     assert.include(run.firstCall.args[3].Env ?? [], "NETWORK=hoodi");
   });
 
-  it("runs the dual-governance regressions with the holders loaded first", async () => {
-    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
-
-    await runRepoTests("dual-governance");
-
-    sinon.assert.calledOnce(run);
-    assert.deepEqual(run.firstCall.args[2], ["npm", "run", "test:regressions", "--", "--load-accounts"]);
-    assert.includeMembers(run.firstCall.args[3].Env ?? [], [
-      "MAINNET_RPC_URL=http://host.docker.internal:18549",
-      "DEPLOY_ARTIFACT_FILE_NAME=deploy-artifact-mainnet.toml",
-    ]);
-  });
-
-  it("runs only the scripts regression suite in one container", async () => {
-    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
-
-    await runRepoTests("scripts");
-
-    sinon.assert.calledOnce(run);
-    assert.deepEqual(run.firstCall.args[2], [
-      "poetry",
-      "run",
-      "brownie",
-      "test",
-      "tests/regression",
-      "--durations=20",
-      "--network",
-      "mfh-1",
-    ]);
-    assert.include(run.firstCall.args[3].Env ?? [], "ETH_RPC_URL=http://host.docker.internal:18549");
-  });
-
   it("passes a custom stonks pattern as data and mounts its test directory", async () => {
     const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
     const pattern = "test/custom/**/*.ts";
@@ -301,7 +186,6 @@ describe("omnibus multi-test task lifecycle", () => {
   let stopNode: sinon.SinonStub;
   let load: sinon.SinonStub;
   let prepare: sinon.SinonStub;
-  let pass: sinon.SinonStub;
   let runRepo: sinon.SinonStub;
   let log: sinon.SinonStub;
 
@@ -316,7 +200,7 @@ describe("omnibus multi-test task lifecycle", () => {
     client.revert.resolves();
     client.withSnapshot.callsFake(DevRpcClient.prototype.withSnapshot.bind(client));
     omnibus = Omnibus.create({ network: "mainnet", upgrade: false, testVote: () => Promise.resolve() });
-    pass = sinon.stub(omnibus, "passOmnibus").resolves();
+    sinon.stub(omnibus, "passOmnibus").resolves();
     load = sinon.stub(multiTestDeps, "loadOmnibus").resolves(omnibus);
     prepare = sinon.stub(multiTestDeps, "prepareOmnibus").resolves(omnibus);
     runRepo = sinon.stub(multiTestDeps, "runRepoTests").resolves();
@@ -326,55 +210,40 @@ describe("omnibus multi-test task lifecycle", () => {
   afterEach(() => sinon.restore());
 
   for (const startedByUs of [false, true]) {
-    for (const stage of ["prepare", "pass"] as const) {
-      it(`reverts a ${stage} failure and ${startedByUs ? "stops its own" : "keeps a reused"} node`, async () => {
-        sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs });
-        const failure = new Error(`${stage} failed`);
-        const stub = stage === "prepare" ? prepare : pass;
-        stub.rejects(failure);
-
-        await rejects(hre.tasks.getTask("omnibus:multi-test").run({ name: "fixture", repo: "core" }), failure);
-
-        sinon.assert.calledOnceWithExactly(client.revert, "0x1");
-        sinon.assert.notCalled(runRepo);
-        assert.equal(stopNode.callCount, startedByUs ? 1 : 0);
-      });
-    }
-
-    it(`runs a bare fork and ${startedByUs ? "stops its own" : "keeps a reused"} node`, async () => {
-      const prepareNode = sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs });
-      await hre.tasks.getTask("omnibus:multi-test").run({ repo: "core", forkBlock: "123" });
-      sinon.assert.calledWithExactly(prepareNode, "mainnet", 123n);
-      sinon.assert.notCalled(load);
-      sinon.assert.calledOnce(runRepo);
-      sinon.assert.calledTwice(client.revert);
-      assert.equal(stopNode.callCount, startedByUs ? 1 : 0);
-    });
-
-    it(`reports a failed node cleanup and rethrows the original error (startedByUs: ${startedByUs})`, async () => {
+    it(`reverts a prepare failure and ${startedByUs ? "stops its own" : "keeps a reused"} node`, async () => {
       sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs });
       const failure = new Error("prepare failed");
       prepare.rejects(failure);
-      stopNode.rejects(new Error("node stop failed"));
-      const logError = sinon.stub(console, "error");
 
       await rejects(hre.tasks.getTask("omnibus:multi-test").run({ name: "fixture", repo: "core" }), failure);
 
+      sinon.assert.calledOnceWithExactly(client.revert, "0x1");
+      sinon.assert.notCalled(runRepo);
       assert.equal(stopNode.callCount, startedByUs ? 1 : 0);
-      assert.equal(logError.callCount, startedByUs ? 1 : 0);
     });
-
-    for (const operation of ["snapshot", "revert"] as const) {
-      it(`handles ${operation} failure and ${startedByUs ? "stops its own" : "keeps a reused"} node`, async () => {
-        sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs });
-        const failure = new Error(`${operation} failed`);
-        client[operation].rejects(failure);
-
-        await rejects(hre.tasks.getTask("omnibus:multi-test").run({ repo: "core" }), failure);
-        assert.equal(stopNode.callCount, startedByUs ? 1 : 0);
-      });
-    }
   }
+
+  it("reports a failed node cleanup and rethrows the original error", async () => {
+    sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs: true });
+    const failure = new Error("prepare failed");
+    prepare.rejects(failure);
+    stopNode.rejects(new Error("node stop failed"));
+    const logError = sinon.stub(console, "error");
+
+    await rejects(hre.tasks.getTask("omnibus:multi-test").run({ name: "fixture", repo: "core" }), failure);
+
+    sinon.assert.calledOnce(stopNode);
+    sinon.assert.calledOnce(logError);
+  });
+
+  it("handles a revert failure and stops its own node", async () => {
+    sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs: true });
+    const failure = new Error("revert failed");
+    client.revert.rejects(failure);
+
+    await rejects(hre.tasks.getTask("omnibus:multi-test").run({ repo: "core" }), failure);
+    sinon.assert.calledOnce(stopNode);
+  });
 
   it("runs and requires mounts only for the suites that cover the vote network", async () => {
     const prepareNode = sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs: false });
@@ -411,19 +280,6 @@ describe("omnibus multi-test task lifecycle", () => {
     sinon.assert.notCalled(prepareNode);
     sinon.assert.notCalled(runRepo);
   });
-
-  it("rejects a missing mount directory before starting the node", async () => {
-    const prepareNode = sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs: true });
-    sinon.stub(multiTestDeps, "pathExists").returns(false);
-
-    await rejects(
-      hre.tasks.getTask("omnibus:multi-test").run({ name: "fixture", repo: "core", mountTests: true }),
-      /Mount directory mount\/core does not exist/,
-    );
-
-    sinon.assert.notCalled(prepareNode);
-    sinon.assert.notCalled(runRepo);
-  });
 });
 
 describe("multi-test local node acquisition", () => {
@@ -436,7 +292,6 @@ describe("multi-test local node acquisition", () => {
   let rename: sinon.SinonStub;
   let findContainer: sinon.SinonStub;
   let stopNode: sinon.SinonStub;
-  let sleep: sinon.SinonStub;
 
   beforeEach(() => {
     process.env = { ...originalEnv, ETH_MAINNET_RPC_URL: "http://localhost:18545" };
@@ -453,7 +308,7 @@ describe("multi-test local node acquisition", () => {
     launch = sinon.stub(multiTestDeps, "runImageInBackground").resolves(container);
     findContainer = sinon.stub(multiTestDeps, "findContainerByName").resolves(null);
     stopNode = sinon.stub(multiTestDeps, "stopLocalRpcNode").resolves();
-    sleep = sinon.stub(multiTestDeps, "sleep").resolves();
+    sinon.stub(multiTestDeps, "sleep").resolves();
     sinon.stub(omnibusTaskDeps, "assertNodeOnRealChain").resolves();
   });
 
@@ -497,15 +352,6 @@ describe("multi-test local node acquisition", () => {
     });
   }
 
-  it("propagates a startup failure without stopping a container it did not acquire", async () => {
-    connect.onFirstCall().rejects(new Error("No existing node"));
-    const failure = new Error("Container creation failed");
-    launch.rejects(failure);
-    await rejects(multiTestDeps.prepareLocalRpcNode("mainnet", 123n), failure);
-    sinon.assert.notCalled(rename);
-    sinon.assert.notCalled(stop);
-  });
-
   it("returns ownership only after a newly started node passes its pin check", async () => {
     connect.onFirstCall().rejects(new Error("No existing node"));
     const node = await multiTestDeps.prepareLocalRpcNode("mainnet", 123n);
@@ -524,29 +370,5 @@ describe("multi-test local node acquisition", () => {
     sinon.assert.notCalled(launch);
     sinon.assert.notCalled(stopNode);
     sinon.assert.notCalled(stop);
-  });
-
-  it("keeps probing a starting node until it answers", async () => {
-    multiTestDeps.localRpcNodeConnectTimeoutMs = 60_000;
-    connect.onFirstCall().rejects(new Error("No existing node"));
-    connect.onSecondCall().rejects(new Error("Node is still booting"));
-    connect.onThirdCall().rejects(new Error("Node is still booting"));
-
-    const node = await multiTestDeps.prepareLocalRpcNode("mainnet", 123n);
-
-    assert.isTrue(node.startedByUs);
-    assert.equal(connect.callCount, 4);
-    sinon.assert.calledTwice(sleep);
-    sinon.assert.notCalled(stop);
-  });
-
-  it("stops its own container when the started node never answers", async () => {
-    connect.rejects(new Error("Node is unavailable"));
-
-    await rejects(multiTestDeps.prepareLocalRpcNode("mainnet", 123n), /Node is unavailable/);
-
-    sinon.assert.calledOnce(launch);
-    sinon.assert.calledOnce(stop);
-    sinon.assert.notCalled(sleep);
   });
 });

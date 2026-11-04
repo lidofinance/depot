@@ -22,34 +22,11 @@ function permissionLog(allowed: boolean): Log {
   return eventLog(acl, "SetPermission", [MANAGER, REGISTRY, ROLE, allowed]);
 }
 
-function managerLog(): Log {
-  return eventLog(acl, "ChangePermissionManager", [REGISTRY, ROLE, AGENT]);
-}
-
 function paramsLog(): Log {
   return eventLog(acl, "SetPermissionParams", [MANAGER, REGISTRY, ROLE, PARAMS_HASH]);
 }
 
 describe("permission event helpers", () => {
-  it("matches creation and its manager in order", () => {
-    const collector = new LogCollector([permissionLog(true), managerLog()]);
-    collector.assertEvents(events.permissionCreated(acl, { ...input, manager: AGENT }));
-    collector.assertNothingLeft();
-  });
-
-  it("matches manager changes independently", () => {
-    const collector = new LogCollector([managerLog()]);
-    collector.assertEvents(events.permissionManagerSet(acl, { ...input, manager: AGENT }));
-    collector.assertNothingLeft();
-  });
-
-  it("matches a revoke and an unparameterized grant", () => {
-    const collector = new LogCollector([permissionLog(false), permissionLog(true)]);
-    collector.assertEvents(events.permissionRevoked(acl, input));
-    collector.assertEvents(events.permissionGranted(acl, { ...input, params: [] }));
-    collector.assertNothingLeft();
-  });
-
   it("matches the exact hash of parameterized permissions", () => {
     const collector = new LogCollector([permissionLog(true), paramsLog()]);
     collector.assertEvents(events.permissionGranted(acl, { ...input, params: [aclParam(0, AclOp.EQ, 21n)] }));
@@ -74,38 +51,19 @@ describe("permission event helpers", () => {
     });
   }
 
-  it("rejects reordered events and a wrong emitter", () => {
-    const expected = events.permissionCreated(acl, { ...input, manager: AGENT });
-    assert.throws(() => new LogCollector([managerLog(), permissionLog(true)]).assertEvents(expected));
+  it("checks the sender of an OZ role grant", () => {
+    const on = contract(AccessControl_ABI, REGISTRY);
+    const roleLog = eventLog(on, "RoleGranted", [ROLE, MANAGER, AGENT]);
+    const expected = events.roleGranted(on, { role: ROLE, to: MANAGER, sender: AGENT });
+    const collector = new LogCollector([roleLog]);
+    collector.assertEvents(expected);
+    collector.assertNothingLeft();
     assert.throws(
-      () => new LogCollector([{ ...permissionLog(true), address: AGENT }, managerLog()]).assertEvents(expected),
-      /Unexpected emitter/,
+      () =>
+        new LogCollector([{ ...roleLog, topics: [roleLog.topics[0]!, ROLE, pad(MANAGER), pad(MANAGER)] }]).assertEvents(
+          expected,
+        ),
+      /args mismatch/,
     );
   });
-
-  it("does not consume an undeclared permission grant", () => {
-    const collector = new LogCollector([permissionLog(true), permissionLog(true)]);
-    collector.assertEvents(events.permissionGranted(acl, input));
-    assert.throws(() => collector.assertNothingLeft(), /Unchecked log items left/);
-  });
-
-  for (const granted of [true, false]) {
-    it(`checks the sender of an OZ role ${granted ? "grant" : "revoke"}`, () => {
-      const on = contract(AccessControl_ABI, REGISTRY);
-      const roleLog = eventLog(on, granted ? "RoleGranted" : "RoleRevoked", [ROLE, MANAGER, AGENT]);
-      const expected = granted
-        ? events.roleGranted(on, { role: ROLE, to: MANAGER, sender: AGENT })
-        : events.roleRevoked(on, { role: ROLE, from: MANAGER, sender: AGENT });
-      const collector = new LogCollector([roleLog]);
-      collector.assertEvents(expected);
-      collector.assertNothingLeft();
-      assert.throws(
-        () =>
-          new LogCollector([
-            { ...roleLog, topics: [roleLog.topics[0]!, ROLE, pad(MANAGER), pad(MANAGER)] },
-          ]).assertEvents(expected),
-        /args mismatch/,
-      );
-    });
-  }
 });

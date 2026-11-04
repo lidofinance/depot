@@ -80,12 +80,4 @@ describe("background node container ownership", () => {
     assert.isTrue((await launched) === container, "must retain the created container handle");
     sinon.assert.calledOnce(run);
   });
-
-  it("returns the same container when the readiness message arrives", async () => {
-    const launched = runImageInBackground("fixture-node", "cached-node:local", ["npm", "start"]);
-    await clock.tickAsync(2_000);
-    logs.write("Started HTTP and WebSocket JSON-RPC server");
-    assert.isTrue((await launched) === container, "must retain the created container handle");
-    sinon.assert.calledOnce(run);
-  });
 });

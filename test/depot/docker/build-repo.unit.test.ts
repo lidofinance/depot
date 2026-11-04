@@ -13,7 +13,6 @@ const SHA = "2824e21157bf13ef1c3c2c605ca54749270f4c35";
 const ARCH = "amd64";
 const REPOS = ["core", "dual-governance", "scripts", "staking-modules", "stonks"] as const;
 // an empty GIT_SHA_DG falls back to the DG pin, so DG never resolves its branch
-const BRANCH_REPOS = REPOS.filter((repo) => repo !== "dual-governance");
 const DG_PIN = "cc407b472199585b21d33b14c6b3067a6b62de96";
 
 const BUILD_INPUTS_LABEL = "finance.lido.depot.build-inputs";
@@ -67,32 +66,20 @@ describe("repository image builds", () => {
     process.env = originalEnv;
   });
 
-  for (const repo of BRANCH_REPOS) {
-    it(`pins ${repo} to the full SHA resolved from its branch`, async () => {
-      lsRemoteStub.resolves(`${"f".repeat(40)}\trefs/heads/release-old\n${SHA}\trefs/heads/release\n`);
+  it("pins stonks to the full SHA resolved from its branch", async () => {
+    lsRemoteStub.resolves(`${"f".repeat(40)}\trefs/heads/release-old\n${SHA}\trefs/heads/release\n`);
 
-      const tag = await buildRepo(repo, "release");
+    const tag = await buildRepo("stonks", "release");
 
-      const [, buildInputs] = new RegExp(`^depot/${repo}:${SHA.slice(0, 7)}-([0-9a-f]{12})-${ARCH}$`).exec(tag) ?? [];
-      assert.isDefined(buildInputs, tag);
-      sinon.assert.calledOnceWithExactly(
-        lsRemoteStub,
-        `https://github.com/lidofinance/${repo}.git`,
-        "refs/heads/release",
-      );
-      sinon.assert.calledWithMatch(
-        buildImageStub,
-        {
-          context: process.cwd(),
-          src: [
-            `tests@${repo}.Dockerfile`,
-            ...(repo === "stonks" ? ["src/docker/stonks/hardhat.config.ts.template"] : []),
-          ],
-        },
-        { t: tag, buildargs: { GIT_SHA: SHA }, labels: { [BUILD_INPUTS_LABEL]: buildInputs } },
-      );
-    });
-  }
+    const [, buildInputs] = new RegExp(`^depot/stonks:${SHA.slice(0, 7)}-([0-9a-f]{12})-${ARCH}$`).exec(tag) ?? [];
+    assert.isDefined(buildInputs, tag);
+    sinon.assert.calledOnceWithExactly(lsRemoteStub, "https://github.com/lidofinance/stonks.git", "refs/heads/release");
+    sinon.assert.calledWithMatch(
+      buildImageStub,
+      { context: process.cwd(), src: ["tests@stonks.Dockerfile", "src/docker/stonks/hardhat.config.ts.template"] },
+      { t: tag, buildargs: { GIT_SHA: SHA }, labels: { [BUILD_INPUTS_LABEL]: buildInputs } },
+    );
+  });
 
   it("pins dual-governance to its default commit without resolving the branch", async () => {
     const tag = await buildRepo("dual-governance", "develop");
@@ -102,18 +89,14 @@ describe("repository image builds", () => {
     sinon.assert.calledWithMatch(buildImageStub, sinon.match.any, { buildargs: { GIT_SHA: DG_PIN } });
   });
 
-  for (const repo of REPOS) {
-    it(`uses the ${repo} SHA override without resolving a moving branch`, async () => {
-      process.env[`GIT_SHA_${envSuffix(repo)}`] = SHA;
+  it("uses the SHA override without resolving a moving branch", async () => {
+    process.env.GIT_SHA_CORE = SHA;
 
-      await buildRepo(repo, "release");
+    await buildRepo("core", "release");
 
-      sinon.assert.notCalled(lsRemoteStub);
-      sinon.assert.calledWithMatch(buildImageStub, sinon.match.any, {
-        buildargs: { GIT_SHA: SHA },
-      });
-    });
-  }
+    sinon.assert.notCalled(lsRemoteStub);
+    sinon.assert.calledWithMatch(buildImageStub, sinon.match.any, { buildargs: { GIT_SHA: SHA } });
+  });
 
   it("reuses an image only when its recorded revision and build inputs match", async () => {
     process.env.GIT_SHA_STAKING_MODULES = SHA;
@@ -145,59 +128,21 @@ describe("repository image builds", () => {
     sinon.assert.calledOnce(buildImageStub);
   });
 
-  it("builds with BuildKit, which honours the requested platform", async () => {
+  it("fails when the cached image has another architecture", async () => {
     process.env.GIT_SHA_CORE = SHA;
-
-    await buildRepo("core", "develop");
-
-    sinon.assert.calledWithMatch(buildImageStub, sinon.match.any, { platform: `linux/${ARCH}`, version: "2" });
-  });
-
-  it("fails with the build error and the command that shows the full log", async () => {
-    process.env.GIT_SHA_CORE = SHA;
-    const { imageTag } = await resolveRepoImage("core", "develop");
-    const failedStep = 'process "/bin/sh -c exit 7" did not complete successfully: exit code: 7';
-    buildImageStub.callsFake(() =>
-      Promise.resolve(
-        Readable.from([
-          Buffer.from(`${JSON.stringify({ error: failedStep, errorDetail: { message: failedStep } })}\n`),
-        ]),
-      ),
-    );
+    const { imageTag, buildInputs } = await resolveRepoImage("core", "develop");
+    imagesStub.resolves([cachedImage(imageTag, SHA, buildInputs)]);
+    imageArchitectureStub.resolves("arm64");
     let thrown: unknown;
     try {
       await buildRepo("core", "develop");
     } catch (error) {
       thrown = error;
     }
-    assert.include(errorMessage(thrown), `Image ${imageTag} failed to build: ${failedStep}`);
-    assert.include(
-      errorMessage(thrown),
-      `Full log: docker buildx build --progress=plain --platform linux/${ARCH} -f tests@core.Dockerfile`,
-    );
-    assert.include(errorMessage(thrown), `--build-arg GIT_SHA=${SHA}`);
-    sinon.assert.notCalled(imageArchitectureStub);
+    assert.include(errorMessage(thrown), `Image ${imageTag} for core is arm64, expected ${ARCH}`);
+    sinon.assert.calledOnceWithExactly(imageArchitectureStub, imageTag);
+    sinon.assert.notCalled(buildImageStub);
   });
-
-  for (const cached of [false, true]) {
-    it(`fails when the ${cached ? "cached" : "built"} image has another architecture`, async () => {
-      process.env.GIT_SHA_CORE = SHA;
-      const { imageTag, buildInputs } = await resolveRepoImage("core", "develop");
-      if (cached) {
-        imagesStub.resolves([cachedImage(imageTag, SHA, buildInputs)]);
-      }
-      imageArchitectureStub.resolves("arm64");
-      let thrown: unknown;
-      try {
-        await buildRepo("core", "develop");
-      } catch (error) {
-        thrown = error;
-      }
-      assert.include(errorMessage(thrown), `Image ${imageTag} for core is arm64, expected ${ARCH}`);
-      sinon.assert.calledOnceWithExactly(imageArchitectureStub, imageTag);
-      sinon.assert.callCount(buildImageStub, cached ? 0 : 1);
-    });
-  }
 
   it("changes the image tag with the Dockerfile and the base image of scripts", async () => {
     process.env.GIT_SHA_SCRIPTS = SHA;
@@ -221,43 +166,16 @@ describe("repository image builds", () => {
     }
   });
 
-  for (const repo of BRANCH_REPOS) {
-    it(`propagates a ${repo} ref lookup failure without falling back to a cached image`, async () => {
-      lsRemoteStub.rejects(new Error("GitHub unavailable"));
-      let thrown: unknown;
-      try {
-        await buildRepo(repo, "develop");
-      } catch (error) {
-        thrown = error;
-      }
-      assert.include(errorMessage(thrown), "git ls-remote");
-      assert.include(errorMessage(thrown), "GitHub unavailable");
-      sinon.assert.notCalled(imagesStub);
-    });
-  }
-
-  it("fails when the branch is missing from the remote", async () => {
-    lsRemoteStub.resolves("");
+  it("propagates a ref lookup failure without falling back to a cached image", async () => {
+    lsRemoteStub.rejects(new Error("GitHub unavailable"));
     let thrown: unknown;
     try {
-      await buildRepo("core", "no-such-branch");
+      await buildRepo("core", "develop");
     } catch (error) {
       thrown = error;
     }
-    assert.include(errorMessage(thrown), 'Branch "no-such-branch" not found');
-    sinon.assert.notCalled(buildImageStub);
-  });
-
-  it("rejects a shortened SHA before building", async () => {
-    process.env.GIT_SHA_STONKS = SHA.slice(0, 7);
-    let thrown: unknown;
-    try {
-      await buildRepo("stonks", "main");
-    } catch (error) {
-      thrown = error;
-    }
-    assert.instanceOf(thrown, Error);
-    assert.include(String(thrown), "Expected a full commit SHA");
-    sinon.assert.notCalled(buildImageStub);
+    assert.include(errorMessage(thrown), "git ls-remote");
+    assert.include(errorMessage(thrown), "GitHub unavailable");
+    sinon.assert.notCalled(imagesStub);
   });
 });

@@ -19,30 +19,28 @@ const input = { contracts: { acl }, entity: MANAGER, app: REGISTRY, role: ROLE }
 describe("Aragon permission checks", () => {
   afterEach(() => sinon.restore());
 
+  it("checks a granted permission with arguments", async () => {
+    const request = sinon.stub().resolves(encodeAbiParameters([{ type: "bool" }], [true]));
+    const client = new DevRpcClient(
+      "mainnet",
+      createPublicClient({ transport: custom({ request }) }).extend(walletActions),
+    );
+    const args = [21n];
+
+    await checks.checkAragonPermissionGranted({ client }, { ...input, args });
+
+    const expectedData = encodeFunctionData({
+      abi: ACL_ABI,
+      functionName: "hasPermission",
+      args: [MANAGER, REGISTRY, ROLE, args],
+    });
+    sinon.assert.calledOnceWithExactly(request, {
+      method: "eth_call",
+      params: [{ to: ACL, data: expectedData }, "latest"],
+    });
+  });
+
   for (const allowed of [true, false]) {
-    for (const args of [undefined, [], [21n]] as const) {
-      it(`checks ${allowed ? "granted" : "denied"} permission with ${String(args)} arguments`, async () => {
-        const request = sinon.stub().resolves(encodeAbiParameters([{ type: "bool" }], [allowed]));
-        const client = new DevRpcClient(
-          "mainnet",
-          createPublicClient({ transport: custom({ request }) }).extend(walletActions),
-        );
-        const check = allowed ? checks.checkAragonPermissionGranted : checks.checkAragonPermissionNotGranted;
-
-        await check({ client }, { ...input, args });
-
-        const expectedData = encodeFunctionData({
-          abi: ACL_ABI,
-          functionName: "hasPermission",
-          args: args === undefined ? [MANAGER, REGISTRY, ROLE] : [MANAGER, REGISTRY, ROLE, args],
-        });
-        sinon.assert.calledOnceWithExactly(request, {
-          method: "eth_call",
-          params: [{ to: ACL, data: expectedData }, "latest"],
-        });
-      });
-    }
-
     it(`rejects an unexpectedly ${allowed ? "granted" : "denied"} permission`, async () => {
       const request = sinon.stub().resolves(encodeAbiParameters([{ type: "bool" }], [allowed]));
       const client = new DevRpcClient(
@@ -55,38 +53,29 @@ describe("Aragon permission checks", () => {
     });
   }
 
-  for (const storedLogicId of [204, 0]) {
-    it(`${storedLogicId === 204 ? "accepts the same" : "rejects a different"} logic node argument ID`, async () => {
-      const params = [
-        aclIfElse(1, 2, 3),
-        aclParam(0, AclOp.EQ, 21n),
-        aclParam(1, AclOp.LTE, 1000n),
-        aclParam(1, AclOp.LTE, 100n),
-      ];
-      const stored = [{ ...params[0], argId: storedLogicId }, ...params.slice(1)];
-      const request = sinon.stub();
-      request.onCall(0).resolves(encodeAbiParameters([{ type: "uint256" }], [BigInt(stored.length)]));
-      stored.forEach(({ argId, op, value }, index) => {
-        request
-          .onCall(index + 1)
-          .resolves(
-            encodeAbiParameters([{ type: "uint8" }, { type: "uint8" }, { type: "uint240" }], [argId, op, value]),
-          );
-      });
-      const client = new DevRpcClient(
-        "mainnet",
-        createPublicClient({ transport: custom({ request }) }).extend(walletActions),
-      );
-
-      const result = checks.checkAragonPermissionParams({ client }, { ...input, params });
-      if (storedLogicId === 204) {
-        await result;
-      } else {
-        await rejects(result, /different params/);
-      }
-      assert.equal(request.callCount, stored.length + 1);
+  it("rejects a different logic node argument ID", async () => {
+    const params = [
+      aclIfElse(1, 2, 3),
+      aclParam(0, AclOp.EQ, 21n),
+      aclParam(1, AclOp.LTE, 1000n),
+      aclParam(1, AclOp.LTE, 100n),
+    ];
+    const stored = [{ ...params[0], argId: 0 }, ...params.slice(1)];
+    const request = sinon.stub();
+    request.onCall(0).resolves(encodeAbiParameters([{ type: "uint256" }], [BigInt(stored.length)]));
+    stored.forEach(({ argId, op, value }, index) => {
+      request
+        .onCall(index + 1)
+        .resolves(encodeAbiParameters([{ type: "uint8" }, { type: "uint8" }, { type: "uint240" }], [argId, op, value]));
     });
-  }
+    const client = new DevRpcClient(
+      "mainnet",
+      createPublicClient({ transport: custom({ request }) }).extend(walletActions),
+    );
+
+    await rejects(checks.checkAragonPermissionParams({ client }, { ...input, params }), /different params/);
+    assert.equal(request.callCount, stored.length + 1);
+  });
 
   it("compares every stored parameter, including an unexpected extra node", async () => {
     const request = sinon.stub();

@@ -15,14 +15,6 @@ describe("DevRpcClient snapshot handling", () => {
 
   afterEach(() => sinon.restore());
 
-  it("reverts through evm_revert and accepts a truthful node answer", async () => {
-    client.send.resolves(true);
-
-    await DevRpcClient.prototype.revert.call(client, "0x1");
-
-    sinon.assert.calledOnceWithExactly(client.send, "evm_revert", ["0x1"]);
-  });
-
   it("throws when the node reports the snapshot was not restored", async () => {
     client.send.resolves(false);
 

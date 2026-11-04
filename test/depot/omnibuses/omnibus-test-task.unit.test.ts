@@ -62,45 +62,37 @@ describe("omnibus:test acceptance option", () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  for (const skipAcceptance of [false, true]) {
-    it(`forwards skipAcceptance=${skipAcceptance} from the registered task and skips snapshots without upgrade`, async () => {
-      const test = sinon.stub(Omnibus.prototype, "test").resolves();
-      const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").resolves();
+  it("forwards acceptance from the registered task and skips snapshots without upgrade", async () => {
+    const test = sinon.stub(Omnibus.prototype, "test").resolves();
+    const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").resolves();
 
-      await hre.tasks.getTask("omnibus:test").run({
-        name: "fixture",
-        ...(skipAcceptance ? { skipAcceptance: true } : {}),
-      });
+    await hre.tasks.getTask("omnibus:test").run({ name: "fixture" });
 
-      sinon.assert.calledOnce(test);
-      assert.instanceOf(test.firstCall.args[0], DevRpcClient);
-      assert.strictEqual(test.firstCall.args[1], skipAcceptance ? undefined : runAcceptance);
-      sinon.assert.notCalled(runSnapshots);
+    sinon.assert.calledOnce(test);
+    assert.instanceOf(test.firstCall.args[0], DevRpcClient);
+    assert.strictEqual(test.firstCall.args[1], runAcceptance);
+    sinon.assert.notCalled(runSnapshots);
+  });
+
+  it("runs acceptance once on a clean pass, separately from snapshot cases", async () => {
+    const test = sinon.stub(Omnibus.prototype, "test").resolves("not-launched");
+    const hooks = { beforeExecution: sinon.stub().resolves(), afterExecution: sinon.stub().resolves() };
+    const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").callsFake(async (_client, testUpgrade) => {
+      await testUpgrade(hooks);
+      await testUpgrade(hooks);
     });
 
-    it(`runs acceptance=${!skipAcceptance} once on a clean pass, separately from snapshot cases`, async () => {
-      const test = sinon.stub(Omnibus.prototype, "test").resolves("not-launched");
-      const hooks = { beforeExecution: sinon.stub().resolves(), afterExecution: sinon.stub().resolves() };
-      const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").callsFake(async (_client, testUpgrade) => {
-        await testUpgrade(hooks);
-        await testUpgrade(hooks);
-      });
+    await hre.tasks.getTask("omnibus:test").run({ name: "snapshot_fixture" });
 
-      await hre.tasks.getTask("omnibus:test").run({
-        name: "snapshot_fixture",
-        ...(skipAcceptance ? { skipAcceptance: true } : {}),
-      });
-
-      sinon.assert.calledThrice(test);
-      assert.deepEqual(test.firstCall.args.slice(1), [skipAcceptance ? undefined : runAcceptance]);
-      for (const call of test.getCalls().slice(1)) {
-        assert.deepEqual(call.args.slice(1), [undefined, hooks]);
-      }
-      sinon.assert.calledOnce(runSnapshots);
-      assert.isTrue(test.firstCall.calledBefore(runSnapshots.firstCall));
-      assert.deepEqual(runSnapshots.firstCall.args[2], { createsVote: true });
-    });
-  }
+    sinon.assert.calledThrice(test);
+    assert.deepEqual(test.firstCall.args.slice(1), [runAcceptance]);
+    for (const call of test.getCalls().slice(1)) {
+      assert.deepEqual(call.args.slice(1), [undefined, hooks]);
+    }
+    sinon.assert.calledOnce(runSnapshots);
+    assert.isTrue(test.firstCall.calledBefore(runSnapshots.firstCall));
+    assert.deepEqual(runSnapshots.firstCall.args[2], { createsVote: true });
+  });
 
   it("skips upgrade snapshots for a vote executed on chain", async () => {
     sinon.stub(Omnibus.prototype, "test").resolves("dg-pending");

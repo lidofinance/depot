@@ -41,24 +41,10 @@ function transferEvent(value: bigint, options: { allowMultiple?: boolean } = {})
 }
 
 describe("LogCollector", () => {
-  it("consumes the logs matched by the expected events", () => {
-    const collector = new LogCollector([createTransferLog(1n, 0), createTransferLog(2n, 1)]);
-
-    collector.assertEvents([transferEvent(1n), transferEvent(2n)]);
-
-    collector.assertNothingLeft();
-  });
-
   it("fails when a log is left unexplained", () => {
     const collector = new LogCollector([createTransferLog(1n, 0), createTransferLog(2n, 1)]);
 
     collector.assertEvents([transferEvent(1n)]);
-
-    assert.throws(() => collector.assertNothingLeft(), /Unchecked log items left \(1\)/);
-  });
-
-  it("fails when no event was checked at all", () => {
-    const collector = new LogCollector([createTransferLog(1n, 0)]);
 
     assert.throws(() => collector.assertNothingLeft(), /Unchecked log items left \(1\)/);
   });

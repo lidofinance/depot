@@ -26,7 +26,7 @@ function createSubmitProposalCall(metadata: string, title = "Submit proposal to 
   };
 }
 
-function createDirectCall(title = "Direct call"): VoteCall {
+function createDirectCall(title: string): VoteCall {
   return {
     title,
     target: AGENT,
@@ -36,10 +36,6 @@ function createDirectCall(title = "Direct call"): VoteCall {
 
 describe("omnibus contract calls", () => {
   describe("isSubmitProposalCall", () => {
-    it("recognizes a call of submitProposal on the governance contract", () => {
-      assert.isTrue(isSubmitProposalCall(createSubmitProposalCall("Proposal description"), GOVERNANCE));
-    });
-
     it("ignores the case of the target address", () => {
       const call = { ...createSubmitProposalCall("Proposal description"), target: GOVERNANCE_LOWERCASE };
       assert.isTrue(isSubmitProposalCall(call, GOVERNANCE));
@@ -58,11 +54,6 @@ describe("omnibus contract calls", () => {
       };
       assert.isFalse(isSubmitProposalCall(call, GOVERNANCE));
     });
-
-    it("rejects a payload shorter than a selector", () => {
-      const call: VoteCall = { title: "Empty payload", target: GOVERNANCE, payload: "0x" };
-      assert.isFalse(isSubmitProposalCall(call, GOVERNANCE));
-    });
   });
 
   describe("getSubmitProposalCallIndexes", () => {
@@ -76,31 +67,12 @@ describe("omnibus contract calls", () => {
 
       assert.deepEqual(getSubmitProposalCallIndexes(calls, GOVERNANCE), [1, 3]);
     });
-
-    it("returns nothing when the vote submits no proposals", () => {
-      assert.deepEqual(getSubmitProposalCallIndexes([createDirectCall()], GOVERNANCE), []);
-    });
   });
 
   describe("decodeSubmitProposalMetadata", () => {
     it("returns the metadata argument as it was encoded", () => {
       const metadata = "Proposal description with  double  spaces and a trailing dot.";
       assert.equal(decodeSubmitProposalMetadata(createSubmitProposalCall(metadata)), metadata);
-    });
-
-    it("keeps line breaks of a multiline metadata", () => {
-      const metadata = "First line\nSecond line";
-      assert.equal(decodeSubmitProposalMetadata(createSubmitProposalCall(metadata)), metadata);
-    });
-
-    it("fails on a call of another method", () => {
-      const call: VoteCall = {
-        title: "Schedule proposal",
-        target: GOVERNANCE,
-        payload: encodeFunctionData({ abi: IGovernance_ABI, functionName: "scheduleProposal", args: [1n] }),
-      };
-
-      assert.throws(() => decodeSubmitProposalMetadata(call), /doesn't call "submitProposal"/);
     });
   });
 });

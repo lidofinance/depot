@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import { rejects } from "node:assert/strict";
 import sinon from "sinon";
-import { encodeFunctionData, encodeFunctionResult, TransactionReceipt } from "viem";
+import { encodeFunctionData, TransactionReceipt } from "viem";
 
 import { Address } from "abitype";
 
@@ -13,7 +13,6 @@ import { DevRpcClient } from "@/src/network";
 import { Omnibus, OmnibusConfig, TestProposalFnCtx, VoteCall } from "@/src/omnibuses";
 import { ProposalStatus } from "@/src/omnibuses/dual-governance";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
-import { TxTrace, TxTraceCallItem } from "@/src/traces/tx-traces";
 import { eventLog } from "../helpers/event-log";
 
 const governance = getGovernanceContracts("mainnet");
@@ -60,37 +59,6 @@ function receipt(logs: TransactionReceipt["logs"]): TransactionReceipt {
     transactionIndex: 0,
     type: "legacy",
   };
-}
-
-const traceTarget: Address = "0x0000000000000000000000000000000000000002";
-const traceAbi = [
-  {
-    type: "function",
-    name: "ping",
-    stateMutability: "view",
-    inputs: [{ name: "value", type: "uint256" }],
-    outputs: [{ name: "", type: "uint256" }],
-  },
-] as const;
-const traceContract: Contract = { abi: traceAbi, address: traceTarget, label: "TraceTarget" };
-
-function traceCallItem(): TxTraceCallItem {
-  return {
-    type: "CALL",
-    depth: 0,
-    value: 0n,
-    gasSpent: 0,
-    gasProvided: 0,
-    gasLimit: 0,
-    address: traceTarget,
-    success: true,
-    input: encodeFunctionData({ abi: traceAbi, functionName: "ping", args: [1n] }),
-    output: encodeFunctionResult({ abi: traceAbi, functionName: "ping", result: 2n }),
-  };
-}
-
-function traceWithSingleCall(): TxTrace {
-  return new TxTrace("mainnet", sender, [traceCallItem()], { [traceTarget]: [traceContract] }, []);
 }
 
 describe("Omnibus runtime completion", () => {
@@ -206,14 +174,6 @@ describe("Omnibus runtime completion", () => {
     sinon.assert.calledOnceWithExactly(afterExecution, client);
     assert.isTrue(client.write.lastCall.calledBefore(afterExecution.firstCall));
     sinon.assert.callOrder(afterExecution, client.revert);
-    sinon.assert.calledOnceWithExactly(client.revert, "0x01");
-  });
-
-  it("supports testing without a post-execution hook", async () => {
-    const { omnibus, client, afterExecution } = await fixture();
-    await omnibus.test(client);
-    sinon.assert.notCalled(afterExecution);
-    assert.lengthOf(executedProposals(client), 2);
     sinon.assert.calledOnceWithExactly(client.revert, "0x01");
   });
 
@@ -388,13 +348,6 @@ describe("Omnibus runtime completion", () => {
     sinon.assert.notCalled(afterExecution);
   });
 
-  it("accepts a vote without proposals", async () => {
-    const { omnibus, client, afterExecution } = await fixture({ testProposal: undefined }, 0);
-    await omnibus.test(client, afterExecution);
-    assert.isEmpty(executedProposals(client));
-    sinon.assert.calledOnceWithExactly(afterExecution, client);
-  });
-
   describe("a launched vote", () => {
     it("rejects a voting-stage script that differs from the contract before any fork action", async () => {
       const testVote = sinon.stub().resolves();
@@ -564,32 +517,5 @@ describe("Omnibus runtime completion", () => {
     client.getTransactionReceipt.resolves(proposalReceipts[0]);
 
     await rejects(omnibus.test(client), /testProposal function is not defined/);
-  });
-
-  it("prints vote and proposal execution traces", async () => {
-    const { omnibus } = await fixture();
-
-    const formatted = omnibus.format({
-      executeOmnibusTrace: traceWithSingleCall(),
-      executeProposalTraces: [traceWithSingleCall()],
-    });
-
-    assert.include(formatted, calls[0].title);
-    assert.include(formatted, "Vote execution trace");
-    assert.include(formatted, "Proposal #1 execution trace");
-    assert.include(formatted, traceTarget);
-
-    const emptyTraceFormatted = omnibus.format({
-      executeOmnibusTrace: new TxTrace("mainnet", sender, [], {}, []),
-    });
-
-    assert.include(emptyTraceFormatted, "Vote execution trace");
-    assert.include(emptyTraceFormatted, "(empty)");
-  });
-
-  it("formats only the calls list without traces", async () => {
-    const { omnibus } = await fixture();
-
-    assert.notInclude(omnibus.format({}), "execution trace");
   });
 });

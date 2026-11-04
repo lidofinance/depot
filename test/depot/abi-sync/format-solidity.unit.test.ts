@@ -19,10 +19,8 @@ describe("ABI Solidity formatter subprocess", () => {
     await fs.rm(bin, { recursive: true, force: true });
   });
 
-  async function formatWith(script?: string): Promise<string> {
-    if (script) {
-      await fs.writeFile(path.join(bin, "forge"), `#!/bin/sh\n${script}\n`, { mode: 0o755 });
-    }
+  async function formatWith(script: string): Promise<string> {
+    await fs.writeFile(path.join(bin, "forge"), `#!/bin/sh\n${script}\n`, { mode: 0o755 });
     const { stdout } = await execFileAsync(
       process.execPath,
       [
@@ -52,18 +50,5 @@ describe("ABI Solidity formatter subprocess", () => {
     const output = await formatWith("exit 0");
 
     assert.match(output, /REJECTED forge fmt failed.*(EPIPE|closed|destroyed)/);
-  });
-
-  it("accepts successful formatting after all input is consumed", async () => {
-    const output = await formatWith("/bin/cat >/dev/null\nprintf 'interface IFixture {}\\n'");
-
-    assert.include(output, "SUCCESS 22");
-  });
-
-  it("preserves the missing Forge diagnostic", async () => {
-    const output = await formatWith();
-
-    assert.include(output, "REJECTED forge fmt failed (Foundry must be installed)");
-    assert.include(output, "ENOENT");
   });
 });

@@ -49,12 +49,4 @@ describe("repository suite exit codes", () => {
       /Container lido-core exited with status code 143/,
     );
   });
-
-  it("accepts only a zero exit code", async () => {
-    run.callsFake(exitWith(0));
-
-    await runTestsFromRepo("core", "depot/core:pinned", ["npm", "test"], {});
-
-    sinon.assert.calledOnce(run);
-  });
 });

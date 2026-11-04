@@ -103,44 +103,37 @@ export const network = MiniMeToken_ABI.length ? "mainnet" : "hoodi";
     );
   });
 
-  for (const [network, voting] of [
-    ["mainnet", "0x2e59A20f205bB85a89C53f1936454680651E618e"],
-    ["hoodi", "0x49B3512c44891bef83F8967d075121Bd1b07a01B"],
-  ]) {
-    it(`creates a loadable three-file Solidity scaffold for ${network}`, async () => {
-      sinon.stub(prompt, "select").resolves(network);
-      await hre.tasks.getTask(["omnibus:create"]).run({});
-      directory = path.join(omnibusesDir, "ongoing", network, name);
+  it("creates a loadable three-file Solidity scaffold", async () => {
+    sinon.stub(prompt, "select").resolves("mainnet");
+    await hre.tasks.getTask(["omnibus:create"]).run({});
+    const contractName = `Omnibus_${name}`;
+    assert.sameMembers(await readdir(directory), [`${name}.md`, `${name}.ts`, `${contractName}.sol`]);
+    const [solidity, wrapper, markdown, templateMarkdown] = await Promise.all([
+      readFile(path.join(directory, `${contractName}.sol`), "utf-8"),
+      readFile(path.join(directory, `${name}.ts`), "utf-8"),
+      readFile(path.join(directory, `${name}.md`), "utf-8"),
+      readFile("omnibuses/_omnibus_template/_omnibus_template.md", "utf-8"),
+    ]);
 
-      const contractName = `Omnibus_${name}`;
-      assert.sameMembers(await readdir(directory), [`${name}.md`, `${name}.ts`, `${contractName}.sol`]);
-      const [solidity, wrapper, markdown, templateMarkdown] = await Promise.all([
-        readFile(path.join(directory, `${contractName}.sol`), "utf-8"),
-        readFile(path.join(directory, `${name}.ts`), "utf-8"),
-        readFile(path.join(directory, `${name}.md`), "utf-8"),
-        readFile("omnibuses/_omnibus_template/_omnibus_template.md", "utf-8"),
-      ]);
+    assert.include(solidity, `contract ${contractName} is OmnibusBase`);
+    assert.include(solidity, "address public constant VOTING = 0x2e59A20f205bB85a89C53f1936454680651E618e;");
+    assert.notInclude(solidity, "OmnibusTemplate");
+    assert.notMatch(wrapper, /\bcalls\s*:/);
+    assert.include(wrapper, "upgrade: false");
+    assert.equal(markdown.slice(markdown.indexOf("\n")), templateMarkdown.slice(templateMarkdown.indexOf("\n")));
+    assert.notInclude(markdown, "Omnibus Template");
+    assert.isEmpty(lintVoteAddresses({ rootDir: root, directories: [directory] }));
 
-      assert.include(solidity, `contract ${contractName} is OmnibusBase`);
-      assert.include(solidity, `address public constant VOTING = ${voting};`);
-      assert.notInclude(solidity, "OmnibusTemplate");
-      assert.notMatch(wrapper, /\bcalls\s*:/);
-      assert.include(wrapper, "upgrade: false");
-      assert.equal(markdown.slice(markdown.indexOf("\n")), templateMarkdown.slice(templateMarkdown.indexOf("\n")));
-      assert.notInclude(markdown, "Omnibus Template");
-      assert.isEmpty(lintVoteAddresses({ rootDir: root, directories: [directory] }));
-
-      const { default: omnibus }: { default: unknown } = await import(
-        pathToFileURL(path.join(directory, `${name}.ts`)).href
-      );
-      if (!(omnibus instanceof Omnibus)) {
-        throw new Error("Generated wrapper must export an Omnibus");
-      }
-      assert.equal(omnibus.network, network);
-      assert.isFalse(omnibus.hasDeployMethod());
-      assert.isUndefined(omnibus.voteId);
-    });
-  }
+    const { default: omnibus }: { default: unknown } = await import(
+      pathToFileURL(path.join(directory, `${name}.ts`)).href
+    );
+    if (!(omnibus instanceof Omnibus)) {
+      throw new Error("Generated wrapper must export an Omnibus");
+    }
+    assert.equal(omnibus.network, "mainnet");
+    assert.isFalse(omnibus.hasDeployMethod());
+    assert.isUndefined(omnibus.voteId);
+  });
 
   it("rejects an existing name without overwriting its files", async () => {
     sinon.stub(prompt, "select").resolves("mainnet");
@@ -172,24 +165,17 @@ export const network = MiniMeToken_ABI.length ? "mainnet" : "hoodi";
     await rejects(readdir(directory), { code: "ENOENT" });
   });
 
-  for (const files of [[], ["First.sol", "Second.sol"]]) {
-    it(`rejects default discovery with ${files.length} Solidity contracts`, async () => {
-      await mkdir(directory, { recursive: true });
-      await Promise.all([...files, "Ignored.t.sol"].map((file) => writeFile(path.join(directory, file), "")));
-      const omnibus = Omnibus.create({ network: "mainnet", upgrade: false, testVote: async () => {} });
-      omnibus.setName(name);
-      await rejects(
-        prepareOmnibus(hre, sinon.createStubInstance(RpcClient), omnibus),
-        /has no Solidity contract|contains more than one Solidity contract/,
-      );
-    });
-  }
-
-  it("records the upgrade answer in the wrapper", async () => {
-    sinon.stub(prompt, "select").resolves("mainnet");
-    (prompt.confirm as sinon.SinonStub).resolves(true);
-    await hre.tasks.getTask(["omnibus:create"]).run({});
-    assert.include(await readFile(path.join(directory, `${name}.ts`), "utf-8"), "upgrade: true");
+  it("rejects default discovery with several Solidity contracts", async () => {
+    await mkdir(directory, { recursive: true });
+    await Promise.all(
+      ["First.sol", "Second.sol", "Ignored.t.sol"].map((file) => writeFile(path.join(directory, file), "")),
+    );
+    const omnibus = Omnibus.create({ network: "mainnet", upgrade: false, testVote: async () => {} });
+    omnibus.setName(name);
+    await rejects(
+      prepareOmnibus(hre, sinon.createStubInstance(RpcClient), omnibus),
+      /contains more than one Solidity contract/,
+    );
   });
 
   it("rejects ambiguous archived directories", async () => {

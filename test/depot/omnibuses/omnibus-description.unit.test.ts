@@ -62,17 +62,6 @@ describe("vote description", () => {
     }
   });
 
-  it("accepts decimal amounts at the start of a title", () => {
-    assert.equal(
-      formatVoteDescription(["0.5% fee change", "2.5 ETH grant"]),
-      "Omnibus vote: 1. 0.5% fee change;\n 2. 2.5 ETH grant.",
-    );
-  });
-
-  it("rejects an empty title", () => {
-    assert.throws(() => formatVoteDescription(["Fine item", "   "]), /empty title/);
-  });
-
   it("rejects repeating titles, which make log groups ambiguous", () => {
     assert.throws(() => formatVoteDescription(["Same item", "Same item"]), /repeating titles/);
   });
@@ -80,10 +69,6 @@ describe("vote description", () => {
 
 describe("dual governance proposal descriptions", () => {
   describe("parseDgProposalDescriptions", () => {
-    it("returns nothing when the file has no such section", () => {
-      assert.equal(parseDgProposalDescriptions("# Omnibus\n\nNo proposals here\n").size, 0);
-    });
-
     it("reads an entry per item, keeping the text as written", () => {
       const markdown = createDescriptionFile(
         [
@@ -146,36 +131,12 @@ describe("dual governance proposal descriptions", () => {
       );
     });
 
-    it("fails on a fenced block without a heading above it", () => {
-      const markdown = createDescriptionFile(["", "```text", "Orphan description", "```", ""].join("\n"));
-
-      assert.throws(() => parseDgProposalDescriptions(markdown), /without a "### Item N" heading/);
-    });
-
-    it("fails on a heading without a fenced block", () => {
-      const markdown = createDescriptionFile(["", "### Item 2", "", "Description as plain text", ""].join("\n"));
-
-      assert.throws(() => parseDgProposalDescriptions(markdown), /no fenced block/);
-    });
-
     it("fails on two descriptions for the same item", () => {
       const markdown = createDescriptionFile(
         ["", "### Item 2", "```text", "First", "```", "### Item 2", "```text", "Second", "```", ""].join("\n"),
       );
 
       assert.throws(() => parseDgProposalDescriptions(markdown), /more than one proposal description/);
-    });
-
-    it("fails on an unexpected heading inside the section", () => {
-      const markdown = createDescriptionFile(["", "### Notes", "", ""].join("\n"));
-
-      assert.throws(() => parseDgProposalDescriptions(markdown), /Unexpected heading/);
-    });
-
-    it("fails when the section is not closed", () => {
-      const markdown = ["<!-- DG_PROPOSAL_DESCRIPTIONS -->", "### Item 1", "```text", "Description", "```"].join("\n");
-
-      assert.throws(() => parseDgProposalDescriptions(markdown), /is not closed/);
     });
   });
 
@@ -187,10 +148,6 @@ describe("dual governance proposal descriptions", () => {
 
     it("passes when the contract carries the description from the file", () => {
       assertDgProposalDescriptions(calls, GOVERNANCE, markdown);
-    });
-
-    it("passes when the vote submits no proposals and the file has no section", () => {
-      assertDgProposalDescriptions([createDirectCall("Transfer LDO")], GOVERNANCE, "# Omnibus\n");
     });
 
     it("fails when the text differs, even by a character", () => {

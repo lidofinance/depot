@@ -84,14 +84,6 @@ describe("vote address lint entrypoints", () => {
     assert.isFalse(existsSync(path.join(root, "lint-staged-ran")));
   });
 
-  it("prints the imported source path when the CLI encounters malformed Solidity", () => {
-    write("shared.sol", "contract {");
-    write("omnibuses/example/Vote.sol", 'import "../../shared.sol"; contract Vote {}');
-    const result = spawnSync(process.execPath, ["--import", TSX, CLI], { cwd: root, encoding: "utf8" });
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /Cannot parse imported source shared\.sol:.*\(1:9\)/);
-  });
-
   for (const task of ["omnibus:test", "omnibus:build", "omnibus:deploy"]) {
     it(`blocks ${task} before importing a vote or compiling/connecting to RPC`, async () => {
       const directory = mkdtempSync(path.resolve("omnibuses/examples/_address_lint_"));

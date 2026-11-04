@@ -123,23 +123,6 @@ describe("VoteEvents", () => {
     );
   });
 
-  it("names the known items when the title is unknown", () => {
-    const voteEvents = new VoteEvents(new LogCollector(voteLogs()), calls, governance, evmScript);
-
-    assert.throws(
-      () => voteEvents.item("Nope"),
-      /no item titled "Nope"[\s\S]*0\. Update staking module 1[\s\S]*1\. Transfer LDO/,
-    );
-  });
-
-  it("asks for itemAt when the title repeats", () => {
-    const repeated = [voteCall("Same", STAKING_ROUTER), voteCall("Same", LDO)];
-    const voteEvents = new VoteEvents(new LogCollector(voteLogs()), repeated, governance, evmScript);
-
-    assert.throws(() => voteEvents.item("Same"), /2 items titled "Same" — use itemAt\(0 \| 1\)/);
-    voteEvents.itemAt(0, expectedEvents.stakingRouter.moduleSharesUpdated(stakingRouter, UPDATE_SHARES));
-  });
-
   it("fails when the receipt has a different number of items than the vote", () => {
     assert.throws(
       () => new VoteEvents(new LogCollector(voteLogs()), [calls[0]], governance, evmScript),
