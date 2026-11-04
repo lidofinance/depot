@@ -70,6 +70,11 @@ export class StructLogsTracingVisitor {
   }
 
   public visit(log: RawStructLog) {
+    if (this.prevLog && this.isCtxEnterSkipped(this.prevLog, log)) {
+      this.prevStackTop = this.stack.pop();
+      this.applyExitedCtxResult(log);
+    }
+
     if (isCallOpcode(log.op)) {
       this.handleCall(log as RawStructLog<CallEvmOpcodes>);
     } else if (isCreateOpcode(log.op)) {
@@ -136,7 +141,13 @@ export class StructLogsTracingVisitor {
     if (prevLog) {
       if (isCallOpcode(prevLog.op) || isCreateOpcode(prevLog.op)) {
         // the first opcode after entered the new context
-        this.gasInfoStack.peek().leftJustAfterCtxEnter = Number(log.gas);
+        const ctxGasInfo = this.gasInfoStack.peek();
+        ctxGasInfo.leftJustAfterCtxEnter = Number(log.gas);
+        if (this.isCtxEnterSkipped(prevLog, log)) {
+          ctxGasInfo.leftBeforeCtxExit = Number(log.gas);
+          ctxGasInfo.leftJustAfterCtxExit = Number(log.gas);
+          this.gasInfoStack.pop();
+        }
       } else if (isExitOpcode(prevLog.op) || isSelfDestructOpcode(prevLog.op)) {
         // the first opcode after exited the context
         this.gasInfoStack.peek().leftJustAfterCtxExit = Number(log.gas);
@@ -248,20 +259,29 @@ export class StructLogsTracingVisitor {
     this.prevStackTop = this.stack.pop(); // selfdestruct exits current ctx
   }
 
+  // CALL to an EOA/precompile (or CREATE with empty init code) completes without new struct logs depth
+  private isCtxEnterSkipped(prevLog: RawStructLog, log: RawStructLog) {
+    return (isCallOpcode(prevLog.op) || isCreateOpcode(prevLog.op)) && log.depth <= prevLog.depth;
+  }
+
   private processStackOutput(log: RawStructLog) {
     // when the struct log depth decreased, we exited previous context
     // the result of the previous operation may be on the stack now
     if (this.prevLog && this.prevLog.depth > log.depth) {
-      if (this.prevStackTop === null) {
-        throw new Error(`Invalid prev stack top value`);
-      }
-      const ctx = this.prevStackTop;
-      // call operations returns the success as the stack output
-      if (isCallOpcode(ctx.type)) {
-        (ctx as TxTraceCallItem).success = bytes.toInt(this.formatRawStructLog(log).stack.peek(0)) === 1;
-      } else if (isCreateOpcode(ctx.type)) {
-        ctx.address = bytes.slice(this.formatRawStructLog(log).stack.peek(0), -20);
-      }
+      this.applyExitedCtxResult(log);
+    }
+  }
+
+  private applyExitedCtxResult(log: RawStructLog) {
+    if (this.prevStackTop === null) {
+      throw new Error(`Invalid prev stack top value`);
+    }
+    const ctx = this.prevStackTop;
+    // call operations returns the success as the stack output
+    if (isCallOpcode(ctx.type)) {
+      (ctx as TxTraceCallItem).success = bytes.toInt(this.formatRawStructLog(log).stack.peek(0)) === 1;
+    } else if (isCreateOpcode(ctx.type)) {
+      ctx.address = bytes.slice(this.formatRawStructLog(log).stack.peek(0), -20);
     }
   }
 
