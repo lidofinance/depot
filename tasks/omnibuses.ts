@@ -94,7 +94,6 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
   async (_taskArgs: Record<string, never>) => {
     const network: NetworkName = await prompt.select("Choose the network:", [
       { title: "Mainnet", value: "mainnet" },
-      { title: "Holesky", value: "holesky" },
       { title: "Hoodi", value: "hoodi" },
     ]);
 

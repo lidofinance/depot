@@ -9,7 +9,6 @@ import {
   getLocalRpcUrl,
   getRpcUrl,
   MAINNET_CHAIN_ID,
-  HOLESKY_CHAIN_ID,
   HOODI_CHAIN_ID,
 } from "@/src/network/network";
 import { DevRpcClient } from "@/src/network/dev-rpc-client";
@@ -42,7 +41,6 @@ describe("network: pure helpers", () => {
   describe("getChainIdByNetworkName", () => {
     it("maps supported networks", () => {
       expect(getChainIdByNetworkName("mainnet")).to.equal(MAINNET_CHAIN_ID);
-      expect(getChainIdByNetworkName("holesky")).to.equal(HOLESKY_CHAIN_ID);
       expect(getChainIdByNetworkName("hoodi")).to.equal(HOODI_CHAIN_ID);
     });
 
@@ -54,7 +52,6 @@ describe("network: pure helpers", () => {
   describe("getNetworkNameByChainId", () => {
     it("maps supported chain ids", () => {
       expect(getNetworkNameByChainId(MAINNET_CHAIN_ID)).to.equal("mainnet");
-      expect(getNetworkNameByChainId(HOLESKY_CHAIN_ID)).to.equal("holesky");
       expect(getNetworkNameByChainId(HOODI_CHAIN_ID)).to.equal("hoodi");
     });
 
@@ -94,11 +91,11 @@ describe("network: pure helpers", () => {
     });
 
     it("splits CSV and indexes by modulo", () => {
-      process.env.ETH_HOLESKY_RPC_URL = "https://a.example,https://b.example,https://c.example";
-      expect(getRpcUrl("holesky", 0)).to.equal("https://a.example");
-      expect(getRpcUrl("holesky", 1)).to.equal("https://b.example");
-      expect(getRpcUrl("holesky", 2)).to.equal("https://c.example");
-      expect(getRpcUrl("holesky", 5)).to.equal("https://c.example");
+      process.env.ETH_HOODI_RPC_URL = "https://a.example,https://b.example,https://c.example";
+      expect(getRpcUrl("hoodi", 0)).to.equal("https://a.example");
+      expect(getRpcUrl("hoodi", 1)).to.equal("https://b.example");
+      expect(getRpcUrl("hoodi", 2)).to.equal("https://c.example");
+      expect(getRpcUrl("hoodi", 5)).to.equal("https://c.example");
     });
 
     it("throws when env var is not set", () => {
@@ -123,7 +120,7 @@ describe("network: client factories (provider overload)", () => {
 
   it("createRpcClient throws when chainId does not match the requested network", async () => {
     const provider = makeProvider((method) => {
-      if (method === "eth_chainId") return chainIdHex(HOLESKY_CHAIN_ID);
+      if (method === "eth_chainId") return chainIdHex(HOODI_CHAIN_ID);
       throw new Error(`unexpected method: ${method}`);
     });
 

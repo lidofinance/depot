@@ -9,11 +9,7 @@ describe("ContractInfoResolver", () => {
   const mockResponse = {
     name: "Flattened",
     abi: [],
-    compilerVersion: "v0.6.12+commit.27d51765",
-    constructorArgs: "000000000000000000000000ae7ab96520de3a18e5e111b5eaab095312d7fe84",
-    evmVersion: "Default",
     implementation: null,
-    sourceCode: "contract A {}",
   };
 
   const mockProvider = {

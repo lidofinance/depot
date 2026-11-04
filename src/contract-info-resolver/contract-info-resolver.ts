@@ -1,4 +1,4 @@
-import { ContractInfoInMemoryCache, ContractInfoPersistentJsonCache } from "./contract-info-cache";
+import { ContractInfoInMemoryCache } from "./contract-info-cache";
 import type { ContractInfoCache } from "./types";
 import { Address } from "../common/types";
 import { NetworkName } from "../network";
@@ -14,10 +14,6 @@ export class ContractInfoResolver {
 
   public static enableInMemoryCache() {
     this.cache = new ContractInfoInMemoryCache();
-  }
-
-  public static enablePersistentJsonCache(cacheDirPath: string) {
-    this.cache = ContractInfoPersistentJsonCache.create(cacheDirPath);
   }
 
   public static setEtherscanToken(token: string) {

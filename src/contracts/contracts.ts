@@ -26,10 +26,6 @@ export function contract<T extends Abi, L extends string = string>(
   return { abi, address, label: resolvedLabel };
 }
 
-type ContractsByLabel<Cs extends readonly Contract[]> = {
-  [C in Cs[number] as C["label"]]: C;
-};
-
 type ContractTuple = readonly [abi: Abi, address: Address] | readonly [abi: Abi, address: Address, label: string];
 type ContractInputMap = Record<string, ContractTuple>;
 
@@ -62,35 +58,18 @@ type ContractsFromMap<M extends ContractInputMap> = {
 };
 
 export function createContracts<M extends ContractInputMap>(contractsMap: M): ContractsFromMap<M>;
-export function createContracts<Cs extends readonly Contract[]>(...contracts: Cs): ContractsByLabel<Cs>;
-export function createContracts(...args: unknown[]) {
+export function createContracts(contractsMap: ContractInputMap) {
   const result: Partial<Record<string, Contract>> = {};
   const usedLabels = new Set<string>();
 
-  if (
-    args.length === 1 &&
-    typeof args[0] === "object" &&
-    args[0] !== null &&
-    !Array.isArray(args[0]) &&
-    !("abi" in (args[0] as Record<string, unknown>))
-  ) {
-    for (const [key, value] of Object.entries(args[0] as ContractInputMap)) {
-      const [abi, address, label] = value;
-      const resolvedLabel = label ?? toPascalCase(key);
-      if (usedLabels.has(resolvedLabel)) {
-        throw new Error(`Duplicate contract label "${resolvedLabel}"`);
-      }
-      usedLabels.add(resolvedLabel);
-      result[key] = contract(abi, address, resolvedLabel);
+  for (const [key, value] of Object.entries(contractsMap)) {
+    const [abi, address, label] = value;
+    const resolvedLabel = label ?? toPascalCase(key);
+    if (usedLabels.has(resolvedLabel)) {
+      throw new Error(`Duplicate contract label "${resolvedLabel}"`);
     }
-    return result;
-  }
-
-  for (const item of args as Contract[]) {
-    if (item.label in result) {
-      throw new Error(`Duplicate contract label "${item.label}"`);
-    }
-    result[item.label] = item;
+    usedLabels.add(resolvedLabel);
+    result[key] = contract(abi, address, resolvedLabel);
   }
 
   return result;

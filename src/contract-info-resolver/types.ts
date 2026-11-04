@@ -1,6 +1,5 @@
 import { Abi } from "abitype";
 
-import { HexStr } from "../common/bytes";
 import { Address } from "../common/types";
 
 import { NetworkName } from "../network";
@@ -14,10 +13,6 @@ export interface ContractInfo {
   abi: Abi;
   // if the contract is not proxy the address will null
   implementation: Address | null;
-  constructorArgs: HexStr;
-  sourceCode: string;
-  evmVersion: string;
-  compilerVersion: string;
 }
 
 export interface ContractInfoCache {

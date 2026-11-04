@@ -2,12 +2,12 @@ import { EthereumProvider } from "hardhat/types/providers";
 import * as env from "../common/env";
 import { RpcClient } from "./rpc-client";
 import { createWalletClient, custom, CustomTransport, http, HttpTransport, publicActions } from "viem";
-import { hardhat, holesky, hoodi, mainnet } from "viem/chains";
+import { hardhat, hoodi, mainnet } from "viem/chains";
 import { DevRpcClient } from "./dev-rpc-client";
 import { KnownError } from "../common/errors";
 
-export type NetworkName = "mainnet" | "holesky" | "hoodi";
-export type ChainId = typeof MAINNET_CHAIN_ID | typeof HOLESKY_CHAIN_ID | typeof HOODI_CHAIN_ID;
+export type NetworkName = "mainnet" | "hoodi";
+export type ChainId = typeof MAINNET_CHAIN_ID | typeof HOODI_CHAIN_ID;
 
 class UnsupportedNetwork extends KnownError {
   constructor(networkName: string) {
@@ -25,18 +25,15 @@ const HARDHAT_CHAIN_ID = 31337;
 const RPC_TIMEOUT_MS = 3_000_000;
 export const HOODI_CHAIN_ID = 560048;
 export const MAINNET_CHAIN_ID = 1;
-export const HOLESKY_CHAIN_ID = 17000;
 
 export function getChainIdByNetworkName(network: string): ChainId {
   if (network === "mainnet") return MAINNET_CHAIN_ID;
-  if (network === "holesky") return HOLESKY_CHAIN_ID;
   if (network === "hoodi") return HOODI_CHAIN_ID;
   throw new UnsupportedNetwork(network);
 }
 
 export function getNetworkNameByChainId(chainId: number): NetworkName {
   if (chainId === MAINNET_CHAIN_ID) return "mainnet";
-  if (chainId === HOLESKY_CHAIN_ID) return "holesky";
   if (chainId === HOODI_CHAIN_ID) return "hoodi";
   throw new UnsupportedChainId(chainId);
 }
@@ -45,9 +42,6 @@ export function getRpcUrl(network: NetworkName, ind = 0): string {
   let urls = "";
   if (network === "mainnet") {
     urls = env.ETH_MAINNET_RPC_URL();
-  }
-  if (network === "holesky") {
-    urls = env.ETH_HOLESKY_RPC_URL();
   }
   if (network === "hoodi") {
     urls = env.ETH_HOODI_RPC_URL();
@@ -104,7 +98,6 @@ export function getLocalRpcUrl(port: string | number): string {
 
 export default {
   MAINNET_CHAIN_ID,
-  HOLESKY_CHAIN_ID,
   HOODI_CHAIN_ID,
   getRpcUrl,
   createRpcClient,
@@ -164,7 +157,6 @@ function createPublicWalletClient<T extends HttpTransport | CustomTransport>(net
 
 function getViemChain(network: NetworkName) {
   if (network === "mainnet") return mainnet;
-  if (network === "holesky") return holesky;
   if (network === "hoodi") return hoodi;
 
   throw new UnsupportedNetwork(network);

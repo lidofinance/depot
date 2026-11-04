@@ -12,12 +12,5 @@ export function runHardhatTask(
     ).run(args);
   }
 
-  if (typeof maybeHre.run === "function") {
-    return (maybeHre.run as (name: string | string[], args: Record<string, unknown>) => Promise<unknown>)(
-      taskName,
-      args,
-    );
-  }
-
   throw new Error(`Hardhat task runner is not available on HRE`);
 }

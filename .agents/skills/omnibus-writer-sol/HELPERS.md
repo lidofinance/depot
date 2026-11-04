@@ -23,7 +23,7 @@ In TS, import `expectedEvents as ev` from `src/omnibuses`. Pass typed contract h
 - `forward(title, agent, target, payload)` adds one Agent forward containing one target call.
 - `forward(title, agent, forwardedBuilder)` adds one forward containing that builder's calls. It retains their ordered nested titles.
 
-[DualGovernanceCalls](../../../contracts/libraries/DualGovernance.sol) extends `VoteCallsBuilder` with `submitProposal(title, metadata, governance, proposalBuilder)`. Supply explicit metadata using the guide's exact fenced-text rule; the metadata-generating `submitCalls` overload is not the authoring path.
+[DualGovernanceCalls](../../../contracts/libraries/DualGovernance.sol) extends `VoteCallsBuilder` with `submitProposal(title, metadata, governance, proposalBuilder)`. Supply explicit metadata using the guide's exact fenced-text rule.
 
 For one forwarded call, a flat domain-event array is sufficient. For several forwarded calls, preserve one array per child, including empty arrays. For example, after `passProposals()`, a two-call NodeOperators forward is checked as follows (variables are the specified vote inputs/typed handles):
 

@@ -57,7 +57,7 @@ const UPGRADEABLE_BEACON_ABI: Abi = [
 ];
 
 function contractInfo(name: string, abi: Abi, implementation: ContractInfo["implementation"] = null): ContractInfo {
-  return { name, abi, implementation, constructorArgs: "0x", sourceCode: "", evmVersion: "", compilerVersion: "" };
+  return { name, abi, implementation };
 }
 
 describe("abi-source", () => {

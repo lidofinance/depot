@@ -17,13 +17,13 @@ Write unit or integration tests for existing TypeScript code. Respect project co
 
 2. **Choose test type**
    - **Unit test** (`.unit.test.ts`) — pure logic, no network, no contracts. Mock external deps via DI containers or plain object stubs.
-   - **Integration test** (`.integration.test.ts`) — anything that calls smart contracts. Deploy mocks on hardhat node.
+   - **Integration test** (`.integration.test.ts`) — anything that calls smart contracts. Deploy mocks on an in-process Hardhat network.
 
    When in doubt, prefer unit tests. Integration tests only when contract interaction is the actual subject of the test.
 
 3. **Locate test file**
 
-   Depot tests go in `test/depot/<module>/<name>.(unit|integration).test.ts`, mirroring source structure. Protocol acceptance and upgrade snapshot suites go in `test/protocol/acceptance/` and `test/protocol/snapshot/` as plain `.test.ts` files. Per-vote checks stay beside the payload in `omnibuses/<name>/`.
+   Depot tests go in `test/depot/<module>/<name>.(unit|integration).test.ts`, mirroring source structure. Protocol acceptance and upgrade snapshot suites go in `test/protocol/acceptance/` and `test/protocol/snapshot/` as plain `.test.ts` files. Per-vote checks stay beside the payload in `omnibuses/ongoing/<network>/<name>/<name>.ts`.
 
 4. **Write tests**
 
@@ -96,7 +96,7 @@ If the code you're testing doesn't have a DI container, add one to the source as
 
 ## HTTP mocking
 
-Project uses native `fetch()`. Nock v13 does NOT intercept native fetch. Use `globalThis.fetch` override:
+Project uses native `fetch()`. Override `globalThis.fetch`:
 
 ```typescript
 const originalFetch = globalThis.fetch;
@@ -116,41 +116,36 @@ Helper pattern for multiple responses, see `test/depot/contracts/etherscan-provi
 
 ## Integration test pattern
 
-Connects to a running hardhat node, deploys mocks from `contracts/mocks/`, overrides DI containers:
+Starts an in-process Hardhat network, deploys mocks from `contracts/mocks/` and isolates tests with snapshots (see `test/AGENTS.md`):
 
 ```typescript
-import { createDevRpcClient } from "@/src/network/network";
-import { deployMockGovernance } from "../helpers/deploy-mock-governance";
-import { lifecycleDeps } from "@/src/aragon-votes-tools/lifecycle";
-import type { HexStrPrefixed } from "@/src/common/bytes";
-
-const RPC_URL = process.env.TEST_RPC_URL ?? "http://localhost:8545";
+import { assert } from "chai";
+import { DevRpcClient } from "@/src/network/dev-rpc-client";
+import { HexStrPrefixed } from "@/src/common/bytes";
+import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
+import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
 
 describe("feature (integration)", function () {
-  let client, mocks, snapshotId: HexStrPrefixed;
-  let originalDeps: typeof lifecycleDeps.getGovernanceContracts;
+  let client: DevRpcClient;
+  let mocks: MockGovernanceContracts;
+  let snapshotId: HexStrPrefixed;
 
   before(async function () {
-    client = await createDevRpcClient("mainnet", RPC_URL);
+    client = await createInProcessDevRpcClient();
     const [deployer] = await client.getAccounts();
     mocks = await deployMockGovernance(client, deployer);
-    originalDeps = lifecycleDeps.getGovernanceContracts;
-    lifecycleDeps.getGovernanceContracts = () => mocks as any;
   });
 
-  after(() => {
-    lifecycleDeps.getGovernanceContracts = originalDeps;
-  });
-
-  beforeEach(async () => {
+  beforeEach(async function () {
     snapshotId = await client.snapshot();
   });
-  afterEach(async () => {
+
+  afterEach(async function () {
     await client.revert(snapshotId);
   });
 
-  it("does something on-chain", async function () {
-    // real contract calls
+  it("starts with zero token supply", async function () {
+    assert.equal(await client.read(mocks.ldo, "totalSupply"), 0n);
   });
 });
 ```
@@ -162,6 +157,10 @@ Live in `contracts/mocks/`. Current mocks:
 - `MockERC20.sol` — mintable ERC20
 - `MockVoting.sol` — Aragon Voting subset
 - `MockTokenManager.sol` — TokenManager with EVM script parsing
+- `MockHashConsensus.sol` — minimal HashConsensus for AccountingOracle `setConsensusContract` guards
+- `MockKernelAppImplementation.sol` — V1/V2 app implementations reporting `version()`
+- `MockOmnibus.sol` — minimal `OmnibusBase` with one call
+- `MockSnapshotCallTarget.sol` — one-shot call target for snapshot tests
 
 Extend existing mocks before adding new ones. If you add a new mock:
 

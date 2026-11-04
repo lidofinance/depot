@@ -111,10 +111,8 @@ describe("Upgrade snapshot mechanism (in-process integration)", function () {
     assert.deepEqual(await state(), initial);
   });
 
-  it("rejects a run without cases and a network without suite expectations", async function () {
+  it("rejects a run without cases", async function () {
     await rejects(runSnapshots(client, emulateUpgrade(sampledSlot), { createsVote: false, suites: [] }));
-    const holesky = await createInProcessDevRpcClient("holesky");
-    await rejects(runSnapshots(holesky, emulateUpgrade(sampledSlot), runOptions), /not configured for holesky/);
     assert.equal(executions, 0);
   });
 

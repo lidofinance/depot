@@ -1,6 +1,5 @@
 import { assert } from "chai";
 import sinon from "sinon";
-import bytes from "@/src/common/bytes";
 import {
   deps,
   EtherscanContractInfoProvider,
@@ -161,9 +160,6 @@ describe("EtherscanContractInfoProvider", () => {
 
     assert.equal(res.name, "Flattened");
     assert.deepEqual(res.abi, JSON.parse(response.result[0].ABI));
-    assert.equal(res.compilerVersion, response.result[0].CompilerVersion);
-    assert.equal(res.constructorArgs, bytes.normalize(response.result[0].ConstructorArguments));
-    assert.equal(res.evmVersion, response.result[0].EVMVersion);
     assert.isNull(res.implementation);
   });
 
@@ -250,41 +246,6 @@ describe("EtherscanContractInfoProvider", () => {
       provider.request(NETWORK_NAME, CONTRACT_ADDRESS),
       `Rate limit reached, tried ${MAX_ATTEMPTS} times`,
     );
-  });
-
-  it("returns flattened sourceCode as JSON with settings", async () => {
-    const response = {
-      status: "1",
-      message: "OK",
-      result: [
-        {
-          SourceCode: "contract A {}",
-          ABI: "[]",
-          ContractName: "Flattened",
-          CompilerVersion: "v0.6.12+commit.27d51765",
-          OptimizationUsed: "1",
-          Runs: "200",
-          ConstructorArguments: "",
-          EVMVersion: "Default",
-          Library: "",
-          LicenseType: "MIT",
-          Proxy: "0",
-          Implementation: "",
-          SwarmSource: "",
-        },
-      ],
-    };
-
-    const mock = mockFetchResponses(response);
-    restoreFetch = mock.restore;
-
-    const res = await provider.request(NETWORK_NAME, CONTRACT_ADDRESS);
-    const parsed = JSON.parse(res.sourceCode);
-
-    assert.equal(parsed.language, "Solidity");
-    assert.deepEqual(parsed.sources, { "Flattened.sol": "contract A {}" });
-    assert.equal(parsed.settings.evmVersion, "Default");
-    assert.deepEqual(parsed.settings.optimizer, { enabled: true, runs: "200" });
   });
 
   it("throws for unexpected etherscan response format", async () => {

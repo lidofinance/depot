@@ -48,7 +48,6 @@ export interface WriteContractOptions {
   from: Address | Account;
   maxFeePerGas?: bigint;
   maxPriorityFeePerGas?: bigint;
-  disableSimulation?: boolean;
 }
 
 interface TransactionData {

@@ -48,7 +48,7 @@ Project uses `"type": "module"`. Key constraints:
   export const deps = { getGovernanceContracts };
   const { voting } = deps.getGovernanceContracts(network);
   ```
-- For HTTP mocking, use `globalThis.fetch` override (nock v13 doesn't intercept native fetch)
+- For HTTP mocking, override `globalThis.fetch`
 
 ## Code style
 

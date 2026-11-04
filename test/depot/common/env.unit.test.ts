@@ -22,11 +22,9 @@ describe("environment helpers", () => {
 
   it("returns required RPC urls", () => {
     process.env.ETH_MAINNET_RPC_URL = "https://mainnet.example/rpc";
-    process.env.ETH_HOLESKY_RPC_URL = "https://holesky.example/rpc";
     process.env.ETH_HOODI_RPC_URL = "https://hoodi.example/rpc";
 
     expect(env.ETH_MAINNET_RPC_URL()).to.equal("https://mainnet.example/rpc");
-    expect(env.ETH_HOLESKY_RPC_URL()).to.equal("https://holesky.example/rpc");
     expect(env.ETH_HOODI_RPC_URL()).to.equal("https://hoodi.example/rpc");
   });
 

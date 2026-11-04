@@ -8,7 +8,6 @@ import { Executor_ABI } from "../../abi/Executor.abi";
 import { Kernel_ABI } from "../../abi/Kernel.abi";
 import { LidoLocator_ABI } from "../../abi/LidoLocator.abi";
 import { MiniMeToken_ABI } from "../../abi/MiniMeToken.abi";
-import { TimelockedGovernance_ABI } from "../../abi/TimelockedGovernance.abi";
 import { TokenManager_ABI } from "../../abi/TokenManager.abi";
 import { Voting_ABI } from "../../abi/Voting.abi";
 import { Contract, contract } from "../contracts";
@@ -22,7 +21,6 @@ export type ExecutorContract = Contract<typeof Executor_ABI>;
 export type TokenManagerContract = Contract<typeof TokenManager_ABI>;
 export type MiniMeToken = Contract<typeof MiniMeToken_ABI>;
 export type DualGovernanceContract = Contract<typeof DualGovernance_ABI>;
-export type TimelockedGovernanceContract = Contract<typeof TimelockedGovernance_ABI>;
 
 type LidoLocatorContract = Contract<typeof LidoLocator_ABI>;
 type KernelContract = Contract<typeof Kernel_ABI>;
@@ -73,21 +71,6 @@ function getGovernanceAddresses(network: NetworkName): GovernanceAddresses {
       adminExecutor: "0x0eCc17597D292271836691358B22340b78F3035B",
       tokenManager: "0x8ab4a56721Ad8e68c6Ad86F9D9929782A78E39E5",
       dualGovernance: "0x9CAaCCc62c66d817CC59c44780D1b722359795bF",
-      locator: "0xe2EF9536DAAAEBFf5b1c130957AB3E80056b06D8",
-      kernel: "0xA48DF029Fd2e5FCECB3886c5c2F60e3625A1E87d",
-      acl: "0x78780e70Eae33e2935814a327f7dB6c01136cc62",
-      evmScriptRegistry: "0xe4D32427b1F9b12ab89B142eD3714dCAABB3f38c",
-    };
-  }
-  if (network === "holesky") {
-    return {
-      ldo: "0x14ae7daeecdf57034f3E9db8564e46Dba8D97344",
-      callsScript: "0xfB3cB48d81eC8c7f2013a8dc9fA46D2D48112c3A",
-      voting: "0x49B3512c44891bef83F8967d075121Bd1b07a01B",
-      timelock: "0x0A5E22782C0Bd4AddF10D771f0bF0406B038282d",
-      adminExecutor: "0x0eCc17597D292271836691358B22340b78F3035B",
-      tokenManager: "0x6f0b994E6827faC1fDb58AF66f365676247bAD71",
-      dualGovernance: "0x490bf377734CA134A8E207525E8576745652212e",
       locator: "0xe2EF9536DAAAEBFf5b1c130957AB3E80056b06D8",
       kernel: "0xA48DF029Fd2e5FCECB3886c5c2F60e3625A1E87d",
       acl: "0x78780e70Eae33e2935814a327f7dB6c01136cc62",

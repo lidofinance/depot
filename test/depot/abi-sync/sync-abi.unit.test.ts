@@ -112,10 +112,6 @@ describe("syncAbi address selection", () => {
       name: "Voting",
       abi: ABI,
       implementation: null,
-      constructorArgs: "0x",
-      sourceCode: "",
-      evmVersion: "",
-      compilerVersion: "",
     });
     sinon.stub(sourceDeps, "readImplementationOnChain").resolves(null);
     sinon.stub(deps, "writeFile").resolves();
@@ -182,10 +178,6 @@ describe("syncAbi local input boundary", () => {
       name: "Voting",
       abi: ABI,
       implementation: null,
-      constructorArgs: "0x",
-      sourceCode: "",
-      evmVersion: "",
-      compilerVersion: "",
     });
     sinon.stub(sourceDeps, "readImplementationOnChain").resolves(null);
     const writeFile = sinon.stub(deps, "writeFile").resolves();

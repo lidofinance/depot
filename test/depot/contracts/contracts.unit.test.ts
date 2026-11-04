@@ -55,10 +55,6 @@ describe("contracts", () => {
       name: contracts.ldo.label,
       abi: contracts.ldo.abi,
       implementation: null,
-      constructorArgs: "0x",
-      sourceCode: "",
-      evmVersion: "default",
-      compilerVersion: "0.8.0",
     } as any);
 
     const res = await resolveContract("mainnet", contracts.ldo.address);
@@ -74,10 +70,6 @@ describe("contracts", () => {
       name: "unknownContract",
       abi: [],
       implementation: null,
-      constructorArgs: "0x",
-      sourceCode: "",
-      evmVersion: "default",
-      compilerVersion: "0.8.0",
     } as any);
 
     const res = await resolveContract("mainnet", unknown);
@@ -95,20 +87,12 @@ describe("contracts", () => {
         name: "proxyContract",
         abi: [{ type: "function", name: "foo", inputs: [], outputs: [], stateMutability: "view" }],
         implementation: impl,
-        constructorArgs: "0x",
-        sourceCode: "",
-        evmVersion: "default",
-        compilerVersion: "0.8.0",
       } as any)
       .onSecondCall()
       .resolves({
         name: "implContract",
         abi: [{ type: "function", name: "bar", inputs: [], outputs: [], stateMutability: "view" }],
         implementation: null,
-        constructorArgs: "0x",
-        sourceCode: "",
-        evmVersion: "default",
-        compilerVersion: "0.8.0",
       } as any);
 
     const res = await resolveContract("mainnet", proxy);

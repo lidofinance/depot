@@ -8,7 +8,6 @@ export const ETH_LOCAL_RPC_PORT = () => getOptionalEnvVar("ETH_LOCAL_RPC_PORT", 
 export const ETH_LOCAL_RPC_BIND_IP = () => getOptionalEnvVar("ETH_LOCAL_RPC_BIND_IP", "127.0.0.1");
 
 export const ETH_MAINNET_RPC_URL = () => getRequiredEnvVar("ETH_MAINNET_RPC_URL");
-export const ETH_HOLESKY_RPC_URL = () => getRequiredEnvVar("ETH_HOLESKY_RPC_URL");
 export const ETH_HOODI_RPC_URL = () => getRequiredEnvVar("ETH_HOODI_RPC_URL");
 
 export const ETHERSCAN_TOKEN = () => process.env.ETHERSCAN_TOKEN;
