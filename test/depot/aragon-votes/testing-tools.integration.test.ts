@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import { Address } from "viem";
 import { lifecycleDeps } from "@/src/aragon-votes-tools/lifecycle";
-import { testingDeps, setupLdoHolder, passAragonVote, adoptAragonVoting } from "@/src/aragon-votes-tools/testing";
+import { testingDeps, setupLdoHolder, passAragonVote } from "@/src/aragon-votes-tools/testing";
 import { CREATOR, LDO_VOTERS_BY_NETWORK_NAME } from "@/src/aragon-votes-tools/constants";
 import { HexStrPrefixed } from "@/src/common/bytes";
 import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
@@ -105,32 +105,25 @@ describe("aragon vote testing tools (integration)", function () {
       await client.stopImpersonating(firstVoter);
     }
 
-    const result = await adoptAragonVoting(client, "0x00000001" as HexStrPrefixed, "Vote requiring two voters");
+    const ldoHolderAddress = await setupLdoHolder(client);
+    const { voteId, receipt: createVoteReceipt } = await testingDeps.startAragonVote(
+      client,
+      "0x00000001" as HexStrPrefixed,
+      "Vote requiring two voters",
+      { from: ldoHolderAddress },
+    );
+    await passAragonVote(client, voteId);
     const castVotes = await client.viemClient.getContractEvents({
       ...mocks.voting,
       eventName: "CastVote",
-      args: { voteId: result.voteId },
-      fromBlock: result.createVoteReceipt.blockNumber,
+      args: { voteId },
+      fromBlock: createVoteReceipt.blockNumber,
     });
-    const [, , , , , , yea] = await client.read(mocks.voting, "getVote", [result.voteId]);
+    const [, , , , , , yea] = await client.read(mocks.voting, "getVote", [voteId]);
 
     assert.lengthOf(castVotes, 2);
     assert.equal(castVotes[0]?.args.voter, firstVoter);
     assert.equal(castVotes[1]?.args.voter, secondVoter);
     assert.equal(yea, exactQuorum - oneLdo + secondVoterBalance);
-  });
-
-  it("adoptAragonVoting runs full lifecycle: create + pass", async function () {
-    const dummyEvmScript = "0x00000001" as HexStrPrefixed;
-
-    const result = await adoptAragonVoting(client, dummyEvmScript, "Adopt test vote");
-
-    assert.isOk(result.voteId >= 0n);
-    assert.isOk(result.createVoteReceipt.transactionHash);
-    assert.isOk(result.executeVoteReceipt.transactionHash);
-
-    const [open, executed] = await client.read(mocks.voting, "getVote", [result.voteId]);
-    assert.isFalse(open);
-    assert.isTrue(executed);
   });
 });

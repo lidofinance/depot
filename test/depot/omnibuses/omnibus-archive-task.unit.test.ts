@@ -37,7 +37,7 @@ describe("omnibus:archive", () => {
     const module = path.relative(ongoing, path.resolve("src/omnibuses/omnibus"));
     await writeFile(
       path.join(ongoing, "fixture.ts"),
-      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: false, voteId: 7, testVote: async () => {} });`,
+      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: false, voteId: 7, deployment: { omnibus: Omnibus.deployedContract("0x0000000000000000000000000000000000000001") }, testVote: async () => {} });`,
     );
     log = sinon.stub(console, "log");
     sinon.stub(omnibusTaskDeps, "getOmnibusesDir").returns(root);
@@ -53,6 +53,7 @@ describe("omnibus:archive", () => {
     client.getNetworkName.returns("mainnet");
     client.read.withArgs(sinon.match.any, "votesLength").resolves(8n as never);
     client.read.withArgs(sinon.match.any, "getVote").resolves([vote.open, vote.executed, 0n, 100n] as never);
+    client.read.withArgs(sinon.match.any, "isValidVoteScript").resolves(true as never);
     client.read.withArgs(sinon.match.any, "canExecute").resolves(vote.canExecute as never);
     client.read.withArgs(sinon.match.any, "getProposalDetails").resolves({ status: proposalStatus } as never);
     const receipt = {
@@ -69,6 +70,13 @@ describe("omnibus:archive", () => {
   it("refuses while the DG proposal is not executed", async () => {
     chain({ open: false, executed: true, canExecute: false }, ProposalStatus.Scheduled);
     await assert.isRejected(archive(), "its DG proposals are not: 15 (Scheduled)");
+    await access(ongoing);
+  });
+
+  it("refuses a vote whose script does not match the omnibus contract", async () => {
+    const client = chain({ open: false, executed: true, canExecute: false }, ProposalStatus.Executed);
+    client.read.withArgs(sinon.match.any, "isValidVoteScript").resolves(false as never);
+    await assert.isRejected(archive(), "Vote 7 script does not match the omnibus contract");
     await access(ongoing);
   });
 

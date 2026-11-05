@@ -67,13 +67,16 @@ jobs:
           cache-key: ${{ steps.regression.outputs.cache-key }}
           cache-hit: ${{ steps.regression.outputs.cache-hit }}
 
-      - name: Upload regression evidence
-        if: ${{ always() && steps.candidate.outputs.name != '' }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: scripts-regression
-          # the node log can carry the fork RPC URL in upstream request errors
-          path: |
-            depot/logs/
-            !depot/logs/hh-rpc-node.log
-          retention-days: 14
+      - name: Print regression logs
+        if: ${{ failure() && steps.candidate.outputs.name != '' }}
+        shell: bash
+        working-directory: depot
+        run: |
+          # multi-test output is already in the console; the node log is noise
+          for log in logs/*.log; do
+            case "$log" in logs/multi-test.log | logs/hh-rpc-node.log) continue ;; esac
+            [[ -f "$log" ]] || continue
+            echo "::group::$log"
+            cat "$log"
+            echo "::endgroup::"
+          done

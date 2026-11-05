@@ -361,12 +361,12 @@ describe("Omnibus runtime completion", () => {
       sinon.assert.notCalled(testVote);
     });
 
-    it("rejects a fork block before the vote was started", async () => {
+    it("rejects a vote that does not exist at the fork block", async () => {
       const { omnibus, client } = await fixture();
       client.read.withArgs(sinon.match.any, "votesLength").resolves(1n as never);
       client.getBlockNumber.resolves(20n);
 
-      await rejects(omnibus.test(client), /Fork block 20 is before vote 1 was started/);
+      await rejects(omnibus.test(client), /Vote 1 does not exist at block 20 \(votesLength is/);
       sinon.assert.notCalled(client.snapshot);
     });
 

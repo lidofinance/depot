@@ -23,8 +23,12 @@ export interface VoteExecution {
 
 export async function readVoteState(client: RpcClient, voteId: bigint): Promise<VoteState> {
   const { voting } = getGovernanceContracts(client.getNetworkName());
-  if ((await client.read(voting, "votesLength", [])) <= voteId) {
-    throw new KnownError(`Fork block ${await client.getBlockNumber()} is before vote ${voteId} was started`);
+  const votesLength = await client.read(voting, "votesLength", []);
+  if (votesLength <= voteId) {
+    const blockNumber = await client.getBlockNumber();
+    throw new KnownError(
+      `Vote ${voteId} does not exist at block ${blockNumber} (votesLength is ${votesLength}); check voteId or the fork block`,
+    );
   }
   const [[open, executed, , snapshotBlock, , , , , , script], canExecute] = await Promise.all([
     client.read(voting, "getVote", [voteId]),

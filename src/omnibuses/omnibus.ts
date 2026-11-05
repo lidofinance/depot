@@ -542,7 +542,7 @@ export class Omnibus<
         await client.withSnapshot(snapshotHooks.afterExecution);
       }
       if (this.upgrade && execution) {
-        notApplicable("upgrade snapshot", "the vote is executed on chain");
+        notApplicable("upgrade snapshot", "the Aragon vote is executed on chain");
       }
 
       if (this.#config.testFinalState) {

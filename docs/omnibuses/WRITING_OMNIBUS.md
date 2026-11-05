@@ -49,7 +49,7 @@ Choose the execution route from the target's authority: Voting, DG executor or A
 
 ## 4. Write the TypeScript tests
 
-Export `Omnibus.create({ network, testVote, testProposal?, testFinalState? })`. Keep `voteId` undefined: `omnibus:launch --broadcast` records it. There is no TS `calls` builder, blueprint or contract-generation step: the runtime reads calls and script from the deployed Solidity contract and checks their consistency.
+Export `Omnibus.create({ network, upgrade, testVote, testProposal?, testFinalState? })`. Keep `voteId` undefined: `omnibus:launch --broadcast` records it. There is no TS `calls` builder, blueprint or contract-generation step: the runtime reads calls and script from the deployed Solidity contract and checks their consistency.
 
 - In `testVote`, read before-state, await `passOmnibus()`, register every `voteEvents.item(title, domainEvents)`, and assert resulting state/balance changes. Read expected public constants through a typed contract ABI, as in [the tiny test](../../omnibuses/examples/_example_tiny_omnibus/_example_tiny_omnibus.ts). Prefer bound `checks.*` from the callback context where they fit.
 - A submitting item still needs `voteEvents.item(title)` when it has no additional domain events. The helper supplies its Voting/DG envelope; this does not check proposal execution.

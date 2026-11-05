@@ -33,7 +33,7 @@ describe("vote address lint entrypoints", () => {
   it("checks active votes and templates, excludes ABI/tests, and only checks the archive when selected", () => {
     write("omnibuses/_omnibus_template/_omnibus_template.ts", `const LDO = "${ADDRESS}"; call(LDO);`);
     write("omnibuses/example/example.ts", `call("${ADDRESS}");`);
-    write("omnibuses/_archive/mainnet/old/old.ts", `call("${ADDRESS}");`);
+    write("omnibuses/archive/mainnet/old/old.ts", `call("${ADDRESS}");`);
     write("omnibuses/_omnibus_template/template.abi.ts", `call("${ADDRESS}");`);
     write("omnibuses/_omnibus_template/Example.t.sol", "invalid source");
     write("omnibuses/_omnibus_template/test.test.ts", `call("${ADDRESS}");`);
@@ -42,8 +42,8 @@ describe("vote address lint entrypoints", () => {
       ["omnibuses/example/example.ts"],
     );
     assert.deepEqual(
-      lintVoteAddresses({ rootDir: root, directories: ["omnibuses/_archive/mainnet/old"] }).map(({ file }) => file),
-      ["omnibuses/_archive/mainnet/old/old.ts"],
+      lintVoteAddresses({ rootDir: root, directories: ["omnibuses/archive/mainnet/old"] }).map(({ file }) => file),
+      ["omnibuses/archive/mainnet/old/old.ts"],
     );
   });
 

@@ -192,6 +192,13 @@ defineTask("omnibus:archive", "Move launched omnibus to archive folder")
     const client = await omnibusTaskDeps.createRpcClient(omnibus.network);
     const voteId = BigInt(omnibus.voteId);
     const vote = await readVoteState(client, voteId);
+    const deployment = omnibus.getDeployment();
+    if (!deployment || !("omnibus" in deployment)) {
+      throw new KnownError(`Omnibus "${name}" "deployment.omnibus" is not set`);
+    }
+    if (!(await client.read(omnibus.getOmnibusContract(), "isValidVoteScript", [voteId]))) {
+      throw new KnownError(`Vote ${voteId} script does not match the omnibus contract; check voteId`);
+    }
     if (vote.executed) {
       const { proposals } = await readVoteExecution(client, voteId, vote.snapshotBlock);
       const unfinished = proposals.filter(
@@ -334,19 +341,24 @@ defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
       const forkBlock = resolveForkBlock(taskArgs.forkBlock);
       const client = await prepareDevRpcClient(omnibus.network, hre, forkBlock);
       await omnibusTaskDeps.assertNodeOnRealChain(client, omnibus.network, forkBlock);
-      await prepareOmnibus(hre, client, omnibus);
-      await printEvmScript(name, omnibus.getEvmScript());
-      const stage = await omnibus.test(client, taskArgs.skipAcceptance ? undefined : runAcceptance);
-      if (omnibus.upgrade && (stage === "not-launched" || stage === "voting")) {
-        await omnibusTaskDeps.runSnapshots(
-          client,
-          async (hooks) => {
-            await omnibus.test(client, undefined, hooks);
-          },
-          {
-            createsVote: omnibus.voteId === undefined,
-          },
-        );
+      const snapshotId = await client.snapshot();
+      try {
+        await prepareOmnibus(hre, client, omnibus);
+        await printEvmScript(name, omnibus.getEvmScript());
+        const stage = await omnibus.test(client, taskArgs.skipAcceptance ? undefined : runAcceptance);
+        if (omnibus.upgrade && (stage === "not-launched" || stage === "voting")) {
+          await omnibusTaskDeps.runSnapshots(
+            client,
+            async (hooks) => {
+              await omnibus.test(client, undefined, hooks);
+            },
+            {
+              createsVote: omnibus.voteId === undefined,
+            },
+          );
+        }
+      } finally {
+        await client.revert(snapshotId);
       }
     },
   );

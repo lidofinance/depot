@@ -2,7 +2,6 @@ import { CREATOR, CREATOR_ETH_BALANCE, CREATOR_LDO_BALANCE, LDO_VOTERS_BY_NETWOR
 import { startAragonVote } from "./lifecycle";
 import { DevRpcClient } from "../network";
 import { Address, formatEther, TransactionReceipt } from "viem";
-import { HexStrPrefixed } from "../common/bytes";
 import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
 const MAIN_VOTE_PHASE = 0;
@@ -76,28 +75,6 @@ export async function passAragonVote(client: DevRpcClient, voteId: bigint): Prom
   return withImpersonatedAccount(client, voters[0], CREATOR_ETH_BALANCE, () =>
     client.write(voting, "executeVote", [voteId], { from: voters[0] }),
   );
-}
-
-interface AdoptResult {
-  voteId: bigint;
-  createVoteReceipt: TransactionReceipt;
-  executeVoteReceipt: TransactionReceipt;
-}
-
-export async function adoptAragonVoting(
-  client: DevRpcClient,
-  evmScript: HexStrPrefixed,
-  description: string,
-): Promise<AdoptResult> {
-  const ldoHolderAddress = await setupLdoHolder(client);
-
-  const { voteId, receipt: createVoteReceipt } = await testingDeps.startAragonVote(client, evmScript, description, {
-    from: ldoHolderAddress,
-  });
-
-  const executeVoteReceipt = await passAragonVote(client, voteId);
-
-  return { voteId, createVoteReceipt, executeVoteReceipt };
 }
 
 async function withImpersonatedAccount<T>(
