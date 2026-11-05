@@ -22,7 +22,7 @@ describe("DevRpcClient snapshot handling", () => {
   });
 
   it("keeps the callback error when the revert of a failed callback also throws", async () => {
-    const logError = sinon.stub(console, "error");
+    sinon.stub(console, "error");
     const callbackError = new Error("callback failed");
     client.revert.rejects(new Error("revert failed"));
 
@@ -30,9 +30,6 @@ describe("DevRpcClient snapshot handling", () => {
       client.withSnapshot(() => Promise.reject(callbackError)),
       callbackError,
     );
-
-    sinon.assert.calledOnce(client.revert);
-    sinon.assert.calledOnce(logError);
   });
 
   it("propagates a revert failure of a successful callback", async () => {

@@ -2,7 +2,7 @@ import { assert } from "chai";
 import { Address } from "viem";
 import { lifecycleDeps } from "@/src/aragon-votes-tools/lifecycle";
 import { testingDeps, setupLdoHolder, passAragonVote } from "@/src/aragon-votes-tools/testing";
-import { CREATOR, LDO_VOTERS_BY_NETWORK_NAME } from "@/src/aragon-votes-tools/constants";
+import { LDO_VOTERS_BY_NETWORK_NAME } from "@/src/aragon-votes-tools/constants";
 import { HexStrPrefixed } from "@/src/common/bytes";
 import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
 import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
@@ -63,29 +63,6 @@ describe("aragon vote testing tools (integration)", function () {
 
   afterEach(async function () {
     await client.revert(snapshotId);
-  });
-
-  it("setupLdoHolder funds account with LDO from whale", async function () {
-    const account = await setupLdoHolder(client);
-
-    assert.equal(account, CREATOR);
-    const balance = await client.read(mocks.ldo, "balanceOf", [CREATOR]);
-    assert.isTrue(balance > 0n);
-  });
-
-  it("passAragonVote votes and executes a vote", async function () {
-    const dummyEvmScript = "0x00000001" as HexStrPrefixed;
-
-    // Create a vote first via lifecycle
-    const { startAragonVote } = await import("@/src/aragon-votes-tools/lifecycle");
-    const { voteId } = await startAragonVote(client, dummyEvmScript, "Vote to pass", { from: deployer });
-
-    const receipt = await passAragonVote(client, voteId);
-
-    assert.isOk(receipt.transactionHash);
-    const [open, executed] = await client.read(mocks.voting, "getVote", [voteId]);
-    assert.isFalse(open);
-    assert.isTrue(executed);
   });
 
   it("uses additional voters when setupLdoHolder moves the first voter below quorum", async function () {

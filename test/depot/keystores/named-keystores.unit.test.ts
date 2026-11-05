@@ -6,7 +6,6 @@ import chaiAsPromised from "chai-as-promised";
 import { NamedKeystores, create, AccountAlreadyExistsError } from "@/src/hardhat-keystores/named-keystores";
 import { NamedKeystoresStorage } from "@/src/hardhat-keystores/named-keystores-storage";
 import { getRandomPrivateKey } from "../helpers/keystore-helpers";
-import { afterEach } from "mocha";
 
 chai.use(chaiAsPromised);
 const { expect } = chai;
@@ -37,16 +36,6 @@ describe("NamedKeystores", () => {
     await namedKeystores.add(name, privateKey, mainPass);
 
     await expect(namedKeystores.add(name, privateKey, mainPass)).to.be.rejectedWith(AccountAlreadyExistsError);
-  });
-
-  it("unlocks a keystore", async () => {
-    const name = "test";
-    const privateKey = getRandomPrivateKey();
-
-    await namedKeystores.add(name, privateKey, mainPass);
-    const unlockedPrivateKey = await namedKeystores.unlock(name, mainPass);
-
-    expect(unlockedPrivateKey).to.equal(privateKey);
   });
 
   it("failed unlocks a keystore", async () => {

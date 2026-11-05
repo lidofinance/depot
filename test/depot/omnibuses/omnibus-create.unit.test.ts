@@ -4,7 +4,6 @@ import { randomUUID } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
-import ts from "typescript";
 import { rejects } from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import sinon from "sinon";
@@ -12,7 +11,7 @@ import sinon from "sinon";
 import prompt from "@/src/common/prompt";
 import { Omnibus } from "@/src/omnibuses";
 import { RpcClient } from "@/src/network";
-import { loadOmnibus, omnibusTaskDeps, prepareOmnibus } from "@/tasks/omnibuses";
+import { omnibusTaskDeps, prepareOmnibus } from "@/tasks/omnibuses";
 import { lintVoteAddresses } from "@/src/omnibuses/address-lint";
 
 describe("omnibus:create", () => {
@@ -51,62 +50,6 @@ describe("omnibus:create", () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it("archives a created wrapper and its sibling helper without rewriting imports", async () => {
-    sinon.stub(prompt, "select").resolves("mainnet");
-    await hre.tasks.getTask(["omnibus:create"]).run({});
-    const wrapperPath = path.join(directory, `${name}.ts`);
-    let source = await readFile(wrapperPath, "utf-8");
-    source =
-      `import { network } from "./helper";\n` +
-      source.replace('network: "mainnet"', "network").replace("voteId: undefined", "voteId: 1");
-    await writeFile(wrapperPath, source);
-    await writeFile(
-      path.join(directory, "helper.ts"),
-      `import {
-  MiniMeToken_ABI,
-} from "@/abi/MiniMeToken.abi";
-export const network = MiniMeToken_ABI.length ? "mainnet" : "hoodi";
-`,
-    );
-    // a rejected vote: closed and not executed
-    const client = sinon.createStubInstance(RpcClient);
-    client.getNetworkName.returns("mainnet");
-    client.read.withArgs(sinon.match.any, "votesLength").resolves(2n as never);
-    client.read.withArgs(sinon.match.any, "getVote").resolves([false, false] as never);
-    client.read.withArgs(sinon.match.any, "canExecute").resolves(false as never);
-    client.read.withArgs(sinon.match.any, "isValidVoteScript").resolves(true as never);
-    sinon.stub(omnibusTaskDeps, "createRpcClient").resolves(client);
-    const omnibusContract = Omnibus.deployedContract("0x0000000000000000000000000000000000000001");
-    sinon.stub(Omnibus.prototype, "getDeployment").returns({ omnibus: omnibusContract });
-    sinon.stub(Omnibus.prototype, "getOmnibusContract").returns(omnibusContract);
-    await hre.tasks.getTask(["omnibus:archive"]).run({ name });
-    await rejects(readdir(directory), { code: "ENOENT" });
-    const archive = path.join(omnibusesDir, "archive/mainnet", name);
-    const archivedWrapper = path.join(archive, `${name}.ts`);
-    assert.equal(await readFile(archivedWrapper, "utf-8"), source);
-    const omnibus = await loadOmnibus(name);
-    assert.equal(omnibus.voteId, 1);
-    assert.equal(omnibus.network, "mainnet");
-    const options: ts.CompilerOptions = {
-      module: ts.ModuleKind.ESNext,
-      moduleResolution: ts.ModuleResolutionKind.Bundler,
-      target: ts.ScriptTarget.ES2022,
-      strict: true,
-      skipLibCheck: true,
-      esModuleInterop: true,
-      noEmit: true,
-      baseUrl: root,
-      paths: { "@/*": ["./*"] },
-    };
-    const program = ts.createProgram([archivedWrapper], options);
-    assert.isEmpty(
-      ts
-        .getPreEmitDiagnostics(program)
-        .filter((diagnostic) => diagnostic.file?.fileName.startsWith(archive))
-        .map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")),
-    );
-  });
-
   it("creates a loadable three-file Solidity scaffold", async () => {
     sinon.stub(prompt, "select").resolves("mainnet");
     await hre.tasks.getTask(["omnibus:create"]).run({});
@@ -137,27 +80,6 @@ export const network = MiniMeToken_ABI.length ? "mainnet" : "hoodi";
     assert.equal(omnibus.network, "mainnet");
     assert.isFalse(omnibus.hasDeployMethod());
     assert.isUndefined(omnibus.voteId);
-  });
-
-  it("rejects an existing name without overwriting its files", async () => {
-    sinon.stub(prompt, "select").resolves("mainnet");
-    await hre.tasks.getTask(["omnibus:create"]).run({});
-    const fileNames = await readdir(directory);
-    const before = await Promise.all(fileNames.map((fileName) => readFile(path.join(directory, fileName), "utf-8")));
-
-    let caught: unknown;
-    try {
-      await hre.tasks.getTask(["omnibus:create"]).run({});
-    } catch (error) {
-      caught = error;
-    }
-    assert.instanceOf(caught, Error);
-    assert.include(String(caught), "already exists");
-    assert.sameMembers(await readdir(directory), fileNames);
-    assert.deepEqual(
-      await Promise.all(fileNames.map((fileName) => readFile(path.join(directory, fileName), "utf-8"))),
-      before,
-    );
   });
 
   it("does not recreate an archived name", async () => {

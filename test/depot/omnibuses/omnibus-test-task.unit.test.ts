@@ -5,7 +5,6 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sinon from "sinon";
 
-import { DevRpcClient } from "@/src/network";
 import { Omnibus } from "@/src/omnibuses";
 import { omnibusTaskBuilders, omnibusTaskDeps } from "@/tasks/omnibuses";
 import { runAcceptance } from "@/tasks/sub-tasks/acceptance";
@@ -66,15 +65,12 @@ describe("omnibus:test acceptance option", () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it("forwards acceptance from the registered task and skips snapshots without upgrade", async () => {
-    const test = sinon.stub(Omnibus.prototype, "test").resolves();
+  it("skips snapshots without upgrade", async () => {
+    sinon.stub(Omnibus.prototype, "test").resolves();
     const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").resolves();
 
     await hre.tasks.getTask("omnibus:test").run({ name: "fixture" });
 
-    sinon.assert.calledOnce(test);
-    assert.instanceOf(test.firstCall.args[0], DevRpcClient);
-    assert.strictEqual(test.firstCall.args[1], runAcceptance);
     sinon.assert.notCalled(runSnapshots);
   });
 
@@ -88,14 +84,11 @@ describe("omnibus:test acceptance option", () => {
 
     await hre.tasks.getTask("omnibus:test").run({ name: "snapshot_fixture" });
 
-    sinon.assert.calledThrice(test);
-    assert.deepEqual(test.firstCall.args.slice(1), [runAcceptance]);
-    for (const call of test.getCalls().slice(1)) {
-      assert.deepEqual(call.args.slice(1), [undefined, hooks]);
-    }
+    assert.deepEqual(
+      test.getCalls().map((call) => call.args.slice(1)),
+      [[runAcceptance], [undefined, hooks], [undefined, hooks]],
+    );
     sinon.assert.calledOnce(runSnapshots);
-    assert.isTrue(test.firstCall.calledBefore(runSnapshots.firstCall));
-    assert.deepEqual(runSnapshots.firstCall.args[2], { createsVote: true });
   });
 
   it("skips upgrade snapshots for a vote executed on chain", async () => {

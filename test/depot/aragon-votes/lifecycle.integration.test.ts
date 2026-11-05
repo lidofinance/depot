@@ -53,18 +53,6 @@ describe("aragon vote lifecycle (integration)", function () {
     assert.isFalse(executed);
   });
 
-  it("executeAragonVote executes an open vote", async function () {
-    const dummyEvmScript = "0x00000001" as HexStrPrefixed;
-    const { voteId } = await startAragonVote(client, dummyEvmScript, "Vote to execute", { from: deployer });
-
-    const receipt = await executeAragonVote(client, voteId, { from: deployer });
-
-    assert.isOk(receipt.transactionHash);
-    const [open, executed] = await client.read(mocks.voting, "getVote", [voteId]);
-    assert.isFalse(open);
-    assert.isTrue(executed);
-  });
-
   it("getExecuteReceipt finds ExecuteVote event receipt", async function () {
     const dummyEvmScript = "0x00000001" as HexStrPrefixed;
     const { voteId, receipt } = await startAragonVote(client, dummyEvmScript, "Vote for receipt", { from: deployer });

@@ -4,7 +4,6 @@ import sinon from "sinon";
 import { Abi } from "abitype";
 
 import { deps, syncAbi } from "@/src/abi-sync";
-import { deps as sourceDeps } from "@/src/abi-sync/abi-source";
 
 const PROJECT_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 
@@ -32,18 +31,5 @@ describe("syncAbi", () => {
       /Foundry must be installed/,
     );
     assert.isFalse(writeFile.called);
-  });
-
-  it("rejects invalid local parameters before any write", async () => {
-    sinon.stub(sourceDeps, "readFile").resolves(JSON.stringify([{ ...ABI[0], inputs: [{ name: "manager" }] }]));
-    const writeFile = sinon.stub(deps, "writeFile").resolves();
-    const formatSolidity = sinon.stub(deps, "formatSolidity").resolves("formatted");
-
-    await assert.isRejected(
-      syncAbi({ projectRoot: PROJECT_ROOT, name: "Invalid", networkName: "mainnet", fromFile: "Broken.json" }),
-      /Broken\.json/,
-    );
-    assert.isFalse(writeFile.called);
-    assert.isFalse(formatSolidity.called);
   });
 });

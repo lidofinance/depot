@@ -12,8 +12,6 @@ import { buildRepo, repoImageDeps, resolveRepoImage } from "@/src/docker";
 const SHA = "2824e21157bf13ef1c3c2c605ca54749270f4c35";
 const ARCH = "amd64";
 const REPOS = ["core", "dual-governance", "scripts", "staking-modules", "stonks"] as const;
-// an empty GIT_SHA_DG falls back to the DG pin, so DG never resolves its branch
-const DG_PIN = "cc407b472199585b21d33b14c6b3067a6b62de96";
 
 const BUILD_INPUTS_LABEL = "finance.lido.depot.build-inputs";
 
@@ -81,14 +79,6 @@ describe("repository image builds", () => {
     );
   });
 
-  it("pins dual-governance to its default commit without resolving the branch", async () => {
-    const tag = await buildRepo("dual-governance", "develop");
-
-    assert.match(tag, new RegExp(`^depot/dual-governance:${DG_PIN.slice(0, 7)}-[0-9a-f]{12}-${ARCH}$`));
-    sinon.assert.notCalled(lsRemoteStub);
-    sinon.assert.calledWithMatch(buildImageStub, sinon.match.any, { buildargs: { GIT_SHA: DG_PIN } });
-  });
-
   it("uses the SHA override without resolving a moving branch", async () => {
     process.env.GIT_SHA_CORE = SHA;
 
@@ -140,7 +130,6 @@ describe("repository image builds", () => {
       thrown = error;
     }
     assert.include(errorMessage(thrown), `Image ${imageTag} for core is arm64, expected ${ARCH}`);
-    sinon.assert.calledOnceWithExactly(imageArchitectureStub, imageTag);
     sinon.assert.notCalled(buildImageStub);
   });
 

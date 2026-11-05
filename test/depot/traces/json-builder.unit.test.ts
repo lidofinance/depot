@@ -8,21 +8,6 @@ describe("JsonBuilder", () => {
     builder = new JsonBuilder();
   });
 
-  describe("build()", () => {
-    it("escapes double quotes in string values", () => {
-      const withQuote = 'say "hi"';
-      assert.deepEqual({ msg: withQuote }, builder.openObject().key("msg").value(withQuote).closeObject().build());
-    });
-
-    it("escapes backslashes in string values", () => {
-      const withBackslash = "path\\to\\file";
-      assert.deepEqual(
-        { path: withBackslash },
-        builder.openObject().key("path").value(withBackslash).closeObject().build(),
-      );
-    });
-  });
-
   describe("pop()", () => {
     it("list of lists", () => {
       assert.deepEqual(

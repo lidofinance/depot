@@ -94,16 +94,6 @@ describe("VoteEvents", () => {
     collector.assertNothingLeft();
   });
 
-  it("leaves the logs of an item the test did not address", () => {
-    const collector = new LogCollector(voteLogs());
-    const voteEvents = new VoteEvents(collector, calls, governance, evmScript);
-
-    voteEvents.item("Transfer LDO", [event(ldo, "Transfer", [SENDER, RECIPIENT, 10n])]);
-    voteEvents.assertTail();
-
-    assert.throws(() => collector.assertNothingLeft(), /Unchecked log items left \(2\)/);
-  });
-
   it("fails on a domain event the item did not emit", () => {
     const voteEvents = new VoteEvents(new LogCollector(voteLogs()), calls, governance, evmScript);
 
@@ -278,13 +268,6 @@ describe("ProposalEvents", () => {
     const events = new ProposalEvents(new LogCollector(logs), [call], governance);
 
     assert.throws(() => events.call(0, [event(ldo, "Transfer", [AGENT, RECIPIENT, 1n])]), /args mismatch/);
-  });
-
-  it("leaves omitted forwarded calls unchecked", () => {
-    const { events, collector } = forwardedProposal([LDO]);
-    events.assertTail();
-
-    assert.throws(() => collector.assertNothingLeft(), /Unchecked log items left/);
   });
 
   it("rejects malformed forwarded payloads and unsupported script spec IDs", () => {

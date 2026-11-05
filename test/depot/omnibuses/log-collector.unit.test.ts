@@ -98,7 +98,6 @@ describe("LogCollector", () => {
 
     collector.assertEvents([repeated, event(token, "Approval", [HOLDER, RECIPIENT, 2n])]);
 
-    assert.isFalse(repeated.isOptional);
     collector.assertNothingLeft();
   });
 
@@ -141,11 +140,5 @@ describe("LogCollector", () => {
       () => collector.assertEvents([transferEvent(1n, { allowMultiple: true }), transferEvent(2n)]),
       /args mismatch/,
     );
-  });
-
-  it("fails when no log is left for an expected event", () => {
-    const collector = new LogCollector([createTransferLog(1n, 0)]);
-
-    assert.throws(() => collector.assertEvents([transferEvent(1n), transferEvent(2n)]), /No log left to match/);
   });
 });

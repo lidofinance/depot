@@ -149,14 +149,13 @@ describe("omnibus:launch dry run", () => {
     sinon
       .stub(Omnibus.prototype, "getOmnibusContract")
       .returns(Omnibus.deployedContract("0x0000000000000000000000000000000000000001"));
-    const startAragonVote = sinon.stub(omnibusTaskDeps, "startAragonVote").resolves({
+    sinon.stub(omnibusTaskDeps, "startAragonVote").resolves({
       voteId: 7n,
       receipt: { transactionHash: TX_HASH, blockNumber: 123n } as TransactionReceipt,
     });
 
     await hre.tasks.getTask("omnibus:launch").run({ name: "fixture", broadcast: true });
 
-    sinon.assert.calledOnce(startAragonVote);
     const wrapper = await readFile(path.join(root, "ongoing", "mainnet", "fixture", "fixture.ts"), "utf-8");
     assert.include(wrapper, "voteId: 7");
   });

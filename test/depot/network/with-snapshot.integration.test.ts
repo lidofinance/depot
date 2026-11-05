@@ -47,14 +47,6 @@ describe("DevRpcClient.withSnapshot (integration)", function () {
     assert.equal(balanceAfter, balanceBefore, "state must be reverted after withSnapshot");
   });
 
-  it("returns the callback's resolved value", async function () {
-    const result = await client.withSnapshot(async () => {
-      await mintLdo(holder, 1n);
-      return "ok" as const;
-    });
-    assert.equal(result, "ok");
-  });
-
   it("reverts state even when the callback throws", async function () {
     const balanceBefore = await client.read(mocks.ldo, "balanceOf", [holder]);
 

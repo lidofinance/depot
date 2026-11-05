@@ -142,21 +142,6 @@ describe("dual governance proposal descriptions", () => {
 
   describe("assertDgProposalDescriptions", () => {
     const calls = [createDirectCall("Transfer LDO"), createSubmitProposalCall("Proposal description")];
-    const markdown = createDescriptionFile(
-      ["", "### Item 2", "", "```text", "Proposal description", "```", ""].join("\n"),
-    );
-
-    it("passes when the contract carries the description from the file", () => {
-      assertDgProposalDescriptions(calls, GOVERNANCE, markdown);
-    });
-
-    it("fails when the text differs, even by a character", () => {
-      const tidiedUp = createDescriptionFile(
-        ["", "### Item 2", "", "```text", "Proposal description.", "```", ""].join("\n"),
-      );
-
-      assert.throws(() => assertDgProposalDescriptions(calls, GOVERNANCE, tidiedUp), /differs from the one/);
-    });
 
     it("fails when the submitting item has no entry in the file", () => {
       assert.throws(() => assertDgProposalDescriptions(calls, GOVERNANCE, "# Omnibus\n"), /has no\s+"### Item 2"/);

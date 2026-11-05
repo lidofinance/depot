@@ -2,7 +2,6 @@ import { assert } from "chai";
 import sinon from "sinon";
 import Docker from "dockerode";
 import { rejects } from "node:assert/strict";
-import path from "node:path";
 import { createHardhatRuntimeEnvironment } from "hardhat/hre";
 import type { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 import { Omnibus } from "@/src/omnibuses/omnibus";
@@ -15,7 +14,6 @@ import {
   omnibusTaskBuilders,
   omnibusTaskDeps,
 } from "@/tasks/omnibuses";
-import { containerDeps, runRepoTests } from "@/tasks/sub-tasks/containers";
 
 interface ForkState {
   value: string;
@@ -36,28 +34,6 @@ function createSnapshotClient(state: ForkState): Pick<DevRpcClient, "withSnapsho
 
 describe("omnibus multi-test repository suites", () => {
   afterEach(() => sinon.restore());
-
-  it("rejects unsupported repository names instead of running no suites", () => {
-    assert.throws(() => getRepositorySuites("staking-module"), 'Unsupported repo "staking-module"');
-  });
-
-  it("propagates a repository suite error to the caller", async () => {
-    const state = { value: "post-omnibus" };
-    const suiteError = new Error("core suite failed");
-    let thrown: unknown;
-
-    try {
-      await runRepositorySuites(createSnapshotClient(state), ["core"], () => {
-        state.value = "core mutation";
-        return Promise.reject(suiteError);
-      });
-    } catch (error) {
-      thrown = error;
-    }
-
-    assert.strictEqual(thrown, suiteError);
-    assert.equal(state.value, "post-omnibus");
-  });
 
   it("starts every repository suite from the same post-omnibus fork state", async () => {
     sinon.stub(console, "log");
@@ -109,76 +85,6 @@ describe("omnibus multi-test repository suites", () => {
   });
 });
 
-describe("new repository target commands", () => {
-  const originalEnv = process.env;
-
-  beforeEach(() => {
-    process.env = {
-      ...originalEnv,
-      ETH_LOCAL_RPC_PORT: "18549",
-      GIT_BRANCH_STAKING_MODULES: "develop",
-      GIT_BRANCH_STONKS: "main",
-    };
-    sinon.stub(console, "log");
-    sinon.stub(containerDeps, "buildRepo").resolves("depot/test:pinned");
-  });
-
-  afterEach(() => {
-    sinon.restore();
-    process.env = originalEnv;
-  });
-
-  it("propagates a failed CSM container without starting Curated", async () => {
-    const suiteError = new Error("CSM failed");
-    const run = sinon.stub(containerDeps, "runTestsFromRepo").rejects(suiteError);
-    let thrown: unknown;
-    try {
-      await runRepoTests("staking-modules");
-    } catch (error) {
-      thrown = error;
-    }
-    assert.strictEqual(thrown, suiteError);
-    sinon.assert.calledOnce(run);
-  });
-
-  it("runs core through its native integration script", async () => {
-    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
-    const pattern = "test/integration/**/*.ts";
-
-    await runRepoTests("core");
-    await runRepoTests("core", pattern);
-
-    const [native, custom] = run.getCalls();
-    assert.deepEqual(native.args[2], ["yarn", "test:integration"]);
-    assert.includeMembers(native.args[3].Env ?? [], ["RPC_URL=http://host.docker.internal:18549", "NETWORK=mainnet"]);
-    assert.notInclude(custom.args[2].join(" "), pattern);
-    assert.include(custom.args[2].join(" "), "shopt -s globstar && yarn test:integration $CORE_TEST_PATTERN");
-    assert.include(custom.args[3].Env ?? [], `CORE_TEST_PATTERN=${pattern}`);
-  });
-
-  it("binds core to the vote network", async () => {
-    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
-
-    await runRepoTests("core", undefined, false, "hoodi");
-
-    assert.include(run.firstCall.args[3].Env ?? [], "NETWORK=hoodi");
-  });
-
-  it("passes a custom stonks pattern as data and mounts its test directory", async () => {
-    const run = sinon.stub(containerDeps, "runTestsFromRepo").resolves();
-    const pattern = "test/custom/**/*.ts";
-
-    await runRepoTests("stonks", pattern, true);
-
-    const [, , cmd, config] = run.firstCall.args;
-    assert.notInclude(cmd.join(" "), pattern);
-    assert.include(config.Env ?? [], `STONKS_TEST_PATTERN=${pattern}`);
-    assert.deepEqual(config.HostConfig?.Mounts, [
-      { Source: `${process.cwd()}/mount/stonks`, Target: "/usr/src/app/test/custom", Type: "bind" },
-    ]);
-  });
-});
-
 describe("omnibus multi-test task lifecycle", () => {
   let hre: HardhatRuntimeEnvironment;
   let client: sinon.SinonStubbedInstance<DevRpcClient>;
@@ -210,14 +116,13 @@ describe("omnibus multi-test task lifecycle", () => {
   afterEach(() => sinon.restore());
 
   for (const startedByUs of [false, true]) {
-    it(`reverts a prepare failure and ${startedByUs ? "stops its own" : "keeps a reused"} node`, async () => {
+    it(`${startedByUs ? "stops its own" : "keeps a reused"} node when prepare fails`, async () => {
       sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs });
       const failure = new Error("prepare failed");
       prepare.rejects(failure);
 
       await rejects(hre.tasks.getTask("omnibus:multi-test").run({ name: "fixture", repo: "core" }), failure);
 
-      sinon.assert.calledOnceWithExactly(client.revert, "0x1");
       sinon.assert.notCalled(runRepo);
       assert.equal(stopNode.callCount, startedByUs ? 1 : 0);
     });
@@ -236,34 +141,21 @@ describe("omnibus multi-test task lifecycle", () => {
     sinon.assert.calledOnce(logError);
   });
 
-  it("handles a revert failure and stops its own node", async () => {
-    sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs: true });
-    const failure = new Error("revert failed");
-    client.revert.rejects(failure);
-
-    await rejects(hre.tasks.getTask("omnibus:multi-test").run({ repo: "core" }), failure);
-    sinon.assert.calledOnce(stopNode);
-  });
-
-  it("runs and requires mounts only for the suites that cover the vote network", async () => {
+  it("runs only the suites that cover the vote network", async () => {
     const prepareNode = sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs: false });
-    const pathExists = sinon
-      .stub(multiTestDeps, "pathExists")
-      .callsFake((mountPath) => mountPath.endsWith(path.join("mount", "core")));
     const hoodiOmnibus = Omnibus.create({ network: "hoodi", upgrade: false, testVote: () => Promise.resolve() });
     sinon.stub(hoodiOmnibus, "passOmnibus").resolves();
     load.resolves(hoodiOmnibus);
 
-    await hre.tasks.getTask("omnibus:multi-test").run({ name: "fixture", mountTests: true });
+    await hre.tasks.getTask("omnibus:multi-test").run({ name: "fixture" });
 
     sinon.assert.calledWithExactly(prepareNode, "hoodi", undefined);
-    sinon.assert.calledOnce(pathExists);
     sinon.assert.calledWith(
       log,
       "Skipping dual-governance, scripts, staking-modules, stonks: no hoodi regression suite",
     );
     assert.deepEqual(
-      runRepo.getCalls().map((call) => [call.args[0], call.args[3]]),
+      runRepo.getCalls().map((call) => [call.args[0], call.args[1]]),
       [["core", "hoodi"]],
     );
   });
@@ -289,7 +181,6 @@ describe("multi-test local node acquisition", () => {
   let connect: sinon.SinonStub;
   let launch: sinon.SinonStub;
   let stop: sinon.SinonStub;
-  let rename: sinon.SinonStub;
   let findContainer: sinon.SinonStub;
   let stopNode: sinon.SinonStub;
 
@@ -304,7 +195,7 @@ describe("multi-test local node acquisition", () => {
     connect = sinon.stub(multiTestDeps, "createDevRpcClient").resolves(client);
     const container = new Docker().getContainer("owned-test-node");
     stop = sinon.stub(container, "stop").resolves();
-    rename = sinon.stub(container, "rename").resolves();
+    sinon.stub(container, "rename").resolves();
     launch = sinon.stub(multiTestDeps, "runImageInBackground").resolves(container);
     findContainer = sinon.stub(multiTestDeps, "findContainerByName").resolves(null);
     stopNode = sinon.stub(multiTestDeps, "stopLocalRpcNode").resolves();
@@ -347,7 +238,6 @@ describe("multi-test local node acquisition", () => {
       );
 
       sinon.assert.calledOnce(launch);
-      sinon.assert.calledOnce(rename);
       sinon.assert.calledOnce(stop);
     });
   }

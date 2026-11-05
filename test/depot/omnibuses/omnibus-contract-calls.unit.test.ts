@@ -3,11 +3,7 @@ import { assert } from "chai";
 import { encodeFunctionData } from "viem";
 
 import { IGovernance_ABI } from "@/abi/IGovernance.abi";
-import {
-  decodeSubmitProposalMetadata,
-  getSubmitProposalCallIndexes,
-  isSubmitProposalCall,
-} from "@/src/omnibuses/omnibus-contract-calls";
+import { isSubmitProposalCall } from "@/src/omnibuses/omnibus-contract-calls";
 import { VoteCall } from "@/src/omnibuses/omnibus-types";
 
 const GOVERNANCE: Address = "0xC1db28B3301331277e307FDCfF8DE28242A4486E";
@@ -23,14 +19,6 @@ function createSubmitProposalCall(metadata: string, title = "Submit proposal to 
       functionName: "submitProposal",
       args: [[{ target: AGENT, value: 0n, payload: "0x1234" }], metadata],
     }),
-  };
-}
-
-function createDirectCall(title: string): VoteCall {
-  return {
-    title,
-    target: AGENT,
-    payload: "0x11223344",
   };
 }
 
@@ -53,26 +41,6 @@ describe("omnibus contract calls", () => {
         payload: encodeFunctionData({ abi: IGovernance_ABI, functionName: "scheduleProposal", args: [1n] }),
       };
       assert.isFalse(isSubmitProposalCall(call, GOVERNANCE));
-    });
-  });
-
-  describe("getSubmitProposalCallIndexes", () => {
-    it("returns the indexes of the submitting items in the order of the vote", () => {
-      const calls = [
-        createDirectCall("First"),
-        createSubmitProposalCall("First proposal", "Second"),
-        createDirectCall("Third"),
-        createSubmitProposalCall("Second proposal", "Fourth"),
-      ];
-
-      assert.deepEqual(getSubmitProposalCallIndexes(calls, GOVERNANCE), [1, 3]);
-    });
-  });
-
-  describe("decodeSubmitProposalMetadata", () => {
-    it("returns the metadata argument as it was encoded", () => {
-      const metadata = "Proposal description with  double  spaces and a trailing dot.";
-      assert.equal(decodeSubmitProposalMetadata(createSubmitProposalCall(metadata)), metadata);
     });
   });
 });

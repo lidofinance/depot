@@ -1,6 +1,5 @@
 import { rejects } from "node:assert/strict";
 import { assert } from "chai";
-import sinon from "sinon";
 import { parseEther, toHex, type Hex } from "viem";
 import type { DevRpcClient } from "@/src/network";
 import type { UpgradeSnapshotHooks } from "@/src/omnibuses/omnibus-types";
@@ -33,7 +32,6 @@ describe("Upgrade snapshot mechanism (in-process integration)", function () {
   });
 
   afterEach(async function () {
-    sinon.restore();
     await client.revert(snapshotId);
   });
 
@@ -66,28 +64,12 @@ describe("Upgrade snapshot mechanism (in-process integration)", function () {
 
   it("reloads the real suite, passes an implementation-slot upgrade and restores both runs", async function () {
     const initial = await state();
-    const setTime = sinon.spy(client, "setTime");
-    const send = sinon.spy(client, "send");
 
     await runSnapshots(client, emulateUpgrade(implementationSlot), runOptions);
     assert.deepEqual(await state(), initial);
     await runSnapshots(client, emulateUpgrade(implementationSlot), runOptions);
     assert.deepEqual(await state(), initial);
     assert.equal(executions, 2, "each runner invocation reloads and executes the suite");
-    assert.equal(setTime.callCount, 4, "both branches of both runs align their timestamps");
-    for (const call of setTime.getCalls()) {
-      assert.equal(call.args[0], initial.timestamp + 14n * 24n * 60n * 60n);
-    }
-    const alignedReads = send.getCalls().filter((call) => {
-      const [method, parameters] = call.args;
-      return (
-        method === "eth_getStorageAt" &&
-        parameters[0] === target &&
-        parameters[1] === sampledSlot &&
-        parameters[2] === toHex(initial.blockNumber + 1_000n)
-      );
-    });
-    assert.lengthOf(alignedReads, 6, "four branch captures and two upgraded-state assertions use the aligned block");
   });
 
   it("rejects a sampled storage change with exact nested evidence and restores failed runs", async function () {

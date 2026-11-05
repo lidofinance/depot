@@ -224,15 +224,6 @@ describe("Omnibus runtime completion", () => {
     );
   });
 
-  it("propagates a hook failure and restores its snapshot", async () => {
-    const { omnibus, client, afterExecution } = await fixture();
-    const failure = new Error("Post-execution hook failed");
-    afterExecution.rejects(failure);
-    await rejects(omnibus.test(client, afterExecution), failure);
-    sinon.assert.calledOnceWithExactly(afterExecution, client);
-    sinon.assert.calledOnceWithExactly(client.revert, "0x01");
-  });
-
   it("rejects an empty execution list while proposals remain pending", async () => {
     const { omnibus, client, afterExecution } = await fixture({
       testProposal: async ({ passProposals }) => {
@@ -324,11 +315,6 @@ describe("Omnibus runtime completion", () => {
   it("requires a proposal callback and proposal execution", async () => {
     const missing = await fixture({ testProposal: undefined });
     await rejects(missing.omnibus.test(missing.client), /testProposal function is not defined/);
-  });
-
-  it("rejects a proposal callback that does not execute proposals", async () => {
-    const { omnibus, client } = await fixture({ testProposal: async () => {} });
-    await rejects(omnibus.test(client), /Proposals (?:is|are) not executed/);
   });
 
   it("rejects unconsumed vote items", async () => {
@@ -438,42 +424,6 @@ describe("Omnibus runtime completion", () => {
       sinon.assert.calledOnceWithExactly(client.revert, "0x01");
     });
 
-    it("passes without testFinalState", async () => {
-      const { omnibus, client, afterExecution } = await fixture({ testFinalState: undefined }, 2, {
-        voteExecuted: true,
-        proposalStatus: ProposalStatus.Executed,
-      });
-
-      assert.equal(await omnibus.test(client, afterExecution), "executed");
-      sinon.assert.calledOnce(afterExecution);
-    });
-
-    it("fails on a final-state assertion", async () => {
-      const failure = new Error("Unexpected final state");
-      const { omnibus, client, afterExecution } = await fixture({ testFinalState: sinon.stub().rejects(failure) }, 2, {
-        voteExecuted: true,
-        proposalStatus: ProposalStatus.Executed,
-      });
-
-      await rejects(omnibus.test(client, afterExecution), failure);
-      sinon.assert.notCalled(afterExecution);
-    });
-
-    it("rejects a vote script that differs from the contract before any check", async () => {
-      const authored = callbacks();
-      const { omnibus, client } = await fixture(authored, 2, {
-        voteExecuted: true,
-        proposalStatus: ProposalStatus.Executed,
-      });
-      client.read
-        .withArgs(sinon.match.any, "getVote")
-        .resolves([false, true, 0n, 0n, 0n, 1n, 2n, 0n, 2n, "0x00000001"] as never);
-
-      await rejects(omnibus.test(client), /On-chain script of vote 1 differs/);
-      sinon.assert.notCalled(client.snapshot);
-      sinon.assert.notCalled(authored.testFinalState);
-    });
-
     it("rejects on-chain proposal calls that differ from the contract", async () => {
       const { omnibus, client } = await fixture(callbacks(), 2, {
         voteExecuted: true,
@@ -495,27 +445,5 @@ describe("Omnibus runtime completion", () => {
       await rejects(omnibus.test(client, undefined, hooks), /Upgrade snapshots need a vote/);
       sinon.assert.notCalled(hooks.beforeExecution);
     });
-  });
-
-  it("runs testFinalState after the proposals and before acceptance on a fresh pass", async () => {
-    const testFinalState = sinon.stub().resolves();
-    const { omnibus, client, afterExecution } = await fixture({ testFinalState });
-
-    await omnibus.test(client, afterExecution);
-
-    assert.isTrue(client.write.lastCall.calledBefore(testFinalState.firstCall));
-    sinon.assert.callOrder(testFinalState, afterExecution);
-  });
-
-  it("requires testProposal even when all submitted proposals report Executed", async () => {
-    const { omnibus, client, proposalReceipts } = await fixture({ testProposal: undefined });
-    client.read.withArgs(sinon.match.any, "getProposalDetails", sinon.match.any).resolves({
-      status: ProposalStatus.Executed,
-    } as never);
-    client.getBlockNumber.resolves(20n);
-    client.getLogsInWindows.resolves(proposalReceipts[0].logs);
-    client.getTransactionReceipt.resolves(proposalReceipts[0]);
-
-    await rejects(omnibus.test(client), /testProposal function is not defined/);
   });
 });

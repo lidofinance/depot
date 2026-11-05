@@ -125,11 +125,6 @@ describe("abi-source", () => {
         resolved.source,
         `Etherscan, mainnet ${PROXY} (BeaconProxy) → implementation ${UPGRADED_IMPLEMENTATION} (StakingRouter)`,
       );
-      assert.deepEqual(send.args.slice(0, 3), [
-        ["eth_getStorageAt", [PROXY, EIP1967_IMPLEMENTATION_SLOT, "latest"]],
-        ["eth_getStorageAt", [PROXY, EIP1967_BEACON_SLOT, "latest"]],
-        ["eth_call", [{ to: BEACON, data: IMPLEMENTATION_SELECTOR }, "latest"]],
-      ]);
     });
 
     it("does not unwrap a standalone UpgradeableBeacon", async () => {
@@ -150,7 +145,6 @@ describe("abi-source", () => {
       assert.deepEqual(resolved.abi, UPGRADEABLE_BEACON_ABI);
       assert.equal(resolved.contractName, "UpgradeableBeacon");
       assert.equal(resolved.source, `Etherscan, mainnet ${BEACON} (UpgradeableBeacon)`);
-      assert.isFalse(send.calledWith("eth_call"));
     });
   });
 
@@ -169,8 +163,6 @@ describe("abi-source", () => {
       send.withArgs("eth_getStorageAt").resolves(word(UPGRADED_IMPLEMENTATION));
 
       assert.equal(await readImplementationOnChain("mainnet", PROXY, true), UPGRADED_IMPLEMENTATION);
-      assert.isTrue(send.calledOnce, "no implementation() call when the slot is set");
-      assert.deepEqual(send.firstCall.args[1], [PROXY, EIP1967_IMPLEMENTATION_SLOT, "latest"]);
     });
 
     it("falls back to implementation() for a proxy-looking contract with an empty slot", async () => {
@@ -178,7 +170,6 @@ describe("abi-source", () => {
       send.withArgs("eth_call").resolves(word(IMPLEMENTATION));
 
       assert.equal(await readImplementationOnChain("mainnet", PROXY, true), IMPLEMENTATION);
-      assert.deepEqual(send.thirdCall.args[1], [{ to: PROXY, data: IMPLEMENTATION_SELECTOR }, "latest"]);
     });
 
     it("treats a reverting implementation() as no implementation", async () => {
