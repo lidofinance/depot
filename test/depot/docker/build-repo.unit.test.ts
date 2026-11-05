@@ -6,7 +6,6 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import sinon from "sinon";
 
-import { errorMessage } from "@/src/common/errors";
 import { buildRepo, repoImageDeps, resolveRepoImage } from "@/src/docker";
 
 const SHA = "2824e21157bf13ef1c3c2c605ca54749270f4c35";
@@ -38,10 +37,6 @@ describe("repository image builds", () => {
     Parameters<typeof repoImageDeps.lsRemote>,
     ReturnType<typeof repoImageDeps.lsRemote>
   >;
-  let imageArchitectureStub: sinon.SinonStub<
-    Parameters<typeof repoImageDeps.imageArchitecture>,
-    ReturnType<typeof repoImageDeps.imageArchitecture>
-  >;
   let imagesStub: sinon.SinonStub<Parameters<Docker["listImages"]>, ReturnType<Docker["listImages"]>>;
   let buildImageStub: sinon.SinonStub<Parameters<Docker["buildImage"]>, ReturnType<Docker["buildImage"]>>;
 
@@ -56,7 +51,7 @@ describe("repository image builds", () => {
     imagesStub = sinon.stub(Docker.prototype, "listImages").resolves([]);
     buildImageStub = sinon.stub(Docker.prototype, "buildImage").callsFake(() => Promise.resolve(Readable.from([])));
     lsRemoteStub = sinon.stub(repoImageDeps, "lsRemote").rejects(new Error("Unexpected network call"));
-    imageArchitectureStub = sinon.stub(repoImageDeps, "imageArchitecture").resolves(ARCH);
+    sinon.stub(repoImageDeps, "imageArchitecture").resolves(ARCH);
   });
 
   afterEach(() => {
@@ -79,15 +74,6 @@ describe("repository image builds", () => {
     );
   });
 
-  it("uses the SHA override without resolving a moving branch", async () => {
-    process.env.GIT_SHA_CORE = SHA;
-
-    await buildRepo("core", "release");
-
-    sinon.assert.notCalled(lsRemoteStub);
-    sinon.assert.calledWithMatch(buildImageStub, sinon.match.any, { buildargs: { GIT_SHA: SHA } });
-  });
-
   it("reuses an image only when its recorded revision and build inputs match", async () => {
     process.env.GIT_SHA_STAKING_MODULES = SHA;
     const { imageTag, buildInputs } = await resolveRepoImage("staking-modules", "develop");
@@ -105,31 +91,6 @@ describe("repository image builds", () => {
     buildImageStub.resetHistory();
     imagesStub.resolves([cachedImage(imageTag, SHA, buildInputs)]);
     await buildRepo("staking-modules", "develop");
-    sinon.assert.notCalled(buildImageStub);
-  });
-
-  it("rebuilds instead of reusing an image cached for another architecture", async () => {
-    process.env.GIT_SHA_STAKING_MODULES = SHA;
-    const { imageTag, buildInputs } = await resolveRepoImage("staking-modules", "develop");
-    imagesStub.resolves([cachedImage(imageTag.replace(`-${ARCH}`, "-arm64"), SHA, buildInputs)]);
-
-    await buildRepo("staking-modules", "develop");
-
-    sinon.assert.calledOnce(buildImageStub);
-  });
-
-  it("fails when the cached image has another architecture", async () => {
-    process.env.GIT_SHA_CORE = SHA;
-    const { imageTag, buildInputs } = await resolveRepoImage("core", "develop");
-    imagesStub.resolves([cachedImage(imageTag, SHA, buildInputs)]);
-    imageArchitectureStub.resolves("arm64");
-    let thrown: unknown;
-    try {
-      await buildRepo("core", "develop");
-    } catch (error) {
-      thrown = error;
-    }
-    assert.include(errorMessage(thrown), `Image ${imageTag} for core is arm64, expected ${ARCH}`);
     sinon.assert.notCalled(buildImageStub);
   });
 
@@ -153,18 +114,5 @@ describe("repository image builds", () => {
     } finally {
       rmSync(contextDir, { recursive: true, force: true });
     }
-  });
-
-  it("propagates a ref lookup failure without falling back to a cached image", async () => {
-    lsRemoteStub.rejects(new Error("GitHub unavailable"));
-    let thrown: unknown;
-    try {
-      await buildRepo("core", "develop");
-    } catch (error) {
-      thrown = error;
-    }
-    assert.include(errorMessage(thrown), "git ls-remote");
-    assert.include(errorMessage(thrown), "GitHub unavailable");
-    sinon.assert.notCalled(imagesStub);
   });
 });

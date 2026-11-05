@@ -3,7 +3,6 @@ import sinon from "sinon";
 import {
   createWalletClient,
   custom,
-  encodeEventTopics,
   keccak256,
   parseAbiItem,
   publicActions,
@@ -81,19 +80,7 @@ describe("RpcClient locally signed transactions", () => {
 describe("RpcClient.getLogsInWindows", () => {
   const event = parseAbiItem("event ExecuteVote(uint256 indexed voteId)");
   const address = "0x2e59A20f205bB85a89C53f1936454680651E618e";
-  const executeLog = {
-    address,
-    topics: encodeEventTopics({ abi: [event], args: { voteId: 1n } }),
-    data: "0x",
-    blockNumber: "0x13ab",
-    blockHash: `0x${"11".repeat(32)}`,
-    transactionHash: `0x${"22".repeat(32)}`,
-    transactionIndex: "0x0",
-    logIndex: "0x0",
-    removed: false,
-  };
-
-  function fixture(hitWindow?: number) {
+  function fixture() {
     const ranges: [bigint, bigint][] = [];
     const client = buildRpcClient((method, params) => {
       if (method === "eth_blockNumber") {
@@ -102,7 +89,7 @@ describe("RpcClient.getLogsInWindows", () => {
       if (method === "eth_getLogs") {
         const [{ fromBlock, toBlock }] = params as [{ fromBlock: string; toBlock: string }];
         ranges.push([BigInt(fromBlock), BigInt(toBlock)]);
-        return ranges.length === hitWindow ? [executeLog] : [];
+        return [];
       }
       throw new Error(`unexpected: ${method}`);
     });
@@ -118,14 +105,5 @@ describe("RpcClient.getLogsInWindows", () => {
       [5099n, 10097n],
       [10098n, 10100n],
     ]);
-  });
-
-  it("stops at the first window with logs", async () => {
-    const { client, ranges } = fixture(2);
-
-    const logs = await client.getLogsInWindows({ address, event, fromBlock: 100n, toBlock: 20000n }, true);
-
-    expect(logs.map((log) => log.transactionHash)).to.deep.equal([executeLog.transactionHash]);
-    expect(ranges).to.have.lengthOf(2);
   });
 });

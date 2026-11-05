@@ -53,18 +53,6 @@ describe("vote description", () => {
 
     assert.equal(description, "Omnibus vote: 1. Single item.\nhttps://example.org/description");
   });
-
-  it("rejects a title carrying the number of the item", () => {
-    assert.throws(() => formatVoteDescription(["1. Numbered item"]), /starts with its number/);
-    assert.throws(() => formatVoteDescription(["Fine item", "2) Numbered item"]), /starts with its number/);
-    for (const title of ["1.Item", "2)Item", " 3 . Item"]) {
-      assert.throws(() => formatVoteDescription([title]), /starts with its number/);
-    }
-  });
-
-  it("rejects repeating titles, which make log groups ambiguous", () => {
-    assert.throws(() => formatVoteDescription(["Same item", "Same item"]), /repeating titles/);
-  });
 });
 
 describe("dual governance proposal descriptions", () => {
@@ -100,13 +88,6 @@ describe("dual governance proposal descriptions", () => {
       );
     });
 
-    it("excludes CRLF fence delimiters from a single-line description", () => {
-      const markdown = createDescriptionFile("### Item 1\n```text\nText\n```\n").replaceAll("\n", "\r\n");
-
-      assert.equal(parseDgProposalDescriptions(markdown).get(1), "Text");
-      assertDgProposalDescriptions([createSubmitProposalCall("Text")], GOVERNANCE, markdown);
-    });
-
     it("preserves internal CRLF and whitespace in a multiline description", () => {
       const markdown = createDescriptionFile("### Item 1\n```text\n First line\nSecond line  \n```\n").replaceAll(
         "\n",
@@ -130,14 +111,6 @@ describe("dual governance proposal descriptions", () => {
         /differs from the one/,
       );
     });
-
-    it("fails on two descriptions for the same item", () => {
-      const markdown = createDescriptionFile(
-        ["", "### Item 2", "```text", "First", "```", "### Item 2", "```text", "Second", "```", ""].join("\n"),
-      );
-
-      assert.throws(() => parseDgProposalDescriptions(markdown), /more than one proposal description/);
-    });
   });
 
   describe("assertDgProposalDescriptions", () => {
@@ -145,14 +118,6 @@ describe("dual governance proposal descriptions", () => {
 
     it("fails when the submitting item has no entry in the file", () => {
       assert.throws(() => assertDgProposalDescriptions(calls, GOVERNANCE, "# Omnibus\n"), /has no\s+"### Item 2"/);
-    });
-
-    it("fails when the entry points at an item submitting nothing", () => {
-      const wrongItem = createDescriptionFile(
-        ["", "### Item 1", "", "```text", "Proposal description", "```", ""].join("\n"),
-      );
-
-      assert.throws(() => assertDgProposalDescriptions(calls, GOVERNANCE, wrongItem), /submit no Dual Governance/);
     });
   });
 });

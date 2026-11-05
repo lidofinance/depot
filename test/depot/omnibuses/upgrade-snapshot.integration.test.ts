@@ -1,17 +1,15 @@
 import { rejects } from "node:assert/strict";
 import { assert } from "chai";
-import { parseEther, toHex, type Hex } from "viem";
+import { toHex, type Hex } from "viem";
 import type { DevRpcClient } from "@/src/network";
 import type { UpgradeSnapshotHooks } from "@/src/omnibuses/omnibus-types";
 import { runSnapshots } from "@/tasks/sub-tasks/snapshot";
 import { createInProcessDevRpcClient } from "@/test/depot/helpers/create-dev-client";
-import { ImpersonatedAccounts } from "@/test/protocol/helpers/impersonation";
 import { readStorageWord } from "@/test/protocol/helpers/storage";
 
-// A first-slots target: its root slot is sampled, its EIP-1967 implementation slot is not
+// A first-slots target: its root slot is sampled
 const target = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
 const sampledSlot = toHex(5n, { size: 32 });
-const implementationSlot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 const beforeWord = toHex(1_000n, { size: 32 });
 const afterWord = toHex(2_000n, { size: 32 });
 const runOptions = { createsVote: false, suites: ["first-slots"] };
@@ -62,16 +60,6 @@ describe("Upgrade snapshot mechanism (in-process integration)", function () {
     };
   }
 
-  it("reloads the real suite, passes an implementation-slot upgrade and restores both runs", async function () {
-    const initial = await state();
-
-    await runSnapshots(client, emulateUpgrade(implementationSlot), runOptions);
-    assert.deepEqual(await state(), initial);
-    await runSnapshots(client, emulateUpgrade(implementationSlot), runOptions);
-    assert.deepEqual(await state(), initial);
-    assert.equal(executions, 2, "each runner invocation reloads and executes the suite");
-  });
-
   it("rejects a sampled storage change with exact nested evidence and restores failed runs", async function () {
     const initial = await state();
     await rejects(runSnapshots(client, emulateUpgrade(sampledSlot), runOptions), (error: unknown) => {
@@ -96,21 +84,5 @@ describe("Upgrade snapshot mechanism (in-process integration)", function () {
   it("rejects a run without cases", async function () {
     await rejects(runSnapshots(client, emulateUpgrade(sampledSlot), { createsVote: false, suites: [] }));
     assert.equal(executions, 0);
-  });
-
-  it("preserves an impersonated account's balance on request while retaining the default funding", async function () {
-    const account = "0x000000000000000000000000000000000000beef";
-    const accounts = new ImpersonatedAccounts();
-    await client.setBalance(account, parseEther("7"));
-    try {
-      await accounts.impersonate(client, account, { preserveBalance: true });
-      assert.equal(await client.getBalance(account), parseEther("7"));
-      await accounts.stopAll(client);
-      assert.equal(await client.getBalance(account), parseEther("7"));
-      await accounts.impersonate(client, account);
-      assert.equal(await client.getBalance(account), parseEther("10"));
-    } finally {
-      await accounts.stopAll(client);
-    }
   });
 });

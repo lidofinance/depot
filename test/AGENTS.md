@@ -32,7 +32,7 @@ Protocol acceptance runs through `omnibus:test`, which loads the ordered `ACCEPT
 
 - Deploy mock contracts from `contracts/mocks/` in an in-process Hardhat environment
 - Use `DevRpcClient` for `snapshot()`/`revert()` between tests
-- Override DI containers (`lifecycleDeps`, `testingDeps`, `tracerDeps`) to point to mock contract addresses
+- Override a module's DI container (e.g. `omnibusTaskDeps`) to point to mock contract addresses
 
 ## Mocking rules (ESM)
 
@@ -86,17 +86,13 @@ import { assert } from "chai";
 import { DevRpcClient } from "@/src/network/dev-rpc-client";
 import { HexStrPrefixed } from "@/src/common/bytes";
 import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
-import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
 
 describe("feature (integration)", function () {
   let client: DevRpcClient;
-  let mocks: MockGovernanceContracts;
   let snapshotId: HexStrPrefixed;
 
   before(async function () {
     client = await createInProcessDevRpcClient();
-    const [deployer] = await client.getAccounts();
-    mocks = await deployMockGovernance(client, deployer);
   });
 
   beforeEach(async function () {
@@ -107,8 +103,12 @@ describe("feature (integration)", function () {
     await client.revert(snapshotId);
   });
 
-  it("starts with zero token supply", async function () {
-    assert.equal(await client.read(mocks.ldo, "totalSupply"), 0n);
+  it("lands the next block on the target timestamp", async function () {
+    const target = (await client.getChainTime()) + 3600;
+
+    await client.setTime(target);
+
+    assert.equal(await client.getChainTime(), target);
   });
 });
 ```
@@ -117,12 +117,8 @@ describe("feature (integration)", function () {
 
 Solidity mocks live in `contracts/mocks/`:
 
-- `MockERC20.sol` — mintable ERC20
 - `MockVoting.sol` — newVote/executeVote/getVote + events
-- `MockTokenManager.sol` — forward(evmScript) with EVM script parsing
 - `MockHashConsensus.sol` — minimal HashConsensus for AccountingOracle `setConsensusContract` guards
-
-Deploy helper: `test/depot/helpers/deploy-mock-governance.ts`
 
 ## Review checklist for tests
 

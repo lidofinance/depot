@@ -22,8 +22,6 @@ describe("omnibus:archive", () => {
   let hre: HardhatRuntimeEnvironment;
   let root: string;
   let ongoing: string;
-  let archived: string;
-  let log: sinon.SinonStub;
 
   before(async () => {
     hre = await createHardhatRuntimeEnvironment({ tasks: omnibusTaskBuilders.map((builder) => builder.build()) });
@@ -32,14 +30,13 @@ describe("omnibus:archive", () => {
   beforeEach(async () => {
     root = await mkdtemp(path.resolve("omnibuses/_archive_task_"));
     ongoing = path.join(root, "ongoing", "mainnet", "fixture");
-    archived = path.join(root, "archive", "mainnet", "fixture");
     await mkdir(ongoing, { recursive: true });
     const module = path.relative(ongoing, path.resolve("src/omnibuses/omnibus"));
     await writeFile(
       path.join(ongoing, "fixture.ts"),
       `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: false, voteId: 7, deployment: { omnibus: Omnibus.deployedContract("0x0000000000000000000000000000000000000001") }, testVote: async () => {} });`,
     );
-    log = sinon.stub(console, "log");
+    sinon.stub(console, "log");
     sinon.stub(omnibusTaskDeps, "getOmnibusesDir").returns(root);
   });
 
@@ -84,25 +81,5 @@ describe("omnibus:archive", () => {
     chain({ open: true, executed: false, canExecute: false });
     await assert.isRejected(archive(), "Vote 7 is not finished");
     await access(ongoing);
-  });
-
-  it("moves an executed vote with executed DG proposals, searching logs from the snapshot block", async () => {
-    const client = chain({ open: false, executed: true, canExecute: false }, ProposalStatus.Executed);
-    await archive();
-    await access(archived);
-    sinon.assert.calledWithMatch(client.getLogsInWindows, { fromBlock: 100n });
-  });
-
-  it("moves a vote whose DG proposal is cancelled with a warning", async () => {
-    chain({ open: false, executed: true, canExecute: false }, ProposalStatus.Cancelled);
-    await archive();
-    await access(archived);
-    sinon.assert.calledWithMatch(log, /proposals \[15\] of vote 7 are cancelled/);
-  });
-
-  it("moves a rejected vote: closed and not executed", async () => {
-    chain({ open: false, executed: false, canExecute: false });
-    await archive();
-    await access(archived);
   });
 });

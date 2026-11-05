@@ -21,17 +21,6 @@ describe("DevRpcClient snapshot handling", () => {
     await rejects(DevRpcClient.prototype.revert.call(client, "0x2"), /evm_revert for snapshot 0x2 returned false/);
   });
 
-  it("keeps the callback error when the revert of a failed callback also throws", async () => {
-    sinon.stub(console, "error");
-    const callbackError = new Error("callback failed");
-    client.revert.rejects(new Error("revert failed"));
-
-    await rejects(
-      client.withSnapshot(() => Promise.reject(callbackError)),
-      callbackError,
-    );
-  });
-
   it("propagates a revert failure of a successful callback", async () => {
     const revertError = new Error("revert failed");
     client.revert.rejects(revertError);

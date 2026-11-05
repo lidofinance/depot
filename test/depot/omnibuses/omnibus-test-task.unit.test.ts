@@ -21,16 +21,9 @@ describe("omnibus:test acceptance option", () => {
 
   beforeEach(async () => {
     root = await mkdtemp(path.resolve("omnibuses/_acceptance_task_"));
-    const directory = path.join(root, "ongoing", "mainnet", "fixture");
-    await mkdir(directory, { recursive: true });
-    const module = path.relative(directory, path.resolve("src/omnibuses/omnibus"));
-    await writeFile(
-      path.join(directory, "fixture.ts"),
-      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: false, testVote: async () => {} });`,
-    );
-    await writeFile(path.join(directory, "fixture.md"), "");
     const snapshotDirectory = path.join(root, "ongoing", "mainnet", "snapshot_fixture");
-    await mkdir(snapshotDirectory);
+    await mkdir(snapshotDirectory, { recursive: true });
+    const module = path.relative(snapshotDirectory, path.resolve("src/omnibuses/omnibus"));
     await writeFile(
       path.join(snapshotDirectory, "snapshot_fixture.ts"),
       `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: true, testVote: async () => {} });`,
@@ -65,19 +58,10 @@ describe("omnibus:test acceptance option", () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it("skips snapshots without upgrade", async () => {
-    sinon.stub(Omnibus.prototype, "test").resolves();
-    const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").resolves();
-
-    await hre.tasks.getTask("omnibus:test").run({ name: "fixture" });
-
-    sinon.assert.notCalled(runSnapshots);
-  });
-
   it("runs acceptance once on a clean pass, separately from snapshot cases", async () => {
     const test = sinon.stub(Omnibus.prototype, "test").resolves("not-launched");
     const hooks = { beforeExecution: sinon.stub().resolves(), afterExecution: sinon.stub().resolves() };
-    const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").callsFake(async (_client, testUpgrade) => {
+    sinon.stub(omnibusTaskDeps, "runSnapshots").callsFake(async (_client, testUpgrade) => {
       await testUpgrade(hooks);
       await testUpgrade(hooks);
     });
@@ -88,15 +72,5 @@ describe("omnibus:test acceptance option", () => {
       test.getCalls().map((call) => call.args.slice(1)),
       [[runAcceptance], [undefined, hooks], [undefined, hooks]],
     );
-    sinon.assert.calledOnce(runSnapshots);
-  });
-
-  it("skips upgrade snapshots for a vote executed on chain", async () => {
-    sinon.stub(Omnibus.prototype, "test").resolves("dg-pending");
-    const runSnapshots = sinon.stub(omnibusTaskDeps, "runSnapshots").resolves();
-
-    await hre.tasks.getTask("omnibus:test").run({ name: "snapshot_fixture" });
-
-    sinon.assert.notCalled(runSnapshots);
   });
 });

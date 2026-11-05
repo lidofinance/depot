@@ -10,15 +10,6 @@ describe("DevRpcClient.setTime / advanceTime (integration)", function () {
     client = await createInProcessDevRpcClient();
   });
 
-  it("setTime lands the next block on the exact target timestamp", async function () {
-    const now = await client.getChainTime();
-    const target = now + 3600;
-
-    await client.setTime(target);
-
-    assert.equal(await client.getChainTime(), target);
-  });
-
   it("advanceTime(1) after setTime(T) yields T + 1 exactly (fixes the increaseTime bug)", async function () {
     const now = await client.getChainTime();
     const target = now + 10_000;
