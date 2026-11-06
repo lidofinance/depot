@@ -147,6 +147,8 @@ Without `--broadcast` both run only on a hardhat or anvil node at `localhost:$ET
 
 `<name>.ipfs.md` is published verbatim and linked on-chain, so it cannot change after launch; launch, including a rehearsal, refuses a missing, empty or template file. An agent may draft it; the author approves the text before launch.
 
+Before handing over, reconcile the payload with `<name>.md`. The launch rehearsal prints `Omnibus calls` with decoded targets, functions and arguments: map every numbered item of the description to its call and check addresses, amounts and order. Someone other than the contract's author does this (a reviewer or a separate agent without the author's context) and records the item → call table in the PR. Fork tests do not replace it: they check that the calls execute, not that they match the description.
+
 Deploy, launch and trace do not accept `--fork-block`. For a pinned rehearsal, use a local node already at the intended state and keep it alive across commands. Local deployment does not record wrapper addresses; launch can deploy the contract itself. To rehearse reuse, supply `deployment.omnibus` for that same local node. Run build/address checks before launch because launch does not add an address-lint gate.
 
 ## 8. Public deployment and lifecycle

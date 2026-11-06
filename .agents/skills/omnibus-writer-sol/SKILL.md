@@ -51,6 +51,8 @@ Run the guide's Solidity formatting, build, address-lint, TypeScript and fork ch
 
 Report the network/block, commands, results, saved payload hash, source/deployment assumptions, and before-state that the description did not pin down. Distinguish build/type checks, local models, fork execution and external-repository acceptance; a skipped test is not a passed test.
 
+You wrote the contract, so you cannot reconcile it yourself: before handing over, ask for the payload reconciliation from guide section 7 by a reviewer or a separate agent, and include its item → call table in the report.
+
 When authoring from a description, derive the payload from that description and verified contract interfaces. Fetching the target's ABI differs from copying another implementation of the vote. Perform an independent comparison to an existing vote's script when that verification is requested; do not use it to fill unspecified payload inputs silently.
 
 Never run `--broadcast` deploy or launch against Mainnet/Hoodi and never read keystore contents: a human performs real operations through the CLI. A local rehearsal (no `--broadcast`) uses a local dev node, selects a keystore account without unlocking it and skips the IPFS upload; `--broadcast` needs typed network-name confirmation. A successful local rehearsal does not establish public deployment or lifecycle facts. Before handing over for a `--broadcast` launch, ask the author to approve the `<name>.ipfs.md` text.
