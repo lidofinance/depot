@@ -16,7 +16,7 @@ import { eventLog } from "../helpers/event-log";
 chai.use(chaiAsPromised);
 const assert: Chai.AssertStatic = chai.assert;
 
-const { dualGovernance, voting } = getGovernanceContracts("mainnet");
+const { dualGovernance, timelock, voting } = getGovernanceContracts("mainnet");
 
 describe("omnibus:archive", () => {
   let hre: HardhatRuntimeEnvironment;
@@ -51,10 +51,16 @@ describe("omnibus:archive", () => {
     client.read.withArgs(sinon.match.any, "votesLength").resolves(8n as never);
     client.read.withArgs(sinon.match.any, "getVote").resolves([vote.open, vote.executed, 0n, 100n] as never);
     client.read.withArgs(sinon.match.any, "isValidVoteScript").resolves(true as never);
+    client.read.withArgs(sinon.match.any, "getOmnibusCalls").resolves([] as never);
+    client.read.withArgs(sinon.match.any, "getEVMScript").resolves("0x00000001" as never);
     client.read.withArgs(sinon.match.any, "canExecute").resolves(vote.canExecute as never);
     client.read.withArgs(sinon.match.any, "getProposalDetails").resolves({ status: proposalStatus } as never);
     const receipt = {
-      logs: [eventLog(dualGovernance, "ProposalSubmitted", [voting.address, 15n, "Metadata"])],
+      logs: [
+        eventLog(timelock, "ProposalSubmitted", [15n, voting.address, []]),
+        eventLog(dualGovernance, "ProposalSubmitted", [voting.address, 15n, "Metadata"]),
+        eventLog(voting, "ExecuteVote", [7n]),
+      ],
     } as TransactionReceipt;
     client.getLogsInWindows.resolves([{ transactionHash: "0x01" }] as never);
     client.getTransactionReceipt.resolves(receipt);

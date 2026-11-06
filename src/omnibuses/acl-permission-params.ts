@@ -22,7 +22,6 @@ export enum AclOp {
 export const LOGIC_OP_PARAM_ID = 204;
 
 const UINT240_MASK = (1n << 240n) - 1n;
-const UINT32_MASK = (1n << 32n) - 1n;
 
 export interface AclParam {
   argId: number;
@@ -41,25 +40,11 @@ export function aclIfElse(condition: number, success: number, failure: number): 
   return { argId: LOGIC_OP_PARAM_ID, op: AclOp.IF_ELSE, value };
 }
 
-export function encodeAclParam(param: AclParam): bigint {
+function encodeAclParam(param: AclParam): bigint {
   return (BigInt(param.argId) << 248n) | (BigInt(param.op) << 240n) | (param.value & UINT240_MASK);
 }
 
 /** `keccak256(uint256[])` the way the ACL stores it and emits in `SetPermissionParams`. */
 export function aclParamsHash(params: AclParam[]): HexStrPrefixed {
   return keccak256(encodePacked(["uint256[]"], [params.map(encodeAclParam)]));
-}
-
-/** Human-readable node, e.g. `arg0 EQ 21` or `if [1] then [2] else [3]`. */
-export function formatAclParam(param: AclParam): string {
-  if (param.op === AclOp.IF_ELSE) {
-    const condition = param.value & UINT32_MASK;
-    const success = (param.value >> 32n) & UINT32_MASK;
-    const failure = (param.value >> 64n) & UINT32_MASK;
-    return `if [${condition}] then [${success}] else [${failure}]`;
-  }
-  if ([AclOp.AND, AclOp.OR, AclOp.XOR, AclOp.NOT].includes(param.op)) {
-    return `[${param.value & UINT32_MASK}] ${AclOp[param.op]} [${(param.value >> 32n) & UINT32_MASK}]`;
-  }
-  return `arg${param.argId} ${AclOp[param.op]} ${param.value}`;
 }

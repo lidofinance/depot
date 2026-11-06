@@ -1,8 +1,9 @@
-import { TransactionReceipt } from "viem";
+import { decodeEventLog, TransactionReceipt } from "viem";
 
 import { getExecuteReceipt } from "../aragon-votes-tools/lifecycle";
 import { HexStrPrefixed } from "../common/bytes";
 import { KnownError } from "../common/errors";
+import { getEventAbi } from "../contracts";
 import { RpcClient } from "../network";
 import { ProposalStatus } from "./dual-governance";
 import { getSubmittedProposalIds } from "./event-helpers";
@@ -39,12 +40,33 @@ export async function readVoteState(client: RpcClient, voteId: bigint): Promise<
 
 /** `fromBlock` bounds the ExecuteVote log search; the vote snapshot block is the natural one. */
 export async function readVoteExecution(client: RpcClient, voteId: bigint, fromBlock: bigint): Promise<VoteExecution> {
-  const { timelock } = getGovernanceContracts(client.getNetworkName());
+  const governanceContracts = getGovernanceContracts(client.getNetworkName());
   const executeReceipt = await getExecuteReceipt(client, voteId, fromBlock);
-  const proposalIds = getSubmittedProposalIds(executeReceipt);
-  const details = await Promise.all(proposalIds.map((id) => client.read(timelock, "getProposalDetails", [id])));
+  const proposalIds = getSubmittedProposalIds(executeReceipt, voteId, governanceContracts);
+  const details = await Promise.all(
+    proposalIds.map((id) => client.read(governanceContracts.timelock, "getProposalDetails", [id])),
+  );
   return {
     executeReceipt,
     proposals: proposalIds.map((id, index) => ({ id, status: details[index].status })),
   };
+}
+
+/** `snapshotBlock` is the block before `newVote`, so the first log window from it holds StartVote. */
+export async function readVoteMetadata(client: RpcClient, voteId: bigint, snapshotBlock: bigint): Promise<string> {
+  const { voting } = getGovernanceContracts(client.getNetworkName());
+  const [startVoteLog] = await client.getLogsInWindows(
+    { address: voting.address, event: getEventAbi(voting, "StartVote"), args: { voteId }, fromBlock: snapshotBlock },
+    true,
+  );
+  if (!startVoteLog) {
+    throw new KnownError(`StartVote event of vote ${voteId} not found from block ${snapshotBlock}`);
+  }
+  const startVoteEvent = decodeEventLog({
+    abi: voting.abi,
+    eventName: "StartVote",
+    topics: startVoteLog.topics,
+    data: startVoteLog.data,
+  });
+  return startVoteEvent.args.metadata;
 }

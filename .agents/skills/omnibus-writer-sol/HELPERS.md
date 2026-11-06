@@ -123,7 +123,7 @@ The TS expectations use structured nodes from `src/omnibuses`:
 | `AclPermissionsUtils.ifElse(1, 2, 3)`                                           | `aclIfElse(1, 2, 3)`                                        |
 | `AclPermissionsUtils.logic(AclPermissionsUtils.Op.AND, 1, 2)`                   | `aclParam(LOGIC_OP_PARAM_ID, AclOp.AND, 1n \| (2n << 32n))` |
 
-Import `LOGIC_OP_PARAM_ID` from `src/omnibuses/acl-permission-params`; there is no `aclLogic` export. Logic nodes need the correct special ID as well as operator/index values. Referenced nodes must exist in the array, and ordering changes the permission. The encoder mirrors Solidity widths/masking rather than providing range validation; confirm intended values before explicit casts.
+Import `LOGIC_OP_PARAM_ID` from `src/omnibuses`; there is no `aclLogic` export. Logic nodes need the correct special ID as well as operator/index values. Referenced nodes must exist in the array, and ordering changes the permission. The encoder mirrors Solidity widths/masking rather than providing range validation; confirm intended values before explicit casts.
 
 Pass the same structured `params` to `ev.accessControl.permissionGranted` and the bound check:
 

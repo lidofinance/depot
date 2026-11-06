@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import type { Address } from "./types";
+import type { Address } from "viem";
 import bytes, { HexStrPrefixed } from "./bytes";
 import { CallEvmOpcodes, LogEvmOpcodes } from "../traces/evm-opcodes";
 import { Contract, getFunctionAbi } from "../contracts/contracts";
@@ -179,7 +179,9 @@ function formatValue(arg: unknown) {
     return "";
   }
   if (typeof arg === "string") {
-    if (bytes.isValid(arg)) return bytes.normalize(arg);
+    if (bytes.isValid(arg)) {
+      return bytes.normalize(arg);
+    }
     return `"${arg}"`;
   }
   return String(arg);

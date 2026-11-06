@@ -1,21 +1,20 @@
-import { Address } from "abitype";
-import { keccak256, toHex } from "viem";
+import { Address, keccak256, toHex } from "viem";
 
-import { AccessControl_ABI } from "../../../abi/AccessControl.abi";
-import { ACL_ABI } from "../../../abi/ACL.abi";
-import { HexStrPrefixed } from "../../common/bytes";
-import { Contract } from "../../contracts";
+import { AccessControl_ABI } from "@/abi/AccessControl.abi";
+import { ACL_ABI } from "@/abi/ACL.abi";
+import { HexStrPrefixed } from "@/src/common/bytes";
+import { contract, Contract } from "@/src/contracts";
 import { AclParam, aclParamsHash } from "../acl-permission-params";
 import { event } from "../event-helpers";
 import { OmnibusCallEvent } from "../omnibus-types";
 
 /** Role name or its hash. */
-export function roleDigest(role: string | HexStrPrefixed): HexStrPrefixed {
+function roleDigest(role: string | HexStrPrefixed): HexStrPrefixed {
   return role.startsWith("0x") && role.length === 66 ? (role as HexStrPrefixed) : keccak256(toHex(role));
 }
 
-function asAccessControl(contract: Contract): Contract<typeof AccessControl_ABI> {
-  return { abi: AccessControl_ABI, label: contract.label, address: contract.address };
+function asAccessControl(target: Contract): Contract<typeof AccessControl_ABI> {
+  return contract(AccessControl_ABI, target.address, target.label);
 }
 
 function roleGranted(on: Contract, input: { role: string; to: Address; sender?: Address }): OmnibusCallEvent[] {

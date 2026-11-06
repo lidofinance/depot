@@ -369,7 +369,7 @@ async function resolveRepoBuild(repo: RepositorySuite, branch: string) {
   const org = env.GITHUB_ORG();
   const sha = GIT_SHA_OVERRIDES[repo]() || (await getLastCommitSha(org, repo, branch));
   if (!/^[a-fA-F0-9]{40}$/.test(sha)) {
-    throw new Error(`Expected a full commit SHA for "${repo}", received "${sha}"`);
+    throw new KnownError(`Expected a full commit SHA for "${repo}", received "${sha}"`);
   }
   const platformArgs = getTargetPlatformArgs(repo);
   const buildArgs: Record<string, string> = {
@@ -530,7 +530,7 @@ export async function runTestsFromRepo(
   console.log();
 
   if (!exitedCleanly) {
-    throw new Error(`Container ${name} exited with status code ${statusInfo.StatusCode}`);
+    throw new KnownError(`Container ${name} exited with status code ${statusInfo.StatusCode}`);
   }
 
   return data;

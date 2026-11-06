@@ -4,7 +4,7 @@ import path from "node:path";
 import { finished } from "node:stream/promises";
 import { promisify } from "node:util";
 
-import { Address } from "../common/types";
+import { Address } from "viem";
 import { NetworkName } from "../network";
 import { fetchAbiFromEtherscan, lookupAddressInRegistry, readAbiFromFile, ResolvedAbi } from "./abi-source";
 import { renderAbiTs } from "./render-abi-ts";

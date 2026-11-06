@@ -10,7 +10,7 @@ import { HexStrPrefixed } from "@/src/common/bytes";
 import { Omnibus } from "@/src/omnibuses";
 import { Contract } from "@/src/contracts";
 import contractExample from "@/omnibuses/examples/_example_contract_omnibus/_example_contract_omnibus";
-import { decodeSubmitProposalMetadata, isSubmitProposalCall } from "@/src/omnibuses/omnibus-contract-calls";
+import { decodeSubmitProposal, isSubmitProposalCall } from "@/src/omnibuses/omnibus-contract-calls";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 import { DevRpcClient, RpcClient } from "@/src/network";
 import { deployOmnibusForLaunch, prepareOmnibus } from "@/tasks/omnibuses";
@@ -62,7 +62,7 @@ describe("production omnibus deployment (integration)", function () {
     if (!proposalCall || !deployment) {
       throw new Error("Prepared example must contain a deployment and a proposal");
     }
-    const metadata = decodeSubmitProposalMetadata(proposalCall);
+    const { metadata } = decodeSubmitProposal(proposalCall);
 
     tempDir = await mkdtemp(path.resolve("omnibuses/examples/_test_production_"));
     const name = path.basename(tempDir);

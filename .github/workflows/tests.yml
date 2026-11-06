@@ -23,9 +23,10 @@ jobs:
 
     steps:
       - name: Checkout depot repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           path: depot
+          persist-credentials: false
           submodules: true
 
       - name: Setup depot
@@ -43,6 +44,15 @@ jobs:
         run: npm run test:depot:integration
         working-directory: depot
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: v1.8.1
+
+      - name: Run Solidity library tests
+        run: npm run test:sol
+        working-directory: depot
+
   vote-test:
     name: Vote test (${{ matrix.network }})
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
@@ -58,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout depot repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           path: depot
           persist-credentials: false

@@ -2,7 +2,7 @@ import { ContractInfo } from "./types";
 
 import bytes from "../common/bytes";
 import { errorMessage } from "../common/errors";
-import { Address } from "../common/types";
+import { Address } from "viem";
 import { getChainIdByNetworkName, NetworkName } from "../network";
 
 interface EtherscanResponse<T = unknown> {
@@ -115,7 +115,7 @@ export class EtherscanContractInfoProvider {
       return this.retry(networkName, address, attempts, "transient error", describeMalformedResponse(text, request));
     }
 
-    if (response.message === "OK" && Array.isArray(response.result)) {
+    if (response.status === "1" && response.message === "OK" && Array.isArray(response.result)) {
       const [contract] = response.result;
       if (!contract) {
         throw new Error(`Etherscan returned no contract info for ${networkName} ${address}`);

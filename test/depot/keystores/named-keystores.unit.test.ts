@@ -9,6 +9,7 @@ import { create } from "@/src/hardhat-keystores/named-keystores";
 import { NamedKeystore } from "@/src/hardhat-keystores/named-keystore";
 import { NamedKeystoresStorage } from "@/src/hardhat-keystores/named-keystores-storage";
 import { generatePrivateKey } from "viem/accounts";
+import prompt from "@/src/common/prompt";
 
 chai.use(chaiAsPromised);
 const { expect } = chai;
@@ -66,6 +67,22 @@ describe("named keystores on a real directory", () => {
     await expect(storage.add(keystore)).to.be.rejectedWith('Invalid keystore name "../victim"');
     await expect(storage.del("../victim")).to.be.rejectedWith('Invalid keystore name "../victim"');
     expect(await fs.readFile(victimPath, "utf8")).to.equal("original");
+  });
+
+  it("signs with the account picked in the prompt, never another one", async () => {
+    const pilotKey = generatePrivateKey();
+    const copilotKey = generatePrivateKey();
+    const keystores = create(NamedKeystoresStorage.create(keystoresDir));
+    await keystores.add("pilot", pilotKey, MAIN_PASS);
+    const copilot = await keystores.add("copilot", copilotKey, MAIN_PASS);
+    const selectPrompt = sinon.stub(prompt, "select").resolves("copilot");
+
+    expect((await keystores.select()).address).to.equal(copilot.address);
+    expect(await keystores.unlock(undefined, MAIN_PASS)).to.equal(copilotKey);
+
+    selectPrompt.resetHistory();
+    await expect(keystores.unlock("copiolt", MAIN_PASS)).to.be.rejectedWith('Account "copiolt" not found');
+    sinon.assert.notCalled(selectPrompt);
   });
 
   it("never overwrites an existing keystore file on add", async () => {

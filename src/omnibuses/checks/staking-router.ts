@@ -1,15 +1,10 @@
-import { Address } from "abitype";
+import { Address } from "viem";
 import { CheckContext } from "./checks";
-import { assert } from "../../common/assert";
-import { StakingRouter_ABI } from "../../../abi/StakingRouter.abi";
-import { Contract } from "../../contracts";
-import { NodeOperatorsRegistry_ABI } from "../../../abi/NodeOperatorsRegistry.abi";
-import { CSModule_ABI } from "../../../abi/CSModule.abi";
-
-export interface StakingModuleParams {
-  treasuryFee: number;
-  stakingModuleFee: number;
-}
+import { assert } from "@/src/common/assert";
+import { StakingRouter_ABI } from "@/abi/StakingRouter.abi";
+import { Contract } from "@/src/contracts";
+import { NodeOperatorsRegistry_ABI } from "@/abi/NodeOperatorsRegistry.abi";
+import { CSModule_ABI } from "@/abi/CSModule.abi";
 
 interface CheckStakingModuleFeeInput {
   stakingModuleId: number | bigint;

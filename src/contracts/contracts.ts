@@ -1,7 +1,7 @@
 import { Abi, AbiEvent, AbiFunction, Address, getAbiItem } from "viem";
 import { ExtractAbiEventNames, ExtractAbiFunctionNames } from "abitype";
 
-import { OmnibusBase_ABI } from "../../abi/OmnibusBase.abi";
+import { OmnibusBase_ABI } from "@/abi/OmnibusBase.abi";
 
 export type OmnibusBaseContract = Contract<typeof OmnibusBase_ABI>;
 

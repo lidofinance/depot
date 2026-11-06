@@ -17,7 +17,7 @@ export default Omnibus.create({
     const before = await client.read(proxy, "proxy__getImplementation");
     assert.notEqual(before.toLowerCase(), IMPLEMENTATION.toLowerCase(), "Locator is already upgraded");
     const code = await client.viemClient.getCode({ address: IMPLEMENTATION });
-    assert.isTrue(code !== undefined && code !== "0x", "new Locator implementation exists at the fork block");
+    assert.isTrue(code !== undefined && code !== "0x", "#204 Locator implementation exists at the fork block");
     const { voteEvents } = await passOmnibus();
     voteEvents.item(TITLE);
     assert.equal(await client.read(proxy, "proxy__getImplementation"), before, "upgrade awaits DG execution");

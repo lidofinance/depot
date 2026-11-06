@@ -93,6 +93,7 @@ describe("omnibus:launch dry run", () => {
       `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: false, testVote: async () => {} });`,
     );
     await writeFile(path.join(directory, "fixture.md"), "Launch fixture description");
+    await writeFile(path.join(directory, "fixture.ipfs.md"), "Launch fixture description");
     process.env = { ...originalEnv, ETH_MAINNET_RPC_URL: "http://localhost:18545", ETH_LOCAL_RPC_PORT: "18546" };
     sinon.stub(console, "log");
     sinon.stub(omnibusTaskDeps, "getOmnibusesDir").returns(root);

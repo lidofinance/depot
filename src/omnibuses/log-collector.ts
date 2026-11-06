@@ -25,10 +25,6 @@ export class LogCollector {
     this.#consumedFlags = new Array(logs.length).fill(false);
   }
 
-  get logs(): readonly Log[] {
-    return this.#logs;
-  }
-
   findLogIndexes(predicate: (log: Log) => boolean): number[] {
     return this.#logs.flatMap((log, logIndex) => (predicate(log) ? [logIndex] : []));
   }
@@ -77,7 +73,7 @@ export class LogCollector {
       }
 
       if (skipped) {
-        // for an event already matched at least once, a mismatch simply means "no more of this event"
+        // a different emitter or topic ends the run of this event; the same event with other args still fails
         if (expectedEvent.allowMultiple && hadMatchedBefore) {
           continue;
         }

@@ -1,7 +1,7 @@
-import { Address } from "abitype";
+import { Address } from "viem";
 
-import { StakingRouter_ABI } from "../../../abi/StakingRouter.abi";
-import { Contract } from "../../contracts";
+import { StakingRouter_ABI } from "@/abi/StakingRouter.abi";
+import { Contract } from "@/src/contracts";
 import { event } from "../event-helpers";
 import { OmnibusCallEvent } from "../omnibus-types";
 
@@ -20,12 +20,7 @@ interface StakingModuleParams {
 function moduleUpdated(stakingRouter: StakingRouterContract, input: StakingModuleParams): OmnibusCallEvent[] {
   const { stakingModuleId } = input;
   return [
-    event(stakingRouter, "StakingModuleShareLimitSet", [
-      stakingModuleId,
-      input.stakeShareLimit,
-      input.priorityExitShareThreshold,
-      null,
-    ]),
+    ...moduleSharesUpdated(stakingRouter, input),
     event(stakingRouter, "StakingModuleFeesSet", [stakingModuleId, input.stakingModuleFee, input.treasuryFee, null]),
     event(stakingRouter, "StakingModuleMaxDepositsPerBlockSet", [stakingModuleId, input.maxDepositsPerBlock, null]),
     event(stakingRouter, "StakingModuleMinDepositBlockDistanceSet", [

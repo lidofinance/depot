@@ -4,18 +4,18 @@ Start with [How to Write an Omnibus](WRITING_OMNIBUS.md). For agent-assisted aut
 
 ## Examples by purpose
 
-Each directory keeps its Markdown description, Solidity payload and TypeScript wrapper together. Copy a pattern, then resolve the new vote's own payload inputs and fork state.
+Each directory keeps its Markdown description, public IPFS text, Solidity payload and TypeScript wrapper together. Copy a pattern, then resolve the new vote's own payload inputs and fork state.
 
 | Example                                                                                      | Purpose                                                                                             |
 | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [Template](../../omnibuses/_omnibus_template)                                                | Three-file scaffold used by `npm run omnibus:create`.                                               |
+| [Template](../../omnibuses/_omnibus_template)                                                | Four-file scaffold used by `npm run omnibus:create`.                                                |
 | [Tiny](../../omnibuses/examples/_example_tiny_omnibus)                                       | One Finance payment, automatic deployment, typed reads of vote constants and balance/event checks.  |
 | [Contract](../../omnibuses/examples/_example_contract_omnibus)                               | Custom deployment with an auxiliary validator and DG proposals.                                     |
 | [Finance](../../omnibuses/examples/_example_finance_omnibus)                                 | Automatic deployment, stETH payment with share/balance checks and a script match against vote #200. |
 | [Agent / DG / Kernel](../../omnibuses/examples/_example_agent_dg_kernel_omnibus)             | Explicit proposal metadata, Agent forwards and Kernel implementation/permission checks.             |
 | [Permissions / Node operators](../../omnibuses/examples/_example_permissions_node_operators) | ACL parameter grants, permission-use probes, node-operator changes and grouped events.              |
-| [Upgrade snapshot](../../omnibuses/examples/_example_upgrade_snapshot)                       | `upgrade: true` runs all snapshot suites; the wrapper asserts the new implementation slot.          |
+| [Upgrade snapshot](../../omnibuses/examples/_example_upgrade_snapshot)                       | Rehearses a Locator rollback to the #204 implementation to run all `upgrade: true` snapshot suites. |
 
 For Easy Track and allowed-recipient operations, see the helper catalogue and the paired library/event tests it links. Full protocol regressions use the [cross-repository runbook](WRITING_OMNIBUS.md#cross-repository-checks).
 
-Examples and archived payloads describe particular states; a historical successful run is not a guarantee about latest state. `omnibus:test` applies what is not executed on chain yet and checks the final state of what is; use `omnibus:trace` to inspect execution. Build, test and deploy include address lint; validate explicitly before launch.
+Examples and archived payloads describe particular states; a historical successful run is not a guarantee about latest state. `omnibus:test` applies what is not executed on chain yet and checks the final state of what is; use `omnibus:trace` to inspect execution. Vote addresses are checked in review, not by tooling: see [Addresses and titles](WRITING_OMNIBUS.md#addresses-and-titles).

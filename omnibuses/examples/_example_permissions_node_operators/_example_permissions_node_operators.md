@@ -24,13 +24,6 @@ Renew the Consensys key permission for operator 21, rename it to Consensys (Depo
 
 <!-- DG_PROPOSAL_DESCRIPTIONS -->
 
-Historical read-only checks on 2026-09-06 at mainnet block **25918463** confirmed the Agent is the permission manager, the stored grant is exactly `arg0 EQ 21`, operator 21 is active, and module 1 resolves to the curated NodeOperatorsRegistry. Its vetted/deposited key counts are 11213/11150, so deactivation also emits the vetted-key reset. The test reads these values before execution and checks their changes.
+At mainnet block **25918463** the Agent is the permission manager, the stored grant is exactly `arg0 EQ 21`, operator 21 is active, and module 1 resolves to the curated NodeOperatorsRegistry. Its vetted/deposited key counts are 11213/11150, so deactivation also emits the vetted-key reset. The test reads these values before execution and checks their changes.
 
-Run the example with the current CLI: `npm run omnibus:test -- _example_permissions_node_operators`. This command does not pin a block: a new in-process fork starts at latest, while an existing local node keeps its current state, so the operator and permission assumptions must still hold. To reproduce the recorded block, add `--fork-block 25918463`; the historical run below used it.
-
-Historical verification on 2026-09-06:
-
-- `npm run omnibus:build -- _example_permissions_node_operators`: passed.
-- `forge test --match-path 'contracts/libraries/*.t.sol'`: 34 tests passed across 11 suites, none failed or skipped; includes the permissions and node-operator libraries.
-- `omnibus:test` at the same fork block: local vote **205**, proposal **14**, all six Agent forwards passed with every receipt event accounted for. `isValidVoteScript(205)` returned true; the runtime completed its snapshot cleanup.
-- EVM script: **2752 bytes**, keccak256 **`0x530a7002fd2cd11183d40a18bd4ef46ea16fe699085a77cec24d2332e72e5678`**. This is a synthetic local vote, not a reconstruction of the complete historical vote #201.
+Run the example with the current CLI: `npm run omnibus:test -- _example_permissions_node_operators`. This command does not pin a block: a new in-process fork starts at latest, while an existing local node keeps its current state, so the operator and permission assumptions must still hold. To reproduce the recorded block, run `npm run omnibus:test -- _example_permissions_node_operators --fork-block 25918463 --skip-acceptance`; the current DSM, which the acceptance reads, has no code at that block.

@@ -1,6 +1,6 @@
 # Checks
 
-Reusable post-vote assertions for omnibus tests. Each check takes a `CheckContext` first and its input second:
+Reusable post-vote assertions for omnibus tests. Each check takes a `CheckContext` first, then its inputs:
 
 ```typescript
 export interface CheckContext {
@@ -12,11 +12,12 @@ Checks read state through `client` and assert with `assert` from `src/common/ass
 
 ## Usage
 
-`testVote` and `testFinalState` receive `checks` with the context already bound, so call them without it:
+`testVote`, `testProposal` and `testFinalState` receive `checks` with the context already bound, so call them without it. `testVote` also registers the events of every vote item with `voteEvents.item()`: a log left unexplained fails the test.
 
 ```typescript
 testVote: async ({ checks, passOmnibus }) => {
-  await passOmnibus();
+  const { voteEvents } = await passOmnibus();
+  voteEvents.item(ITEM_TITLE, [/* item events */]);
 
   await checks.tokens.checkERC20Balance({ token: LDO, account: RECIPIENT, expectedBalance: AMOUNT });
   await checks.easyTrack.checkFactoryExists(contracts, FACTORY);

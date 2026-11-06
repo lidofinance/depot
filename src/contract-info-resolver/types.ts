@@ -1,6 +1,6 @@
 import { Abi } from "abitype";
 
-import { Address } from "../common/types";
+import { Address } from "viem";
 
 export interface ContractInfo {
   name: string;

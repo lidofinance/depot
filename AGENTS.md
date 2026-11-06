@@ -24,15 +24,15 @@ npm run omnibus:test -- <name>      # test the vote on a local fork at its on-ch
 npx hardhat omnibus:trace <name>    # inspect execution traces
 npx hardhat omnibus:deploy <name>   # local deployment rehearsal
 npx hardhat omnibus:launch <name>   # local launch rehearsal
-npm run lint:vote-addresses -- omnibuses/ongoing/<network>/<name> # validate vote-local addresses
 
 # Quality
 npm run lint                        # ESLint (0 errors, 0 warnings expected)
 npm run lint:fix                    # auto-fix
+npm run types                       # tsc --noEmit
 npm run test:depot:unit              # Depot unit tests (npm test is a shortcut)
 npm run test:depot:integration       # Depot integration tests (in-process Hardhat)
 npm run test:all                     # both Depot suites
-npx tsc --noEmit                    # typecheck
+npm run test:sol                     # Solidity library tests (forge, no fork)
 ```
 
 ## Architecture
@@ -62,11 +62,16 @@ Use [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md) for fork pinning, exa
 
 ## Verification checklist
 
-Before submitting changes, verify:
+Before submitting changes, run what CI runs:
 
 ```bash
-npx tsc --noEmit         # 0 errors
-npm run lint             # 0 errors, 0 warnings
-npm run test:depot:unit  # all passing
-npm run test:depot:integration # report fork cases skipped without ETH_MAINNET_RPC_URL
+npm run prettier:check         # Prettier
+npm run fmt:sol:check          # forge fmt
+npm run lint                   # ESLint, 0 warnings
+npm run types                  # tsc --noEmit, 0 errors
+npm run test:depot:unit        # all passing
+npm run test:depot:integration # in-process Hardhat, no RPC required
+npm run test:sol               # Solidity library tests, no fork
 ```
+
+For a vote change, also get the manual address review from [Addresses and titles](docs/omnibuses/WRITING_OMNIBUS.md#addresses-and-titles); no command replaces it.

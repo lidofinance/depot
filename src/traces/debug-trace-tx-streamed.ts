@@ -3,6 +3,7 @@ import { JsonBuilder } from "./json-builder";
 import { RawStructLog } from "./types";
 import { RpcClient } from "../network";
 import { Readable } from "stream";
+import type { ReadableStream as NodeReadableStream } from "stream/web";
 
 interface JsonRpcError {
   code: number;
@@ -142,8 +143,8 @@ export class DebugTraceTxStreamed {
           method: "debug_traceTransaction",
           params: reqParams,
         }),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
-      }).then((res) => (res.body ? Readable.fromWeb(res.body as any) : null));
+        // DOM and Node ReadableStream types differ although fetch returns a Node stream
+      }).then((res) => (res.body ? Readable.fromWeb(res.body as NodeReadableStream<Uint8Array>) : null));
     }
 
     // If used default hardhat provider and not a standalone dev RPC node, make regular call

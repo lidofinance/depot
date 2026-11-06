@@ -2,6 +2,8 @@
 
 ## Omnibus Description
 
+The public vote text uploaded to IPFS lives in `<name>.ipfs.md`; this file is not published.
+
 Number the vote items the way they must appear in the vote, and nest the calls of a Dual Governance
 proposal under the item that submits it. Ordering is part of the payload, so write it as an
 instruction rather than as prose. Name every address, amount, and limit explicitly — the author of

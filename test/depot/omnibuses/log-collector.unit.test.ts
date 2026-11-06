@@ -1,6 +1,5 @@
-import { Address } from "abitype";
 import { assert } from "chai";
-import { Log } from "viem";
+import { Address, Log } from "viem";
 
 import { ERC20_ABI } from "@/abi/ERC20.abi";
 import { contract } from "@/src/contracts";

@@ -1,5 +1,5 @@
 # the official image carries the toolchain, the repo is checked out at the requested commit
-ARG SCRIPTS_IMAGE=ghcr.io/lidofinance/scripts:v22
+ARG SCRIPTS_IMAGE=ghcr.io/lidofinance/scripts:v22@sha256:a091e1a7997ab51fe2d88a8336ec9baf60d79a8da5bf30cdbc264e6a85129c8b
 FROM ${SCRIPTS_IMAGE}
 
 ARG GITHUB_ORG=lidofinance

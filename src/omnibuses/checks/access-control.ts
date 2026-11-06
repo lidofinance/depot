@@ -1,7 +1,7 @@
-import { AccessControl_ABI } from "../../../abi/AccessControl.abi";
-import { ACL_ABI } from "../../../abi/ACL.abi";
-import { assert } from "../../common/assert";
-import { Contract } from "../../contracts";
+import { AccessControl_ABI } from "@/abi/AccessControl.abi";
+import { ACL_ABI } from "@/abi/ACL.abi";
+import { assert } from "@/src/common/assert";
+import { Contract } from "@/src/contracts";
 import { AclParam } from "../acl-permission-params";
 import { CheckContext } from "./checks";
 import { Address, Hex } from "viem";
@@ -47,14 +47,18 @@ async function checkOzRoleNotGranted(
   );
 }
 
-async function checkAragonPermissionGranted(
+function readAragonPermission(
   { client }: CheckContext,
   { contracts, entity, app, role, args }: CheckAragonPermissionInput,
-): Promise<void> {
-  const hasPermission =
-    args === undefined
-      ? await client.read(contracts.acl, "hasPermission", [entity, app, role])
-      : await client.read(contracts.acl, "hasPermission", [entity, app, role, args]);
+): Promise<boolean> {
+  return args === undefined
+    ? client.read(contracts.acl, "hasPermission", [entity, app, role])
+    : client.read(contracts.acl, "hasPermission", [entity, app, role, args]);
+}
+
+async function checkAragonPermissionGranted(context: CheckContext, input: CheckAragonPermissionInput): Promise<void> {
+  const { contracts, entity, app, role } = input;
+  const hasPermission = await readAragonPermission(context, input);
   assert.isTrue(
     hasPermission,
     `Expected Aragon permission ${role} to be granted for ${entity} on app ${app} via ACL ${contracts.acl.address}`,
@@ -62,13 +66,11 @@ async function checkAragonPermissionGranted(
 }
 
 async function checkAragonPermissionNotGranted(
-  { client }: CheckContext,
-  { contracts, entity, app, role, args }: CheckAragonPermissionInput,
+  context: CheckContext,
+  input: CheckAragonPermissionInput,
 ): Promise<void> {
-  const hasPermission =
-    args === undefined
-      ? await client.read(contracts.acl, "hasPermission", [entity, app, role])
-      : await client.read(contracts.acl, "hasPermission", [entity, app, role, args]);
+  const { contracts, entity, app, role } = input;
+  const hasPermission = await readAragonPermission(context, input);
   assert.isFalse(
     hasPermission,
     `Expected Aragon permission ${role} to be revoked for ${entity} on app ${app} via ACL ${contracts.acl.address}`,

@@ -242,20 +242,28 @@ export class StructLogsTracingVisitor {
     for (let i = 0; i < this.stack.length; ++i) {
       const ctx = this.stack.peek(i);
       // the destructed context depth must be less than the depth of the selfdestruct instruction itself
-      if (ctx.depth >= item.depth) continue;
+      if (ctx.depth >= item.depth) {
+        continue;
+      }
 
       // when selfdestruct opcode is called via delegatecall or callcode,
       // the parent context will be deleted instead of actual one
-      if (ctx.type === "CALLCODE" || ctx.type === "DELEGATECALL") continue;
+      if (ctx.type === "CALLCODE" || ctx.type === "DELEGATECALL") {
+        continue;
+      }
 
       // the LOG operations can't call SELFDESTRUCT so skip the also
-      if (isLogOpcode(ctx.type)) continue;
+      if (isLogOpcode(ctx.type)) {
+        continue;
+      }
 
       destructedCtx = ctx;
       break;
     }
 
-    if (!destructedCtx) throw new Error(`SELFDESTRUCT callee context not found`);
+    if (!destructedCtx) {
+      throw new Error(`SELFDESTRUCT callee context not found`);
+    }
 
     item.address = destructedCtx.address;
     this.items.push(item);

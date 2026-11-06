@@ -11,6 +11,7 @@ import {
 } from "viem";
 import { RpcClient } from "./rpc-client";
 import { HexStrPrefixed } from "../common/bytes";
+import { errorMessage } from "../common/errors";
 
 type DevTestClientMode = "hardhat" | "anvil";
 
@@ -100,7 +101,7 @@ export class DevRpcClient extends RpcClient {
         await this.revert(snapshotId);
       } catch (revertError) {
         // the callback failure is the actionable one, a failed revert only gets reported
-        console.error(`Failed to revert snapshot ${snapshotId}: ${(revertError as Error).message}`);
+        console.error(`Failed to revert snapshot ${snapshotId}: ${errorMessage(revertError)}`);
       }
       throw error;
     }

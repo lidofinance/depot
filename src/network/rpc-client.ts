@@ -222,7 +222,9 @@ export class RpcClient {
   #node: NodeInfo | null = null;
 
   async getNodeInfo(): Promise<NodeInfo> {
-    if (this.#node) return this.#node;
+    if (this.#node) {
+      return this.#node;
+    }
 
     const clientInfo: string = await this.viemClient.transport.request({ method: "web3_clientVersion" });
     const [name = "unknown", version = "0.0.0"] = clientInfo.toLowerCase().split("/");

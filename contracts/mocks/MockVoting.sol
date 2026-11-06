@@ -78,26 +78,26 @@ contract MockVoting {
             uint8 phase
         )
     {
-        Vote storage v = _votes[_voteId];
-        open = v.open;
-        executed = v.executed;
-        startDate = v.startDate;
-        snapshotBlock = v.snapshotBlock;
+        Vote storage storedVote = _votes[_voteId];
+        open = storedVote.open;
+        executed = storedVote.executed;
+        startDate = storedVote.startDate;
+        snapshotBlock = storedVote.snapshotBlock;
         supportRequired = supportRequiredPct;
         minAcceptQuorum = minAcceptQuorumPct;
-        yea = v.yea;
-        nay = v.nay;
-        votingPower = v.votingPower;
+        yea = storedVote.yea;
+        nay = storedVote.nay;
+        votingPower = storedVote.votingPower;
         script = "";
-        phase = _votePhase(v);
+        phase = _votePhase(storedVote);
     }
 
     function getVotePhase(uint256 _voteId) external view returns (uint8) {
         return _votePhase(_votes[_voteId]);
     }
 
-    function _votePhase(Vote storage v) private view returns (uint8) {
-        return block.timestamp >= v.startDate + voteTime ? 2 : 0;
+    function _votePhase(Vote storage storedVote) private view returns (uint8) {
+        return block.timestamp >= storedVote.startDate + voteTime ? 2 : 0;
     }
 
     function canVote(uint256 _voteId, address _voter) external view returns (bool) {
@@ -110,23 +110,23 @@ contract MockVoting {
         bool /* _executesIfDecided */
     ) external {
         require(_canVote(_voteId, msg.sender), "cannot vote");
-        Vote storage v = _votes[_voteId];
+        Vote storage storedVote = _votes[_voteId];
         uint256 stake = token.balanceOf(msg.sender);
         _hasVoted[_voteId][msg.sender] = true;
         if (_supports) {
-            v.yea += stake;
+            storedVote.yea += stake;
         } else {
-            v.nay += stake;
+            storedVote.nay += stake;
         }
         emit CastVote(_voteId, msg.sender, _supports, stake);
     }
 
     function canExecute(uint256 _voteId) external view returns (bool) {
-        Vote storage v = _votes[_voteId];
-        uint256 totalVotes = v.yea + v.nay;
-        return v.open && !v.executed && block.timestamp >= v.startDate + voteTime
-            && v.yea * PCT_BASE > v.votingPower * minAcceptQuorumPct
-            && v.yea * PCT_BASE > totalVotes * supportRequiredPct;
+        Vote storage storedVote = _votes[_voteId];
+        uint256 totalVotes = storedVote.yea + storedVote.nay;
+        return storedVote.open && !storedVote.executed && block.timestamp >= storedVote.startDate + voteTime
+            && storedVote.yea * PCT_BASE > storedVote.votingPower * minAcceptQuorumPct
+            && storedVote.yea * PCT_BASE > totalVotes * supportRequiredPct;
     }
 
     function executeVote(uint256 _voteId) external {
@@ -137,8 +137,8 @@ contract MockVoting {
     }
 
     function _canVote(uint256 _voteId, address _voter) private view returns (bool) {
-        Vote storage v = _votes[_voteId];
-        return v.open && !v.executed && block.timestamp < v.startDate + voteTime && !_hasVoted[_voteId][_voter]
-            && token.balanceOf(_voter) > 0;
+        Vote storage storedVote = _votes[_voteId];
+        return storedVote.open && !storedVote.executed && block.timestamp < storedVote.startDate + voteTime
+            && !_hasVoted[_voteId][_voter] && token.balanceOf(_voter) > 0;
     }
 }

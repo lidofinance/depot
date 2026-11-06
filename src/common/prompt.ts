@@ -44,11 +44,7 @@ async function toggle(message: string) {
   return Boolean(isConfirmed);
 }
 
-async function confirmOrAbort(message?: string, autoConfirm = false) {
-  if (autoConfirm) {
-    return;
-  }
-
+async function confirmOrAbort(message?: string) {
   const isConfirmed = await toggle(message ?? "Confirm?");
   if (!isConfirmed) {
     throw new OperationAbortedError();

@@ -45,13 +45,28 @@ export class NamedKeystoresStorage {
     const keystorePath = this.getKeystorePath(keystore.name);
     // not ending in ".json", so a leftover temp file is never loaded as a keystore
     const tempPath = `${keystorePath}.tmp`;
-    // a temp file left by a crashed run is ours; "wx" then refuses one that appears concurrently
-    await fs.rm(tempPath, { force: true });
+    let isTempFileCreated = false;
     try {
-      await fs.writeFile(tempPath, keystore.toJson(), { mode: KEYSTORE_FILE_MODE, flag: "wx" });
+      // "wx" fails on an existing temp file, which may belong to a concurrent password change
+      const tempFile = await fs.open(tempPath, "wx", KEYSTORE_FILE_MODE);
+      isTempFileCreated = true;
+      try {
+        await tempFile.writeFile(keystore.toJson());
+      } finally {
+        await tempFile.close();
+      }
       await fs.rename(tempPath, keystorePath);
     } catch (error) {
-      await fs.rm(tempPath, { force: true }).catch(() => undefined);
+      if (isTempFileCreated) {
+        await fs.rm(tempPath, { force: true }).catch(() => undefined);
+      }
+      if (error instanceof Error && "code" in error && error.code === "EEXIST") {
+        throw new KnownError(
+          `Temp file ${tempPath} already exists: another password change of "${keystore.name}" is in progress ` +
+            `or a previous one crashed. Remove the file if no other change is running and retry`,
+          error,
+        );
+      }
       throw error;
     }
     this.accounts = [...this.accounts.filter((existing) => existing.name !== keystore.name), keystore];

@@ -4,7 +4,7 @@ Depot builds, tests and launches Lido governance omnibuses. The Solidity vote co
 
 ## Install
 
-Use Node 22 (`nvm use`; run `nvm install` first if the version is missing) and npm. Install Foundry with Forge 1.8.1 (`foundryup --install v1.8.1`) for Solidity formatting; Docker is needed for cross-repository suites.
+Use Node 22 (`nvm use`; run `nvm install` first if the version is missing) and npm. Install Foundry with Forge 1.8.1 (`foundryup --install v1.8.1`) for Solidity formatting and library tests; Docker is needed for cross-repository suites.
 
 ```bash
 git submodule update --init
@@ -20,7 +20,7 @@ Configure the required endpoints and services locally using the documented names
 Start with [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md) and [examples catalogue](docs/omnibuses/README.md).
 
 1. Run `npm run omnibus:create` and select the network and name.
-2. Fill the Markdown description with exact actions and DG proposal metadata.
+2. Fill the Markdown description with exact actions and DG proposal metadata; put the public IPFS vote text in `<name>.ipfs.md`.
 3. Implement the Solidity calls and TypeScript state/event checks.
 4. Build, validate addresses, and test on the intended fork before deployment or launch.
 
@@ -34,17 +34,13 @@ Run from the repository root; replace `<name>` with the intended omnibus. `<bloc
 
 ```bash
 npm run omnibus:build -- <name>
-npm run lint:vote-addresses -- omnibuses/ongoing/<network>/<name>
 npm run omnibus:test -- <name> --fork-block <block>
 npx hardhat omnibus:trace <name>
-npx tsc --noEmit
-npm run lint
-npm run test:depot:unit
-npm run test:depot:integration
-npm run test:all
 ```
 
-Depot unit and integration tests live under `test/depot/<module>/`; `npm test` is a shortcut for `test:depot:unit`, and `test:all` runs both Depot suites. Integration tests create Hardhat environments in process; fork cases require `ETH_MAINNET_RPC_URL`.
+Before a PR, run the [verification checklist](AGENTS.md#verification-checklist).
+
+Depot unit and integration tests live under `test/depot/<module>/`; `npm test` is a shortcut for `test:depot:unit`, and `test:all` runs both Depot suites. Integration tests create Hardhat environments in process and need no RPC. `npm run test:sol` runs the Solidity library tests without a fork.
 
 Shared deployed-protocol checks live in `test/protocol/acceptance/` and run through `omnibus:test` after the vote and all DG proposals, before snapshot restore. `test/protocol/snapshot/` holds upgrade snapshot suites that `omnibus:test` runs for `upgrade: true` votes. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/ongoing/<network>/<name>/<name>.ts`.
 

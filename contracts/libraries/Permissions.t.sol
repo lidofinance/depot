@@ -66,7 +66,7 @@ contract PermissionsCallsTest is Test {
         string[7] memory titles = _expectedTitles();
         assertEq(calls.length, 7);
         for (uint256 i = 0; i < calls.length; ++i) {
-            assertEq(calls[i].title, string.concat("    ", titles[i]));
+            assertEq(calls[i].title, titles[i]);
             assertEq(calls[i].target, i < 5 ? ACL : APP);
             assertEq(calls[i].payload, expected[i]);
         }

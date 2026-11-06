@@ -1,4 +1,4 @@
-import { Abi, Address } from "abitype";
+import { Abi } from "abitype";
 import { getExecuteReceipt, passAragonVote, setupLdoHolder, startAragonVote } from "../aragon-votes-tools";
 import bytes, { HexStrPrefixed } from "../common/bytes";
 import { DevRpcClient, NetworkName, RpcClient, WriteContractOptions } from "../network";
@@ -6,9 +6,8 @@ import { TxTrace } from "../traces/tx-traces";
 import { contract, Contract, OmnibusBaseContract } from "../contracts";
 import { ArtifactManager as Artifacts } from "hardhat/types/artifacts";
 import { createTimedSpinner } from "../common/spinner";
-import { decodeEventLog, encodeEventTopics, TransactionReceipt } from "viem";
-import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
-import { OmnibusBase_ABI } from "../../abi/OmnibusBase.abi";
+import { Address, TransactionReceipt } from "viem";
+import { OmnibusBase_ABI } from "@/abi/OmnibusBase.abi";
 import { processPendingProposals, ProposalStatus } from "./dual-governance";
 import checks from "./checks";
 import chalk from "chalk";
@@ -17,10 +16,10 @@ import fmt from "../common/format";
 import { getGovernanceContracts, GovernanceContracts } from "./governance-contracts";
 import { getSubmittedProposalIds } from "./event-helpers";
 import { filterOmnibusTrace } from "./trace-filters";
-import { getSubmitProposalCallIndexes, readOmnibusContractCalls } from "./omnibus-contract-calls";
+import { decodeSubmitProposal, getSubmitProposalCallIndexes, readOmnibusContractCalls } from "./omnibus-contract-calls";
 import { assertDgProposalDescriptions, formatVoteDescription } from "./omnibus-description";
 import { LogCollector } from "./log-collector";
-import { decodeSubmitProposal, ProposalEvents, VoteEvents } from "./vote-events";
+import { ProposalEvents, VoteEvents } from "./vote-events";
 import {
   BoundChecks,
   FormatOptions,
@@ -53,8 +52,6 @@ export type {
   VoteCall,
   VoteStage,
 } from "./omnibus-types";
-
-export { DEFAULT_FORMAT_OPTIONS } from "./omnibus-types";
 
 export class Omnibus<
   $Network extends NetworkName = NetworkName,
@@ -143,7 +140,7 @@ export class Omnibus<
 
   getOmnibusContract() {
     if (!this.#deployment || !("omnibus" in this.#deployment)) {
-      throw new Error(`Omnibus deployment must contain an "omnibus" contract`);
+      throw new KnownError(`Omnibus deployment must contain an "omnibus" contract`);
     }
     return this.#deployment.omnibus as OmnibusBaseContract;
   }
@@ -156,7 +153,7 @@ export class Omnibus<
     artifacts: Artifacts,
     client: RpcClient,
     txOptions: WriteContractOptions,
-    formatOptions: Omit<FormatOptions, "trace"> = { padLength: 0 },
+    formatOptions: FormatOptions = { padLength: 0 },
   ) {
     if (!this.#config.deploy) {
       throw new Error(`Omnibus doesn't have contracts to deploy`);
@@ -183,7 +180,7 @@ export class Omnibus<
     client: RpcClient,
     contractName: string,
     txOptions: WriteContractOptions,
-    formatOptions: Omit<FormatOptions, "trace"> = { padLength: 0 },
+    formatOptions: FormatOptions = { padLength: 0 },
   ) {
     if (this.#config.deploy) {
       throw new Error(`Omnibus "${this.name}" deploys its contracts itself. Use "deployOmnibusContracts()" instead`);
@@ -233,7 +230,7 @@ export class Omnibus<
 
     const snapshotId = await client.snapshot();
     try {
-      const { voteId, executeReceipt: executeVoteReceipt } = await this.#passOmnibus(client);
+      const { voteId, executeReceipt: executeVoteReceipt, submittedProposalIds } = await this.#passOmnibus(client);
       const prePopulatedContracts = this.#getTracePrePopulatedContracts();
 
       let spinner = createTimedSpinner(`Retrieving trace for execution of vote ${voteId}...`);
@@ -241,24 +238,6 @@ export class Omnibus<
       spinner.succeed(`Trace successfully received`);
 
       const executeVoteTrace = filterOmnibusTrace(fullTrace);
-
-      const submitProposalLogs = executeVoteReceipt.logs.filter((log) => {
-        const proposalSubmittedTopic = encodeEventTopics({
-          abi: DualGovernance_ABI,
-          eventName: "ProposalSubmitted",
-        })[0];
-        return log.topics[0] === proposalSubmittedTopic;
-      });
-
-      const submittedProposalIds: bigint[] = submitProposalLogs.map(
-        (log) =>
-          decodeEventLog({
-            abi: DualGovernance_ABI,
-            eventName: "ProposalSubmitted",
-            topics: log.topics,
-            data: log.data,
-          }).args.proposalId,
-      );
 
       let executeProposalReceipts: TransactionReceipt[] = [];
       let traces: TxTrace[] = [];
@@ -313,7 +292,7 @@ export class Omnibus<
 
       console.log("Omnibus Trace:\n");
       if (traceResult.trim() === "") {
-        console.log(fmt.padded("Trace is empty. Omnibus has no any calls"));
+        console.log(fmt.padded("Trace is empty: omnibus has no calls"));
       } else {
         console.log(traceResult);
       }
@@ -407,12 +386,12 @@ export class Omnibus<
       { receipt: TransactionReceipt; logs: LogCollector; events: ProposalEvents }
     >();
 
-    const handleOmnibusPassed = (result: PassVoteResult) => {
-      voteId = result.voteId;
-      passed.voteLogs = result.logs;
-      passed.voteEvents = result.voteEvents;
-      passed.executeBlock = result.executeReceipt.blockNumber;
-      submittedProposalIds.push(...result.submittedProposalIds);
+    const handleOmnibusPassed = (passedVote: PassVoteResult) => {
+      voteId = passedVote.voteId;
+      passed.voteLogs = passedVote.logs;
+      passed.voteEvents = passedVote.voteEvents;
+      passed.executeBlock = passedVote.executeReceipt.blockNumber;
+      submittedProposalIds.push(...passedVote.submittedProposalIds);
     };
 
     const passProposals = async (proposalIds: bigint[] = submittedProposalIds) => {
@@ -435,17 +414,17 @@ export class Omnibus<
           events: this.#createProposalEvents(logs, submittedProposalIds.indexOf(id)),
         });
       });
-      const results = proposalIds.map((id) => {
-        const result = testedProposals.get(id);
-        if (!result) {
+      const proposalExecutions = proposalIds.map((id) => {
+        const proposalExecution = testedProposals.get(id);
+        if (!proposalExecution) {
           throw new Error(`Proposal ${id} has no execution receipt`);
         }
-        return result;
+        return proposalExecution;
       });
       return {
-        executeReceipts: results.map((result) => result.receipt),
-        logs: results.map((result) => result.logs),
-        proposalEvents: results.map((result) => result.events),
+        executeReceipts: proposalExecutions.map((proposalExecution) => proposalExecution.receipt),
+        logs: proposalExecutions.map((proposalExecution) => proposalExecution.logs),
+        proposalEvents: proposalExecutions.map((proposalExecution) => proposalExecution.events),
       };
     };
 
@@ -508,7 +487,7 @@ export class Omnibus<
       if (stage === "executed") {
         notApplicable("testProposal and DG proposal events", "the DG proposals are executed on chain");
       } else {
-        await this.#testProposals(client, voteId, submittedProposalIds, async () => {
+        await this.#testProposals(voteId, submittedProposalIds, async () => {
           if (!this.#config.testProposal) {
             throw new Error(`testProposal function is not defined for submitted proposals [${submittedProposalIds}]`);
           }
@@ -611,7 +590,7 @@ export class Omnibus<
     contractName: string,
     args: unknown[],
     txOptions: WriteContractOptions,
-    formatOptions: Omit<FormatOptions, "trace">,
+    formatOptions: FormatOptions,
   ): Promise<T> {
     const artifact = await artifacts.readArtifact(contractName);
     console.log(fmt.padded(`⏳Deploying contract ${contractName}...`, formatOptions.padLength));
@@ -656,7 +635,7 @@ export class Omnibus<
   /** `launchedVote` is the state of `voteId` the caller has already read. */
   async #passOmnibus(
     client: DevRpcClient,
-    handleOmnibusPassed?: (result: PassVoteResult) => void,
+    handleOmnibusPassed?: (passedVote: PassVoteResult) => void,
     launchedVote?: VoteState,
   ): Promise<PassVoteResult> {
     let voteId: bigint;
@@ -680,23 +659,22 @@ export class Omnibus<
     }
 
     const logs = new LogCollector(executeOmnibusReceipt.logs);
-    const result: PassVoteResult = {
+    const passedVote: PassVoteResult = {
       voteId,
-      submittedProposalIds: getSubmittedProposalIds(executeOmnibusReceipt),
+      submittedProposalIds: getSubmittedProposalIds(executeOmnibusReceipt, voteId, this.#contracts),
       executeReceipt: executeOmnibusReceipt,
       logs,
       voteEvents: new VoteEvents(logs, this.getContractVoteCalls(), this.#contracts, this.getEvmScript()),
     };
 
     if (handleOmnibusPassed) {
-      handleOmnibusPassed(result);
+      handleOmnibusPassed(passedVote);
     }
 
-    return result;
+    return passedVote;
   }
 
   async #testProposals(
-    client: DevRpcClient,
     voteId: number | bigint | undefined,
     submittedProposalIds: bigint[],
     runTestProposal: () => Promise<void>,
@@ -790,6 +768,3 @@ export class Omnibus<
     return new ProposalEvents(logs, decodeSubmitProposal(submitCall).calls, this.#contracts);
   }
 }
-
-export { event } from "./event-helpers";
-export { filterOmnibusTrace } from "./trace-filters";

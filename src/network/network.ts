@@ -21,8 +21,12 @@ const HOODI_CHAIN_ID = 560048;
 const MAINNET_CHAIN_ID = 1;
 
 export function getChainIdByNetworkName(network: string): ChainId {
-  if (network === "mainnet") return MAINNET_CHAIN_ID;
-  if (network === "hoodi") return HOODI_CHAIN_ID;
+  if (network === "mainnet") {
+    return MAINNET_CHAIN_ID;
+  }
+  if (network === "hoodi") {
+    return HOODI_CHAIN_ID;
+  }
   throw new UnsupportedNetwork(network);
 }
 
@@ -105,8 +109,12 @@ function createPublicWalletClient<T extends HttpTransport | CustomTransport>(net
 }
 
 function getViemChain(network: NetworkName) {
-  if (network === "mainnet") return mainnet;
-  if (network === "hoodi") return hoodi;
+  if (network === "mainnet") {
+    return mainnet;
+  }
+  if (network === "hoodi") {
+    return hoodi;
+  }
 
   throw new UnsupportedNetwork(network);
 }

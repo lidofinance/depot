@@ -1,11 +1,6 @@
 # ignore auto-generated files
 coverage
-public
-dist
-pnpm-lock.yaml
 package-lock.json
-pnpm-workspace.yaml
-mount
 
 # vendored dependencies
 lib

@@ -1,10 +1,10 @@
-import { Address } from "abitype";
+import { Address } from "viem";
 
-import { Agent_ABI } from "../../../abi/Agent.abi";
-import { ERC20_ABI } from "../../../abi/ERC20.abi";
-import { Finance_ABI } from "../../../abi/Finance.abi";
-import { Lido_ABI } from "../../../abi/Lido.abi";
-import { Contract } from "../../contracts";
+import { Agent_ABI } from "@/abi/Agent.abi";
+import { ERC20_ABI } from "@/abi/ERC20.abi";
+import { Finance_ABI } from "@/abi/Finance.abi";
+import { Lido_ABI } from "@/abi/Lido.abi";
+import { Contract } from "@/src/contracts";
 import { event } from "../event-helpers";
 import { OmnibusCallEvent } from "../omnibus-types";
 

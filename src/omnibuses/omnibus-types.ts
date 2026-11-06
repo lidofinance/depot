@@ -1,5 +1,5 @@
-import { AbiEvent, Address } from "abitype";
-import { TransactionReceipt } from "viem";
+import { AbiEvent } from "abitype";
+import { Address, TransactionReceipt } from "viem";
 
 import { HexStrPrefixed } from "../common/bytes";
 import { DevRpcClient, NetworkName, RpcClient } from "../network";
@@ -9,13 +9,8 @@ import type checks from "./checks";
 import type { LogCollector } from "./log-collector";
 import type { ProposalEvents, VoteEvents } from "./vote-events";
 
-export const DEFAULT_FORMAT_OPTIONS: FormatOptions = Object.freeze({
-  padLength: 0,
-});
-
 export interface FormatOptions {
   padLength?: number;
-  trace?: TxTrace;
 }
 
 export interface OmnibusCallEvent {

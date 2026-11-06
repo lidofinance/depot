@@ -1,4 +1,4 @@
-import { Address } from "../common/types";
+import { Address } from "viem";
 import { NetworkName } from "../network";
 import { EtherscanContractInfoProvider } from "./etherscan-contract-info-provider";
 import { ContractInfo } from "./types";

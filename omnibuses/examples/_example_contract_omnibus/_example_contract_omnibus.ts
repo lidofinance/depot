@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import { decodeFunctionData } from "viem";
 import { event, expectedEvents as ev, Omnibus } from "@/src/omnibuses";
-import { decodeSubmitProposal } from "@/src/omnibuses/vote-events";
+import { decodeSubmitProposal } from "@/src/omnibuses/omnibus-contract-calls";
 import { contract, OmnibusBaseContract } from "@/src/contracts";
 import { Agent_ABI } from "@/abi/Agent.abi";
 import { MiniMeToken_ABI } from "@/abi/MiniMeToken.abi";
@@ -50,15 +50,15 @@ const NEW_NODE_OPERATORS = [
   { rewardAddress: ROCKAWAY_REWARD_ADDRESS, name: "RockawayX Infra" },
 ] as const;
 
-const REWARDS_STETH_TOP_UP_EVM_SCRIPT_FACTORY = "0x85d703B2A4BaD713b596c647badac9A1e95bB03d";
-const REWARDS_STETH_ADD_RECIPIENT_EVM_SCRIPT_FACTORY = "0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C";
-const REWARDS_STETH_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY = "0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E";
-const REWARDS_STETH_TRUSTED_CALLER = "0x87D93d9B2C672bf9c9642d853a8682546a5012B5";
-const REWARDS_STETH_REGISTRY = "0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A";
+const REWARDS_LDO_TOP_UP_EVM_SCRIPT_FACTORY = "0x85d703B2A4BaD713b596c647badac9A1e95bB03d";
+const REWARDS_LDO_ADD_RECIPIENT_EVM_SCRIPT_FACTORY = "0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C";
+const REWARDS_LDO_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY = "0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E";
+const REWARDS_LDO_TRUSTED_CALLER = "0x87D93d9B2C672bf9c9642d853a8682546a5012B5";
+const REWARDS_LDO_REGISTRY = "0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A";
 
-const REWARDS_LDO_TOP_UP_FACTORY = "0x200dA0b6a9905A377CF8D469664C65dB267009d1";
-const REWARDS_LDO_ADD_RECIPIENT_FACTORY = "0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252";
-const REWARDS_LDO_REMOVE_RECIPIENT_FACTORY = "0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7";
+const GAS_SUPPLY_STETH_TOP_UP_FACTORY = "0x200dA0b6a9905A377CF8D469664C65dB267009d1";
+const GAS_SUPPLY_STETH_ADD_RECIPIENT_FACTORY = "0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252";
+const GAS_SUPPLY_STETH_REMOVE_RECIPIENT_FACTORY = "0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7";
 
 const SDVT_MODULE_ID = 2;
 
@@ -112,25 +112,25 @@ export default Omnibus.create({
       event(deployment.voteStateValidator, "StateValidatedBefore", [agentLdoBalanceBefore]),
     ]);
     voteEvents.item(
-      `Add TopUpEVMScriptFactory with address ${REWARDS_STETH_TOP_UP_EVM_SCRIPT_FACTORY}`,
+      `Add TopUpEVMScriptFactory with address ${REWARDS_LDO_TOP_UP_EVM_SCRIPT_FACTORY}`,
       ev.easyTrack.topUpFactoryAdded(contracts.easyTrack, {
-        factory: REWARDS_STETH_TOP_UP_EVM_SCRIPT_FACTORY,
+        factory: REWARDS_LDO_TOP_UP_EVM_SCRIPT_FACTORY,
         finance: contracts.finance.address,
-        registry: REWARDS_STETH_REGISTRY,
+        registry: REWARDS_LDO_REGISTRY,
       }),
     );
     voteEvents.item(
-      `Add AddRecipientEVMScriptFactory with address ${REWARDS_STETH_ADD_RECIPIENT_EVM_SCRIPT_FACTORY}`,
+      `Add AddRecipientEVMScriptFactory with address ${REWARDS_LDO_ADD_RECIPIENT_EVM_SCRIPT_FACTORY}`,
       ev.easyTrack.addRecipientFactoryAdded(contracts.easyTrack, {
-        factory: REWARDS_STETH_ADD_RECIPIENT_EVM_SCRIPT_FACTORY,
-        registry: REWARDS_STETH_REGISTRY,
+        factory: REWARDS_LDO_ADD_RECIPIENT_EVM_SCRIPT_FACTORY,
+        registry: REWARDS_LDO_REGISTRY,
       }),
     );
     voteEvents.item(
-      `Add RemoveRecipientEVMScriptFactory with address ${REWARDS_STETH_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY}`,
+      `Add RemoveRecipientEVMScriptFactory with address ${REWARDS_LDO_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY}`,
       ev.easyTrack.removeRecipientFactoryAdded(contracts.easyTrack, {
-        factory: REWARDS_STETH_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY,
-        registry: REWARDS_STETH_REGISTRY,
+        factory: REWARDS_LDO_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY,
+        registry: REWARDS_LDO_REGISTRY,
       }),
     );
     voteEvents.item(
@@ -145,16 +145,16 @@ export default Omnibus.create({
       ),
     );
     voteEvents.item(
-      `Remove TopUpEVMScriptFactory with address ${REWARDS_LDO_TOP_UP_FACTORY}`,
-      ev.easyTrack.factoryRemoved(contracts.easyTrack, { factory: REWARDS_LDO_TOP_UP_FACTORY }),
+      `Remove TopUpEVMScriptFactory with address ${GAS_SUPPLY_STETH_TOP_UP_FACTORY}`,
+      ev.easyTrack.factoryRemoved(contracts.easyTrack, { factory: GAS_SUPPLY_STETH_TOP_UP_FACTORY }),
     );
     voteEvents.item(
-      `Remove AddRecipientEVMScriptFactory with address ${REWARDS_LDO_ADD_RECIPIENT_FACTORY}`,
-      ev.easyTrack.factoryRemoved(contracts.easyTrack, { factory: REWARDS_LDO_ADD_RECIPIENT_FACTORY }),
+      `Remove AddRecipientEVMScriptFactory with address ${GAS_SUPPLY_STETH_ADD_RECIPIENT_FACTORY}`,
+      ev.easyTrack.factoryRemoved(contracts.easyTrack, { factory: GAS_SUPPLY_STETH_ADD_RECIPIENT_FACTORY }),
     );
     voteEvents.item(
-      `Remove RemoveRecipientEVMScriptFactory with address ${REWARDS_LDO_REMOVE_RECIPIENT_FACTORY}`,
-      ev.easyTrack.factoryRemoved(contracts.easyTrack, { factory: REWARDS_LDO_REMOVE_RECIPIENT_FACTORY }),
+      `Remove RemoveRecipientEVMScriptFactory with address ${GAS_SUPPLY_STETH_REMOVE_RECIPIENT_FACTORY}`,
+      ev.easyTrack.factoryRemoved(contracts.easyTrack, { factory: GAS_SUPPLY_STETH_REMOVE_RECIPIENT_FACTORY }),
     );
     voteEvents.item(
       "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
@@ -204,35 +204,35 @@ export default Omnibus.create({
       }),
     ]);
 
-    await checks.easyTrack.checkFactoryExists(contracts, REWARDS_STETH_TOP_UP_EVM_SCRIPT_FACTORY);
+    await checks.easyTrack.checkFactoryExists(contracts, REWARDS_LDO_TOP_UP_EVM_SCRIPT_FACTORY);
     await checks.easyTrack.checkTopUpFactory({
       contracts,
       token: ldo.address,
-      registry: REWARDS_STETH_REGISTRY,
-      factory: REWARDS_STETH_TOP_UP_EVM_SCRIPT_FACTORY,
-      trustedCaller: REWARDS_STETH_TRUSTED_CALLER,
+      registry: REWARDS_LDO_REGISTRY,
+      factory: REWARDS_LDO_TOP_UP_EVM_SCRIPT_FACTORY,
+      trustedCaller: REWARDS_LDO_TRUSTED_CALLER,
       epsilon: 2,
     });
 
-    await checks.easyTrack.checkFactoryExists(contracts, REWARDS_STETH_ADD_RECIPIENT_EVM_SCRIPT_FACTORY);
+    await checks.easyTrack.checkFactoryExists(contracts, REWARDS_LDO_ADD_RECIPIENT_EVM_SCRIPT_FACTORY);
     await checks.easyTrack.checkAddRecipientFactory(
       contracts,
-      REWARDS_STETH_ADD_RECIPIENT_EVM_SCRIPT_FACTORY,
-      REWARDS_STETH_REGISTRY,
-      REWARDS_STETH_TRUSTED_CALLER,
+      REWARDS_LDO_ADD_RECIPIENT_EVM_SCRIPT_FACTORY,
+      REWARDS_LDO_REGISTRY,
+      REWARDS_LDO_TRUSTED_CALLER,
     );
 
-    await checks.easyTrack.checkFactoryExists(contracts, REWARDS_STETH_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY);
+    await checks.easyTrack.checkFactoryExists(contracts, REWARDS_LDO_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY);
     await checks.easyTrack.checkRemoveRecipientFactory(
       contracts,
-      REWARDS_STETH_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY,
-      REWARDS_STETH_REGISTRY,
-      REWARDS_STETH_TRUSTED_CALLER,
+      REWARDS_LDO_REMOVE_RECIPIENT_EVM_SCRIPT_FACTORY,
+      REWARDS_LDO_REGISTRY,
+      REWARDS_LDO_TRUSTED_CALLER,
     );
 
-    await checks.easyTrack.checkFactoryNotExists(contracts, REWARDS_LDO_TOP_UP_FACTORY);
-    await checks.easyTrack.checkFactoryNotExists(contracts, REWARDS_LDO_ADD_RECIPIENT_FACTORY);
-    await checks.easyTrack.checkFactoryNotExists(contracts, REWARDS_LDO_REMOVE_RECIPIENT_FACTORY);
+    await checks.easyTrack.checkFactoryNotExists(contracts, GAS_SUPPLY_STETH_TOP_UP_FACTORY);
+    await checks.easyTrack.checkFactoryNotExists(contracts, GAS_SUPPLY_STETH_ADD_RECIPIENT_FACTORY);
+    await checks.easyTrack.checkFactoryNotExists(contracts, GAS_SUPPLY_STETH_REMOVE_RECIPIENT_FACTORY);
   },
 
   testProposal: async ({ client, checks, passProposals, deployment }) => {

@@ -1,7 +1,7 @@
-import { Address } from "abitype";
+import { Address } from "viem";
 
-import { OssifiableProxy_ABI } from "../../../abi/OssifiableProxy.abi";
-import { Contract } from "../../contracts";
+import { OssifiableProxy_ABI } from "@/abi/OssifiableProxy.abi";
+import { contract, Contract } from "@/src/contracts";
 import { event } from "../event-helpers";
 import { OmnibusCallEvent } from "../omnibus-types";
 
@@ -15,21 +15,13 @@ const Versioned_ABI = [
 ] as const;
 
 function upgraded(proxy: Contract, input: { implementation: Address }): OmnibusCallEvent[] {
-  const ossifiableProxy: Contract<typeof OssifiableProxy_ABI> = {
-    abi: OssifiableProxy_ABI,
-    label: proxy.label,
-    address: proxy.address,
-  };
+  const ossifiableProxy = contract(OssifiableProxy_ABI, proxy.address, proxy.label);
   return [event(ossifiableProxy, "Upgraded", [input.implementation])];
 }
 
 function contractVersionSet(versioned: Contract, input: { version: bigint }): OmnibusCallEvent[] {
-  const contract: Contract<typeof Versioned_ABI> = {
-    abi: Versioned_ABI,
-    label: versioned.label,
-    address: versioned.address,
-  };
-  return [event(contract, "ContractVersionSet", [input.version])];
+  const versionedContract = contract(Versioned_ABI, versioned.address, versioned.label);
+  return [event(versionedContract, "ContractVersionSet", [input.version])];
 }
 
 export default { upgraded, contractVersionSet };

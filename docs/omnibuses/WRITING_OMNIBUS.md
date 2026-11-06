@@ -15,11 +15,12 @@ Select `mainnet` or `hoodi`, a date-based name such as `2026_09_10_example`, and
 ```text
 omnibuses/ongoing/<network>/<name>/
   <name>.md
+  <name>.ipfs.md    # public vote text
   Omnibus_<name>.sol
   <name>.ts
 ```
 
-It fills the network, the `upgrade` flag, contract name and Voting address. `ongoing/<network>/` holds the network's current candidate; CI tests the first one by name. Executed votes move to `archive/<network>/`, and reference patterns live in `examples/`. Commands find a vote by name in any of these folders, and the folder network must match the wrapper's `network`. Complete the Markdown and call list before testing: the empty Solidity scaffold compiles, but its call-count check rejects an incomplete list.
+It fills the network, the `upgrade` flag, contract name and Voting address. Keep one ongoing vote per network: CI tests the candidate in `ongoing/<network>/` and fails when there are several. Executed votes move to `archive/<network>/`, and reference patterns live in `examples/`. Commands find a vote by name in any of these folders, and the folder network must match the wrapper's `network`. Complete the Markdown and call list before testing: the empty Solidity scaffold compiles, but its call-count check rejects an incomplete list.
 
 ## 2. Describe the payload
 
@@ -41,7 +42,14 @@ Use the intended deployment's interfaces from `contracts/interfaces/` with `abi.
 
 ### Addresses and titles
 
-Declare every vote address as a local named constant with its literal value visible in that vote file, including infrastructure addresses and zero addresses. Use those constants in calls and in the TS wrapper when a reading handle needs an address. The shared registries serve infrastructure; importing an address or aliasing an imported address in a vote does not satisfy the rule. A historical vote-scoped address is not a reason to overwrite the current registry.
+Declare every vote address as a local named constant with its literal value visible in that vote file, including infrastructure addresses and zero addresses. Use those constants in calls and in the TS wrapper when a reading handle needs an address; never inline an address literal in a call. The shared registries serve infrastructure; importing an address or aliasing an imported address in a vote does not satisfy the rule. A historical vote-scoped address is not a reason to overwrite the current registry.
+
+Review enforces this rule; no tool checks vote addresses. A PR that changes a vote is not approved until a reviewer other than the author has:
+
+1. checked that every address in the vote's `.sol` and `.ts` follows the rule above;
+2. confirmed every address constant against an official Lido source — [docs.lido.fi deployed contracts](https://docs.lido.fi/deployed-contracts/) ([Hoodi](https://docs.lido.fi/deployed-contracts/hoodi/)) or the owning lidofinance repository's `deployed-*.json` on `develop`; for a historical vote-specific address, the [lidofinance/scripts](https://github.com/lidofinance/scripts) archive — and listed that source next to the address in the [reconciliation table](#7-rehearse-deployment-and-launch).
+
+Build, fork tests and `isValidVoteScript` show that the payload is well-formed and executes, not that each address is the intended contract.
 
 Copy titles from the description without manual item numbering. Vote titles must be nonempty and unique; the runtime numbers them by position. `1.Item` and `2)Item` are rejected, while meaningful decimal starts such as `0.5% fee change` are allowed.
 
@@ -75,32 +83,31 @@ The task prints which checks ran and which do not apply. Any `voteId` needs a re
 
 The default deployment needs exactly one non-test `.sol` in the omnibus folder, a contract named after that file and a zero-argument constructor. The runner compiles and deploys it on the local fork automatically.
 
-For constructor arguments or auxiliary contracts, implement `deploy({ deployContract })` and return the vote contract as `omnibus` alongside other handles. A `deployment` mapping supplies already deployed contracts. See [the custom-deployment example](../../omnibuses/examples/_example_contract_omnibus/_example_contract_omnibus.ts). Both paths validate the Solidity calls/script and exact DG metadata during preparation.
+For constructor arguments or auxiliary contracts, implement `deploy({ deployContract })` and return the vote contract as `omnibus` alongside other handles. A `deployment` mapping supplies already deployed contracts. When `deployment.omnibus` is recorded, test, trace, multi-test and the launch rehearsal compile the local `.sol` on the fork and fail if its EVM script or item titles differ from the recorded contract; omnibuses with their own `deploy()` are not compared. See [the custom-deployment example](../../omnibuses/examples/_example_contract_omnibus/_example_contract_omnibus.ts). Both paths validate the Solidity calls/script and exact DG metadata during preparation.
 
 ## 6. Build and test
 
 ```bash
 npm run fmt:sol
-npm run lint:vote-addresses -- omnibuses/ongoing/<network>/<name>
 npm run omnibus:build -- <name>
 npm run omnibus:test -- <name> --fork-block <block>
-npx tsc --noEmit
+npm run types
 npm run lint
-npm run test:depot:unit
-npm run test:depot:integration
 ```
 
-Format Solidity with `forge fmt`: the pre-commit hook and CI run `forge fmt --check` on vote contracts. Run address lint from the project root (npm and Husky do this). Build, test and deploy run address-lint guards; launch has no such guard, so use the explicit validation path above before launch. A clean linter result does not prove that an address belongs to the intended deployment.
+Repository-wide checks that CI runs are in the [verification checklist](../../AGENTS.md#verification-checklist).
+
+Format Solidity with `forge fmt`: the pre-commit hook and CI run `forge fmt --check` on vote contracts. No command checks vote addresses; review does, as described in [Addresses and titles](#addresses-and-titles).
 
 `omnibus:test` prepares the contract, validates its payload, saves `<name>.evm-script.hex`, and then runs the vote/proposal tests. Configure `ETH_MAINNET_RPC_URL` or `ETH_HOODI_RPC_URL` for the chosen network. `--fork-block` is available on test and multi-test. A reachable local node must already be at the requested block; a mismatch fails rather than resetting that node. If test cannot connect locally, it creates an in-process fork at the requested block. Without a pin, a new fork starts at latest and a reused node retains its current state. When authoring a vote that has already executed on-chain, pin a block before its execution; otherwise the before-state is the state the vote already produced.
 
 Each acceptance suite keeps its assertions, setup and fixed expectations in one file under `test/protocol/acceptance/`. Register a new suite in `ACCEPTANCE_SUITES` (`tasks/sub-tasks/acceptance.ts`); the runner fails on an unregistered file, and negative suites stay last. The `omnibus:test` task runs Mocha with its prepared client through the post-execution callback of `Omnibus.test()`, after the vote, all DG proposals and event checks, before snapshot restore. A failing suite fails the task. Use `--skip-acceptance` when testing a historical deployment or a network without configured expectations. Direct `Omnibus.test(client)` calls run only the omnibus's own checks unless a callback is supplied. Changes to checked configuration require updating the expectations from an independent deployment source.
 
-Depot tests live under `test/depot/<module>/`: unit tests use `*.unit.test.ts`, and integration tests use `*.integration.test.ts` with in-process Hardhat environments (fork cases require `ETH_MAINNET_RPC_URL`). `npm test` is a shortcut for `test:depot:unit`; `test:all` runs both Depot suites. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/ongoing/<network>/<name>/<name>.ts`. Upgrade snapshot suites live under `test/protocol/snapshot/` and run for every `upgrade: true` vote as described below.
+Depot tests live under `test/depot/<module>/`: unit tests use `*.unit.test.ts`, and integration tests use `*.integration.test.ts` with in-process Hardhat environments and need no RPC. `npm test` is a shortcut for `test:depot:unit`; `test:all` runs both Depot suites. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/ongoing/<network>/<name>/<name>.ts`. Upgrade snapshot suites live under `test/protocol/snapshot/` and run for every `upgrade: true` vote as described below.
 
 Depot test globs select only `test/depot/`; `omnibus:test` loads the suites listed in `ACCEPTANCE_SUITES`. To run one suite alone against an existing fork, use `TEST_NETWORK=hoodi TEST_RPC_URL=http://localhost:8545 npx mocha --no-config --node-option import=tsx --timeout 600000 test/protocol/acceptance/locator.test.ts` (or `TEST_NETWORK=mainnet`, or another suite file).
 
-Examples depend on the state of their named contracts, operators and permissions. Their recorded historical results do not prove that a fresh latest-state run succeeds. The permissions/node-operators integration suite skips its two fork cases only when `ETH_MAINNET_RPC_URL` is undefined; malformed configured values or connection errors remain failures. Record skipped tests separately.
+Examples depend on the state of their named contracts, operators and permissions. Their recorded historical results do not prove that a fresh latest-state run succeeds. Record skipped tests separately.
 
 Record the chosen network/block, deployed source revision, test results and payload hash. For traces:
 
@@ -120,7 +127,7 @@ Suites carry mainnet and Hoodi expectations; `tasks/sub-tasks/snapshot.ts` rejec
 
 Block/time alignment is suite-specific, not global: first-slots/DSM use a preselected target and fail if governance exceeds it; Lido aligns block height; Voting/plain-submit preserve their source observations without asserting gas/ETH/time equality. DSM pins each action's block to the previous timestamp plus one second and keeps the agreed absolute 1 second tolerance (the source accidentally used a relative tolerance of 100%). Lido funding is 100000 ETH (the source double-converted units). Source Lido role regrant still does not prove ACL preservation. When the upgrade starts a new vote (no `voteId`), Voting expects `votesLength` to grow by exactly one in every frame and repeats the launch's LDO funding transfer in its reference run, since the Hoodi funder is one of its voters.
 
-The [upgrade snapshot example](../../omnibuses/examples/_example_upgrade_snapshot/_example_upgrade_snapshot.md) is a local payload using a real Locator upgrade call from #204. Its wrapper sets only `upgrade: true` and asserts the new Locator implementation slot in `testProposal`; its command runs all suites. The rejection of a sampled-slot change is covered by the Depot integration test. Suites target current deployments, so run it on a current fork; its command skips the clean-pass acceptance. Full mainnet/Hoodi scenario coverage still requires separately recorded fork runs.
+The [upgrade snapshot example](../../omnibuses/examples/_example_upgrade_snapshot/_example_upgrade_snapshot.md) is a local payload that repeats the Locator upgrade call from #204. The live Locator implementation is newer, so on a current fork it deliberately rolls back to the #204 implementation (DSM `0x39BB…` becomes `0xF573…`) to exercise the snapshot suites. Its wrapper sets only `upgrade: true` and asserts the #204 implementation slot in `testProposal`; its command runs all suites. The rejection of a sampled-slot change is covered by the Depot integration test. Suites target current deployments, so run it on a current fork; its command skips the clean-pass acceptance. Full mainnet/Hoodi scenario coverage still requires separately recorded fork runs.
 
 ### Cross-repository checks
 
@@ -131,7 +138,7 @@ npm run omnibus:multi-test -- <name> --repo stonks --fork-block <block>
 
 Targets are `core`, `scripts`, `dual-governance`, `staking-modules` and `stonks`; omitting `--repo` selects all. The optional positional name applies the omnibus and its proposals before the suites; omitting it runs on a bare mainnet fork. The network comes from the vote. Only `core` has a Hoodi suite, as in the upstream CI; on Hoodi the other repositories are skipped with a log line, and the run fails with a `KnownError` before node startup when no selected repository has a suite for the network. Repository suites run serially with a snapshot around each suite, preserving the prepared baseline. Outer cleanup restores the pre-run state and stops a node started by this run; a reused node remains running.
 
-Docker and each target's configured dependencies are required. Repository revisions default to the branch/SHA pins in `src/common/env.ts`, which CI uses too; override them and the image platform through the environment. CI runs the same command per repository (`repo_*_regression.yml`) for each network's ongoing candidate; see [target commands](../../tasks/sub-tasks/containers.ts). A Depot fork test or local model does not substitute for executing these external suites.
+Docker and each target's configured dependencies are required. Repository revisions default to the branch/SHA pins in `src/common/env.ts`, which CI uses too; override them and the image platform through the environment. CI runs the same command per repository (`repo_*_regression.yml`) for each network's ongoing candidate; see [target commands](../../tasks/sub-tasks/containers.ts). A Depot fork test or local model does not substitute for executing these external suites. The staking-modules image pins Foundry v1.5.1 and fails to build when upstream `.foundryref` names another version; bump the pin in `tests@staking-modules.Dockerfile`.
 
 ## 7. Rehearse deployment and launch
 
@@ -142,9 +149,13 @@ npx hardhat omnibus:deploy <name>
 npx hardhat omnibus:launch <name>
 ```
 
-Without `--broadcast` both run only on a hardhat or anvil node at `localhost:$ETH_LOCAL_RPC_PORT` (falling back to the in-process node when nothing listens), send from the selected account by impersonation without unlocking it, and upload nothing to IPFS. With `--broadcast` you type the network name to confirm, the description is uploaded after that, and each transaction hash is printed before sending. After a send error or timeout, check the hash and nonce in an explorer instead of rerunning.
+Without `--broadcast` both run only on a hardhat or anvil node at `localhost:$ETH_LOCAL_RPC_PORT` (falling back to the in-process node when nothing listens), send from the selected account by impersonation without unlocking it, and upload nothing to IPFS. With `--broadcast` you type the network name to confirm, `<name>.ipfs.md` is uploaded to IPFS after that, and each transaction hash is printed before sending. After a send error or timeout, check the hash and nonce in an explorer instead of rerunning.
 
-Deploy, launch and trace do not accept `--fork-block`. For a pinned rehearsal, use a local node already at the intended state and keep it alive across commands. Local deployment does not record wrapper addresses; launch can deploy the contract itself. To rehearse reuse, supply `deployment.omnibus` for that same local node. Run build/address checks before launch because launch does not add an address-lint gate.
+`<name>.ipfs.md` is published verbatim and linked on-chain, so it cannot change after launch; launch, including a rehearsal, refuses a missing, empty or template file. An agent may draft it; the author approves the text before launch.
+
+Before handing over, reconcile the payload with `<name>.md`. The launch rehearsal prints `Omnibus calls` with decoded targets, functions and arguments: map every numbered item of the description to its call and check addresses, amounts and order. Someone other than the contract's author does this (a reviewer or a separate agent without the author's context) and records the item → call table in the PR, with the source of each address ([Addresses and titles](#addresses-and-titles)). Fork tests do not replace it: they check that the calls execute, not that they match the description.
+
+Deploy, launch and trace do not accept `--fork-block`. For a pinned rehearsal, use a local node already at the intended state and keep it alive across commands. Local deployment does not record wrapper addresses; launch can deploy the contract itself. To rehearse reuse, supply `deployment.omnibus` for that same local node.
 
 ## 8. Public deployment and lifecycle
 
@@ -157,6 +168,6 @@ npx hardhat omnibus:launch <name> --broadcast
 
 Successful default broadcast deployment records `deployment.omnibus` in the wrapper; record custom deployment handles explicitly. Launch reads the deployed contract and displays its items and payload. Broadcast launch records `voteId` in the wrapper; every launch then checks `isValidVoteScript(voteId)` of the contract. Local rehearsals record nothing.
 
-After execution, `omnibus:test <name>` checks the executed vote (see section 4). `omnibus:archive <name>` reads the network: it moves the vote when the Aragon vote and all its DG proposals are executed, or when the vote finished without result (rejected, or a DG proposal cancelled, with a warning), and refuses otherwise with the unfinished items. `omnibus:pass-aragon-vote <network> <voteId>` passes a not executed vote on the fork, voting only in its main phase, and refuses an executed one.
+After execution, `omnibus:test <name>` checks the executed vote (see section 4). For a recorded `voteId`, `omnibus:test` and `omnibus:archive` also require the on-chain vote description to equal the one built from `<name>.ipfs.md`; without that file (older votes) the check is skipped with a note. `omnibus:archive <name>` reads the network: it moves the vote when the Aragon vote and all its DG proposals are executed, or when the vote finished without result (rejected, or a DG proposal cancelled, with a warning), and refuses otherwise with the unfinished items. `omnibus:pass-aragon-vote <network> <voteId>` passes a not executed vote on the fork, voting only in its main phase, and refuses an executed one.
 
-If the payload changes after the audit: remove `deployment` from the wrapper, redeploy, let the new address show in the PR diff and have that address re-audited. Launch uses only the recorded address.
+If the payload changes after the audit, fork runs fail on the source comparison (section 5): remove `deployment` from the wrapper, redeploy, let the new address show in the PR diff and have that address re-audited. Launch uses only the recorded address.

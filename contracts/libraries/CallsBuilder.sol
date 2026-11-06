@@ -20,8 +20,6 @@ struct VoteCallsBuilder {
 }
 
 library VoteCallsBuilderUtils {
-    using CallsScriptBuilderUtils for CallsScriptBuilder;
-
     function create(uint256 callsCount) internal pure returns (VoteCallsBuilder memory res) {
         res._calls = new VoteCall[](callsCount);
     }
@@ -118,13 +116,15 @@ library ForwardedCallsBuilderUtils {
         address target,
         bytes memory payload
     ) internal pure returns (ForwardedCallsBuilder memory) {
-        self._calls[self._addedCallsCount] = ForwardedCall(string(abi.encodePacked("    ", title)), target, payload);
+        self._calls[self._addedCallsCount] = ForwardedCall(title, target, payload);
         self._addedCallsCount += 1;
         return self;
     }
 
     function getCalls(ForwardedCallsBuilder memory self) internal pure returns (ForwardedCall[] memory) {
-        // TODO: add length validation
+        if (self._calls.length != self._addedCallsCount) {
+            revert InvalidCallsCount(self._calls.length);
+        }
         return self._calls;
     }
 }
@@ -156,7 +156,7 @@ library ProposalCallsBuilderUtils {
         ProposalCallsBuilder memory self,
         string memory title,
         address target,
-        uint256 value,
+        uint96 value,
         bytes memory payload
     ) internal pure returns (ProposalCallsBuilder memory) {
         _addCallWithValue(self, title, target, value, payload);
@@ -208,7 +208,6 @@ library ProposalCallsBuilderUtils {
 
         for (uint256 i = 0; i < forwardedCalls.length; ++i) {
             ForwardedCall memory forwardedCall = forwardedCalls[i];
-            title = string(abi.encodePacked(title, "\n", forwardedCall.title));
             forwardingEVMScriptBuilder.addCall(forwardedCall.target, forwardedCall.payload);
         }
 
@@ -235,11 +234,10 @@ library ProposalCallsBuilderUtils {
         ProposalCallsBuilder memory self,
         string memory title,
         address target,
-        uint256 value,
+        uint96 value,
         bytes memory payload
     ) private pure {
-        self._calls[self._addedCallsCount] =
-            ProposalCall(string(abi.encodePacked("  ", title)), target, uint96(value), payload);
+        self._calls[self._addedCallsCount] = ProposalCall(title, target, value, payload);
         self._addedCallsCount += 1;
     }
 

@@ -1,7 +1,7 @@
-import { Address } from "abitype";
+import { Address } from "viem";
 
-import { HashConsensus_ABI } from "../../../abi/HashConsensus.abi";
-import { Contract } from "../../contracts";
+import { HashConsensus_ABI } from "@/abi/HashConsensus.abi";
+import { Contract } from "@/src/contracts";
 import { event } from "../event-helpers";
 import { OmnibusCallEvent } from "../omnibus-types";
 

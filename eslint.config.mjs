@@ -33,6 +33,27 @@ export default [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
       ],
+
+      // Style
+      curly: ["error", "all"],
+    },
+  },
+
+  // Imports that leave their own module go through the `@/` alias
+  {
+    files: ["src/**/*.ts", "tasks/**/*.ts", "test/**/*.ts", "omnibuses/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "^(\\.\\./){2,}",
+              message: 'Use the "@/" alias for imports outside the current module, e.g. "@/src/common/bytes".',
+            },
+          ],
+        },
+      ],
     },
   },
 
@@ -67,7 +88,6 @@ export default [
       "lib/",
       "*.config.js",
       "*.config.mjs",
-      "scripts/",
     ],
   },
 ];

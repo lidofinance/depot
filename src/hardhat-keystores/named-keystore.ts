@@ -4,7 +4,8 @@ import { encrypt, decrypt, create } from "web3-eth-accounts";
 
 import bytes from "../common/bytes";
 import { KnownError } from "../common/errors";
-import { Address, PrivateKey } from "../common/types";
+import { Address } from "viem";
+import { PrivateKey } from "../common/types";
 
 function assertPassword(password: string) {
   if (password.length === 0) {
@@ -22,11 +23,11 @@ export class NamedKeystore {
 
   static async fromPrivateKey(name: string, privateKey: PrivateKey, password: string) {
     if (!bytes.isValid(privateKey)) {
-      throw new Error(`Private key is not a valid hex string`);
+      throw new KnownError(`Private key is not a valid hex string`);
     }
     privateKey = bytes.normalize(privateKey);
     if (bytes.length(privateKey) !== 32) {
-      throw new Error(`Invalid private key length`);
+      throw new KnownError(`Invalid private key length`);
     }
     assertPassword(password);
     return new NamedKeystore(name, await encrypt(privateKey, password));

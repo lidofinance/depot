@@ -31,7 +31,9 @@ export const GIT_SHA_STONKS = () => process.env.GIT_SHA_STONKS || "";
 
 export const HH_NODE_IMAGE = (network: NetworkName) =>
   `ghcr.io/lidofinance/hardhat-node:2.28.0${network === "hoodi" ? "-hoodi" : ""}`;
-export const SCRIPTS_IMAGE = () => process.env.SCRIPTS_IMAGE || "ghcr.io/lidofinance/scripts:v22";
+export const SCRIPTS_IMAGE = () =>
+  process.env.SCRIPTS_IMAGE ||
+  "ghcr.io/lidofinance/scripts:v22@sha256:a091e1a7997ab51fe2d88a8336ec9baf60d79a8da5bf30cdbc264e6a85129c8b";
 /** e.g. `linux/amd64`; empty = host architecture */
 export const IMAGE_PLATFORM = (repo: string) =>
   process.env[`IMAGE_PLATFORM_${repo.toUpperCase().replace(/-/g, "_")}`] || "";
@@ -47,5 +49,6 @@ function getRequiredEnvVar(name: string) {
 function getOptionalEnvVar(name: string, defaultValue: string): string;
 function getOptionalEnvVar(name: string): string | undefined;
 function getOptionalEnvVar(name: string, defaultValue?: string) {
-  return process.env[name] ?? defaultValue;
+  const value = process.env[name];
+  return value === undefined || value.trim() === "" ? defaultValue : value;
 }
