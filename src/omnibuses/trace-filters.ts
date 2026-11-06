@@ -1,14 +1,14 @@
-import { AbiFunction, Address } from "abitype";
-import { encodeEventTopics, toFunctionSelector } from "viem";
+import { AbiFunction } from "abitype";
+import { Address, encodeEventTopics, toFunctionSelector } from "viem";
 
 import bytes from "../common/bytes";
 import { Contract, getFunctionAbi } from "../contracts";
 import { TxTrace, TxTraceCallItem, TxTraceItem, TxTraceLogItem } from "../traces/tx-traces";
 import { CallEvmOpcodes, isCallOpcode, isLogOpcode } from "../traces/evm-opcodes";
-import { CallsScript_ABI } from "../../abi/CallsScript.abi";
-import { Voting_ABI } from "../../abi/Voting.abi";
-import { Executor_ABI } from "../../abi/Executor.abi";
-import { EmergencyProtectedTimelock_ABI } from "../../abi/EmergencyProtectedTimelock.abi";
+import { CallsScript_ABI } from "@/abi/CallsScript.abi";
+import { Voting_ABI } from "@/abi/Voting.abi";
+import { Executor_ABI } from "@/abi/Executor.abi";
+import { EmergencyProtectedTimelock_ABI } from "@/abi/EmergencyProtectedTimelock.abi";
 import { getGovernanceContracts } from "./governance-contracts";
 
 interface MethodCallConfig {
@@ -47,7 +47,9 @@ export function filterOmnibusTrace(trace: TxTrace) {
 
 function omitViewMethodCalls(contracts: Contract[]) {
   return (traceItem: TxTraceItem) => {
-    if (!isCallOpcode(traceItem.type)) return true;
+    if (!isCallOpcode(traceItem.type)) {
+      return true;
+    }
 
     for (const { abi, address } of contracts) {
       if (!bytes.isEqual(traceItem.address, address)) {
@@ -82,7 +84,9 @@ function omitStaticCalls() {
 
 function omitProxyDelegateCalls() {
   return (txTraceItem: TxTraceItem, i: number, txTraceItems: TxTraceItem[]) => {
-    if (txTraceItem.type !== "DELEGATECALL") return true;
+    if (txTraceItem.type !== "DELEGATECALL") {
+      return true;
+    }
 
     let parentCallIndex = i - 1;
     while (parentCallIndex >= 0) {
@@ -97,10 +101,14 @@ function omitProxyDelegateCalls() {
       parentCallIndex -= 1;
     }
 
-    if (parentCallIndex < 0) return true;
+    if (parentCallIndex < 0) {
+      return true;
+    }
 
     const parentTraceItem = txTraceItems[parentCallIndex];
-    if (parentTraceItem.type !== "CALL" && parentTraceItem.type !== "STATICCALL") return true;
+    if (parentTraceItem.type !== "CALL" && parentTraceItem.type !== "STATICCALL") {
+      return true;
+    }
     return txTraceItem.input !== parentTraceItem.input && txTraceItem.output === parentTraceItem.output;
   };
 }
@@ -123,11 +131,15 @@ function omitMethodCalls(callsToOmit: MethodCallConfig[]) {
 
 function omitAragonServiceLogs() {
   return (txTraceItem: TxTraceItem) => {
-    if (!isLogOpcode(txTraceItem.type)) return true;
+    if (!isLogOpcode(txTraceItem.type)) {
+      return true;
+    }
 
     const { topics } = txTraceItem as TxTraceLogItem;
 
-    if (topics.length === 0) return true;
+    if (topics.length === 0) {
+      return true;
+    }
 
     const logScriptCallTopics = encodeEventTopics({ abi: CallsScript_ABI, eventName: "LogScriptCall" });
     const scriptResultTopics = encodeEventTopics({ abi: Voting_ABI, eventName: "ScriptResult" });
@@ -143,11 +155,15 @@ function omitAragonServiceLogs() {
 
 function omitDualGovernanceServiceLogs() {
   return (txTraceItem: TxTraceItem) => {
-    if (!isLogOpcode(txTraceItem.type)) return true;
+    if (!isLogOpcode(txTraceItem.type)) {
+      return true;
+    }
 
     const { topics } = txTraceItem as TxTraceLogItem;
 
-    if (topics.length === 0) return true;
+    if (topics.length === 0) {
+      return true;
+    }
 
     const executedTopics = encodeEventTopics({ abi: Executor_ABI, eventName: "Executed" });
     const proposalExecutedTopics = encodeEventTopics({

@@ -16,7 +16,7 @@ import {
 
 const solidityErrorAbi = parseAbi(["error Error(string reason)"]);
 
-export function revertData(error: unknown): Hex | undefined {
+function revertData(error: unknown): Hex | undefined {
   if (!(error instanceof BaseError)) {
     return undefined;
   }

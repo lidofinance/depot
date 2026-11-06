@@ -9,10 +9,17 @@ import {
   LogEvmOpcodes,
   SelfDestructEvmOpcodes,
 } from "./evm-opcodes";
-import { Address } from "../common/types";
 import { NetworkName } from "../network";
 import { Contract, getEventAbi, getFunctionAbi } from "../contracts/contracts";
-import { AbiEvent, BaseError, decodeErrorResult, decodeEventLog, decodeFunctionData, decodeFunctionResult } from "viem";
+import {
+  AbiEvent,
+  Address,
+  BaseError,
+  decodeErrorResult,
+  decodeEventLog,
+  decodeFunctionData,
+  decodeFunctionResult,
+} from "viem";
 import fmt from "../common/format";
 
 type TxTraceOpcodes = LogEvmOpcodes | CallEvmOpcodes | CreateEvmOpcodes | SelfDestructEvmOpcodes;
@@ -89,11 +96,18 @@ export class TxTrace {
   }
 
   public formatOpCode(txTraceItem: TxTraceItem, padding: number = 0): string {
-    if (isCallOpcode(txTraceItem.type)) return this.#formatCallTraceItem(txTraceItem as TxTraceCallItem, padding);
-    if (isCreateOpcode(txTraceItem.type)) return this.formatCreateTraceItem(txTraceItem as TxTraceCreateItem, padding);
-    if (isSelfDestructOpcode(txTraceItem.type))
+    if (isCallOpcode(txTraceItem.type)) {
+      return this.#formatCallTraceItem(txTraceItem as TxTraceCallItem, padding);
+    }
+    if (isCreateOpcode(txTraceItem.type)) {
+      return this.formatCreateTraceItem(txTraceItem as TxTraceCreateItem, padding);
+    }
+    if (isSelfDestructOpcode(txTraceItem.type)) {
       return this.formatSelfDestructTraceItem(txTraceItem as TxTraceSelfDestructItem, padding);
-    if (isLogOpcode(txTraceItem.type)) return this.#formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
+    }
+    if (isLogOpcode(txTraceItem.type)) {
+      return this.#formatLogTraceItem(txTraceItem as TxTraceLogItem, padding);
+    }
 
     return " ".repeat(txTraceItem.depth + (padding ?? 0)) + txTraceItem.type;
   }
@@ -142,7 +156,9 @@ export class TxTrace {
         };
         break;
       } catch (err) {
-        if (isAbiMismatchError(err)) continue; // ABI of this contract doesn't match — probe next
+        if (isAbiMismatchError(err)) {
+          continue; // ABI of this contract doesn't match — probe next
+        }
         throw err; // unexpected error — propagate
       }
     }
@@ -190,7 +206,9 @@ export class TxTrace {
         decoded = { abi, args: args ?? [] };
         break;
       } catch (err) {
-        if (isAbiMismatchError(err)) continue; // event doesn't belong to this contract's ABI — probe next
+        if (isAbiMismatchError(err)) {
+          continue; // event doesn't belong to this contract's ABI — probe next
+        }
         throw err; // unexpected error — propagate
       }
     }
@@ -201,7 +219,9 @@ export class TxTrace {
   }
 
   private updateDepths(calls: TxTraceItem[]) {
-    if (calls.length === 0) return;
+    if (calls.length === 0) {
+      return;
+    }
 
     const depths = calls.map((call) => call.depth);
 
@@ -239,7 +259,11 @@ export class TxTrace {
 // our own "not found" errors from getFunctionAbi/getEventAbi as "try next contract".
 // Unexpected errors propagate out so real bugs stay visible.
 function isAbiMismatchError(err: unknown): boolean {
-  if (err instanceof BaseError) return true;
-  if (err instanceof Error && err.message.includes("not found")) return true;
+  if (err instanceof BaseError) {
+    return true;
+  }
+  if (err instanceof Error && err.message.includes("not found")) {
+    return true;
+  }
   return false;
 }

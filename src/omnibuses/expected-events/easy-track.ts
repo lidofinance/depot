@@ -1,11 +1,10 @@
-import { Address } from "abitype";
-import { toFunctionSelector } from "viem";
+import { Address, toFunctionSelector } from "viem";
 
-import { AllowedRecipientsRegistry_ABI } from "../../../abi/AllowedRecipientsRegistry.abi";
-import { EasyTrack_ABI } from "../../../abi/EasyTrack.abi";
-import { Finance_ABI } from "../../../abi/Finance.abi";
-import bytes, { HexStrPrefixed } from "../../common/bytes";
-import { Contract, getFunctionAbi } from "../../contracts";
+import { AllowedRecipientsRegistry_ABI } from "@/abi/AllowedRecipientsRegistry.abi";
+import { EasyTrack_ABI } from "@/abi/EasyTrack.abi";
+import { Finance_ABI } from "@/abi/Finance.abi";
+import bytes, { HexStrPrefixed } from "@/src/common/bytes";
+import { Contract, getFunctionAbi } from "@/src/contracts";
 import { event } from "../event-helpers";
 import { OmnibusCallEvent } from "../omnibus-types";
 

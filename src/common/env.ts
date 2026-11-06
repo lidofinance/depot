@@ -49,5 +49,6 @@ function getRequiredEnvVar(name: string) {
 function getOptionalEnvVar(name: string, defaultValue: string): string;
 function getOptionalEnvVar(name: string): string | undefined;
 function getOptionalEnvVar(name: string, defaultValue?: string) {
-  return process.env[name] ?? defaultValue;
+  const value = process.env[name];
+  return value === undefined || value.trim() === "" ? defaultValue : value;
 }

@@ -1,7 +1,7 @@
 import { GovernanceContracts } from "../governance-contracts";
 import { event } from "../event-helpers";
 import { OmnibusCallEvent } from "../omnibus-types";
-import type { ExternalCall } from "../vote-events";
+import type { ExternalCall } from "../omnibus-contract-calls";
 
 function proposalSubmitted(
   { voting, timelock, dualGovernance }: GovernanceContracts,

@@ -1,9 +1,7 @@
 import { assert } from "chai";
 import { rejects } from "node:assert/strict";
 import sinon from "sinon";
-import { encodeFunctionData, TransactionReceipt } from "viem";
-
-import { Address } from "abitype";
+import { Address, encodeFunctionData, TransactionReceipt } from "viem";
 
 import { IGovernance_ABI } from "@/abi/IGovernance.abi";
 import { EvmScriptParser } from "@/src/aragon-votes-tools";

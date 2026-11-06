@@ -4,7 +4,8 @@ import { encrypt, decrypt, create } from "web3-eth-accounts";
 
 import bytes from "../common/bytes";
 import { KnownError } from "../common/errors";
-import { Address, PrivateKey } from "../common/types";
+import { Address } from "viem";
+import { PrivateKey } from "../common/types";
 
 function assertPassword(password: string) {
   if (password.length === 0) {

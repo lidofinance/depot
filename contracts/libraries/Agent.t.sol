@@ -26,7 +26,7 @@ contract AgentCallsTest is Test {
         bytes memory script = abi.encodePacked(bytes4(0x00000001), FIRST_TARGET, uint32(4), hex"12345678");
 
         assertEq(calls.length, 1);
-        assertEq(calls[0].title, "  Update app");
+        assertEq(calls[0].title, "Update app");
         assertEq(calls[0].target, AGENT);
         assertEq(calls[0].value, 0);
         assertEq(calls[0].payload, abi.encodeWithSignature("forward(bytes)", script));
@@ -47,7 +47,7 @@ contract AgentCallsTest is Test {
         );
 
         assertEq(calls.length, 1);
-        assertEq(calls[0].title, "  Update both apps\n    First app\n    Second app");
+        assertEq(calls[0].title, "Update both apps");
         assertEq(calls[0].target, AGENT);
         assertEq(calls[0].value, 0);
         assertEq(calls[0].payload, abi.encodeWithSignature("forward(bytes)", script));
@@ -60,8 +60,8 @@ contract AgentCallsTest is Test {
             .getCalls();
 
         assertEq(calls.length, 2);
-        assertEq(calls[0].title, "  First");
-        assertEq(calls[1].title, "  Second");
+        assertEq(calls[0].title, "First");
+        assertEq(calls[1].title, "Second");
         assertEq(
             calls[1].payload,
             abi.encodeWithSignature(

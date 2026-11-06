@@ -1,5 +1,5 @@
 import bytes, { HexStrPrefixed } from "../common/bytes";
-import { Address } from "../common/types";
+import { Address } from "viem";
 
 interface EvmCall {
   address: Address;

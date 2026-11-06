@@ -1,10 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Abi } from "abitype";
-import { getAddress, isAddress } from "viem";
+import { Address, getAddress, isAddress } from "viem";
 
 import bytes, { HexStrPrefixed } from "../common/bytes";
-import { Address } from "../common/types";
 import { createRpcClient, NetworkName, RpcClient } from "../network";
 import { ContractInfoResolver } from "../contract-info-resolver/contract-info-resolver";
 import { ContractInfo } from "../contract-info-resolver/types";

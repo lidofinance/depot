@@ -1,30 +1,13 @@
-import { Address } from "abitype";
-import { decodeFunctionData, encodeEventTopics, Log } from "viem";
+import { Address, encodeEventTopics, Log } from "viem";
 
-import { IGovernance_ABI } from "../../abi/IGovernance.abi";
 import bytes, { HexStrPrefixed } from "../common/bytes";
 import { event } from "./event-helpers";
 import agentEvents, { isAgentForward } from "./expected-events/agent";
 import dualGovernanceEvents from "./expected-events/dual-governance";
 import { GovernanceContracts } from "./governance-contracts";
 import { LogCollector, LogWindow } from "./log-collector";
-import { isSubmitProposalCall } from "./omnibus-contract-calls";
+import { decodeSubmitProposal, ExternalCall, isSubmitProposalCall } from "./omnibus-contract-calls";
 import { OmnibusCallEvent, VoteCall } from "./omnibus-types";
-
-export interface ExternalCall {
-  target: Address;
-  value: bigint;
-  payload: HexStrPrefixed;
-}
-
-export function decodeSubmitProposal(call: VoteCall): { calls: ExternalCall[]; metadata: string } {
-  const decoded = decodeFunctionData({ abi: IGovernance_ABI, data: call.payload });
-  if (decoded.functionName !== "submitProposal") {
-    throw new Error(`Vote item "${call.title}" doesn't call "submitProposal" but "${decoded.functionName}"`);
-  }
-  const [calls, metadata] = decoded.args;
-  return { calls: calls.map((item) => ({ ...item })), metadata };
-}
 
 function isLogOf(log: Log, emitter: Address, topic: HexStrPrefixed) {
   return bytes.isEqual(log.address, emitter) && log.topics[0] !== undefined && bytes.isEqual(log.topics[0], topic);
@@ -50,16 +33,11 @@ export class VoteEvents {
     this.#windows = this.#splitByItems();
   }
 
-  get titles(): string[] {
-    return this.#calls.map((call) => call.title);
-  }
-
   item(title: string, events: OmnibusCallEvent[] = []) {
-    return this.itemAt(this.#indexOf(title), events);
+    return this.#itemAt(this.#indexOf(title), events);
   }
 
-  /** For repeated titles. Zero-based. */
-  itemAt(index: number, events: OmnibusCallEvent[] = []) {
+  #itemAt(index: number, events: OmnibusCallEvent[] = []) {
     const call = this.#calls[index];
     if (!call) {
       throw new Error(`Vote has ${this.#calls.length} items, there is no item at index ${index}`);
@@ -86,10 +64,10 @@ export class VoteEvents {
       return indexes[0];
     }
     if (indexes.length === 0) {
-      const known = this.titles.map((knownTitle, index) => `  ${index}. ${knownTitle}`).join("\n");
+      const known = this.#calls.map((call, index) => `  ${index}. ${call.title}`).join("\n");
       throw new Error(`Vote has no item titled "${title}". Items:\n${known}`);
     }
-    throw new Error(`Vote has ${indexes.length} items titled "${title}" — use itemAt(${indexes.join(" | ")})`);
+    throw new Error(`Vote has ${indexes.length} items titled "${title}": titles must be unique`);
   }
 
   #envelopeOf(call: VoteCall): OmnibusCallEvent[] {
@@ -140,10 +118,6 @@ export class ProposalEvents {
     this.#calls = calls;
     this.#governance = governance;
     this.#windows = this.#splitByCalls();
-  }
-
-  get callsCount(): number {
-    return this.#calls.length;
   }
 
   call(index: number, events: OmnibusCallEvent[] | OmnibusCallEvent[][] = []) {

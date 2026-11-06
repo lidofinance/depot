@@ -1,16 +1,13 @@
-import { Address } from "abitype";
-import { decodeFunctionData, getAbiItem, toFunctionSelector } from "viem";
+import { Address, decodeFunctionData, getAbiItem, toFunctionSelector } from "viem";
 
-import { IGovernance_ABI } from "../../abi/IGovernance.abi";
+import { IGovernance_ABI } from "@/abi/IGovernance.abi";
 import { EvmScriptParser } from "../aragon-votes-tools";
 import bytes, { HexStrPrefixed } from "../common/bytes";
 import { OmnibusBaseContract } from "../contracts";
 import { RpcClient } from "../network";
 import { VoteCall } from "./omnibus-types";
 
-export const SUBMIT_PROPOSAL_SELECTOR = toFunctionSelector(
-  getAbiItem({ abi: IGovernance_ABI, name: "submitProposal" }),
-);
+const SUBMIT_PROPOSAL_SELECTOR = toFunctionSelector(getAbiItem({ abi: IGovernance_ABI, name: "submitProposal" }));
 
 export interface OmnibusContractCalls {
   calls: VoteCall[];
@@ -67,16 +64,17 @@ export function getSubmitProposalCallIndexes(calls: VoteCall[], governance: Addr
   }, []);
 }
 
-/**
- * @returns the `metadata` argument of `submitProposal` — the description of the proposal
- */
-export function decodeSubmitProposalMetadata(call: VoteCall): string {
-  const decoded = decodeFunctionData({ abi: IGovernance_ABI, data: call.payload });
+export interface ExternalCall {
+  target: Address;
+  value: bigint;
+  payload: HexStrPrefixed;
+}
 
+export function decodeSubmitProposal(call: VoteCall): { calls: ExternalCall[]; metadata: string } {
+  const decoded = decodeFunctionData({ abi: IGovernance_ABI, data: call.payload });
   if (decoded.functionName !== "submitProposal") {
     throw new Error(`Vote item "${call.title}" doesn't call "submitProposal" but "${decoded.functionName}"`);
   }
-
-  const [, metadata] = decoded.args;
-  return metadata;
+  const [calls, metadata] = decoded.args;
+  return { calls: calls.map((item) => ({ ...item })), metadata };
 }

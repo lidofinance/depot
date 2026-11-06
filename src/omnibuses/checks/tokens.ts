@@ -1,8 +1,8 @@
-import { Address } from "abitype";
+import { Address } from "viem";
 import { CheckContext } from "./checks";
-import { assert } from "../../common/assert";
-import { contract } from "../../contracts";
-import { ERC20_ABI } from "../../../abi/ERC20.abi";
+import { assert } from "@/src/common/assert";
+import { contract } from "@/src/contracts";
+import { ERC20_ABI } from "@/abi/ERC20.abi";
 
 interface CheckERC20BalanceInput {
   token: Address;

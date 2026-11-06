@@ -20,10 +20,10 @@ contract NodeOperatorsCallsTest is Test {
             .setRewardAddress("Change rewards", REGISTRY, 21, REWARD)
             .getCalls();
 
-        assertEq(calls[0].title, "    Rename operator");
+        assertEq(calls[0].title, "Rename operator");
         assertEq(calls[0].target, REGISTRY);
         assertEq(calls[0].payload, abi.encodeWithSignature("setNodeOperatorName(uint256,string)", 21, "Consensys test"));
-        assertEq(calls[1].title, "    Change rewards");
+        assertEq(calls[1].title, "Change rewards");
         assertEq(calls[1].target, REGISTRY);
         assertEq(calls[1].payload, abi.encodeWithSignature("setNodeOperatorRewardAddress(uint256,address)", 21, REWARD));
     }
@@ -32,7 +32,7 @@ contract NodeOperatorsCallsTest is Test {
         ForwardedCall[] memory calls =
             ForwardedCallsBuilderUtils.create(1).deactivate("Deactivate operator", REGISTRY, 21).getCalls();
 
-        assertEq(calls[0].title, "    Deactivate operator");
+        assertEq(calls[0].title, "Deactivate operator");
         assertEq(calls[0].target, REGISTRY);
         assertEq(calls[0].payload, abi.encodeWithSignature("deactivateNodeOperator(uint256)", 21));
     }
@@ -42,7 +42,7 @@ contract NodeOperatorsCallsTest is Test {
             .updateTargetValidatorsLimits("Set target", STAKING_ROUTER, 1, 21, 2, 100)
             .getCalls();
 
-        assertEq(calls[0].title, "    Set target");
+        assertEq(calls[0].title, "Set target");
         assertEq(calls[0].target, STAKING_ROUTER);
         assertEq(
             calls[0].payload,

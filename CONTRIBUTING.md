@@ -27,8 +27,12 @@ These are ESLint errors — they block commits:
 - Always use typed errors: `throw new Error("message")`, not `throw "string"`
 - Defensive throws on exhaustive checks are mandatory:
   ```typescript
-  if (x === "a") return handleA();
-  if (x === "b") return handleB();
+  if (x === "a") {
+    return handleA();
+  }
+  if (x === "b") {
+    return handleB();
+  }
   throw new Error(`Unsupported: ${x}`); // catches future additions
   ```
 - Never remove defensive throws — even if TypeScript says the branch is unreachable
@@ -51,6 +55,7 @@ Project uses `"type": "module"`. Key constraints:
 
 - ESLint flat config, 0 errors / 0 warnings expected
 - Prettier with defaults (semi: true, printWidth: 120)
+- Imports that leave their own module (`../../` or deeper, or into another top-level dir) use the `@/` alias (`@/abi/ACL.abi`, `@/src/common/bytes`); `./x` and `../x` stay relative
 - `npm run lint` before committing
 
 ## Tests

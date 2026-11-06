@@ -1,19 +1,12 @@
-import {
-  AbiEvent,
-  AbiParametersToPrimitiveTypes,
-  Address,
-  ExtractAbiEvent,
-  ExtractAbiEventNames,
-  formatAbiItem,
-} from "abitype";
+import { AbiEvent, AbiParametersToPrimitiveTypes, ExtractAbiEvent, ExtractAbiEventNames, formatAbiItem } from "abitype";
 import chalk from "chalk";
 import deepEqual from "deep-eql";
-import { decodeEventLog, encodeEventTopics, Hex, isAddressEqual, Log, TransactionReceipt } from "viem";
+import { Address, decodeEventLog, encodeEventTopics, Hex, isAddressEqual, Log, TransactionReceipt } from "viem";
 
 import bytes from "../common/bytes";
 import { Contract, getEventAbi } from "../contracts";
-import { EmergencyProtectedTimelock_ABI } from "../../abi/EmergencyProtectedTimelock.abi";
-import { Voting_ABI } from "../../abi/Voting.abi";
+import { EmergencyProtectedTimelock_ABI } from "@/abi/EmergencyProtectedTimelock.abi";
+import { Voting_ABI } from "@/abi/Voting.abi";
 import type { GovernanceContracts } from "./governance-contracts";
 import type { OmnibusCallEvent } from "./omnibus";
 

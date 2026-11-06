@@ -55,7 +55,7 @@ runs:
 
     - name: Restore repo image
       id: restore
-      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ${{ runner.temp }}/repo-image.tar
         key: ${{ steps.image.outputs.key }}

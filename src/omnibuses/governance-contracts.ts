@@ -1,15 +1,15 @@
-import { ACL_ABI } from "../../abi/ACL.abi";
-import { Agent_ABI } from "../../abi/Agent.abi";
-import { CallsScript_ABI } from "../../abi/CallsScript.abi";
-import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
-import { EmergencyProtectedTimelock_ABI } from "../../abi/EmergencyProtectedTimelock.abi";
-import { EVMScriptRegistry_ABI } from "../../abi/EVMScriptRegistry.abi";
-import { Executor_ABI } from "../../abi/Executor.abi";
-import { Kernel_ABI } from "../../abi/Kernel.abi";
-import { LidoLocator_ABI } from "../../abi/LidoLocator.abi";
-import { MiniMeToken_ABI } from "../../abi/MiniMeToken.abi";
-import { TokenManager_ABI } from "../../abi/TokenManager.abi";
-import { Voting_ABI } from "../../abi/Voting.abi";
+import { ACL_ABI } from "@/abi/ACL.abi";
+import { Agent_ABI } from "@/abi/Agent.abi";
+import { CallsScript_ABI } from "@/abi/CallsScript.abi";
+import { DualGovernance_ABI } from "@/abi/DualGovernance.abi";
+import { EmergencyProtectedTimelock_ABI } from "@/abi/EmergencyProtectedTimelock.abi";
+import { EVMScriptRegistry_ABI } from "@/abi/EVMScriptRegistry.abi";
+import { Executor_ABI } from "@/abi/Executor.abi";
+import { Kernel_ABI } from "@/abi/Kernel.abi";
+import { LidoLocator_ABI } from "@/abi/LidoLocator.abi";
+import { MiniMeToken_ABI } from "@/abi/MiniMeToken.abi";
+import { TokenManager_ABI } from "@/abi/TokenManager.abi";
+import { Voting_ABI } from "@/abi/Voting.abi";
 import { Contract, contract } from "../contracts";
 import { NetworkName } from "../network";
 

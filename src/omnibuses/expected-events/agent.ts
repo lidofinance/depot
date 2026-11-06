@@ -1,10 +1,9 @@
-import { Address } from "abitype";
-import { decodeFunctionData, getAbiItem, toFunctionSelector } from "viem";
+import { Address, decodeFunctionData, getAbiItem, toFunctionSelector } from "viem";
 
-import { Agent_ABI } from "../../../abi/Agent.abi";
-import { EvmScriptParser } from "../../aragon-votes-tools";
-import bytes, { HexStrPrefixed } from "../../common/bytes";
-import { contract } from "../../contracts";
+import { Agent_ABI } from "@/abi/Agent.abi";
+import { EvmScriptParser } from "@/src/aragon-votes-tools";
+import bytes, { HexStrPrefixed } from "@/src/common/bytes";
+import { contract } from "@/src/contracts";
 import { event } from "../event-helpers";
 import { GovernanceContracts } from "../governance-contracts";
 import { OmnibusCallEvent } from "../omnibus-types";

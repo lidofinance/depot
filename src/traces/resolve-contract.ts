@@ -1,4 +1,4 @@
-import { Address } from "../common/types";
+import { Address } from "viem";
 import { ContractInfoResolver } from "../contract-info-resolver/contract-info-resolver";
 import { Contract } from "../contracts/contracts";
 import { NetworkName } from "../network";

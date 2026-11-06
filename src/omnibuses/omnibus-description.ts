@@ -1,6 +1,6 @@
-import { Address } from "abitype";
+import { Address } from "viem";
 
-import { decodeSubmitProposalMetadata, getSubmitProposalCallIndexes } from "./omnibus-contract-calls";
+import { decodeSubmitProposal, getSubmitProposalCallIndexes } from "./omnibus-contract-calls";
 import { VoteCall } from "./omnibus-types";
 import { KnownError } from "../common/errors";
 
@@ -143,7 +143,7 @@ export function assertDgProposalDescriptions(calls: VoteCall[], governance: Addr
       );
     }
 
-    const metadata = decodeSubmitProposalMetadata(call);
+    const { metadata } = decodeSubmitProposal(call);
     if (metadata !== description) {
       throw new KnownError(
         `Description of the proposal submitted by the vote item ${itemNumber} differs from the one in the ` +

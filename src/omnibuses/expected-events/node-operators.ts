@@ -1,7 +1,7 @@
-import { Address } from "abitype";
+import { Address } from "viem";
 
-import { NodeOperatorsRegistry_ABI } from "../../../abi/NodeOperatorsRegistry.abi";
-import { Contract } from "../../contracts";
+import { NodeOperatorsRegistry_ABI } from "@/abi/NodeOperatorsRegistry.abi";
+import { Contract } from "@/src/contracts";
 import { event } from "../event-helpers";
 import { OmnibusCallEvent } from "../omnibus-types";
 

@@ -1,7 +1,7 @@
 import bytes, { HexStrPrefixed } from "../common/bytes";
 import { isCallOpcode, isCreateOpcode, isLogOpcode } from "./evm-opcodes";
 import { TxTrace, TxTraceCallItem, TxTraceCreateItem } from "./tx-traces";
-import { Address } from "../common/types";
+import { Address } from "viem";
 import { TraceStrategy } from "./types";
 import { NetworkName } from "../network";
 import { Contract } from "../contracts/contracts";
@@ -44,7 +44,9 @@ export class TxTracer {
 
     for (const address of addresses) {
       const normalizedAddress = bytes.normalize(address);
-      if (allResolvedContracts.has(normalizedAddress)) continue;
+      if (allResolvedContracts.has(normalizedAddress)) {
+        continue;
+      }
       const prePopulatedContract = prePopulatedContracts.find((c) => bytes.isEqual(c.address, normalizedAddress));
       if (prePopulatedContract) {
         allResolvedContracts.add(normalizedAddress);

@@ -52,10 +52,12 @@ const runScriptsTests = async () => {
   // vote, acceptance and snapshot tests live in depot, the regression suite stays in scripts
   const cmd = ["poetry", "run", "brownie", "test", "tests/regression", "--durations=20", "--network", "mfh-1"];
 
+  const pinataJwt = env.PINATA_JWT();
+  const etherscanToken = env.ETHERSCAN_TOKEN();
   const config: Docker.ContainerCreateOptions = {
     Env: [
-      `PINATA_CLOUD_TOKEN=${env.PINATA_JWT()}`,
-      `ETHERSCAN_TOKEN=${env.ETHERSCAN_TOKEN()}`,
+      ...(pinataJwt ? [`PINATA_CLOUD_TOKEN=${pinataJwt}`] : []),
+      ...(etherscanToken ? [`ETHERSCAN_TOKEN=${etherscanToken}`] : []),
       `MAX_GET_LOGS_RANGE=4999`,
       `ETH_RPC_URL=${getDockerLocalRpcUrl()}`,
     ],

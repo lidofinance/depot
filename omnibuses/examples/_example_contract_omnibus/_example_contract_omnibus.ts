@@ -1,7 +1,7 @@
 import { assert } from "chai";
 import { decodeFunctionData } from "viem";
 import { event, expectedEvents as ev, Omnibus } from "@/src/omnibuses";
-import { decodeSubmitProposal } from "@/src/omnibuses/vote-events";
+import { decodeSubmitProposal } from "@/src/omnibuses/omnibus-contract-calls";
 import { contract, OmnibusBaseContract } from "@/src/contracts";
 import { Agent_ABI } from "@/abi/Agent.abi";
 import { MiniMeToken_ABI } from "@/abi/MiniMeToken.abi";

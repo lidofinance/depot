@@ -18,7 +18,7 @@ contract AllowedRecipientsCallsTest is Test {
             .setLimitParameters("Update quarterly limit", REGISTRY, 1000 ether, 3)
             .getCalls();
 
-        assertEq(calls[0].title, "    Update quarterly limit");
+        assertEq(calls[0].title, "Update quarterly limit");
         assertEq(calls[0].target, REGISTRY);
         assertEq(calls[0].payload, abi.encodeWithSignature("setLimitParameters(uint256,uint256)", 1000 ether, 3));
     }
@@ -31,7 +31,7 @@ contract AllowedRecipientsCallsTest is Test {
 
         assertEq(calls.length, 2);
         assertEq(calls[0].payload, abi.encodeWithSignature("setLimitParameters(uint256,uint256)", 1000 ether, 3));
-        assertEq(calls[1].title, "    Reset spent amount");
+        assertEq(calls[1].title, "Reset spent amount");
         assertEq(calls[1].target, REGISTRY);
         assertEq(calls[1].payload, abi.encodeWithSignature("unsafeSetSpentAmount(uint256)", 0));
     }
@@ -41,7 +41,7 @@ contract AllowedRecipientsCallsTest is Test {
             .addRecipient("Add NEST recipient", REGISTRY, RECIPIENT, "Buyback Allocator")
             .getCalls();
 
-        assertEq(calls[0].title, "    Add NEST recipient");
+        assertEq(calls[0].title, "Add NEST recipient");
         assertEq(calls[0].target, REGISTRY);
         assertEq(
             calls[0].payload, abi.encodeWithSignature("addRecipient(address,string)", RECIPIENT, "Buyback Allocator")

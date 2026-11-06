@@ -2,7 +2,7 @@ import { TransactionReceipt } from "viem";
 import bytes from "../common/bytes";
 import { contract, getEventAbi } from "../contracts";
 import { DevRpcClient } from "../network";
-import { DualGovernanceConfigProvider_ABI } from "../../abi/DualGovernanceConfigProvider.abi";
+import { DualGovernanceConfigProvider_ABI } from "@/abi/DualGovernanceConfigProvider.abi";
 import { getGovernanceContracts } from "./governance-contracts";
 import { KnownError } from "../common/errors";
 

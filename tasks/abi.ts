@@ -22,7 +22,7 @@ async function abiSyncAction(taskArgs: AbiSyncTaskArgs, hre: HardhatRuntimeEnvir
     throw new KnownError(`Unknown network "${networkName}", expected one of: ${SUPPORTED_NETWORKS.join(", ")}`);
   }
 
-  const result = await syncAbi({
+  const syncedAbi = await syncAbi({
     projectRoot: hre.config.paths.root,
     name: taskArgs.name,
     networkName,
@@ -38,10 +38,10 @@ async function abiSyncAction(taskArgs: AbiSyncTaskArgs, hre: HardhatRuntimeEnvir
     proxyAbi: taskArgs.proxyAbi,
   });
 
-  console.log(`${chalk.green("✔")} ${result.contractName} — ${result.source}`);
-  console.log(`  ${result.abiPath}`);
-  if (result.solPath) {
-    console.log(`  ${result.solPath}`);
+  console.log(`${chalk.green("✔")} ${syncedAbi.contractName} — ${syncedAbi.source}`);
+  console.log(`  ${syncedAbi.abiPath}`);
+  if (syncedAbi.solPath) {
+    console.log(`  ${syncedAbi.solPath}`);
   }
 }
 

@@ -1,32 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import "contracts/OmnibusBase.sol";
-import "contracts/libraries/CallsBuilder.sol";
-
-import {IFinance} from "contracts/interfaces/IFinance.sol";
-import {IEasyTrack} from "contracts/interfaces/IEasyTrack.sol";
+import {OmnibusBase} from "contracts/OmnibusBase.sol";
+import {ILido} from "contracts/interfaces/ILido.sol";
 import {INodeOperatorsRegistry} from "contracts/interfaces/INodeOperatorsRegistry.sol";
-
-interface IRegistry {
-    function updateSpentAmount(uint256 _payoutAmount) external;
-    function addRecipient(address _recipient, string memory _title) external;
-    function removeRecipient(address _recipient) external;
-}
-
-interface IStETH {
-    function submit(address _referral) external payable returns (uint256);
-}
-
-interface IStakingRouter {
-    enum StakingModuleStatus {
-        Active, // deposits and rewards allowed
-        DepositsPaused, // deposits NOT allowed, rewards allowed
-        Stopped // deposits and rewards NOT allowed
-    }
-
-    function setStakingModuleStatus(uint256 _stakingModuleId, StakingModuleStatus _status) external;
-}
+import {IStakingRouter} from "contracts/interfaces/IStakingRouter.sol";
+import {AgentCalls} from "contracts/libraries/Agent.sol";
+import {DualGovernanceCalls} from "contracts/libraries/DualGovernance.sol";
+import {EasyTrackCalls} from "contracts/libraries/EasyTrack.sol";
+import {FinanceCalls} from "contracts/libraries/Finance.sol";
+import {
+    VoteCall,
+    VoteCallsBuilder,
+    VoteCallsBuilderUtils,
+    ProposalCallsBuilder,
+    ProposalCallsBuilderUtils,
+    ForwardedCallsBuilder,
+    ForwardedCallsBuilderUtils
+} from "contracts/libraries/CallsBuilder.sol";
 
 interface IOmnibusVoteStateValidator {
     function validateStateBeforeVote() external;
@@ -36,7 +27,11 @@ interface IOmnibusVoteStateValidator {
 /// @title ExampleContractOmnibus
 contract ExampleContractOmnibus is OmnibusBase {
     using VoteCallsBuilderUtils for VoteCallsBuilder;
+    using EasyTrackCalls for VoteCallsBuilder;
+    using FinanceCalls for VoteCallsBuilder;
+    using DualGovernanceCalls for VoteCallsBuilder;
     using ProposalCallsBuilderUtils for ProposalCallsBuilder;
+    using AgentCalls for ProposalCallsBuilder;
     using ForwardedCallsBuilderUtils for ForwardedCallsBuilder;
 
     uint256 public constant VOTE_ITEMS_COUNT = 11;
@@ -77,6 +72,9 @@ contract ExampleContractOmnibus is OmnibusBase {
     address public constant ROCKAWAY_REWARD_ADDRESS = 0xcA6817DAb36850D58375A10c78703CE49d41D25a;
     address private constant ZERO_ADDRESS = address(0);
 
+    uint256 private constant CURATED_MODULE_ID = 1;
+    uint8 private constant STAKING_MODULE_STATUS_DEPOSITS_PAUSED = 1;
+
     string internal constant DG_PROPOSAL_DESCRIPTION = "11. Submit proposal to Dual Governance with the following calls:\n"
         "  11.1. Forward call via Agent to pause deposits to the Curated Module\n"
         "  11.2. Execute call via Agent to deposit 100 wei into stETH\n"
@@ -104,103 +102,74 @@ contract ExampleContractOmnibus is OmnibusBase {
                 ACTION_VALIDATOR,
                 abi.encodeCall(IOmnibusVoteStateValidator.validateStateBeforeVote, ())
             )
-            .directCall(
+            .addTopUpFactory(
                 "Add TopUpEVMScriptFactory with address 0x85d703B2A4BaD713b596c647badac9A1e95bB03d",
                 EASY_TRACK,
-                abi.encodeCall(
-                    IEasyTrack.addEVMScriptFactory,
-                    (
-                        REWARDS_LDO_TOP_UP_FACTORY,
-                        abi.encodePacked(
-                            FINANCE,
-                            IFinance.newImmediatePayment.selector,
-                            REWARDS_LDO_ALLOWED_RECIPIENTS_REGISTRY,
-                            IRegistry.updateSpentAmount.selector
-                        )
-                    )
-                )
+                REWARDS_LDO_TOP_UP_FACTORY,
+                FINANCE,
+                REWARDS_LDO_ALLOWED_RECIPIENTS_REGISTRY
             )
-            .directCall(
+            .addRecipientFactory(
                 "Add AddRecipientEVMScriptFactory with address 0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C",
                 EASY_TRACK,
-                abi.encodeCall(
-                    IEasyTrack.addEVMScriptFactory,
-                    (
-                        REWARDS_LDO_ADD_RECIPIENT_FACTORY,
-                        abi.encodePacked(REWARDS_LDO_ALLOWED_RECIPIENTS_REGISTRY, IRegistry.addRecipient.selector)
-                    )
-                )
+                REWARDS_LDO_ADD_RECIPIENT_FACTORY,
+                REWARDS_LDO_ALLOWED_RECIPIENTS_REGISTRY
             )
-            .directCall(
+            .removeRecipientFactory(
                 "Add RemoveRecipientEVMScriptFactory with address 0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E",
                 EASY_TRACK,
-                abi.encodeCall(
-                    IEasyTrack.addEVMScriptFactory,
-                    (
-                        REWARDS_LDO_REMOVE_RECIPIENT_FACTORY,
-                        abi.encodePacked(REWARDS_LDO_ALLOWED_RECIPIENTS_REGISTRY, IRegistry.removeRecipient.selector)
-                    )
-                )
+                REWARDS_LDO_REMOVE_RECIPIENT_FACTORY,
+                REWARDS_LDO_ALLOWED_RECIPIENTS_REGISTRY
             )
-            .directCall(
+            .newImmediatePayment(
                 "Transfer 110,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig",
                 FINANCE,
-                abi.encodeCall(
-                    IFinance.newImmediatePayment,
-                    (
-                        LDO,
-                        ATC_STABLES_MULTISIG,
-                        ATC_STABLES_LDO_TRANSFER_AMOUNT,
-                        "Transfer 110,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig"
-                    )
-                )
+                LDO,
+                ATC_STABLES_MULTISIG,
+                ATC_STABLES_LDO_TRANSFER_AMOUNT,
+                "Transfer 110,000 LDO to Argo Technology Consulting Ltd. (ATC) multisig"
             )
-            .directCall(
+            .removeFactory(
                 "Remove TopUpEVMScriptFactory with address 0x200dA0b6a9905A377CF8D469664C65dB267009d1",
                 EASY_TRACK,
-                abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (GAS_SUPPLY_STETH_TOP_UP_FACTORY))
+                GAS_SUPPLY_STETH_TOP_UP_FACTORY
             )
-            .directCall(
+            .removeFactory(
                 "Remove AddRecipientEVMScriptFactory with address 0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252",
                 EASY_TRACK,
-                abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (GAS_SUPPLY_STETH_ADD_RECIPIENT_FACTORY))
+                GAS_SUPPLY_STETH_ADD_RECIPIENT_FACTORY
             )
-            .directCall(
+            .removeFactory(
                 "Remove RemoveRecipientEVMScriptFactory with address 0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7",
                 EASY_TRACK,
-                abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (GAS_SUPPLY_STETH_REMOVE_RECIPIENT_FACTORY))
+                GAS_SUPPLY_STETH_REMOVE_RECIPIENT_FACTORY
             )
-            .directCall(
+            .newImmediatePayment(
                 "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",
                 FINANCE,
-                abi.encodeCall(
-                    IFinance.newImmediatePayment,
-                    (
-                        LDO,
-                        PML_MULTISIG,
-                        PML_LDO_TRANSFER_AMOUNT,
-                        "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig"
-                    )
-                )
+                LDO,
+                PML_MULTISIG,
+                PML_LDO_TRANSFER_AMOUNT,
+                "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig"
             )
             .directCall(
                 "Validate LDO balance after vote execution",
                 ACTION_VALIDATOR,
                 abi.encodeCall(IOmnibusVoteStateValidator.validateStateAfterVote, ())
             )
-            .submitCalls(
+            .submitProposal(
                 "Submit proposal to Dual Governance with the following calls:",
                 DG_PROPOSAL_DESCRIPTION,
                 DUAL_GOVERNANCE,
                 ProposalCallsBuilderUtils.create({
                     callsCount: DG_PROPOSAL_CALLS_COUNT
-                }).forwardCall(
+                }).forward(
                         "11.1. Forward call via Agent to pause deposits to the Curated Module",
                         AGENT,
                         STAKING_ROUTER,
                         abi.encodeCall(
                             IStakingRouter.setStakingModuleStatus,
-                            (1, IStakingRouter.StakingModuleStatus.DepositsPaused)
+                            (CURATED_MODULE_ID, STAKING_MODULE_STATUS_DEPOSITS_PAUSED)
                         )
                     )
                     .executeCall(
@@ -208,9 +177,9 @@ contract ExampleContractOmnibus is OmnibusBase {
                         AGENT,
                         STETH,
                         100 wei,
-                        abi.encodeCall(IStETH.submit, (AGENT))
+                        abi.encodeCall(ILido.submit, (AGENT))
                     )
-                    .forwardCalls(
+                    .forward(
                         "11.3. Forward 7 calls via Aragon Agent to add new Node Operators to the Curated Module",
                         AGENT,
                         ForwardedCallsBuilderUtils.create({

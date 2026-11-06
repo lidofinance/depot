@@ -8,6 +8,12 @@ remappings = [
 ]
 cache_path = "cache_forge"
 out = "out_forge"
+# Mirrors the Hardhat solc settings in hardhat.config.ts.
+via_ir = true
+optimizer = true
+
+[profile.default.optimizer_details.yulDetails]
+optimizerSteps = "u"
 
 # Solidity is formatted by `forge fmt`, TypeScript, JSON and Markdown by prettier.
 # Settings mirror the lidofinance/dual-governance repository.

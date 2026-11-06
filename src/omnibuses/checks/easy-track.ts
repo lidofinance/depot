@@ -1,12 +1,11 @@
-import { encodeAbiParameters, parseAbiParameters } from "viem";
+import { Address, encodeAbiParameters, parseAbiParameters } from "viem";
 
-import { Address } from "../../common/types";
-import { assert } from "../../common/assert";
+import { assert } from "@/src/common/assert";
 import { CheckContext } from "./checks";
-import { ERC20_ABI } from "../../../abi/ERC20.abi";
-import { AllowedRecipientsRegistry_ABI } from "../../../abi/AllowedRecipientsRegistry.abi";
-import { contract, Contract } from "../../contracts/contracts";
-import { EasyTrack_ABI } from "../../../abi/EasyTrack.abi";
+import { ERC20_ABI } from "@/abi/ERC20.abi";
+import { AllowedRecipientsRegistry_ABI } from "@/abi/AllowedRecipientsRegistry.abi";
+import { contract, Contract } from "@/src/contracts/contracts";
+import { EasyTrack_ABI } from "@/abi/EasyTrack.abi";
 import { AgentContract } from "../governance-contracts";
 
 const DEFAULT_ENACTOR: Address = "0xEE00eE11EE22ee33eE44ee55ee66Ee77EE88ee99";
@@ -104,11 +103,7 @@ const checkAddRecipientFactory = async (
   registry: Address,
   trustedCaller: Address,
 ) => {
-  const recipientsRegistry: Contract<typeof AllowedRecipientsRegistry_ABI> = {
-    abi: AllowedRecipientsRegistry_ABI,
-    address: registry,
-    label: "AllowedRecipientsRegistry",
-  };
+  const recipientsRegistry = contract(AllowedRecipientsRegistry_ABI, registry, "AllowedRecipientsRegistry");
 
   const [isRecipientAllowed, recipientsBefore, motionsBefore] = await Promise.all([
     client.read(recipientsRegistry, "isRecipientAllowed", [TEST_RECIPIENT]),
@@ -148,11 +143,7 @@ const checkRemoveRecipientFactory = async (
   registry: Address,
   trustedCaller: Address,
 ) => {
-  const registryContract: Contract<typeof AllowedRecipientsRegistry_ABI> = {
-    address: registry,
-    abi: AllowedRecipientsRegistry_ABI,
-    label: "AllowedRecipientsRegistry",
-  };
+  const registryContract = contract(AllowedRecipientsRegistry_ABI, registry, "AllowedRecipientsRegistry");
 
   assert.equal(await client.read(registryContract, "isRecipientAllowed", [TEST_RECIPIENT]), true);
 

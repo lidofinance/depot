@@ -99,8 +99,8 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
     const newOmnibusDir = path.join(omnibusTaskDeps.getOmnibusesDir(), "ongoing", network, omnibusName);
     await fs.mkdir(path.dirname(newOmnibusDir), { recursive: true });
 
-    const templateDirName = "_omnibus_template";
-    const templatePath = path.join(omnibusTaskDeps.getOmnibusesDir(), templateDirName);
+    const templateName = "_omnibus_template";
+    const templatePath = path.join(omnibusTaskDeps.getOmnibusesDir(), templateName);
 
     await fs.cp(templatePath, newOmnibusDir, { recursive: true });
 
@@ -109,11 +109,10 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
     const omnibusScriptPath = path.join(newOmnibusDir, `${omnibusName}.ts`);
     const omnibusContractName = `Omnibus_${omnibusName}`;
     const omnibusContractPath = path.join(newOmnibusDir, `${omnibusContractName}.sol`);
-    const templateFileName = "_omnibus_template";
 
-    await fs.rename(path.join(newOmnibusDir, `${templateFileName}.ts`), omnibusScriptPath);
-    await fs.rename(path.join(newOmnibusDir, `${templateFileName}.md`), omnibusDescriptionPath);
-    await fs.rename(path.join(newOmnibusDir, `${templateFileName}.ipfs.md`), omnibusIpfsDescriptionPath);
+    await fs.rename(path.join(newOmnibusDir, `${templateName}.ts`), omnibusScriptPath);
+    await fs.rename(path.join(newOmnibusDir, `${templateName}.md`), omnibusDescriptionPath);
+    await fs.rename(path.join(newOmnibusDir, `${templateName}.ipfs.md`), omnibusIpfsDescriptionPath);
     await fs.rename(path.join(newOmnibusDir, "OmnibusTemplate.sol"), omnibusContractPath);
 
     // replace name of the omnibus in the description markdown file
@@ -209,7 +208,7 @@ defineTask("omnibus:archive", "Move launched omnibus to archive folder")
         console.log(`Vote ${voteId} is closed without execution`);
       }
 
-      await fs.cp(omnibusPath, archivePath, { errorOnExist: true, recursive: true });
+      await fs.cp(omnibusPath, archivePath, { errorOnExist: true, force: false, recursive: true });
       await fs.rm(omnibusPath, { recursive: true });
 
       console.log(`Omnibus ${name} was archived to ${archivePath}`);
@@ -446,7 +445,7 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
             await multiTestDeps.prepareOmnibus(hre, node.client, omnibus);
             await omnibus.passOmnibus(node.client);
           } else {
-            console.log("Omnibus name doesn't pass. Run tests without passing any omnibuses");
+            console.log("No omnibus name given: running the suites on a bare fork");
           }
 
           await runRepositorySuites(node.client, suites, (repository) =>
@@ -548,7 +547,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
           const spinner = createTimedSpinner("Preparing pilot for the test launch...");
           await setupLdoHolder(client, pilot.address);
           ldoBalance = await client.read(ldo, "balanceOf", [pilot.address]);
-          spinner.succeed("Pilot was successfully prepared. Make sure account will heave enough LDO on launch");
+          spinner.succeed("Pilot was successfully prepared. Make sure account will have enough LDO on launch");
           console.log();
         }
 
@@ -563,7 +562,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
         const launchMessage = `Proceed? The vote will be started via ${tokenManager.address} on chain ${chainId}`;
         if (broadcast) {
           await prompt.confirmByTypingOrAbort(launchMessage, omnibus.network);
-          await omnibusTaskDeps.uploadDescription(name, ipfsDescription, false);
+          await omnibusTaskDeps.uploadDescription(name, ipfsDescription);
         } else {
           await prompt.confirmOrAbort(launchMessage);
         }
@@ -1001,7 +1000,6 @@ export async function prepareOmnibus(
     ? undefined
     : await findDefaultOmnibusContractName(omnibus.name);
 
-  console.log(`Omnibus "${omnibus.name}" is launched from a contract, preparing it for the launch...`);
   let deployment = omnibus.getDeployment();
   if (deployment && Object.keys(deployment).length > 0) {
     console.log(`Contracts already deployed:`);
@@ -1030,21 +1028,17 @@ export async function prepareOmnibus(
     }
   } else {
     throw new KnownError(
-      `Omnibus contracts was not deployed. Use "omnibus:deploy <omnibus_name> --broadcast" command to deploy contracts`,
+      `Omnibus contracts were not deployed. Use "omnibus:deploy <omnibus_name> --broadcast" command to deploy contracts`,
     );
   }
 
-  if (deployment.omnibus) {
-    console.log(fmt.padded(`Loading and validating omnibus calls from the contract...`, 2));
-    await omnibus.loadAndValidateOmnibusContractCalls(client);
-    console.log(fmt.padded(fmt.success(`Omnibus calls successfully validated`), 2));
+  console.log(fmt.padded(`Loading and validating omnibus calls from the contract...`, 2));
+  await omnibus.loadAndValidateOmnibusContractCalls(client);
+  console.log(fmt.padded(fmt.success(`Omnibus calls successfully validated`), 2));
 
-    console.log(fmt.padded(`Validating Dual Governance proposal descriptions...`, 2));
-    omnibus.validateDgProposalDescriptions(await readOmnibusDescriptionFile(omnibus.name));
-    console.log(fmt.padded(fmt.success(`Proposal descriptions match the description file`), 2));
-  } else {
-    throw new KnownError(`Omnibus deployment must contain an "omnibus" contract`);
-  }
+  console.log(fmt.padded(`Validating Dual Governance proposal descriptions...`, 2));
+  omnibus.validateDgProposalDescriptions(await readOmnibusDescriptionFile(omnibus.name));
+  console.log(fmt.padded(fmt.success(`Proposal descriptions match the description file`), 2));
   console.log(fmt.success("Omnibus prepared\n"));
 
   return omnibus;

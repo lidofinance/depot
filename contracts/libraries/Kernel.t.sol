@@ -19,7 +19,7 @@ contract KernelCallsTest is Test {
             .getCalls();
 
         assertEq(calls.length, 1);
-        assertEq(calls[0].title, "    Upgrade test app");
+        assertEq(calls[0].title, "Upgrade test app");
         assertEq(calls[0].target, KERNEL);
         assertEq(
             calls[0].payload,

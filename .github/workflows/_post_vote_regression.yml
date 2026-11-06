@@ -1,0 +1,99 @@
+name: Post-vote regression
+
+on:
+  workflow_call:
+    inputs:
+      repo:
+        description: "Depot repo target: core|scripts|dual-governance|staking-modules|stonks"
+        required: true
+        type: string
+      networks:
+        description: "JSON array of networks to run the candidate vote on"
+        required: false
+        type: string
+        default: '["mainnet"]'
+    secrets:
+      MAINNET_RPC_URL:
+        required: false
+      HOODI_RPC_URL:
+        required: false
+      ETHERSCAN_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  run-tests:
+    name: ${{ matrix.network }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        network: ${{ fromJSON(inputs.networks) }}
+    # a secret the caller does not pass is empty, which depot treats as unset
+    env:
+      DOTENV_CONFIG_PATH: /dev/null
+      ETH_MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+      ETH_HOODI_RPC_URL: ${{ secrets.HOODI_RPC_URL }}
+      ETHERSCAN_TOKEN: ${{ secrets.ETHERSCAN_TOKEN }}
+      ETH_LOCAL_RPC_BIND_IP: "0.0.0.0"
+
+    steps:
+      - name: Checkout depot repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          path: depot
+          persist-credentials: false
+
+      - name: Find candidate vote
+        id: candidate
+        uses: ./depot/.github/actions/find_candidate
+        with:
+          network: ${{ matrix.network }}
+
+      - name: Setup depot
+        if: ${{ steps.candidate.outputs.name != '' }}
+        uses: ./depot/.github/actions/prepare_depot
+
+      - name: Prepare regression inputs
+        id: regression
+        if: ${{ steps.candidate.outputs.name != '' }}
+        uses: ./depot/.github/actions/prepare_regression
+        with:
+          repo: ${{ inputs.repo }}
+          network: ${{ matrix.network }}
+          omnibus: ${{ steps.candidate.outputs.name }}
+
+      - name: Apply the candidate and run ${{ inputs.repo }} suites
+        if: ${{ steps.candidate.outputs.name != '' }}
+        working-directory: depot
+        shell: bash
+        env:
+          OMNIBUS: ${{ steps.candidate.outputs.name }}
+          REPO: ${{ inputs.repo }}
+          FORK_BLOCK: ${{ steps.regression.outputs.fork-block }}
+        run: npx hardhat omnibus:multi-test "$OMNIBUS" --repo "$REPO" --fork-block "$FORK_BLOCK" 2>&1 | tee logs/multi-test.log
+
+      - name: Save repo image
+        if: ${{ always() && steps.regression.outcome == 'success' }}
+        uses: ./depot/.github/actions/save_repo_image
+        with:
+          image-tag: ${{ steps.regression.outputs.image-tag }}
+          cache-key: ${{ steps.regression.outputs.cache-key }}
+          cache-hit: ${{ steps.regression.outputs.cache-hit }}
+
+      - name: Print regression logs
+        if: ${{ failure() && steps.candidate.outputs.name != '' }}
+        shell: bash
+        working-directory: depot
+        run: |
+          # multi-test output is already in the console; the node log is noise
+          for log in logs/*.log; do
+            case "$log" in logs/multi-test.log | logs/hh-rpc-node.log) continue ;; esac
+            [[ -f "$log" ]] || continue
+            echo "::group::$log"
+            cat "$log"
+            echo "::endgroup::"
+          done
