@@ -22,7 +22,7 @@ Review code for bugs, security issues, and quality problems. Report findings by 
 
    If the user's request is ambiguous, ask what to review. Don't default to diffs.
 
-   If the scope is inside this repo, run `npm run lint` and `npx tsc --noEmit` first — if either fails, note it in the report but continue the review.
+   If the scope is inside this repo, run `npm run lint` and `npm run types` first — if either fails, note it in the report but continue the review.
 
 2. **Read with context**
 
@@ -63,6 +63,7 @@ Review code for bugs, security issues, and quality problems. Report findings by 
 - `sinon.stub(esmModule, "export")` — fails at runtime in ESM
 - Mutable module-level state shared across async calls
 - Missing event expectations in omnibus calls (see `omnibuses/AGENTS.md`)
+- Vote change whose addresses are not reviewed and sourced per [Addresses and titles](../../../docs/omnibuses/WRITING_OMNIBUS.md#addresses-and-titles) — blocks approval
 - Async callbacks in void contexts (`process.on("SIGINT", async () => ...)`)
 - `forEach` with async callback (errors are swallowed)
 

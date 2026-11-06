@@ -5,29 +5,10 @@ import { NamedKeystoresStorage } from "./named-keystores-storage";
 
 const keystoresByPath = new Map<string, NamedKeystores>();
 
-type HreWithConfig = {
-  config: {
-    paths: { root: string };
-    keystores?: { path?: string };
-  };
-};
-
-function resolveKeystorePath(hre: HreWithConfig): string {
-  const configuredPath = (hre.config as { keystores?: { path?: string } }).keystores?.path;
-
-  if (!configuredPath) {
-    return path.join(hre.config.paths.root, ".keystores");
-  }
-
-  if (path.isAbsolute(configuredPath)) {
-    return configuredPath;
-  }
-
-  return path.normalize(path.join(hre.config.paths.root, configuredPath));
-}
+type HreWithConfig = { config: { paths: { root: string } } };
 
 export function getKeystores(hre: HreWithConfig): NamedKeystores {
-  const keystorePath = resolveKeystorePath(hre);
+  const keystorePath = path.join(hre.config.paths.root, ".keystores");
 
   const cached = keystoresByPath.get(keystorePath);
   if (cached) {

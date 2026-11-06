@@ -1,27 +1,29 @@
 import prompts from "prompts";
 
-export interface SelectChoice {
+import { KnownError } from "./errors";
+
+interface SelectChoice {
   value: string;
   title: string;
 }
 
-export interface SecretOptions {
+interface SecretOptions {
   invisible?: boolean; // false by default
 }
 
-export interface PasswordOptions {
+interface PasswordOptions {
   confirmation?: boolean; // true by default
 }
 
-class OperationAbortedError extends Error {
+class OperationAbortedError extends KnownError {
   constructor() {
     super("Operation was aborted by the user");
   }
 }
 
-class PasswordConfirmationMismatchError extends Error {
+class PasswordConfirmationMismatchError extends KnownError {
   constructor() {
-    super("Password confirmation does not mismatch the password. Aborting...");
+    super("Password confirmation does not match the password. Aborting...");
   }
 }
 
@@ -31,32 +33,34 @@ const DEFAULT_PROMPTS_OPTIONS = {
   },
 };
 
-async function confirmOrAbort(message?: string, autoConfirm = false) {
-  if (autoConfirm) {
-    return;
-  }
-
+async function toggle(message: string) {
   const { isConfirmed } = await prompts({
     type: "toggle",
     name: "isConfirmed",
-    message: message ?? "Confirm?",
+    message,
     active: "yes",
     inactive: "no",
   });
+  return Boolean(isConfirmed);
+}
+
+async function confirmOrAbort(message?: string) {
+  const isConfirmed = await toggle(message ?? "Confirm?");
   if (!isConfirmed) {
     throw new OperationAbortedError();
   }
 }
 
+/** A stray Enter must not send to a live network, so the user types the expected value */
+async function confirmByTypingOrAbort(message: string, expected: string) {
+  const answer = await text(`${message}\n  Type "${expected}" to confirm:`);
+  if (answer.trim() !== expected) {
+    throw new OperationAbortedError();
+  }
+}
+
 async function confirm(message?: string) {
-  const { isConfirmed } = await prompts({
-    type: "toggle",
-    name: "isConfirmed",
-    message: message ?? "Confirm?",
-    active: "yes",
-    inactive: "no",
-  });
-  return isConfirmed;
+  return toggle(message ?? "Confirm?");
 }
 
 async function select(message: string, choices: SelectChoice[]) {
@@ -101,26 +105,9 @@ async function password(message: string, options: PasswordOptions): Promise<stri
   return password;
 }
 
-async function sigint() {
-  console.log("Press CTRL + C to exit");
-  const sigintPromise = new Promise<void>((resolve) => {
-    const timeout = setTimeout(resolve, 2147483646);
-    process.on("SIGINT", () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-  });
-
-  await sigintPromise;
-}
-
 async function text(message: string): Promise<string> {
-  const { value } = await prompts({
-    name: "value",
-    type: "text",
-    message,
-  });
-  return value;
+  const { value } = await prompts({ name: "value", type: "text", message }, DEFAULT_PROMPTS_OPTIONS);
+  return String(value ?? "");
 }
 
 export default {
@@ -129,6 +116,6 @@ export default {
   select,
   confirm,
   confirmOrAbort,
+  confirmByTypingOrAbort,
   password,
-  sigint,
 };

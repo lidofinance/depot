@@ -48,43 +48,23 @@ export class DebugCallTracerStrategy implements TraceStrategy {
     return result;
   }
 
-  #traceRecursive(callsTrace: CallsTrace, result: TxTraceItem[], depth = 0, _index = 0) {
+  #traceRecursive(callsTrace: CallsTrace, result: TxTraceItem[], depth = 0) {
     result.push(this.#processCallTraceItem(depth, callsTrace));
 
     const logItems = callsTrace.logs ?? [];
     const nestedCallItems = callsTrace.calls ?? [];
 
+    // log position is the count of nested calls made before the log was emitted
     let logIndex = 0;
-    let callIndex = 0;
-    let itemsOrderIndex = 0;
-    const traceItemsOrder: { type: "log" | "call"; index: number }[] = [];
-
-    while (itemsOrderIndex < logItems.length + nestedCallItems.length) {
-      if (logIndex < logItems.length) {
-        const logItem = logItems[logIndex];
-        const logPosition = Number(logItem.position);
-        if (logPosition <= callIndex) {
-          traceItemsOrder[itemsOrderIndex] = { type: "log", index: logIndex };
-          logIndex += 1;
-          itemsOrderIndex += 1;
-        }
+    for (let callIndex = 0; callIndex < nestedCallItems.length; ++callIndex) {
+      while (logIndex < logItems.length && Number(logItems[logIndex].position) <= callIndex) {
+        result.push(this.#processCallTraceLog(logItems[logIndex], depth + 1));
+        logIndex += 1;
       }
-      if (callIndex < nestedCallItems.length) {
-        traceItemsOrder[itemsOrderIndex] = { type: "call", index: callIndex };
-        callIndex += 1;
-        itemsOrderIndex += 1;
-      }
+      this.#traceRecursive(nestedCallItems[callIndex], result, depth + 1);
     }
-
-    for (let i = 0; i < traceItemsOrder.length; ++i) {
-      const item = traceItemsOrder[i];
-      if (item.type === "log") {
-        result.push(this.#processCallTraceLog(logItems[item.index], depth + 1));
-      } else if (item.type === "call") {
-        this.#traceRecursive(nestedCallItems[item.index], result, depth + 1);
-      } else {
-        throw new Error("unknown type");
-      }
+    for (const logItem of logItems.slice(logIndex)) {
+      result.push(this.#processCallTraceLog(logItem, depth + 1));
     }
   }
 

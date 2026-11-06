@@ -8,10 +8,6 @@ declare module "chai" {
           delta: bigint | number,
           message?: string | undefined,
         ): void;
-
-        contains<T = unknown>(collection: Iterable<T>, item: T, comparator?: (a: T, b: T) => boolean): void;
-
-        reverts(promise: Promise<unknown>, error: string, args?: unknown[]): Promise<void>;
       }
     }
   }

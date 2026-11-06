@@ -1,6 +1,11 @@
 name: Tests runner
 on:
   workflow_dispatch:
+    inputs:
+      omnibus:
+        description: "Vote to test from any folder; empty tests the ongoing candidates"
+        required: false
+        type: string
   pull_request:
 
 permissions:
@@ -18,9 +23,11 @@ jobs:
 
     steps:
       - name: Checkout depot repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           path: depot
+          persist-credentials: false
+          submodules: true
 
       - name: Setup depot
         uses: ./depot/.github/actions/prepare_depot
@@ -30,9 +37,84 @@ jobs:
         working-directory: depot
 
       - name: Run unit tests
-        run: npm run test
+        run: npm run test:depot:unit
         working-directory: depot
 
       - name: Run integration tests
-        run: npm run test:integration
+        run: npm run test:depot:integration
         working-directory: depot
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
+        with:
+          version: v1.8.1
+
+      - name: Run Solidity library tests
+        run: npm run test:sol
+        working-directory: depot
+
+  vote-test:
+    name: Vote test (${{ matrix.network }})
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        network: [mainnet, hoodi]
+    env:
+      ETH_MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+      ETH_HOODI_RPC_URL: ${{ secrets.HOODI_RPC_URL }}
+
+    steps:
+      - name: Checkout depot repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          path: depot
+          persist-credentials: false
+          submodules: true
+
+      - name: Find candidate vote
+        id: candidate
+        if: ${{ !inputs.omnibus }}
+        uses: ./depot/.github/actions/find_candidate
+        with:
+          network: ${{ matrix.network }}
+
+      # A manual vote runs once: omnibus:test resolves its network from the wrapper.
+      - name: Select vote
+        id: vote
+        shell: bash
+        env:
+          MANUAL_OMNIBUS: ${{ inputs.omnibus }}
+          CANDIDATE: ${{ steps.candidate.outputs.name }}
+          NETWORK: ${{ matrix.network }}
+        run: |
+          name="$CANDIDATE"
+          if [[ -n "$MANUAL_OMNIBUS" ]]; then
+            if [[ ! "$MANUAL_OMNIBUS" =~ ^[a-z0-9_]+$ ]]; then
+              echo "::error::Invalid omnibus name"
+              exit 1
+            fi
+            name=""
+            if [[ "$NETWORK" == "mainnet" ]]; then
+              name="$MANUAL_OMNIBUS"
+            fi
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Setup depot
+        if: ${{ steps.vote.outputs.name != '' }}
+        uses: ./depot/.github/actions/prepare_depot
+
+      - name: Compile contracts
+        if: ${{ steps.vote.outputs.name != '' }}
+        run: npx hardhat compile
+        working-directory: depot
+
+      - name: Run vote test
+        if: ${{ steps.vote.outputs.name != '' }}
+        run: npx hardhat omnibus:test "$OMNIBUS"
+        working-directory: depot
+        env:
+          OMNIBUS: ${{ steps.vote.outputs.name }}

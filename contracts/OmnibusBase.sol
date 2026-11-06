@@ -2,25 +2,14 @@
 pragma solidity 0.8.26;
 
 import {IVoting} from "./interfaces/IVoting.sol";
-import {VoteCall} from "./libraries/calls-builder.sol";
-import {IForwarder} from "./interfaces/IForwarder.sol";
+import {VoteCall} from "./libraries/CallsBuilder.sol";
 import {CallsScriptBuilder, CallsScriptBuilderUtils} from "./libraries/CallsScriptBuilder.sol";
-
-import {VoteCallsBuilder, VoteCallsBuilderUtils, ForwardedCallsBuilder, ForwardedCallsBuilderUtils, ProposalCallsBuilder, ProposalCallsBuilderUtils} from "./libraries/calls-builder.sol";
-
-error UnexpectedChainId(uint256 chainId);
-
-interface IOmnibus {
-    function getEVMScript() external view returns (bytes memory);
-    function getOmnibusCalls() external view returns (VoteCall[] memory);
-    function isValidVoteScript(uint256 voteId) external view returns (bool);
-}
 
 /// @title OmnibusBase
 /// @notice Abstract base contract for creating votes for the Aragon Voting.
 ///
 /// @dev Inheriting contracts must implement:
-///     - getVoteItems() - to define the specific actions in the proposal
+///     - getOmnibusCalls() - the vote calls; their EVM script is what the vote executes
 abstract contract OmnibusBase {
     using CallsScriptBuilderUtils for CallsScriptBuilder;
 
@@ -30,7 +19,7 @@ abstract contract OmnibusBase {
         _VOTING = voting;
     }
 
-    /// @return VoteItem[] The list of voting items to be executed by Aragon Voting.
+    /// @return The vote calls, in vote item order.
     function getOmnibusCalls() public view virtual returns (VoteCall[] memory);
 
     /// @notice Converts all vote items to the Aragon-compatible EVMCallScript to validate against.
@@ -47,17 +36,12 @@ abstract contract OmnibusBase {
         return scriptBuilder.getResult();
     }
 
-    /// @notice Checks if `evmScript` is identical to this contract’s current EVM script.
-    /// @param evmScript EVM script to compare.
-    /// @return True if scripts match byte-for-byte, false otherwise.
-    function isValidEVMScript(bytes calldata evmScript) public view returns (bool) {
-        return keccak256(evmScript) == keccak256(getEVMScript());
-    }
-
     /// @notice Validates the specific vote on Aragon Voting contract against the vote items.
     /// @return A boolean value indicating whether the vote is valid.
     function isValidVoteScript(uint256 voteId) external view returns (bool) {
-        ( /*open*/
+        (
+
+            /*open*/
             , /*executed*/
             , /*startDate*/
             , /*snapshotBlock*/

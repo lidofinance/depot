@@ -3,7 +3,15 @@ import { KeyStore } from "web3-types";
 import { encrypt, decrypt, create } from "web3-eth-accounts";
 
 import bytes from "../common/bytes";
-import { Address, PrivateKey } from "../common/types";
+import { KnownError } from "../common/errors";
+import { Address } from "viem";
+import { PrivateKey } from "../common/types";
+
+function assertPassword(password: string) {
+  if (password.length === 0) {
+    throw new KnownError("Password is empty");
+  }
+}
 
 export class NamedKeystore {
   public readonly version = 3;
@@ -15,19 +23,18 @@ export class NamedKeystore {
 
   static async fromPrivateKey(name: string, privateKey: PrivateKey, password: string) {
     if (!bytes.isValid(privateKey)) {
-      throw new Error(`Private key is not a valid hex string`);
+      throw new KnownError(`Private key is not a valid hex string`);
     }
     privateKey = bytes.normalize(privateKey);
     if (bytes.length(privateKey) !== 32) {
-      throw new Error(`Invalid private key length`);
+      throw new KnownError(`Invalid private key length`);
     }
-    if (password.length === 0) {
-      throw new Error("Password is empty");
-    }
+    assertPassword(password);
     return new NamedKeystore(name, await encrypt(privateKey, password));
   }
 
   static async generate(name: string, password: string): Promise<NamedKeystore> {
+    assertPassword(password);
     return new NamedKeystore(name, await encrypt(create().privateKey, password));
   }
 
@@ -46,8 +53,9 @@ export class NamedKeystore {
       const { privateKey } = await decrypt(this, password);
       return bytes.normalize(privateKey);
     } catch (error: unknown) {
-      if (error instanceof Error && error.message.startsWith("Scrypt:")) {
-        throw new Error("Error on account loading. Please, make sure that correct password was used");
+      // web3-eth-accounts reports a wrong password as a MAC mismatch KeyDerivationError
+      if (error instanceof Error && error.name === "KeyDerivationError") {
+        throw new KnownError(`Wrong password for the account "${this.name}"`, error);
       }
       throw error;
     }

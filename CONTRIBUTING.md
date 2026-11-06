@@ -2,10 +2,7 @@
 
 ## Setup
 
-```bash
-nvm use           # Node 22+
-npm install
-```
+See [README → Install](README.md#install).
 
 ## TypeScript
 
@@ -30,8 +27,12 @@ These are ESLint errors — they block commits:
 - Always use typed errors: `throw new Error("message")`, not `throw "string"`
 - Defensive throws on exhaustive checks are mandatory:
   ```typescript
-  if (x === "a") return handleA();
-  if (x === "b") return handleB();
+  if (x === "a") {
+    return handleA();
+  }
+  if (x === "b") {
+    return handleB();
+  }
   throw new Error(`Unsupported: ${x}`); // catches future additions
   ```
 - Never remove defensive throws — even if TypeScript says the branch is unreachable
@@ -48,40 +49,44 @@ Project uses `"type": "module"`. Key constraints:
   export const deps = { getGovernanceContracts };
   const { voting } = deps.getGovernanceContracts(network);
   ```
-- For HTTP mocking, use `globalThis.fetch` override (nock v13 doesn't intercept native fetch)
+- For HTTP mocking, override `globalThis.fetch`
 
 ## Code style
 
 - ESLint flat config, 0 errors / 0 warnings expected
 - Prettier with defaults (semi: true, printWidth: 120)
+- Imports that leave their own module (`../../` or deeper, or into another top-level dir) use the `@/` alias (`@/abi/ACL.abi`, `@/src/common/bytes`); `./x` and `../x` stay relative
 - `npm run lint` before committing
 
 ## Tests
 
-All tests live in `test/` (not in `src/`):
+Tests are grouped by purpose:
 
-- `test/<module>/<name>.unit.test.ts` — fast, no network
-- `test/<module>/<name>.integration.test.ts` — needs hardhat node
+- `test/depot/<module>/<name>.unit.test.ts` — Depot logic, no network.
+- `test/depot/<module>/<name>.integration.test.ts` — Depot integration paths with in-process Hardhat.
+- `test/protocol/acceptance/` — shared checks of deployed protocol state after vote/DG execution, before snapshot restore.
+- `test/protocol/snapshot/` — old/upgraded comparisons that `omnibus:test` runs for `upgrade: true` votes; see [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md).
+
+Per-vote `testVote`/`testProposal` checks stay in the vote wrapper `omnibuses/ongoing/<network>/<name>/<name>.ts`. Shared Depot helpers live in `test/depot/helpers/`.
 
 ```bash
-npm test                    # unit tests
-npm run test:integration    # integration tests
-npm run test:all            # both
+npm run test:depot:unit         # npm test is a shortcut
+npm run test:depot:integration  # no separate node required
+npm run test:all                # both Depot suites
+npm run test:sol                # Solidity library tests, no fork
 ```
+
+`test:all` runs Depot tests; protocol acceptance and upgrade snapshots run through `omnibus:test`.
 
 See `test/AGENTS.md` for detailed testing conventions (mocking rules, templates, mock contracts).
 
 ## Git workflow
 
 - Conventional commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`
-- Pre-commit hook runs lint-staged (eslint + prettier)
+- Pre-commit hook runs lint-staged: `eslint`, `prettier --check`, `forge fmt --check`. Checks only; fix with `npm run style` / `npm run fmt:sol`
 - Commit-msg hook enforces conventional commits via commitlint
 - Do not commit `.env`, `.keystores/`, `artifacts/`, `node_modules/`
 
 ## Verification before submitting PR
 
-```bash
-npx tsc --noEmit         # 0 errors
-npm run lint             # 0 errors, 0 warnings
-npm test                 # all passing
-```
+Run the [verification checklist](AGENTS.md#verification-checklist).
