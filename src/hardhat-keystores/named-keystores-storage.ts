@@ -48,8 +48,13 @@ export class NamedKeystoresStorage {
     let isTempFileCreated = false;
     try {
       // "wx" fails on an existing temp file, which may belong to a concurrent password change
-      await fs.writeFile(tempPath, keystore.toJson(), { mode: KEYSTORE_FILE_MODE, flag: "wx" });
+      const tempFile = await fs.open(tempPath, "wx", KEYSTORE_FILE_MODE);
       isTempFileCreated = true;
+      try {
+        await tempFile.writeFile(keystore.toJson());
+      } finally {
+        await tempFile.close();
+      }
       await fs.rename(tempPath, keystorePath);
     } catch (error) {
       if (isTempFileCreated) {
