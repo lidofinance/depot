@@ -2,7 +2,7 @@ import { assert } from "chai";
 import { decodeFunctionData } from "viem";
 import { event, expectedEvents as ev, Omnibus } from "@/src/omnibuses";
 import { decodeSubmitProposal } from "@/src/omnibuses/vote-events";
-import { createContracts, OmnibusBaseContract } from "@/src/contracts";
+import { contract, OmnibusBaseContract } from "@/src/contracts";
 import { Agent_ABI } from "@/abi/Agent.abi";
 import { MiniMeToken_ABI } from "@/abi/MiniMeToken.abi";
 import { Finance_ABI } from "@/abi/Finance.abi";
@@ -62,15 +62,15 @@ const REWARDS_LDO_REMOVE_RECIPIENT_FACTORY = "0x7E8eFfAb3083fB26aCE6832bFcA4C377
 
 const SDVT_MODULE_ID = 2;
 
-const contracts = createContracts({
-  ldo: [MiniMeToken_ABI, LDO],
-  agent: [Agent_ABI, AGENT],
-  finance: [Finance_ABI, FINANCE],
-  easyTrack: [EasyTrack_ABI, EASY_TRACK],
-  curatedStakingModule: [NodeOperatorsRegistry_ABI, CURATED_MODULE],
-  stakingRouter: [StakingRouter_ABI, STAKING_ROUTER],
-  stETH: [StETH_ABI, STETH],
-});
+const contracts = {
+  ldo: contract(MiniMeToken_ABI, LDO, "LDO"),
+  agent: contract(Agent_ABI, AGENT, "Agent"),
+  finance: contract(Finance_ABI, FINANCE, "Finance"),
+  easyTrack: contract(EasyTrack_ABI, EASY_TRACK, "EasyTrack"),
+  curatedStakingModule: contract(NodeOperatorsRegistry_ABI, CURATED_MODULE, "CuratedStakingModule"),
+  stakingRouter: contract(StakingRouter_ABI, STAKING_ROUTER, "StakingRouter"),
+  stETH: contract(StETH_ABI, STETH, "StETH"),
+};
 
 export default Omnibus.create({
   network: "mainnet",

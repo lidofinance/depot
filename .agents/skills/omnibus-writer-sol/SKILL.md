@@ -23,6 +23,8 @@ Ask the author whether the vote contains a protocol upgrade and record the answe
 
 Report unresolved inputs by item and ask for the information that changes the payload. Do not close such a gap by an external lookup or an assumption; implementation starts only after the author resolves it. Continue directly when they are resolved; existing authorization to obtain an ABI or implement an agreed action remains valid. Prior state omitted from the description is separate: read it on the intended fork and assert the strongest supported before/after relation instead of inventing a historical value.
 
+If an action lacks an appropriate call/event helper or the exact contract interface, report the gap by item, propose how to cover it, and wait for the author's agreement before adding a helper/interface or bypassing it with a direct call, generic event expectation or manual encoding. An already authorized ABI fetch or agreed implementation satisfies this gate; continue within that scope without asking again.
+
 ## Implement
 
 1. For a new omnibus, use `npm run omnibus:create`; it places the vote in `omnibuses/ongoing/<network>/<name>`. Fill the three scaffold files. For an existing omnibus, update only the requested actions; only `voteId` and `deployment` are recorded in the wrapper, nothing else.

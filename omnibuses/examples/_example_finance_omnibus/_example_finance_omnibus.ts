@@ -4,7 +4,7 @@ import { parseAbi } from "viem";
 import { Agent_ABI } from "@/abi/Agent.abi";
 import { Finance_ABI } from "@/abi/Finance.abi";
 import { Lido_ABI } from "@/abi/Lido.abi";
-import { contract, createContracts } from "@/src/contracts";
+import { contract } from "@/src/contracts";
 import { expectedEvents as ev, Omnibus } from "@/src/omnibuses";
 
 const FINANCE = "0xB9E5CBB9CA5b0d659238807E84D0176930753d86";
@@ -12,11 +12,11 @@ const AGENT = "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c";
 const STETH = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
 const SOURCE_VOTE_ID = 200n;
 
-const contracts = createContracts({
-  finance: [Finance_ABI, FINANCE],
-  vault: [Agent_ABI, AGENT],
-  steth: [Lido_ABI, STETH],
-});
+const contracts = {
+  finance: contract(Finance_ABI, FINANCE, "Finance"),
+  vault: contract(Agent_ABI, AGENT, "Vault"),
+  steth: contract(Lido_ABI, STETH, "Steth"),
+};
 
 const voteConstantsAbi = parseAbi([
   "function PAYMENT_AMOUNT() view returns (uint256)",

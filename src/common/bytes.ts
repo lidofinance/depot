@@ -76,8 +76,6 @@ export default {
   join,
   slice,
   encode,
-  strip0x,
-  prefix0x,
   toInt,
   toBigInt,
   length,

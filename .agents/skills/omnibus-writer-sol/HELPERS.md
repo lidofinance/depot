@@ -76,7 +76,7 @@ The TS `registry` is a contract handle. A recipient's stored title is distinct f
 
 Capture the previous spent amount before execution, accounting for earlier calls. Equal old/new spent amounts produce no domain event, but the proposal call still needs registration. Limit changes expect `CurrentPeriodAdvanced` before `LimitsParametersChanged`; derive the period for that action rather than blindly using final state after multiple period changes. Check stored limits, period, spent amount and recipient membership against the intended inputs.
 
-Paired unit examples: [AllowedRecipients.t.sol](../../../contracts/libraries/AllowedRecipients.t.sol) and [event tests](../../../test/depot/omnibuses/expected-events-allowed-recipients.unit.test.ts).
+Paired unit example: [AllowedRecipients.t.sol](../../../contracts/libraries/AllowedRecipients.t.sol).
 
 ## Finance
 
@@ -150,4 +150,39 @@ Target-limit calls go to StakingRouter but emit from the module's registry. Conf
 
 ## Other domain events
 
-For typed direct calls without a wrapper, use the existing helpers in [expected-events](../../../src/omnibuses/expected-events): `proxy`, `hashConsensus`, `stakingRouter` and the namespaces above. Match their exact arguments and emitter to the target ABI; fall back to `event(contract, eventName, args)` when the action has no domain helper. This adds expectations to the existing runtime, not a new call builder in TypeScript.
+For typed direct calls without a wrapper, use the event helpers below. Follow the skill's missing-helper agreement rule before using `event(contract, eventName, args)` for an uncovered action.
+
+### Proxy and contract version
+
+[Proxy event helpers](../../../src/omnibuses/expected-events/proxy.ts) accept a contract handle and emit expectations at that contract's address:
+
+| Event helper                                    | Input                         | Expected domain event         |
+| ----------------------------------------------- | ----------------------------- | ----------------------------- |
+| `ev.proxy.upgraded(proxy, input)`               | `{ implementation: Address }` | `Upgraded(implementation)`    |
+| `ev.proxy.contractVersionSet(versioned, input)` | `{ version: bigint }`         | `ContractVersionSet(version)` |
+
+These helpers supply their own event ABI. Pass the emitting proxy/contract handle, and check the resulting implementation/version through the target's read ABI.
+
+### Hash consensus
+
+[Hash consensus event helpers](../../../src/omnibuses/expected-events/hash-consensus.ts) accept a typed HashConsensus contract handle:
+
+| Event helper                                           | Input                                                       | Expected domain event                         |
+| ------------------------------------------------------ | ----------------------------------------------------------- | --------------------------------------------- |
+| `ev.hashConsensus.memberAdded(hashConsensus, input)`   | `{ member: Address, totalMembers: bigint, quorum: bigint }` | `MemberAdded(member, totalMembers, quorum)`   |
+| `ev.hashConsensus.memberRemoved(hashConsensus, input)` | `{ member: Address, totalMembers: bigint, quorum: bigint }` | `MemberRemoved(member, totalMembers, quorum)` |
+
+Use the resulting member count for that action, accounting for earlier membership changes. The quorum is an exact payload input; resolve it before implementation.
+
+### Staking router
+
+[Staking router event helpers](../../../src/omnibuses/expected-events/staking-router.ts) accept a typed StakingRouter contract handle. `moduleUpdated` uses `StakingModuleParams`: `stakingModuleId`, `stakeShareLimit`, `priorityExitShareThreshold`, `stakingModuleFee`, `treasuryFee`, `maxDepositsPerBlock`, and `minDepositBlockDistance`, all `bigint`.
+
+| Event helper                                                 | Input                                                                                      | Expected domain events, in order                                                                                                       |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `ev.stakingRouter.moduleUpdated(stakingRouter, input)`       | `StakingModuleParams`                                                                      | `StakingModuleShareLimitSet`, `StakingModuleFeesSet`, `StakingModuleMaxDepositsPerBlockSet`, `StakingModuleMinDepositBlockDistanceSet` |
+| `ev.stakingRouter.moduleSharesUpdated(stakingRouter, input)` | `{ stakingModuleId: bigint, stakeShareLimit: bigint, priorityExitShareThreshold: bigint }` | `StakingModuleShareLimitSet`                                                                                                           |
+| `ev.stakingRouter.moduleAdded(stakingRouter, input)`         | `StakingModuleParams & { stakingModuleAddress: Address, name: string }`                    | `StakingModuleAdded`, then all `moduleUpdated` events                                                                                  |
+| `ev.stakingRouter.moduleStatusSet(stakingRouter, input)`     | `{ stakingModuleId: bigint, status: number }`                                              | `StakingModuleStatusSet`                                                                                                               |
+
+The helpers match the supplied values but leave each event's final sender field unconstrained. Resolve the intended status and parameter units from the description and target interface; verify stored module settings separately.

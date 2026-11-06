@@ -24,9 +24,9 @@ import {
 } from "./tx-traces";
 import { RawStructLog } from "./types";
 import { Stack } from "./stack";
-import { ReadOnlyEVMMemory, ReadOnlyEVMStack, EVMMemoryReader, EVMStackReader } from "./evm-runtime";
+import { ReadOnlyEVMMemory, ReadOnlyEVMStack } from "./evm-runtime";
 
-interface FormattedStructLog<OpCode = EvmOpcode, StackT = EVMStackReader, Memory = EVMMemoryReader> {
+interface FormattedStructLog<OpCode = EvmOpcode, StackT = ReadOnlyEVMStack, Memory = ReadOnlyEVMMemory> {
   depth: number;
   error?: string;
   gas: number;
@@ -197,38 +197,41 @@ export class StructLogsTracingVisitor {
 
   private handleLog(log: RawStructLog<LogEvmOpcodes>) {
     const flog = this.formatRawStructLog(log);
-    const result = {
-      type: flog.op,
-      depth: flog.depth,
-      topics: [],
-      data: flog.memory.read(bytes.toInt(flog.stack.peek(0)), bytes.toInt(flog.stack.peek(1))),
-    } as TxTraceLogItem;
-
+    const topics: HexStrPrefixed[] = [];
     // lexicographic order works there
     if (flog.op >= OPCODES.LOG1) {
-      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(2));
+      topics.push(flog.stack.peek(2));
     }
     if (flog.op >= OPCODES.LOG2) {
-      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(3));
+      topics.push(flog.stack.peek(3));
     }
     if (flog.op >= OPCODES.LOG3) {
-      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(4));
+      topics.push(flog.stack.peek(4));
     }
     if (flog.op === OPCODES.LOG4) {
-      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(5));
+      topics.push(flog.stack.peek(5));
     }
-    this.items.push(result);
 
-    const stackHeight = this.stack.length;
-
-    for (let i = 0; i < stackHeight; ++i) {
+    let address: HexStrPrefixed | undefined;
+    for (let i = 0; i < this.stack.length; ++i) {
       const item = this.stack.peek(i);
       if (item.type === "CALL" || item.type === "CREATE" || item.type === "CREATE2") {
-        result.address = item.address;
-        return;
+        address = item.address;
+        break;
       }
     }
-    throw new Error("Invalid stack: CALL, CREATE or CREATE2 item associated with LOG item not found");
+    if (!address) {
+      throw new Error("Invalid stack: CALL, CREATE or CREATE2 item associated with LOG item not found");
+    }
+
+    const result: TxTraceLogItem = {
+      type: flog.op,
+      depth: flog.depth,
+      topics,
+      data: flog.memory.read(bytes.toInt(flog.stack.peek(0)), bytes.toInt(flog.stack.peek(1))),
+      address,
+    };
+    this.items.push(result);
   }
 
   private handleSelfDestruct(log: RawStructLog<SelfDestructEvmOpcodes>) {

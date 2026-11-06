@@ -92,7 +92,7 @@ it("does the thing", () => {
 });
 ```
 
-If the code you're testing doesn't have a DI container, add one to the source as part of your test PR. Examples: `lifecycleDeps`, `testingDeps`, `tracerDeps`.
+If the code you're testing doesn't have a DI container, add one to the source as part of your test PR. Examples: `omnibusTaskDeps`, `multiTestDeps`, `repoImageDeps`.
 
 ## HTTP mocking
 
@@ -112,28 +112,24 @@ it("handles API response", async () => {
 });
 ```
 
-Helper pattern for multiple responses, see `test/depot/contracts/etherscan-provider.unit.test.ts`.
+Example: `test/depot/contracts/etherscan-provider.unit.test.ts`.
 
 ## Integration test pattern
 
-Starts an in-process Hardhat network, deploys mocks from `contracts/mocks/` and isolates tests with snapshots (see `test/AGENTS.md`):
+Starts an in-process Hardhat network and isolates tests with snapshots (see `test/AGENTS.md`):
 
 ```typescript
 import { assert } from "chai";
 import { DevRpcClient } from "@/src/network/dev-rpc-client";
 import { HexStrPrefixed } from "@/src/common/bytes";
 import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
-import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
 
 describe("feature (integration)", function () {
   let client: DevRpcClient;
-  let mocks: MockGovernanceContracts;
   let snapshotId: HexStrPrefixed;
 
   before(async function () {
     client = await createInProcessDevRpcClient();
-    const [deployer] = await client.getAccounts();
-    mocks = await deployMockGovernance(client, deployer);
   });
 
   beforeEach(async function () {
@@ -144,8 +140,12 @@ describe("feature (integration)", function () {
     await client.revert(snapshotId);
   });
 
-  it("starts with zero token supply", async function () {
-    assert.equal(await client.read(mocks.ldo, "totalSupply"), 0n);
+  it("lands the next block on the target timestamp", async function () {
+    const target = (await client.getChainTime()) + 3600;
+
+    await client.setTime(target);
+
+    assert.equal(await client.getChainTime(), target);
   });
 });
 ```
@@ -154,12 +154,9 @@ describe("feature (integration)", function () {
 
 Live in `contracts/mocks/`. Current mocks:
 
-- `MockERC20.sol` — mintable ERC20
 - `MockVoting.sol` — Aragon Voting subset
-- `MockTokenManager.sol` — TokenManager with EVM script parsing
 - `MockHashConsensus.sol` — minimal HashConsensus for AccountingOracle `setConsensusContract` guards
 - `MockKernelAppImplementation.sol` — V1/V2 app implementations reporting `version()`
-- `MockOmnibus.sol` — minimal `OmnibusBase` with one call
 - `MockSnapshotCallTarget.sol` — one-shot call target for snapshot tests
 
 Extend existing mocks before adding new ones. If you add a new mock:
@@ -181,6 +178,6 @@ Extend existing mocks before adding new ones. If you add a new mock:
 
 - `test/AGENTS.md` — naming, templates, mock rules
 - `CONTRIBUTING.md` — TS/ESM conventions
-- Real integration test: `test/depot/aragon-votes/lifecycle.integration.test.ts`
+- Real integration test: `test/depot/network/set-time.integration.test.ts`
 - Real unit test with fetch mock: `test/depot/contracts/etherscan-provider.unit.test.ts`
-- Real unit test with DI stub: `test/depot/traces/tx-tracer.unit.test.ts`
+- Real unit test with DI stub: `test/depot/omnibuses/omnibus-launch-task.unit.test.ts`

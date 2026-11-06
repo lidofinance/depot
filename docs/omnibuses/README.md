@@ -16,6 +16,6 @@ Each directory keeps its Markdown description, Solidity payload and TypeScript w
 | [Permissions / Node operators](../../omnibuses/examples/_example_permissions_node_operators) | ACL parameter grants, permission-use probes, node-operator changes and grouped events.              |
 | [Upgrade snapshot](../../omnibuses/examples/_example_upgrade_snapshot)                       | `upgrade: true` runs all snapshot suites; the wrapper asserts the new implementation slot.          |
 
-For Easy Track and allowed-recipient operations, see the helper catalogue and the paired library/event tests it links. Full protocol regressions use the [cross-repository runbook](WRITING_OMNIBUS.md#cross-repository-checks) and [mount examples](../../mount/README.md).
+For Easy Track and allowed-recipient operations, see the helper catalogue and the paired library/event tests it links. Full protocol regressions use the [cross-repository runbook](WRITING_OMNIBUS.md#cross-repository-checks).
 
 Examples and archived payloads describe particular states; a historical successful run is not a guarantee about latest state. `omnibus:test` applies what is not executed on chain yet and checks the final state of what is; use `omnibus:trace` to inspect execution. Build, test and deploy include address lint; validate explicitly before launch.

@@ -36,7 +36,7 @@ export const SCRIPTS_IMAGE = () => process.env.SCRIPTS_IMAGE || "ghcr.io/lidofin
 export const IMAGE_PLATFORM = (repo: string) =>
   process.env[`IMAGE_PLATFORM_${repo.toUpperCase().replace(/-/g, "_")}`] || "";
 
-export function getRequiredEnvVar(name: string) {
+function getRequiredEnvVar(name: string) {
   const value = process.env[name];
   if (value === undefined || value.trim() === "") {
     throw new KnownError(`required ENV variable "${name}" is not set`);
@@ -44,8 +44,8 @@ export function getRequiredEnvVar(name: string) {
   return value;
 }
 
-export function getOptionalEnvVar(name: string, defaultValue: string): string;
-export function getOptionalEnvVar(name: string): string | undefined;
-export function getOptionalEnvVar(name: string, defaultValue?: string) {
+function getOptionalEnvVar(name: string, defaultValue: string): string;
+function getOptionalEnvVar(name: string): string | undefined;
+function getOptionalEnvVar(name: string, defaultValue?: string) {
   return process.env[name] ?? defaultValue;
 }

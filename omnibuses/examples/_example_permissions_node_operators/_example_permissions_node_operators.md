@@ -28,13 +28,9 @@ Historical read-only checks on 2026-09-06 at mainnet block **25918463** confirme
 
 Run the example with the current CLI: `npm run omnibus:test -- _example_permissions_node_operators`. This command does not pin a block: a new in-process fork starts at latest, while an existing local node keeps its current state, so the operator and permission assumptions must still hold. To reproduce the recorded block, add `--fork-block 25918463`; the historical run below used it.
 
-The domain integration test requires `ETH_MAINNET_RPC_URL`; its two tests are skipped when the variable is absent. It revokes and restores the permission on an isolated local fork, compares the generated calldata byte-for-byte with the live permission, and exercises permitted and denied signing-key removal. These checks cover this proposal's effects; they do not replace the protocol permission inventory.
-
 Historical verification on 2026-09-06:
 
 - `npm run omnibus:build -- _example_permissions_node_operators`: passed.
 - `forge test --match-path 'contracts/libraries/*.t.sol'`: 34 tests passed across 11 suites, none failed or skipped; includes the permissions and node-operator libraries.
-- The four domain unit files plus `acl-permission-params.unit.test.ts`: 37 tests passed.
-- `npx mocha --no-config --import=tsx --timeout 600000 test/depot/omnibuses/helpers-permissions-node-operators.integration.test.ts`: both tests passed on an isolated Hardhat chain 31337 forked from mainnet block 25918463. Each test completed its snapshot/revert and impersonation cleanup, and the connection was closed.
 - `omnibus:test` at the same fork block: local vote **205**, proposal **14**, all six Agent forwards passed with every receipt event accounted for. `isValidVoteScript(205)` returned true; the runtime completed its snapshot cleanup.
 - EVM script: **2752 bytes**, keccak256 **`0x530a7002fd2cd11183d40a18bd4ef46ea16fe699085a77cec24d2332e72e5678`**. This is a synthetic local vote, not a reconstruction of the complete historical vote #201.

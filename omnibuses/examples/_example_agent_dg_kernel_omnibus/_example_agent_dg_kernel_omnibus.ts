@@ -5,8 +5,7 @@ import { Address, parseAbi, parseEther } from "viem";
 
 import { ACL_ABI } from "@/abi/ACL.abi";
 import { Kernel_ABI } from "@/abi/Kernel.abi";
-import { contract, createContracts } from "@/src/contracts";
-import { runHardhatTask } from "@/src/hardhat/run-task";
+import { contract } from "@/src/contracts";
 import { DevRpcClient } from "@/src/network";
 import { expectedEvents as ev, Omnibus } from "@/src/omnibuses";
 
@@ -15,7 +14,7 @@ const ACL = "0x9895F0F17cc1d1891b6f18ee0b483B6f221b37Bb";
 const KERNEL = "0xb8FFC3Cd6e7Cf5a098A1c92F48009765B24088Dc";
 const STRANGER = "0x0000000000000000000000000000000000000703";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-const contracts = createContracts({ acl: [ACL_ABI, ACL], kernel: [Kernel_ABI, KERNEL] });
+const contracts = { acl: contract(ACL_ABI, ACL, "ACL"), kernel: contract(Kernel_ABI, KERNEL, "Kernel") };
 const voteAbi = parseAbi([
   "function OLD_IMPLEMENTATION() view returns (address)",
   "function NEW_IMPLEMENTATION() view returns (address)",
@@ -71,7 +70,7 @@ export default Omnibus.create({
     assert.isFalse(await client.read(contracts.acl, "hasPermission", [AGENT, KERNEL, vote.role]));
 
     // Hardhat's scoped build emits artifacts only for its root source files.
-    await runHardhatTask(hre, "build", {
+    await hre.tasks.getTask("build").run({
       files: ["contracts/mocks/MockKernelAppImplementation.sol"],
       noTests: true,
       quiet: true,

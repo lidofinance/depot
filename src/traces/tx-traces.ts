@@ -42,22 +42,11 @@ export interface TxTraceCreateItem extends TxTraceCtxSpawningItem<CreateEvmOpcod
   salt?: HexStrPrefixed;
 }
 
-interface TxTraceLogItemBase<
-  _Type extends LogEvmOpcodes,
-  _Topics extends HexStrPrefixed[],
-> extends TxTraceItemMeta<_Type> {
+export interface TxTraceLogItem extends TxTraceItemMeta<LogEvmOpcodes> {
   data: HexStrPrefixed;
   address: HexStrPrefixed;
-  topics: _Topics;
+  topics: HexStrPrefixed[];
 }
-
-type TxTraceLog0Item = TxTraceLogItemBase<"LOG0", []>;
-type TxTraceLog1Item = TxTraceLogItemBase<"LOG0", [HexStrPrefixed]>;
-type TxTraceLog2Item = TxTraceLogItemBase<"LOG0", [HexStrPrefixed, HexStrPrefixed]>;
-type TxTraceLog3Item = TxTraceLogItemBase<"LOG0", [HexStrPrefixed, HexStrPrefixed, HexStrPrefixed]>;
-type TxTraceLog4Item = TxTraceLogItemBase<"LOG0", [HexStrPrefixed, HexStrPrefixed, HexStrPrefixed, HexStrPrefixed]>;
-
-export type TxTraceLogItem = TxTraceLog0Item | TxTraceLog1Item | TxTraceLog2Item | TxTraceLog3Item | TxTraceLog4Item;
 
 export interface TxTraceSelfDestructItem extends TxTraceItemMeta<SelfDestructEvmOpcodes> {
   address: Address;
@@ -170,12 +159,10 @@ export class TxTrace {
   }
 
   private formatCreateTraceItem(txCreateTraceItem: TxTraceCreateItem, padding: number = 0) {
-    // TODO: implement pretty formatting
     return " ".repeat(txCreateTraceItem.depth + (padding ?? 0)) + txCreateTraceItem.type;
   }
 
   private formatSelfDestructTraceItem(txSelfDestructTraceItem: TxTraceSelfDestructItem, padding: number = 0) {
-    // TODO: implement pretty formatting
     return " ".repeat(txSelfDestructTraceItem.depth + (padding ?? 0)) + txSelfDestructTraceItem.type;
   }
 

@@ -40,7 +40,7 @@ The project uses `"type": "module"`. This limits what sinon can stub:
 
 ```typescript
 // OK — plain objects, class methods
-sinon.stub(deps, "getGovernanceContracts").returns(mock);
+sinon.stub(deps, "resolveContractInfo").resolves(mock);
 sinon.stub(ContractInfoResolver, "resolve").resolves(mock);
 
 // FORBIDDEN — ESM module exports are immutable

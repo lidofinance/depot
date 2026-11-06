@@ -2,12 +2,10 @@ import { decodeEventLog, encodeEventTopics, encodeFunctionData } from "viem";
 import { RpcClient, WriteContractOptions } from "../network";
 import { EvmScriptParser } from "./evm-script-parser";
 import { HexStrPrefixed } from "../common/bytes";
-import { getEventAbi } from "../contracts/contracts";
-import { Voting_ABI } from "../../abi/Voting.abi";
+import { getEventAbi } from "@/src/contracts";
+import { Voting_ABI } from "@/abi/Voting.abi";
 import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 import { KnownError } from "../common/errors";
-
-export const lifecycleDeps = { getGovernanceContracts };
 
 export async function startAragonVote(
   client: RpcClient,
@@ -16,7 +14,7 @@ export async function startAragonVote(
   txOptions: WriteContractOptions,
 ) {
   const networkName = client.getNetworkName();
-  const { voting, tokenManager } = lifecycleDeps.getGovernanceContracts(networkName);
+  const { voting, tokenManager } = getGovernanceContracts(networkName);
 
   const startVoteScript = EvmScriptParser.encode([
     {
@@ -53,14 +51,9 @@ export async function startAragonVote(
   return { voteId, receipt };
 }
 
-export async function executeAragonVote(client: RpcClient, voteId: bigint, txOptions: WriteContractOptions) {
-  const { voting } = lifecycleDeps.getGovernanceContracts(client.getNetworkName());
-  return client.write(voting, "executeVote", [voteId], txOptions);
-}
-
 /** `fromBlock` is the vote snapshot block: ExecuteVote can't be earlier. */
 export async function getExecuteReceipt(client: RpcClient, voteId: bigint, fromBlock: bigint) {
-  const { voting } = lifecycleDeps.getGovernanceContracts(client.getNetworkName());
+  const { voting } = getGovernanceContracts(client.getNetworkName());
   // stateless eth_getLogs: filter ids don't survive a load-balanced public RPC
   const [executeLog] = await client.getLogsInWindows(
     { address: voting.address, event: getEventAbi(voting, "ExecuteVote"), args: { voteId }, fromBlock },

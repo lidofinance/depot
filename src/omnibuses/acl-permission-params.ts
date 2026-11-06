@@ -45,14 +45,6 @@ export function encodeAclParam(param: AclParam): bigint {
   return (BigInt(param.argId) << 248n) | (BigInt(param.op) << 240n) | (param.value & UINT240_MASK);
 }
 
-export function decodeAclParam(encoded: bigint): AclParam {
-  return {
-    argId: Number(encoded >> 248n),
-    op: Number((encoded >> 240n) & 0xffn),
-    value: encoded & UINT240_MASK,
-  };
-}
-
 /** `keccak256(uint256[])` the way the ACL stores it and emits in `SetPermissionParams`. */
 export function aclParamsHash(params: AclParam[]): HexStrPrefixed {
   return keccak256(encodePacked(["uint256[]"], [params.map(encodeAclParam)]));

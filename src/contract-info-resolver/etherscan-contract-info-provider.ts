@@ -1,6 +1,7 @@
-import { ContractInfoProvider, ContractInfo } from "./types";
+import { ContractInfo } from "./types";
 
 import bytes from "../common/bytes";
+import { errorMessage } from "../common/errors";
 import { Address } from "../common/types";
 import { getChainIdByNetworkName, NetworkName } from "../network";
 
@@ -10,7 +11,7 @@ interface EtherscanResponse<T = unknown> {
   result: T;
 }
 
-export const MAX_ATTEMPTS = 6;
+const MAX_ATTEMPTS = 6;
 // Etherscan free tier is 5 req/s; back off 0.5s, 1s, 2s, 4s, 8s.
 const BASE_DELAY_MS = 500;
 const MAX_DELAY_MS = 8_000;
@@ -48,27 +49,13 @@ class EtherscanUnavailableError extends Error {
 
 type RetryReason = "rate limit" | "transient error";
 
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
-
 interface EtherscanGetSourceCodeResult {
-  SourceCode: string;
   ABI: string;
   ContractName: string;
-  CompilerVersion: string;
-  OptimizationUsed: "1" | "0";
-  Runs: string;
-  ConstructorArguments: string;
-  EVMVersion: string;
-  Library: string;
-  LicenseType: string;
-  Proxy: "0" | "1";
   Implementation: string;
-  SwarmSource: string;
 }
 
-export class EtherscanContractInfoProvider implements ContractInfoProvider {
+export class EtherscanContractInfoProvider {
   private readonly etherscanToken: string;
 
   constructor(etherscanToken: string) {

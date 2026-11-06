@@ -1,16 +1,13 @@
 import { CREATOR, CREATOR_ETH_BALANCE, CREATOR_LDO_BALANCE, LDO_VOTERS_BY_NETWORK_NAME } from "./constants";
-import { startAragonVote } from "./lifecycle";
 import { DevRpcClient } from "../network";
 import { Address, formatEther, TransactionReceipt } from "viem";
 import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
 const MAIN_VOTE_PHASE = 0;
 
-export const testingDeps = { getGovernanceContracts, startAragonVote };
-
 export async function setupLdoHolder(client: DevRpcClient, account: Address = CREATOR): Promise<Address> {
   const network = client.getNetworkName();
-  const { ldo } = testingDeps.getGovernanceContracts(network);
+  const { ldo } = getGovernanceContracts(network);
   const [funder] = LDO_VOTERS_BY_NETWORK_NAME[network];
 
   await withImpersonatedAccount(client, funder, CREATOR_ETH_BALANCE, async () => {
@@ -23,7 +20,7 @@ export async function setupLdoHolder(client: DevRpcClient, account: Address = CR
 
 export async function passAragonVote(client: DevRpcClient, voteId: bigint): Promise<TransactionReceipt> {
   const network = client.getNetworkName();
-  const { voting } = testingDeps.getGovernanceContracts(network);
+  const { voting } = getGovernanceContracts(network);
   const voters = LDO_VOTERS_BY_NETWORK_NAME[network];
   const [[, executed], phase] = await Promise.all([
     client.read(voting, "getVote", [voteId]),

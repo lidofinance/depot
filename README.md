@@ -50,7 +50,7 @@ Shared deployed-protocol checks live in `test/protocol/acceptance/` and run thro
 
 `omnibus:test` picks its checks by the on-chain state of `voteId`: an executed vote is compared with its contract and checked by `testFinalState` and acceptance; trace is the historical inspection path. See the guide for complete event coverage, snapshots, deployment recording and public lifecycle fields.
 
-Cross-repository tests and mounted test examples are described in [the runbook](docs/omnibuses/WRITING_OMNIBUS.md#cross-repository-checks) and [mount/README.md](mount/README.md). Build checks, local models and live fork suites provide different evidence; report their results separately.
+Cross-repository tests are described in [the runbook](docs/omnibuses/WRITING_OMNIBUS.md#cross-repository-checks). Build checks, local models and live fork suites provide different evidence; report their results separately.
 
 ## Deployment and launch
 

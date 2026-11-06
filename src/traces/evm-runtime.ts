@@ -4,15 +4,7 @@ import bytes, { HexStrPrefixed } from "../common/bytes";
 // struct log entry. Both wrap raw hex data from debug_traceTransaction and
 // expose minimal accessors used by the tracing visitor.
 
-export interface EVMMemoryReader {
-  read(offset: number, size: number): HexStrPrefixed;
-}
-
-export interface EVMStackReader {
-  peek(offset?: number): HexStrPrefixed;
-}
-
-export class ReadOnlyEVMMemory implements EVMMemoryReader {
+export class ReadOnlyEVMMemory {
   private readonly memory: string;
 
   constructor(memory: string[]) {
@@ -20,12 +12,11 @@ export class ReadOnlyEVMMemory implements EVMMemoryReader {
   }
 
   read(offset: number, size: number): HexStrPrefixed {
-    // TODO: maybe throw an error when offset is exceeds memory length
     return bytes.normalize(this.memory.slice(2 * offset, 2 * (offset + size)));
   }
 }
 
-export class ReadOnlyEVMStack implements EVMStackReader {
+export class ReadOnlyEVMStack {
   private readonly stack: string[];
 
   constructor(stack: string[]) {

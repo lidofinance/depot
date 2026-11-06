@@ -1,9 +1,9 @@
 import chalk from "chalk";
-import { task } from "hardhat/config";
 import { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 
-import { isSupportedNetwork, SUPPORTED_NETWORKS, syncAbi } from "../src/abi-sync";
-import { parseAddress } from "../src/abi-sync/abi-source";
+import { isSupportedNetwork, SUPPORTED_NETWORKS, syncAbi } from "@/src/abi-sync";
+import { parseAddress } from "@/src/abi-sync/abi-source";
+import { createTaskRegistry, lazy } from "./define-task";
 
 interface AbiSyncTaskArgs {
   name: string;
@@ -44,26 +44,27 @@ async function abiSyncAction(taskArgs: AbiSyncTaskArgs, hre: HardhatRuntimeEnvir
   }
 }
 
-export const abiTaskBuilders = [
-  task("abi:sync", "Generate abi/<Name>.abi.ts and contracts/interfaces/I<Name>.sol from a verified ABI")
-    .addPositionalArgument({ name: "name", description: 'PascalCase contract name, e.g. "StakingRouter"' })
-    .addOption({
-      name: "address",
-      description: "Deployed address; defaults to the constant of the same name in contracts/addresses/",
-      defaultValue: "",
-    })
-    .addOption({ name: "networkName", description: "mainnet | hoodi", defaultValue: "mainnet" })
-    .addOption({
-      name: "fromFile",
-      description: "Read the ABI from a local JSON file instead of Etherscan (for unverified contracts)",
-      defaultValue: "",
-    })
-    .addOption({
-      name: "methods",
-      description: "Comma-separated method names to keep in the Solidity interface (default: all state-changing)",
-      defaultValue: "",
-    })
-    .addFlag({ name: "skipSol", description: "Only write the TypeScript ABI, no Solidity interface" })
-    .addFlag({ name: "proxyAbi", description: "Use the proxy's own ABI instead of following it to the implementation" })
-    .setAction(() => Promise.resolve({ default: abiSyncAction })),
-];
+const { builders: abiTaskBuilders, defineTask } = createTaskRegistry();
+export { abiTaskBuilders };
+
+defineTask("abi:sync", "Generate abi/<Name>.abi.ts and contracts/interfaces/I<Name>.sol from a verified ABI")
+  .addPositionalArgument({ name: "name", description: 'PascalCase contract name, e.g. "StakingRouter"' })
+  .addOption({
+    name: "address",
+    description: "Deployed address; defaults to the constant of the same name in contracts/addresses/",
+    defaultValue: "",
+  })
+  .addOption({ name: "networkName", description: "mainnet | hoodi", defaultValue: "mainnet" })
+  .addOption({
+    name: "fromFile",
+    description: "Read the ABI from a local JSON file instead of Etherscan (for unverified contracts)",
+    defaultValue: "",
+  })
+  .addOption({
+    name: "methods",
+    description: "Comma-separated method names to keep in the Solidity interface (default: all state-changing)",
+    defaultValue: "",
+  })
+  .addFlag({ name: "skipSol", description: "Only write the TypeScript ABI, no Solidity interface" })
+  .addFlag({ name: "proxyAbi", description: "Use the proxy's own ABI instead of following it to the implementation" })
+  .setAction(lazy(abiSyncAction));

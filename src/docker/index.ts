@@ -18,13 +18,13 @@ type ContainerRunResponse = [{ StatusCode: number }, Container];
 
 const docker = new Docker();
 
-export function getLogFilePath(name: string) {
+function getLogFilePath(name: string) {
   const logsDir = `${process.cwd()}/logs`;
   mkdirSync(logsDir, { recursive: true });
   return `${logsDir}/${name.replace(/\W/g, "-")}.log`;
 }
 
-export function getStdout(name: string) {
+function getStdout(name: string) {
   const logFilePath = getLogFilePath(name);
   logGreen(`Container log: ${logFilePath}`);
   return createWriteStream(logFilePath);
@@ -72,7 +72,7 @@ function forgeProgressOf(lines: string[]) {
 }
 
 /** `14% (50/351)` for pytest, `31 ✔ · 2 ✖` for mocha/forge, empty until the first result */
-export function progressOf(lines: string[]): string {
+function progressOf(lines: string[]): string {
   const collected = lines
     .map((line) => /^collected \d+ items?(?: \/ \d+ deselected \/ (\d+) selected)?/.exec(line))
     .find(Boolean);
@@ -127,7 +127,7 @@ function summarizeForgeLog(lines: string[]) {
 }
 
 /** Test summary of a pytest, mocha or forge log; the tail of any other log */
-export function summarizeLog(logFilePath: string, tailLines = 15) {
+function summarizeLog(logFilePath: string, tailLines = 15) {
   const lines = completeLines(logFilePath);
   const summaryStart = lines.findIndex((line) => /^=+ short test summary info =+$/.test(line));
   if (summaryStart !== -1) {
@@ -137,15 +137,12 @@ export function summarizeLog(logFilePath: string, tailLines = 15) {
   return resultLine ?? summarizeMochaLog(lines) ?? summarizeForgeLog(lines) ?? lines.slice(-tailLines).join("\n");
 }
 
-/** Stop docker container and rename if isTmpContainer is true */
-export async function stopContainer(container: Container, name: string, isTmpContainer = false): Promise<void> {
+/** Renames the container before stopping, so a new one can take the name right away */
+export async function stopContainer(container: Container, name: string): Promise<void> {
   console.log(chalk.bold.green(`Stop container ${name} `));
-  if (isTmpContainer) {
-    const tmpName = `${name}-rm-${Date.now()}`;
-    console.log(chalk.bold.green(`Rename container ${name} to ${tmpName}`));
-    // rename old container to use new container with same name in same tread
-    await container.rename({ name: tmpName });
-  }
+  const tmpName = `${name}-rm-${Date.now()}`;
+  console.log(chalk.bold.green(`Rename container ${name} to ${tmpName}`));
+  await container.rename({ name: tmpName });
   await container.stop();
   ownedContainers.untrack(container);
 }
@@ -210,7 +207,6 @@ const waitMessage = async (logs: NodeJS.ReadableStream, msg: string) =>
       const text = chunk.toString();
       if (text.includes(msg)) {
         resolve(msg);
-        return;
       }
     });
   });
@@ -219,22 +215,9 @@ export async function runImageInBackground(
   name: string,
   imageName: string,
   cmd: string[],
-  useOld = false,
   config?: Docker.ContainerCreateOptions,
 ) {
   logGreen(`Prepare container ${imageName} for run in background`);
-
-  const containerOld = await findContainerByName(name);
-
-  if (useOld && containerOld) {
-    logGreen(`Previous hardhat-node container found and will be used`);
-    return containerOld;
-  }
-
-  if (!useOld && containerOld) {
-    logGreen(`Previous hardhat-node container found`);
-    await stopContainer(containerOld, name, true);
-  }
   await removeStaleContainer(name);
 
   const stdout = getStdout(name);
@@ -250,8 +233,6 @@ export async function runImageInBackground(
     for await (const _chunk of readable) {
       // drain the stream
     }
-    // TODO: show logs based on settings
-    // console.log(data);
 
     logGreen(`Image pulled...`);
   }
@@ -268,7 +249,6 @@ export async function runImageInBackground(
   );
   logGreen(`Wait for ${name} container launch`);
 
-  // TODO: add background run to hardhat container node instead
   await Promise.race([delay(2_000), launchFailure]);
 
   const container = await findContainerByName(name);
@@ -288,10 +268,8 @@ export async function runImageInBackground(
   return container;
 }
 
-export type Repos = "core" | "depot" | "scripts" | "dual-governance" | "staking-modules" | "stonks";
-
 /** Repos with a regression suite, each built from its `tests@<repo>.Dockerfile` */
-export type RepositorySuite = Exclude<Repos, "depot">;
+export type RepositorySuite = "core" | "scripts" | "dual-governance" | "staking-modules" | "stonks";
 
 const GIT_SHA_OVERRIDES: Record<RepositorySuite, () => string> = {
   scripts: env.GIT_SHA_SCRIPTS,
@@ -379,7 +357,7 @@ function hashBuildInputs(contextFiles: string[], buildArgs: Record<string, strin
   return hash.digest("hex").slice(0, 12);
 }
 
-export interface RepoImage {
+interface RepoImage {
   repo: RepositorySuite;
   branch: string;
   sha: string;
@@ -490,9 +468,9 @@ async function buildImage(
   }
 }
 
-export function createCleanOutputStream(targetStream: NodeJS.WritableStream) {
+function createCleanOutputStream(targetStream: NodeJS.WritableStream) {
   return new Transform({
-    transform(chunk, encoding, callback) {
+    transform(chunk, _encoding, callback) {
       const cleaned = util.stripVTControlCharacters((chunk as Buffer).toString("utf8"));
 
       if (cleaned) {
@@ -523,7 +501,7 @@ export async function runTestsFromRepo(
   const container = await findContainerByName(name);
 
   if (container) {
-    await stopContainer(container, name, true);
+    await stopContainer(container, name);
   }
   await removeStaleContainer(name);
 

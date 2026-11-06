@@ -1,5 +1,4 @@
 import Mocha from "mocha";
-import { randomUUID } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,10 +6,11 @@ import { redactError } from "@/src/common/redact";
 import type { DevRpcClient } from "@/src/network";
 import type { UpgradeSnapshotHooks } from "@/src/omnibuses/omnibus-types";
 import type { SnapshotContext } from "@/test/protocol/helpers/snapshot";
+import { loadMochaFilesFresh } from "./load-mocha-files";
 
 const SNAPSHOT_DIR = fileURLToPath(new URL("../../test/protocol/snapshot/", import.meta.url));
 
-export interface SnapshotRunOptions {
+interface SnapshotRunOptions {
   // True when the upgrade starts a new Aragon vote instead of executing a configured voteId
   createsVote: boolean;
   // Test seam: suite file names without `.test.ts`; omnibus:test always runs every suite
@@ -47,14 +47,7 @@ export async function runSnapshots(
   }
   try {
     await client.withSnapshot(async () => {
-      const loadFilesAsync: (options: { esmDecorator: (url: URL) => URL }) => Promise<void> =
-        mocha.loadFilesAsync.bind(mocha);
-      await loadFilesAsync({
-        esmDecorator: (url) => {
-          url.searchParams.set("run", randomUUID());
-          return url;
-        },
-      });
+      await loadMochaFilesFresh(mocha);
       await new Promise<void>((resolve, reject) => {
         const errors: Error[] = [];
         const runner = mocha.run((failures) => {

@@ -28,10 +28,6 @@ function label(label: string) {
   return chalk.magenta.bold(label);
 }
 
-function contract(name: string, addr: Address) {
-  return chalk.magenta.bold(name) + chalk.magenta.bold("[") + address(addr) + chalk.magenta.bold("]");
-}
-
 function padLeft(padLength: number, padSymbol: string = "  ") {
   return padSymbol.repeat(padLength);
 }
@@ -109,7 +105,7 @@ interface FormatRawLogItemParams {
   padLength?: number;
 }
 
-export function formatRawLogItem(params: FormatRawLogItemParams) {
+function formatRawLogItem(params: FormatRawLogItemParams) {
   const { type, topics, data, padLength = 0 } = params;
   const logInfo = padded(opcode(type) + " " + label(topics[0] ?? "Anonymous"), padLength);
   const formattedTopics: string[] = [];
@@ -127,7 +123,7 @@ interface FormatDecodedLogItemParams {
   padLength?: number;
 }
 
-export function formatDecodedLogItem(params: FormatDecodedLogItemParams) {
+function formatDecodedLogItem(params: FormatDecodedLogItemParams) {
   const { abi, type, args, padLength = 0 } = params;
 
   const argNames = Object.keys(args).map((arg) => ({ name: arg }));
@@ -193,23 +189,12 @@ function success(text: string) {
   return `${chalk.greenBright("✔")} ${text}`;
 }
 
-function error(text: string) {
-  return `${chalk.redBright("✗")} ${text}`;
-}
-
 export default {
-  ok,
   success,
-  error,
-  padLeft,
-  label,
-  opcode,
   address,
-  contract,
   padded,
   rawLog: formatRawLogItem,
   decodedLog: formatDecodedLogItem,
   rawFuncCall: formatRawFunctionCall,
   decodedFuncCall: formatDecodedFunctionCall,
-  formatArgs,
 };

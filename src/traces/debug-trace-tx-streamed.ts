@@ -24,7 +24,7 @@ interface StructLogTracerHandlers {
   returnValue?(returnValue: string): void;
 }
 
-export interface TraceParameters {
+interface TraceParameters {
   disableStack?: boolean | null;
   disableStorage?: boolean | null;
   enableMemory?: boolean | null;
@@ -133,7 +133,6 @@ export class DebugTraceTxStreamed {
     const rpcUrl = this.client.getRpcUrl();
 
     if (rpcUrl) {
-      // TODO: handle failed requests, for example when tx wasn't found
       return fetch(rpcUrl, {
         method: "post",
         headers: { "Content-Type": "application/json" },

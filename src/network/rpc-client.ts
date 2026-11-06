@@ -58,7 +58,7 @@ interface TransactionData {
 // many RPCs cap eth_getLogs at 5000 blocks, both ends inclusive
 const GET_LOGS_WINDOW = 4999n;
 
-export interface LogsQuery {
+interface LogsQuery {
   address: Address;
   event: AbiEvent;
   args?: GetLogsParameters<AbiEvent>["args"];
