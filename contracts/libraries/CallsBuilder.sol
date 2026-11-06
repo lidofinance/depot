@@ -20,8 +20,6 @@ struct VoteCallsBuilder {
 }
 
 library VoteCallsBuilderUtils {
-    using CallsScriptBuilderUtils for CallsScriptBuilder;
-
     function create(uint256 callsCount) internal pure returns (VoteCallsBuilder memory res) {
         res._calls = new VoteCall[](callsCount);
     }
@@ -124,7 +122,9 @@ library ForwardedCallsBuilderUtils {
     }
 
     function getCalls(ForwardedCallsBuilder memory self) internal pure returns (ForwardedCall[] memory) {
-        // TODO: add length validation
+        if (self._calls.length != self._addedCallsCount) {
+            revert InvalidCallsCount(self._calls.length);
+        }
         return self._calls;
     }
 }

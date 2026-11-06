@@ -29,12 +29,12 @@ runs:
         dir="omnibuses/ongoing/$NETWORK"
         name=""
         if [[ -d "$dir" ]]; then
-          # Several candidates are allowed for now; the first by name is tested.
           candidates="$(find "$dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | LC_ALL=C sort)"
-          name="$(head -n 1 <<< "$candidates")"
           if [[ "$(wc -l <<< "$candidates")" -gt 1 ]]; then
-            echo "::warning::Several candidates in $dir: $(paste -sd, <<< "$candidates"); testing only $name"
+            echo "::error::Several candidates in $dir: $(paste -sd, <<< "$candidates"); keep one ongoing vote per network"
+            exit 1
           fi
+          name="$candidates"
         fi
         if [[ -n "$name" && ! "$name" =~ ^[a-z0-9_]+$ ]]; then
           echo "::error::Invalid candidate name in $dir"

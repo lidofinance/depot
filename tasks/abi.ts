@@ -3,6 +3,7 @@ import { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 
 import { isSupportedNetwork, SUPPORTED_NETWORKS, syncAbi } from "@/src/abi-sync";
 import { parseAddress } from "@/src/abi-sync/abi-source";
+import { KnownError } from "@/src/common/errors";
 import { createTaskRegistry, lazy } from "./define-task";
 
 interface AbiSyncTaskArgs {
@@ -18,7 +19,7 @@ interface AbiSyncTaskArgs {
 async function abiSyncAction(taskArgs: AbiSyncTaskArgs, hre: HardhatRuntimeEnvironment) {
   const { networkName } = taskArgs;
   if (!isSupportedNetwork(networkName)) {
-    throw new Error(`Unknown network "${networkName}", expected one of: ${SUPPORTED_NETWORKS.join(", ")}`);
+    throw new KnownError(`Unknown network "${networkName}", expected one of: ${SUPPORTED_NETWORKS.join(", ")}`);
   }
 
   const result = await syncAbi({

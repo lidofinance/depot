@@ -130,7 +130,7 @@ For the current CLI syntax, run `npm run abi:sync -- --help`.
 ```bash
 npx prettier --check abi/MyContract.abi.ts
 forge fmt --check contracts/interfaces/IMyContract.sol
-npx tsc --noEmit
+npm run types
 npm run lint
 npm test
 ```

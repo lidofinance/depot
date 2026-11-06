@@ -2,6 +2,7 @@ import { CREATOR, CREATOR_ETH_BALANCE, CREATOR_LDO_BALANCE, LDO_VOTERS_BY_NETWOR
 import { DevRpcClient } from "../network";
 import { Address, formatEther, TransactionReceipt } from "viem";
 import { getGovernanceContracts } from "../omnibuses/governance-contracts";
+import { KnownError } from "../common/errors";
 
 const MAIN_VOTE_PHASE = 0;
 
@@ -28,7 +29,7 @@ export async function passAragonVote(client: DevRpcClient, voteId: bigint): Prom
   ]);
 
   if (executed) {
-    throw new Error(`Vote ${voteId} is already executed, there is nothing to pass`);
+    throw new KnownError(`Vote ${voteId} is already executed, there is nothing to pass`);
   }
 
   // the objection phase takes only "nay": a "yea" reverts with VOTING_CAN_NOT_VOTE

@@ -24,14 +24,7 @@ The test compares the built EVM script with vote #200, executes a fresh vote on 
 
 ```bash
 npm run omnibus:build -- _example_finance_omnibus
-npm run omnibus:test -- _example_finance_omnibus --fork-block 24980861
+npm run omnibus:test -- _example_finance_omnibus --fork-block 24980861 --skip-acceptance
 ```
 
-## Verification
-
-Verified on 2026-09-06 using an isolated in-process mainnet fork at block 24980861:
-
-- The 288-byte EVM script matches mainnet vote #200. Its keccak256 is `0x7244221daa19efd5ba87f1d170ce0e46b7d9d5eb5fa6742d3e36a3ef2c014c62`.
-- A fresh vote #201 executed on the fork. Treasury and recipient balances changed by 2500 stETH within 2 wei of rounding; their shares changed by the exact result of `getSharesByPooledEth(PAYMENT_AMOUNT)`.
-- `LogScriptCall`, `NewTransaction`, `Transfer`, `TransferShares`, `VaultTransfer`, `ScriptResult` and `ExecuteVote` all matched, with no unparsed logs. Finance emitted no `NewPeriod` in this run; unit tests also cover multiple period transitions.
-- The runner reverted its test snapshot, and the in-process fork ended with the command. No legacy interfaces, addresses or runtime behavior were added for this example.
+The fork block is the block before vote #200 executed; `--skip-acceptance` is required because the current DSM, which the acceptance reads, has no code at that block.

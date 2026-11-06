@@ -78,25 +78,29 @@ export async function processPendingProposals(client: DevRpcClient, proposalIds:
   ]);
 
   const proposals = await Promise.all(proposalIds.map((id) => client.read(timelock, "getProposalDetails", [id])));
-  const proposalsToSchedule = proposals.filter((proposal) => proposal.status === ProposalStatus.Submitted);
+  const pendingProposals = proposals.filter((proposal) => proposal.status !== ProposalStatus.Executed);
 
-  const latestSubmitTimestamp = Math.max(...proposalsToSchedule.map((proposal) => proposal.submittedAt), 0);
+  if (pendingProposals.length > 0) {
+    const proposalsToSchedule = pendingProposals.filter((proposal) => proposal.status === ProposalStatus.Submitted);
 
-  if (timestamp < latestSubmitTimestamp + afterSubmitDelay) {
-    await client.setTime(latestSubmitTimestamp + afterSubmitDelay + 1);
-  }
+    const latestSubmitTimestamp = Math.max(...proposalsToSchedule.map((proposal) => proposal.submittedAt), 0);
 
-  await prepareDualGovernanceState(client);
-
-  for (const proposal of proposalsToSchedule) {
-    const canScheduleProposal = await client.read(dualGovernance, "canScheduleProposal", [proposal.id]);
-    if (!canScheduleProposal) {
-      throw new Error(`Proposal ${proposal.id} can not be scheduled`);
+    if (timestamp < latestSubmitTimestamp + afterSubmitDelay) {
+      await client.setTime(latestSubmitTimestamp + afterSubmitDelay + 1);
     }
-    await client.write(dualGovernance, "scheduleProposal", [proposal.id], { from: stranger });
-  }
 
-  await client.advanceTime(afterScheduleDelay);
+    await prepareDualGovernanceState(client);
+
+    for (const proposal of proposalsToSchedule) {
+      const canScheduleProposal = await client.read(dualGovernance, "canScheduleProposal", [proposal.id]);
+      if (!canScheduleProposal) {
+        throw new Error(`Proposal ${proposal.id} can not be scheduled`);
+      }
+      await client.write(dualGovernance, "scheduleProposal", [proposal.id], { from: stranger });
+    }
+
+    await client.advanceTime(afterScheduleDelay);
+  }
 
   const executeProposalReceipts: TransactionReceipt[] = [];
   for (const proposalId of proposalIds) {

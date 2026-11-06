@@ -13,15 +13,13 @@ concurrency:
 
 jobs:
   security:
-    uses: lidofinance/linters/.github/workflows/security.yml@3b91bdb6e6078574c4f436509af2193e293c1e43 # master
+    # transitive @master refs inside lidofinance/linters stay unpinned upstream
+    uses: lidofinance/linters/.github/workflows/security.yml@ff208ca0bf93063c25becac743e1c4eb96d0aad9 # master 2026-05-29
     with:
       languages: "javascript-typescript,actions"
     permissions:
       security-events: write
       contents: read
-
-  actions:
-    uses: lidofinance/linters/.github/workflows/actions.yml@3b91bdb6e6078574c4f436509af2193e293c1e43 # master
 
   formatting:
     name: Check code formatting
@@ -52,3 +50,6 @@ jobs:
 
       - name: Lint with ESLint
         run: npm run lint
+
+      - name: Check types with tsc
+        run: npm run types

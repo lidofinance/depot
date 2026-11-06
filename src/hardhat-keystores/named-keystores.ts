@@ -8,7 +8,10 @@ import { KnownError } from "../common/errors";
 
 class NoKeystoreError extends KnownError {
   constructor() {
-    super(`Accounts not found. Aborting...`);
+    super(
+      `No keystore accounts found. Add one with "npm run ks:add -- <name>" (import a private key) ` +
+        `or "npm run ks:gen -- <name>" (generate a new one)`,
+    );
   }
 }
 

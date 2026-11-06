@@ -52,15 +52,15 @@ contract ExampleContractOmnibus is OmnibusBase {
     address public constant STAKING_ROUTER = 0xFdDf38947aFB03C621C71b06C9C70bce73f12999;
     address public constant STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
 
-    address public constant REWARDS_STETH_TOP_UP_FACTORY = 0x85d703B2A4BaD713b596c647badac9A1e95bB03d;
-    address public constant REWARDS_STETH_ADD_RECIPIENT_FACTORY = 0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C;
-    address public constant REWARDS_STETH_REMOVE_RECIPIENT_FACTORY = 0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E;
-    address public constant REWARDS_STETH_ALLOWED_RECIPIENTS_REGISTRY = 0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A;
-    address public constant REWARDS_STETH_TRUSTED_CALLER = 0x87D93d9B2C672bf9c9642d853a8682546a5012B5;
+    address public constant REWARDS_LDO_TOP_UP_FACTORY = 0x85d703B2A4BaD713b596c647badac9A1e95bB03d;
+    address public constant REWARDS_LDO_ADD_RECIPIENT_FACTORY = 0x1dCFc37719A99d73a0ce25CeEcbeFbF39938cF2C;
+    address public constant REWARDS_LDO_REMOVE_RECIPIENT_FACTORY = 0x00BB68a12180a8f7E20D8422ba9F81c07A19A79E;
+    address public constant REWARDS_LDO_ALLOWED_RECIPIENTS_REGISTRY = 0xAa47c268e6b2D4ac7d7f7Ffb28A39484f5212c2A;
+    address public constant REWARDS_LDO_TRUSTED_CALLER = 0x87D93d9B2C672bf9c9642d853a8682546a5012B5;
 
-    address public constant REWARDS_LDO_TOP_UP_FACTORY = 0x200dA0b6a9905A377CF8D469664C65dB267009d1;
-    address public constant REWARDS_LDO_ADD_RECIPIENT_FACTORY = 0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252;
-    address public constant REWARDS_LDO_REMOVE_RECIPIENT_FACTORY = 0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7;
+    address public constant GAS_SUPPLY_STETH_TOP_UP_FACTORY = 0x200dA0b6a9905A377CF8D469664C65dB267009d1;
+    address public constant GAS_SUPPLY_STETH_ADD_RECIPIENT_FACTORY = 0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252;
+    address public constant GAS_SUPPLY_STETH_REMOVE_RECIPIENT_FACTORY = 0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7;
 
     address public constant ATC_STABLES_MULTISIG = 0x9B1cebF7616f2BC73b47D226f90b01a7c9F86956;
     uint256 public constant ATC_STABLES_LDO_TRANSFER_AMOUNT = 110_000 * 10 ** 18;
@@ -110,11 +110,11 @@ contract ExampleContractOmnibus is OmnibusBase {
                 abi.encodeCall(
                     IEasyTrack.addEVMScriptFactory,
                     (
-                        REWARDS_STETH_TOP_UP_FACTORY,
+                        REWARDS_LDO_TOP_UP_FACTORY,
                         abi.encodePacked(
                             FINANCE,
                             IFinance.newImmediatePayment.selector,
-                            REWARDS_STETH_ALLOWED_RECIPIENTS_REGISTRY,
+                            REWARDS_LDO_ALLOWED_RECIPIENTS_REGISTRY,
                             IRegistry.updateSpentAmount.selector
                         )
                     )
@@ -126,8 +126,8 @@ contract ExampleContractOmnibus is OmnibusBase {
                 abi.encodeCall(
                     IEasyTrack.addEVMScriptFactory,
                     (
-                        REWARDS_STETH_ADD_RECIPIENT_FACTORY,
-                        abi.encodePacked(REWARDS_STETH_ALLOWED_RECIPIENTS_REGISTRY, IRegistry.addRecipient.selector)
+                        REWARDS_LDO_ADD_RECIPIENT_FACTORY,
+                        abi.encodePacked(REWARDS_LDO_ALLOWED_RECIPIENTS_REGISTRY, IRegistry.addRecipient.selector)
                     )
                 )
             )
@@ -137,8 +137,8 @@ contract ExampleContractOmnibus is OmnibusBase {
                 abi.encodeCall(
                     IEasyTrack.addEVMScriptFactory,
                     (
-                        REWARDS_STETH_REMOVE_RECIPIENT_FACTORY,
-                        abi.encodePacked(REWARDS_STETH_ALLOWED_RECIPIENTS_REGISTRY, IRegistry.removeRecipient.selector)
+                        REWARDS_LDO_REMOVE_RECIPIENT_FACTORY,
+                        abi.encodePacked(REWARDS_LDO_ALLOWED_RECIPIENTS_REGISTRY, IRegistry.removeRecipient.selector)
                     )
                 )
             )
@@ -158,17 +158,17 @@ contract ExampleContractOmnibus is OmnibusBase {
             .directCall(
                 "Remove TopUpEVMScriptFactory with address 0x200dA0b6a9905A377CF8D469664C65dB267009d1",
                 EASY_TRACK,
-                abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (REWARDS_LDO_TOP_UP_FACTORY))
+                abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (GAS_SUPPLY_STETH_TOP_UP_FACTORY))
             )
             .directCall(
                 "Remove AddRecipientEVMScriptFactory with address 0x48c135Ff690C2Aa7F5B11C539104B5855A4f9252",
                 EASY_TRACK,
-                abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (REWARDS_LDO_ADD_RECIPIENT_FACTORY))
+                abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (GAS_SUPPLY_STETH_ADD_RECIPIENT_FACTORY))
             )
             .directCall(
                 "Remove RemoveRecipientEVMScriptFactory with address 0x7E8eFfAb3083fB26aCE6832bFcA4C377905F97d7",
                 EASY_TRACK,
-                abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (REWARDS_LDO_REMOVE_RECIPIENT_FACTORY))
+                abi.encodeCall(IEasyTrack.removeEVMScriptFactory, (GAS_SUPPLY_STETH_REMOVE_RECIPIENT_FACTORY))
             )
             .directCall(
                 "Transfer 180,000 LDO to Pool Maintenance Labs Ltd. (PML) multisig",

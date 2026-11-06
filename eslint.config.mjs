@@ -67,7 +67,6 @@ export default [
       "lib/",
       "*.config.js",
       "*.config.mjs",
-      "scripts/",
     ],
   },
 ];

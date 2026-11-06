@@ -34,17 +34,8 @@ The temporary permission sequence follows the current Kernel governance model us
 
 ## Verification
 
-Current command:
-
 ```bash
-npm run omnibus:test -- _example_agent_dg_kernel_omnibus
+npm run omnibus:test -- _example_agent_dg_kernel_omnibus --fork-block 25918463 --skip-acceptance
 ```
 
-The results below were recorded on 2026-09-06 with Node 22.10.0 on an isolated in-process mainnet fork at block **25918463**, using `--fork-block 25918463`.
-
-- The 1248-byte EVM script has keccak256 `0xf7917291a3e907f88ebc2c01fdd2674a74ca57b842dfa7842e59fd21bb5b4318`. It matched the script of the freshly executed vote **205** through `isValidVoteScript`.
-- Vote enact submitted proposal **14** and left the fixture app on V1. Proposal execution granted the temporary role, upgraded the selected Kernel app to V2 and revoked the role. Version reads returned 1 before execution and 2 afterwards.
-- Agent and stranger calls to Kernel without the role reverted with `KERNEL_AUTH_FAILED`, before the vote, after vote enact and after proposal execution. The test verified that Agent already held the real permission-manager authority before creating the fixture.
-- The vote's `LogScriptCall`, both `ProposalSubmitted` events, `ScriptResult` and `ExecuteVote` were checked. Proposal checks covered all three nested `LogScriptCall` events, both `SetPermission` events, `SetApp`, both Agent `ScriptResult` events, both executor `Executed` events and `ProposalExecuted`. Both receipts passed the runner's no-leftover-events check.
-- The runner completed its snapshot/revert cleanup and the command exited successfully, ending the in-process fork. No assertions were skipped and no real-network transactions were sent.
-- A second full run also passed after moving only this example's generated mock-artifact directory out of `artifacts/`. The fixture build recreated both implementation artifacts and refreshed the artifact lookup cache; vote 205 and proposal 14 again passed all state and event checks.
+The block pins the fork state the example was verified against; `--skip-acceptance` is required because the current DSM, which the acceptance reads, has no code at that block.

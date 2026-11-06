@@ -5,7 +5,7 @@ Rules for writing tests in `test/`.
 ## Layout and running
 
 - `test/depot/<module>/<name>.unit.test.ts` — Depot logic, no network, mock dependencies.
-- `test/depot/<module>/<name>.integration.test.ts` — Depot integration paths with in-process Hardhat; fork cases require `ETH_MAINNET_RPC_URL`.
+- `test/depot/<module>/<name>.integration.test.ts` — Depot integration paths with in-process Hardhat.
 - `test/protocol/acceptance/` — shared checks of deployed protocol state after vote/DG execution and event checks, before snapshot restore.
 - `test/protocol/helpers/` — protocol test mechanics (client, revert matching, impersonation, oracle reports, snapshot comparison and storage reads); expected values stay in each suite.
 - `test/protocol/snapshot/` — old/upgraded comparisons that `omnibus:test` runs for `upgrade: true` votes; see [the writing guide](../docs/omnibuses/WRITING_OMNIBUS.md).
@@ -25,14 +25,14 @@ Protocol acceptance runs through `omnibus:test`, which loads the ordered `ACCEPT
 **Unit tests** — pure logic, data transforms, parsers, formatters:
 
 - No blockchain, no network, no Docker
-- Mock external deps via DI containers or plain object stubs
+- Mock external deps via DI containers or plain object stubs, e.g. `sinon.stub(omnibusTaskDeps, "getOmnibusesDir")`
 - Fast (< 1s per test)
 
 **Integration tests** — anything that calls smart contracts:
 
 - Deploy mock contracts from `contracts/mocks/` in an in-process Hardhat environment
 - Use `DevRpcClient` for `snapshot()`/`revert()` between tests
-- Override a module's DI container (e.g. `omnibusTaskDeps`) to point to mock contract addresses
+- Pass mock contract names/addresses explicitly, e.g. `deployOmnibusForLaunch(hre, client, omnibus, "MockVoting", …)`; DI containers such as `omnibusTaskDeps` hold functions only
 
 ## Mocking rules (ESM)
 
@@ -122,7 +122,7 @@ Solidity mocks live in `contracts/mocks/`:
 
 ## Review checklist for tests
 
-- Every new function in `src/` should have at least one test
+- Add a test only for logic whose silent breakage would change the vote payload, description/metadata, signing or keys; ask before adding others. Dev tools (`omnibus:trace`, `abi:sync`) are intentionally lightly tested.
 - Integration tests use `snapshot()`/`revert()` for isolation
 - No real API calls in unit tests (mock fetch, mock etherscan)
 - `afterEach(() => sinon.restore())` in every describe block that uses sinon

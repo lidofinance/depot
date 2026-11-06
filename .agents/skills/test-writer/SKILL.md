@@ -47,7 +47,7 @@ Write unit or integration tests for existing TypeScript code. Respect project co
    Run typecheck:
 
    ```bash
-   npx tsc --noEmit
+   npm run types
    ```
 
 ## ESM constraints (critical)

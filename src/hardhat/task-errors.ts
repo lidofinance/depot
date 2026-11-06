@@ -1,12 +1,25 @@
 import { HardhatPluginError } from "hardhat/plugins";
 import { NewTaskDefinition } from "hardhat/types/tasks";
-import { BaseError, ContractFunctionRevertedError, ExecutionRevertedError } from "viem";
+import { BaseError, ContractFunctionExecutionError, ContractFunctionRevertedError, ExecutionRevertedError } from "viem";
 
 import { KnownError } from "../common/errors";
 import { redactError, redactUrls } from "../common/redact";
 
 function isRevertError(error: unknown): error is ContractFunctionRevertedError | ExecutionRevertedError {
   return error instanceof ContractFunctionRevertedError || error instanceof ExecutionRevertedError;
+}
+
+// viem wraps in-process EDR reverts as unknown RPC errors, not as ExecutionRevertedError
+function isEdrRevertError(error: unknown): error is BaseError {
+  return error instanceof BaseError && /^VM Exception while processing transaction: reverted/.test(error.details);
+}
+
+function isContractFunctionError(error: unknown): error is ContractFunctionExecutionError {
+  return error instanceof ContractFunctionExecutionError;
+}
+
+function oneLine(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
 }
 
 // Hardhat's own errors print a private `formattedMessage` that in-place redaction can't reach
@@ -28,10 +41,18 @@ export function toCliError(error: unknown): Error {
   if (hasUnredactedFormattedMessage(error)) {
     return new KnownError(error.message, error);
   }
-  const revertError = error instanceof BaseError ? error.walk(isRevertError) : null;
+  if (!(error instanceof BaseError)) {
+    return error;
+  }
+  const revertError = error.walk(isRevertError);
   if (isRevertError(revertError)) {
-    const message = [revertError.shortMessage, ...(revertError.metaMessages ?? [])].join(" ");
-    return new KnownError(message.replace(/\s+/g, " ").trim(), error);
+    return new KnownError(oneLine([revertError.shortMessage, ...(revertError.metaMessages ?? [])].join(" ")), error);
+  }
+  const edrRevertError = error.walk(isEdrRevertError);
+  if (isEdrRevertError(edrRevertError)) {
+    const contractError = error.walk(isContractFunctionError);
+    const prefix = isContractFunctionError(contractError) ? `${contractError.functionName}: ` : "";
+    return new KnownError(oneLine(`${prefix}${edrRevertError.details}`), error);
   }
   return error;
 }

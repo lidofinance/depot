@@ -110,20 +110,20 @@ export class TxTrace {
       inputTypes: string[];
       result: unknown;
     } | null = null;
-    for (const c of contracts) {
+    for (const candidate of contracts) {
       try {
-        const decoded = decodeFunctionData({ abi: c.abi, data: traceCallItem.input });
-        const abiItem = getFunctionAbi(c, decoded.functionName, decoded.args);
+        const decoded = decodeFunctionData({ abi: candidate.abi, data: traceCallItem.input });
+        const abiItem = getFunctionAbi(candidate, decoded.functionName, decoded.args);
         if (abiItem.inputs.length !== (decoded.args?.length ?? 0)) {
           continue;
         }
         const result = traceCallItem.success
           ? decodeFunctionResult({
-              abi: c.abi,
+              abi: candidate.abi,
               data: traceCallItem.output,
               functionName: decoded.functionName,
             })
-          : decodeErrorResult({ abi: c.abi, data: traceCallItem.output });
+          : decodeErrorResult({ abi: candidate.abi, data: traceCallItem.output });
 
         decodeResult = {
           args: (decoded.args ?? []) as unknown[],
@@ -131,7 +131,14 @@ export class TxTrace {
           result,
           inputNames: abiItem.inputs.map((input) => input.name ?? "_"),
           inputTypes: abiItem.inputs.map((input) => input.internalType ?? input.type),
-          contract: c,
+          // a fallback ABI of another contract must not lend its label and address to the call target
+          contract: bytes.isEqual(candidate.address, traceCallItem.address)
+            ? candidate
+            : {
+                ...candidate,
+                address: traceCallItem.address,
+                label: `(decoded with ${candidate.label} ABI)`,
+              },
         };
         break;
       } catch (err) {

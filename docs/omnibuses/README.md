@@ -14,8 +14,8 @@ Each directory keeps its Markdown description, public IPFS text, Solidity payloa
 | [Finance](../../omnibuses/examples/_example_finance_omnibus)                                 | Automatic deployment, stETH payment with share/balance checks and a script match against vote #200. |
 | [Agent / DG / Kernel](../../omnibuses/examples/_example_agent_dg_kernel_omnibus)             | Explicit proposal metadata, Agent forwards and Kernel implementation/permission checks.             |
 | [Permissions / Node operators](../../omnibuses/examples/_example_permissions_node_operators) | ACL parameter grants, permission-use probes, node-operator changes and grouped events.              |
-| [Upgrade snapshot](../../omnibuses/examples/_example_upgrade_snapshot)                       | `upgrade: true` runs all snapshot suites; the wrapper asserts the new implementation slot.          |
+| [Upgrade snapshot](../../omnibuses/examples/_example_upgrade_snapshot)                       | Rehearses a Locator rollback to the #204 implementation to run all `upgrade: true` snapshot suites. |
 
 For Easy Track and allowed-recipient operations, see the helper catalogue and the paired library/event tests it links. Full protocol regressions use the [cross-repository runbook](WRITING_OMNIBUS.md#cross-repository-checks).
 
-Examples and archived payloads describe particular states; a historical successful run is not a guarantee about latest state. `omnibus:test` applies what is not executed on chain yet and checks the final state of what is; use `omnibus:trace` to inspect execution. Build, test and deploy include address lint; validate explicitly before launch.
+Examples and archived payloads describe particular states; a historical successful run is not a guarantee about latest state. `omnibus:test` applies what is not executed on chain yet and checks the final state of what is; use `omnibus:trace` to inspect execution. Vote addresses are checked in review, not by tooling: see [Addresses and titles](WRITING_OMNIBUS.md#addresses-and-titles).

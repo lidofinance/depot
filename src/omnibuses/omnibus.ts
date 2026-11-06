@@ -6,8 +6,7 @@ import { TxTrace } from "../traces/tx-traces";
 import { contract, Contract, OmnibusBaseContract } from "../contracts";
 import { ArtifactManager as Artifacts } from "hardhat/types/artifacts";
 import { createTimedSpinner } from "../common/spinner";
-import { decodeEventLog, encodeEventTopics, TransactionReceipt } from "viem";
-import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
+import { TransactionReceipt } from "viem";
 import { OmnibusBase_ABI } from "../../abi/OmnibusBase.abi";
 import { processPendingProposals, ProposalStatus } from "./dual-governance";
 import checks from "./checks";
@@ -242,23 +241,7 @@ export class Omnibus<
 
       const executeVoteTrace = filterOmnibusTrace(fullTrace);
 
-      const submitProposalLogs = executeVoteReceipt.logs.filter((log) => {
-        const proposalSubmittedTopic = encodeEventTopics({
-          abi: DualGovernance_ABI,
-          eventName: "ProposalSubmitted",
-        })[0];
-        return log.topics[0] === proposalSubmittedTopic;
-      });
-
-      const submittedProposalIds: bigint[] = submitProposalLogs.map(
-        (log) =>
-          decodeEventLog({
-            abi: DualGovernance_ABI,
-            eventName: "ProposalSubmitted",
-            topics: log.topics,
-            data: log.data,
-          }).args.proposalId,
-      );
+      const submittedProposalIds = getSubmittedProposalIds(executeVoteReceipt, voteId, this.#contracts);
 
       let executeProposalReceipts: TransactionReceipt[] = [];
       let traces: TxTrace[] = [];
@@ -682,7 +665,7 @@ export class Omnibus<
     const logs = new LogCollector(executeOmnibusReceipt.logs);
     const result: PassVoteResult = {
       voteId,
-      submittedProposalIds: getSubmittedProposalIds(executeOmnibusReceipt),
+      submittedProposalIds: getSubmittedProposalIds(executeOmnibusReceipt, voteId, this.#contracts),
       executeReceipt: executeOmnibusReceipt,
       logs,
       voteEvents: new VoteEvents(logs, this.getContractVoteCalls(), this.#contracts, this.getEvmScript()),
