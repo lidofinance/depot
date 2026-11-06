@@ -20,11 +20,11 @@ Hardhat 3 + TypeScript + Viem project for building, testing, and launching Lido 
 # Omnibus lifecycle
 npm run omnibus:create              # scaffold new omnibus from template
 npm run omnibus:build -- <name>     # compile the authored Solidity contract
-npm run omnibus:test -- <name>      # test an unexecuted omnibus on a local fork
+npm run omnibus:test -- <name>      # test the vote on a local fork at its on-chain stage (by voteId)
 npx hardhat omnibus:trace <name>    # inspect execution traces
 npx hardhat omnibus:deploy <name>   # local deployment rehearsal
 npx hardhat omnibus:launch <name>   # local launch rehearsal
-npm run lint:vote-addresses -- omnibuses/<name> # validate vote-local addresses
+npm run lint:vote-addresses -- omnibuses/ongoing/<network>/<name> # validate vote-local addresses
 
 # Quality
 npm run lint                        # ESLint (0 errors, 0 warnings expected)
@@ -54,11 +54,11 @@ tasks/                  # Hardhat tasks (omnibus:*, keystore:*)
 omnibuses/              # actual omnibus scripts and templates
 test/depot/             # Depot unit/integration tests and helpers
 test/protocol/acceptance/ # deployed protocol checks after vote/DG execution
-test/protocol/snapshot/  # opt-in upgrade state/action comparisons
+test/protocol/snapshot/  # upgrade state/action comparisons, run for upgrade: true
 contracts/mocks/        # mock Solidity contracts for integration tests
 ```
 
-Use [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md) for fork pinning, exact proposal metadata, event grouping and deployment/launch authorization. Solidity owns the payload; the TypeScript wrapper owns per-vote `testVote`/`testProposal` checks and custom deployment. Per-vote checks stay in `omnibuses/<name>/*.ts`. Shared acceptance runs after vote/DG execution; upgrade snapshots compare isolated scenarios before and after execution, as described in the writing guide.
+Use [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md) for fork pinning, exact proposal metadata, event grouping and the deployment/launch runbook. Agents never run `--broadcast` deploy or launch against Mainnet/Hoodi and never read keystore contents; real operations are human-only. Solidity owns the payload; the TypeScript wrapper owns per-vote `testVote`/`testProposal` checks and custom deployment. Per-vote checks stay in the vote wrapper `omnibuses/ongoing/<network>/<name>/<name>.ts`. Shared acceptance runs after vote/DG execution; upgrade snapshots compare isolated scenarios before and after execution, as described in the writing guide.
 
 ## Verification checklist
 

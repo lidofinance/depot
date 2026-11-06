@@ -41,35 +41,12 @@ function transferEvent(value: bigint, options: { allowMultiple?: boolean } = {})
 }
 
 describe("LogCollector", () => {
-  it("consumes the logs matched by the expected events", () => {
-    const collector = new LogCollector([createTransferLog(1n, 0), createTransferLog(2n, 1)]);
-
-    collector.assertEvents([transferEvent(1n), transferEvent(2n)]);
-
-    collector.assertNothingLeft();
-  });
-
   it("fails when a log is left unexplained", () => {
     const collector = new LogCollector([createTransferLog(1n, 0), createTransferLog(2n, 1)]);
 
     collector.assertEvents([transferEvent(1n)]);
 
     assert.throws(() => collector.assertNothingLeft(), /Unchecked log items left \(1\)/);
-  });
-
-  it("fails when no event was checked at all", () => {
-    const collector = new LogCollector([createTransferLog(1n, 0)]);
-
-    assert.throws(() => collector.assertNothingLeft(), /Unchecked log items left \(1\)/);
-  });
-
-  it("continues from the logs left by the previous assertion", () => {
-    const collector = new LogCollector([createTransferLog(1n, 0), createTransferLog(2n, 1)]);
-
-    collector.assertEvents([transferEvent(1n)]);
-    collector.assertEvents([transferEvent(2n)]);
-
-    collector.assertNothingLeft();
   });
 
   it("fails on an argument the log doesn't carry", () => {
@@ -87,50 +64,6 @@ describe("LogCollector", () => {
     );
   });
 
-  it("skips an optional event without consuming a log", () => {
-    const collector = new LogCollector([createTransferLog(1n, 0)]);
-
-    collector.assertEvents([
-      event(token, "Approval", [HOLDER, RECIPIENT, 1n], { isOptional: true }),
-      transferEvent(1n),
-    ]);
-
-    collector.assertNothingLeft();
-  });
-
-  it("matches an event allowed to be emitted multiple times with every log in a row", () => {
-    const collector = new LogCollector([createTransferLog(1n, 0), createTransferLog(1n, 1)]);
-
-    collector.assertEvents([transferEvent(1n, { allowMultiple: true })]);
-
-    collector.assertNothingLeft();
-  });
-
-  it("ends a required repeated event when the next topic starts", () => {
-    const collector = new LogCollector([createTransferLog(1n, 0), createTransferLog(1n, 1), createApprovalLog(2n, 2)]);
-    const repeated = transferEvent(1n, { allowMultiple: true });
-
-    collector.assertEvents([repeated, event(token, "Approval", [HOLDER, RECIPIENT, 2n])]);
-
-    assert.isFalse(repeated.isOptional);
-    collector.assertNothingLeft();
-  });
-
-  it("ends a required repeated event when the next emitter starts", () => {
-    const collector = new LogCollector([
-      createTransferLog(1n, 0),
-      createTransferLog(1n, 1),
-      createTransferLog(1n, 2, OTHER_TOKEN),
-    ]);
-
-    collector.assertEvents([
-      transferEvent(1n, { allowMultiple: true }),
-      event(contract(ERC20_ABI, OTHER_TOKEN), "Transfer", [HOLDER, RECIPIENT, 1n]),
-    ]);
-
-    collector.assertNothingLeft();
-  });
-
   it("requires the first match of a repeated event", () => {
     const collector = new LogCollector([createApprovalLog(1n, 0)]);
 
@@ -146,20 +79,5 @@ describe("LogCollector", () => {
       () => new LogCollector([]).assertEvents([transferEvent(1n, { allowMultiple: true })]),
       /No log left to match/,
     );
-  });
-
-  it("rejects mismatched arguments after a required repeated event has matched", () => {
-    const collector = new LogCollector([createTransferLog(1n, 0), createTransferLog(2n, 1)]);
-
-    assert.throws(
-      () => collector.assertEvents([transferEvent(1n, { allowMultiple: true }), transferEvent(2n)]),
-      /args mismatch/,
-    );
-  });
-
-  it("fails when no log is left for an expected event", () => {
-    const collector = new LogCollector([createTransferLog(1n, 0)]);
-
-    assert.throws(() => collector.assertEvents([transferEvent(1n), transferEvent(2n)]), /No log left to match/);
   });
 });

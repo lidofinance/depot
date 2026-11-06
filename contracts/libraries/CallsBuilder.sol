@@ -74,36 +74,6 @@ library VoteCallsBuilderUtils {
         return self;
     }
 
-    /// @notice Submits a Dual Governance proposal, composing its description from the titles of
-    ///     the calls it contains.
-    /// @dev Prefer the overloads taking an explicit `metadata`: the composed description ends up
-    ///     in the submitted payload, so deriving it silently ties what the DAO votes on to how the
-    ///     vote items happen to be worded.
-    function submitCalls(
-        VoteCallsBuilder memory self,
-        string memory title,
-        address governance,
-        ProposalCallsBuilder memory proposalCallsBuilder
-    ) internal pure returns (VoteCallsBuilder memory) {
-        return submitCalls(self, title, governance, ProposalCallsBuilderUtils.getCalls(proposalCallsBuilder));
-    }
-
-    /// @notice Submits a Dual Governance proposal, composing its description from call titles.
-    /// @dev See the overload above — prefer passing `metadata` explicitly.
-    function submitCalls(
-        VoteCallsBuilder memory self,
-        string memory title,
-        address governance,
-        ProposalCall[] memory submittedCalls
-    ) internal pure returns (VoteCallsBuilder memory) {
-        string memory metadata = title;
-        for (uint256 i = 0; i < submittedCalls.length; ++i) {
-            metadata = string(abi.encodePacked(metadata, "\n", submittedCalls[i].title));
-        }
-
-        return submitCalls(self, title, metadata, governance, submittedCalls);
-    }
-
     function getCalls(VoteCallsBuilder memory self) internal pure returns (VoteCall[] memory) {
         if (self._calls.length != self._addedCallsCount) {
             revert InvalidCallsCount(self._calls.length);

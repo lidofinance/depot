@@ -54,6 +54,18 @@ function isVoteSource(file: string): boolean {
   return /\.(ts|sol)$/.test(file) && !/\.(abi\.ts|t\.sol|test\.ts)$/.test(file) && !file.split("/").includes("mount");
 }
 
+/** `ongoing/<network>/<name>`, `examples/<name>` or the template; archived votes are not linted by default. */
+function voteDirectory(file: string): string | undefined {
+  const parts = file.split("/");
+  const depth = parts[1] === "ongoing" ? 4 : parts[1] === "examples" ? 3 : parts[1] === "archive" ? 0 : 2;
+  if (parts.length !== depth + 1) {
+    return undefined;
+  }
+  const name = parts[depth - 1];
+  const fileName = parts[depth];
+  return fileName === `${name}.ts` || fileName.endsWith(".sol") ? parts.slice(0, depth).join("/") : undefined;
+}
+
 function readOptionalFile(file: string): string | undefined {
   try {
     return readFileSync(file, "utf8");
@@ -92,10 +104,8 @@ export function lintVoteAddresses(options: VoteAddressLintOptions = {}): Address
   ) ?? [
     ...new Set(
       paths.flatMap((file) => {
-        const parts = file.split("/");
-        return parts.length === 3 && parts[1] !== "_archive" && (parts[2] === `${parts[1]}.ts` || file.endsWith(".sol"))
-          ? [parts.slice(0, 2).join("/")]
-          : [];
+        const directory = voteDirectory(file);
+        return directory ? [directory] : [];
       }),
     ),
   ];
@@ -598,9 +608,11 @@ class AddressImports {
           ? `node_modules/${resolved}`
           : undefined;
     }
+    // The project's single tsconfig alias `@/*` maps to the repository root.
+    const moduleName = specifier.startsWith("@/") ? `/${specifier.slice(2)}` : specifier;
     return ts
       .resolveModuleName(
-        specifier,
+        moduleName,
         `/${file}`,
         { moduleResolution: ts.ModuleResolutionKind.Bundler, module: ts.ModuleKind.ESNext },
         {

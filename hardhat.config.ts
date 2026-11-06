@@ -3,7 +3,7 @@ import { HardhatUserConfig } from "hardhat/config";
 
 import * as env from "./src/common/env";
 import { omnibusTaskBuilders } from "./tasks/omnibuses";
-import { keystoreTaskBuilders } from "./src/hardhat-keystores/tasks";
+import { keystoreTaskBuilders } from "./tasks/keystores";
 import { abiTaskBuilders } from "./tasks/abi";
 
 import { ContractInfoResolver } from "./src/contract-info-resolver/contract-info-resolver";
@@ -16,7 +16,6 @@ if (etherscanToken) {
 } else {
   console.warn(`⚠️  "ETHERSCAN_TOKEN" env variable wasn't set. Some methods may work incorrectly or fail.\n`);
 }
-ContractInfoResolver.enableInMemoryCache();
 
 const config: HardhatUserConfig = {
   tasks: [...omnibusTaskBuilders, ...keystoreTaskBuilders, ...abiTaskBuilders].map((taskBuilder) =>

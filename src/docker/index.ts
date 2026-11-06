@@ -9,19 +9,22 @@ import util from "node:util";
 import { Transform } from "node:stream";
 import { finished } from "node:stream/promises";
 import os from "os";
+import path from "node:path";
+import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
 import * as ownedContainers from "./owned-containers";
 
 type ContainerRunResponse = [{ StatusCode: number }, Container];
 
 const docker = new Docker();
 
-export function getLogFilePath(name: string) {
+function getLogFilePath(name: string) {
   const logsDir = `${process.cwd()}/logs`;
   mkdirSync(logsDir, { recursive: true });
   return `${logsDir}/${name.replace(/\W/g, "-")}.log`;
 }
 
-export function getStdout(name: string) {
+function getStdout(name: string) {
   const logFilePath = getLogFilePath(name);
   logGreen(`Container log: ${logFilePath}`);
   return createWriteStream(logFilePath);
@@ -69,7 +72,7 @@ function forgeProgressOf(lines: string[]) {
 }
 
 /** `14% (50/351)` for pytest, `31 ✔ · 2 ✖` for mocha/forge, empty until the first result */
-export function progressOf(lines: string[]): string {
+function progressOf(lines: string[]): string {
   const collected = lines
     .map((line) => /^collected \d+ items?(?: \/ \d+ deselected \/ (\d+) selected)?/.exec(line))
     .find(Boolean);
@@ -124,7 +127,7 @@ function summarizeForgeLog(lines: string[]) {
 }
 
 /** Test summary of a pytest, mocha or forge log; the tail of any other log */
-export function summarizeLog(logFilePath: string, tailLines = 15) {
+function summarizeLog(logFilePath: string, tailLines = 15) {
   const lines = completeLines(logFilePath);
   const summaryStart = lines.findIndex((line) => /^=+ short test summary info =+$/.test(line));
   if (summaryStart !== -1) {
@@ -134,15 +137,12 @@ export function summarizeLog(logFilePath: string, tailLines = 15) {
   return resultLine ?? summarizeMochaLog(lines) ?? summarizeForgeLog(lines) ?? lines.slice(-tailLines).join("\n");
 }
 
-/** Stop docker container and rename if isTmpContainer is true */
-export async function stopContainer(container: Container, name: string, isTmpContainer = false): Promise<void> {
+/** Renames the container before stopping, so a new one can take the name right away */
+export async function stopContainer(container: Container, name: string): Promise<void> {
   console.log(chalk.bold.green(`Stop container ${name} `));
-  if (isTmpContainer) {
-    const tmpName = `${name}-rm-${Date.now()}`;
-    console.log(chalk.bold.green(`Rename container ${name} to ${tmpName}`));
-    // rename old container to use new container with same name in same tread
-    await container.rename({ name: tmpName });
-  }
+  const tmpName = `${name}-rm-${Date.now()}`;
+  console.log(chalk.bold.green(`Rename container ${name} to ${tmpName}`));
+  await container.rename({ name: tmpName });
   await container.stop();
   ownedContainers.untrack(container);
 }
@@ -173,6 +173,7 @@ function runOwnedContainer(
   options: Docker.ContainerCreateOptions,
 ): Promise<ContainerRunResponse> {
   return new Promise((resolve, reject) => {
+    const settleCreate = ownedContainers.beginCreate();
     docker
       .run(
         image,
@@ -184,6 +185,7 @@ function runOwnedContainer(
           if (container) {
             ownedContainers.untrack(container);
           }
+          settleCreate();
           if (error || !status || !container) {
             reject(error ?? new Error(`Container ${String(options.name)} stop working, but status code not found`));
             return;
@@ -191,7 +193,10 @@ function runOwnedContainer(
           resolve([status, container]);
         },
       )
-      .on("container", ownedContainers.track);
+      .on("container", (container: Container) => {
+        ownedContainers.track(container);
+        settleCreate();
+      });
   });
 }
 
@@ -202,7 +207,6 @@ const waitMessage = async (logs: NodeJS.ReadableStream, msg: string) =>
       const text = chunk.toString();
       if (text.includes(msg)) {
         resolve(msg);
-        return;
       }
     });
   });
@@ -211,22 +215,9 @@ export async function runImageInBackground(
   name: string,
   imageName: string,
   cmd: string[],
-  useOld = false,
   config?: Docker.ContainerCreateOptions,
 ) {
   logGreen(`Prepare container ${imageName} for run in background`);
-
-  const containerOld = await findContainerByName(name);
-
-  if (useOld && containerOld) {
-    logGreen(`Previous hardhat-node container found and will be used`);
-    return containerOld;
-  }
-
-  if (!useOld && containerOld) {
-    logGreen(`Previous hardhat-node container found`);
-    await stopContainer(containerOld, name, true);
-  }
   await removeStaleContainer(name);
 
   const stdout = getStdout(name);
@@ -242,8 +233,6 @@ export async function runImageInBackground(
     for await (const _chunk of readable) {
       // drain the stream
     }
-    // TODO: show logs based on settings
-    // console.log(data);
 
     logGreen(`Image pulled...`);
   }
@@ -260,7 +249,6 @@ export async function runImageInBackground(
   );
   logGreen(`Wait for ${name} container launch`);
 
-  // TODO: add background run to hardhat container node instead
   await Promise.race([delay(2_000), launchFailure]);
 
   const container = await findContainerByName(name);
@@ -280,59 +268,55 @@ export async function runImageInBackground(
   return container;
 }
 
-export type Repos = "core" | "depot" | "scripts" | "dual-governance" | "staking-modules" | "stonks";
+/** Repos with a regression suite, each built from its `tests@<repo>.Dockerfile` */
+export type RepositorySuite = "core" | "scripts" | "dual-governance" | "staking-modules" | "stonks";
 
-interface GitRefsResponse {
-  ref: string;
-  node_id: string;
-  url: string;
-  object: {
-    sha: string;
-    type: string;
-    url: string;
-  };
-}
-
-function isGitRefsResponse(obj: unknown): obj is GitRefsResponse {
-  return typeof obj === "object" && obj !== null && "ref" in obj && "node_id" in obj && "url" in obj && "object" in obj;
-}
-
-const GIT_SHA_OVERRIDES: Record<Repos, () => string> = {
+const GIT_SHA_OVERRIDES: Record<RepositorySuite, () => string> = {
   scripts: env.GIT_SHA_SCRIPTS,
   core: env.GIT_SHA_CORE,
   "dual-governance": env.GIT_SHA_DG,
   "staking-modules": env.GIT_SHA_STAKING_MODULES,
   stonks: env.GIT_SHA_STONKS,
-  depot: () => "",
 };
 
-async function getLastCommitSha(org: string, repo: Repos, branch: string) {
-  const override = GIT_SHA_OVERRIDES[repo]?.();
-  if (override) {
-    return override;
-  }
+const execFileAsync = util.promisify(execFile);
+const LS_REMOTE_TIMEOUT_MS = 30_000;
 
-  const url = `https://api.github.com/repos/${org}/${repo}/git/refs/heads/${branch}`;
-  const response = await fetch(url);
-  const item = await response.json();
-
-  if (!isGitRefsResponse(item)) {
-    throw new Error(`Could not received a commit information for "${repo}": ${JSON.stringify(item)}`);
-  }
-
-  return item.object.sha;
+async function lsRemote(url: string, ref: string): Promise<string> {
+  const { stdout } = await execFileAsync("git", ["ls-remote", url, ref], {
+    timeout: LS_REMOTE_TIMEOUT_MS,
+    // a missing repo must fail instead of prompting for credentials
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+  });
+  return stdout;
 }
 
-async function getBuildVersion(org: string, repo: Repos, branch: string) {
-  if (branch) {
-    const sha = await getLastCommitSha(org, repo, branch);
-    return { sha, buildVersion: sha?.slice(0, 7) };
-  }
-  // TODO: ask about rebuild or verify changes somehow or mount local dir
-  return { sha: "", buildVersion: "latest" };
+async function imageArchitecture(imageTag: string): Promise<string> {
+  const { Architecture } = await docker.getImage(imageTag).inspect();
+  return Architecture;
 }
 
-function getTargetPlatformArgs(repo: Repos) {
+export const repoImageDeps = { lsRemote, imageArchitecture };
+
+async function getLastCommitSha(org: string, repo: RepositorySuite, branch: string) {
+  const url = `https://github.com/${org}/${repo}.git`;
+  const ref = `refs/heads/${branch}`;
+  let output: string;
+  try {
+    output = await repoImageDeps.lsRemote(url, ref);
+  } catch (error) {
+    // the repo is named outside the URL, which error output redacts
+    throw new KnownError(`git ls-remote ${org}/${repo} ${ref} failed: ${errorMessage(error)}`);
+  }
+
+  const line = output.split("\n").find((entry) => entry.split("\t")[1] === ref);
+  if (!line) {
+    throw new KnownError(`Branch "${branch}" not found in ${org}/${repo}`);
+  }
+  return line.split("\t")[0];
+}
+
+function getTargetPlatformArgs(repo: RepositorySuite) {
   const override = env.IMAGE_PLATFORM(repo);
   const arch = override ? override.split("/")[1] : os.arch();
 
@@ -352,136 +336,141 @@ function getTargetPlatformArgs(repo: Repos) {
   };
 }
 
-export async function buildRepo(repo: Repos, branch: string, hideDebug: boolean): Promise<string> {
-  const org = env.GITHUB_ORG();
+const REVISION_LABEL = "org.opencontainers.image.revision";
+const BUILD_INPUTS_LABEL = "finance.lido.depot.build-inputs";
 
-  let buildVersion = "";
-  let sha = "";
-  const pinnedSource = repo === "staking-modules" || repo === "stonks";
+/** The Dockerfile and the files it copies, sent as the build context */
+function getBuildContextFiles(repo: RepositorySuite) {
+  return [`tests@${repo}.Dockerfile`, ...(repo === "stonks" ? ["src/docker/stonks/hardhat.config.ts.template"] : [])];
+}
 
-  try {
-    ({ sha, buildVersion } = await getBuildVersion(org, repo, branch));
-  } catch (error) {
-    if (pinnedSource) {
-      throw error;
-    }
-    console.error(`Error on retrieving build version: ${(error as Error).message}`);
+/** Digest of everything depot feeds into the build besides the repo sources */
+function hashBuildInputs(contextFiles: string[], buildArgs: Record<string, string>) {
+  const hash = createHash("sha256");
+  for (const file of contextFiles) {
+    hash
+      .update(`${file}\0`)
+      .update(readFileSync(path.join(process.cwd(), file)))
+      .update("\0");
   }
+  hash.update(JSON.stringify(buildArgs));
+  return hash.digest("hex").slice(0, 12);
+}
 
-  if (pinnedSource && !/^[a-fA-F0-9]{40}$/.test(sha)) {
+interface RepoImage {
+  repo: RepositorySuite;
+  branch: string;
+  sha: string;
+  buildInputs: string;
+  imageTag: string;
+}
+
+async function resolveRepoBuild(repo: RepositorySuite, branch: string) {
+  const org = env.GITHUB_ORG();
+  const sha = GIT_SHA_OVERRIDES[repo]() || (await getLastCommitSha(org, repo, branch));
+  if (!/^[a-fA-F0-9]{40}$/.test(sha)) {
     throw new Error(`Expected a full commit SHA for "${repo}", received "${sha}"`);
   }
-  if (pinnedSource) {
-    console.log(`Repository ${org}/${repo}: ${branch} at ${sha}`);
-  }
-
-  const targetPlatformArgs = getTargetPlatformArgs(repo);
+  const platformArgs = getTargetPlatformArgs(repo);
+  const buildArgs: Record<string, string> = {
+    ...platformArgs,
+    GIT_SHA: sha,
+    GITHUB_ORG: org,
+    ...(repo === "scripts" ? { SCRIPTS_IMAGE: env.SCRIPTS_IMAGE() } : {}),
+  };
+  const contextFiles = getBuildContextFiles(repo);
+  const buildInputs = hashBuildInputs(contextFiles, buildArgs);
   // the arch belongs in the tag: an image cached for another platform must not be reused
-  const imageTag = `depot/${repo}:${buildVersion}-${targetPlatformArgs.TARGETARCH}`;
-  const matchesImageTag = (tag: string) =>
-    tag.startsWith(`depot/${repo}:${buildVersion}`) && tag.endsWith(`-${targetPlatformArgs.TARGETARCH}`);
+  const imageTag = `depot/${repo}:${sha.slice(0, 7)}-${buildInputs}-${platformArgs.TARGETARCH}`;
+  const image: RepoImage = { repo, branch, sha, buildInputs, imageTag };
+  return {
+    image,
+    org,
+    buildArgs,
+    contextFiles,
+    platform: platformArgs.TARGETPLATFORM,
+    arch: platformArgs.TARGETARCH,
+  };
+}
 
-  const image = await docker.listImages().then(
-    (images) =>
-      images
-        // when the tag can't be received, take the latest one
-        .filter(({ RepoTags }) => RepoTags?.some(matchesImageTag))
-        .filter(({ Labels }) => !pinnedSource || Labels?.["org.opencontainers.image.revision"] === sha)
-        // the last at the top
-        .sort((i1, i2) => i2.Created - i1.Created)[0],
+/** The commit an image is built from (`GIT_SHA_*` or the branch head), its build-inputs hash and cache tag */
+export async function resolveRepoImage(repo: RepositorySuite, branch: string): Promise<RepoImage> {
+  const { image } = await resolveRepoBuild(repo, branch);
+  return image;
+}
+
+export async function buildRepo(repo: RepositorySuite, branch: string): Promise<string> {
+  const { image, org, buildArgs, contextFiles, platform, arch } = await resolveRepoBuild(repo, branch);
+  const { sha, buildInputs, imageTag } = image;
+  console.log(`Repository ${org}/${repo}: ${branch} at ${sha}`);
+
+  const images = await docker.listImages();
+  // a short tag is not proof of what was built, the full labels are
+  const cachedImage = images.find(
+    ({ RepoTags, Labels }) =>
+      RepoTags?.includes(imageTag) && Labels?.[REVISION_LABEL] === sha && Labels?.[BUILD_INPUTS_LABEL] === buildInputs,
   );
 
-  if (!buildVersion && !image.RepoTags?.includes(imageTag)) {
-    const actualRepoTag = image.RepoTags?.find(matchesImageTag);
-    console.log(
-      chalk.yellow.bold(
-        `IMPORTANT: The build version for the repo "${repo}" is not set. Will be used tag ${actualRepoTag} `,
-      ),
-    );
-    return actualRepoTag!;
-  }
-
-  // the buildVersion was resolved but there is not image with such tag => it should be built
-  if (!!buildVersion && !image) {
-    const stdout = hideDebug ? getStdout(imageTag) : process.stdout;
-
-    console.log(`Image for ${repo} not found.`);
-    console.log(`Creating image ${imageTag} to run fast next time`);
-    const stream = await docker.buildImage(
-      {
-        context: process.cwd(),
-        src: [
-          `tests@${repo}.Dockerfile`,
-          ...(repo === "stonks" ? ["src/docker/stonks/hardhat.config.ts.template"] : []),
-        ],
-      },
+  if (!cachedImage) {
+    const dockerfile = `tests@${repo}.Dockerfile`;
+    console.log(`Building ${imageTag} for ${repo} (${platform})`);
+    await buildImage(
+      imageTag,
+      { context: process.cwd(), src: contextFiles },
       {
         t: imageTag,
-        dockerfile: `tests@${repo}.Dockerfile`,
-        buildargs: {
-          ...targetPlatformArgs,
-          GIT_BRANCH: branch,
-          GIT_SHA: sha,
-          BUILD_VERSION: buildVersion,
-          GITHUB_ORG: org,
-          SCRIPTS_IMAGE: env.SCRIPTS_IMAGE(),
-        },
-        platform: targetPlatformArgs.TARGETPLATFORM,
+        dockerfile,
+        buildargs: buildArgs,
+        labels: { [BUILD_INPUTS_LABEL]: buildInputs },
+        platform,
+        // the classic builder ignores `platform` when the base image is local for the host arch
+        version: "2",
       },
+      buildCommandOf(dockerfile, platform, buildArgs),
     );
+  }
 
-    const cleanStream = new Transform({
-      transform(chunk, encoding, callback) {
-        try {
-          const streamLogRegExp = /{"stream":"(.*?)"}/i;
-          const text = (chunk as Buffer).toString("utf8");
-          const match = streamLogRegExp.exec(text) || [];
-
-          if (!match) {
-            throw new Error(`Unexpected format`);
-          }
-
-          let streamValue = match[1];
-
-          streamValue = streamValue
-            .replace(/\\n/g, "\n")
-            .replace(/\\r/g, "\r")
-            .replace(/\\"/g, '"')
-            .replace(/\\\\/g, "\\");
-
-          streamValue = streamValue.replace(/\\u([0-9a-fA-F]{4})/g, (_match: string, hex: string) => {
-            return String.fromCharCode(parseInt(hex, 16));
-          });
-
-          // Skip Docker headers if present
-          if (streamValue.charCodeAt(0) <= 8) {
-            streamValue = streamValue.slice(8); // Skip 8-byte Docker header
-          }
-          const cleaned = util.stripVTControlCharacters(streamValue);
-          callback(null, cleaned);
-        } catch (_error) {
-          callback(null, chunk);
-        }
-      },
-    });
-
-    stream.pipe(cleanStream).pipe(stdout);
-
-    const events = await new Promise<{ error?: string }[]>((resolve, reject) => {
-      docker.modem.followProgress(stream, (err, res) => (err ? reject(err) : resolve(res)));
-    });
-    const buildError = events.find((event) => event.error)?.error;
-    if (buildError) {
-      throw new Error(`Image ${imageTag} failed to build: ${buildError}`);
-    }
+  const builtArch = await repoImageDeps.imageArchitecture(imageTag);
+  if (builtArch !== arch) {
+    throw new KnownError(`Image ${imageTag} for ${repo} is ${builtArch}, expected ${arch}`);
   }
 
   return imageTag;
 }
 
-export function createCleanOutputStream(targetStream: NodeJS.WritableStream) {
+/** The CLI build that shows the full log of a failed `buildImage` */
+function buildCommandOf(dockerfile: string, platform: string, buildArgs: Record<string, string>) {
+  const args = Object.entries(buildArgs).map(([name, value]) => `--build-arg ${name}=${value}`);
+  return ["docker buildx build --progress=plain", `--platform ${platform}`, `-f ${dockerfile}`, ...args, "."].join(" ");
+}
+
+async function buildImage(
+  imageTag: string,
+  context: Docker.ImageBuildContext,
+  options: Docker.ImageBuildOptions,
+  fullLogCommand: string,
+) {
+  const stream = await docker.buildImage(context, options);
+  let buildError = "";
+  await new Promise((resolve, reject) => {
+    docker.modem.followProgress(
+      stream,
+      (error, events) => (error ? reject(error) : resolve(events)),
+      (event: { error?: string; errorDetail?: { message?: string } }) => {
+        if (event.error) {
+          buildError = event.errorDetail?.message ?? event.error;
+        }
+      },
+    );
+  });
+  if (buildError) {
+    throw new KnownError(`Image ${imageTag} failed to build: ${buildError}\nFull log: ${fullLogCommand}`);
+  }
+}
+
+function createCleanOutputStream(targetStream: NodeJS.WritableStream) {
   return new Transform({
-    transform(chunk, encoding, callback) {
+    transform(chunk, _encoding, callback) {
       const cleaned = util.stripVTControlCharacters((chunk as Buffer).toString("utf8"));
 
       if (cleaned) {
@@ -494,7 +483,7 @@ export function createCleanOutputStream(targetStream: NodeJS.WritableStream) {
 }
 
 export async function runTestsFromRepo(
-  repo: Repos,
+  repo: RepositorySuite,
   imageTag: string,
   cmd: string[],
   config: Docker.ContainerCreateOptions,
@@ -512,7 +501,7 @@ export async function runTestsFromRepo(
   const container = await findContainerByName(name);
 
   if (container) {
-    await stopContainer(container, name, true);
+    await stopContainer(container, name);
   }
   await removeStaleContainer(name);
 

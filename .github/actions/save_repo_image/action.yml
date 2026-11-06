@@ -1,0 +1,36 @@
+name: "Save repo image"
+description: "Cache the repo image built by this run so an unchanged revision skips the build"
+
+inputs:
+  image-tag:
+    description: "Image tag from prepare_regression"
+    required: true
+  cache-key:
+    description: "Cache key from prepare_regression"
+    required: true
+  cache-hit:
+    description: "Whether prepare_regression restored the image"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    # the image is kept even when the suites fail: it depends only on the revision
+    - name: Export repo image
+      id: export
+      if: ${{ inputs.cache-hit != 'true' && inputs.image-tag != '' }}
+      shell: bash
+      env:
+        IMAGE_TAG: ${{ inputs.image-tag }}
+      run: |
+        if docker image inspect "$IMAGE_TAG" > /dev/null 2>&1; then
+          docker save -o "$RUNNER_TEMP/repo-image.tar" "$IMAGE_TAG"
+          echo "saved=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Save repo image
+      if: ${{ steps.export.outputs.saved == 'true' }}
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ${{ runner.temp }}/repo-image.tar
+        key: ${{ inputs.cache-key }}

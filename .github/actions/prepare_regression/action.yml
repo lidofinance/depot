@@ -1,0 +1,103 @@
+name: "Prepare regression"
+description: "Pin the fork block and the repo revision, restore the repo image from the cache, record the inputs"
+
+inputs:
+  repo:
+    description: "Depot repo target: core|scripts|dual-governance|staking-modules|stonks"
+    required: true
+  network:
+    description: "Network of the candidate vote"
+    required: true
+  omnibus:
+    description: "Candidate vote name"
+    required: true
+
+outputs:
+  fork-block:
+    description: "Finalized block the node forks from"
+    value: ${{ steps.fork.outputs.fork-block }}
+  image-tag:
+    description: "Depot image tag of the repo revision"
+    value: ${{ steps.image.outputs.tag }}
+  cache-key:
+    description: "Cache key of the saved image"
+    value: ${{ steps.image.outputs.key }}
+  cache-hit:
+    description: "Whether the image came from the cache"
+    value: ${{ steps.restore.outputs.cache-hit }}
+
+runs:
+  using: "composite"
+  steps:
+    # the tag comes from depot itself, so the cache key cannot drift from what multi-test builds
+    - name: Resolve repo image
+      id: image
+      shell: bash
+      working-directory: depot
+      env:
+        REPO: ${{ inputs.repo }}
+      run: |
+        image="$(npx hardhat omnibus:repo-image --repo "$REPO" | tail -n 1)"
+        sha="$(jq -er '.sha' <<<"$image")"
+        tag="$(jq -er '.imageTag' <<<"$image")"
+        case "$REPO" in
+          dual-governance) sha_env=GIT_SHA_DG ;;
+          *) sha_env="GIT_SHA_$(tr 'a-z-' 'A-Z_' <<<"$REPO")" ;;
+        esac
+        # later steps build exactly this revision even if the branch moves
+        echo "$sha_env=$sha" >> "$GITHUB_ENV"
+        mkdir -p logs
+        echo "$image" > logs/repo-image.json
+        {
+          echo "tag=$tag"
+          echo "key=depot-image-${tag//[:\/]/-}"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Restore repo image
+      id: restore
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ${{ runner.temp }}/repo-image.tar
+        key: ${{ steps.image.outputs.key }}
+
+    - name: Load repo image
+      if: ${{ steps.restore.outputs.cache-hit == 'true' }}
+      shell: bash
+      run: docker load -i "$RUNNER_TEMP/repo-image.tar" && rm "$RUNNER_TEMP/repo-image.tar"
+
+    - name: Pin the fork block
+      id: fork
+      shell: bash
+      working-directory: depot
+      env:
+        NETWORK: ${{ inputs.network }}
+        OMNIBUS: ${{ inputs.omnibus }}
+      run: |
+        node --input-type=module <<'NODE'
+        import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
+
+        const rpcUrl = process.env[`ETH_${process.env.NETWORK.toUpperCase()}_RPC_URL`]?.split(",")[0];
+        if (!rpcUrl) {
+          throw new Error(`RPC URL secret for ${process.env.NETWORK} is not set`);
+        }
+        const response = await fetch(rpcUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBlockByNumber", params: ["finalized", false] }),
+        });
+        const { result: block } = await response.json();
+        if (!response.ok || !/^0x[0-9a-f]+$/i.test(block?.number) || !/^0x[0-9a-f]{64}$/i.test(block?.hash)) {
+          throw new Error(`Could not resolve the finalized ${process.env.NETWORK} block`);
+        }
+        const forkBlock = BigInt(block.number).toString();
+        const inputs = {
+          omnibus: process.env.OMNIBUS,
+          network: process.env.NETWORK,
+          forkBlock,
+          forkBlockHash: block.hash,
+          ...JSON.parse(readFileSync("logs/repo-image.json", "utf8")),
+        };
+        writeFileSync("logs/regression-inputs.json", JSON.stringify(inputs, null, 2) + "\n");
+        appendFileSync(process.env.GITHUB_OUTPUT, `fork-block=${forkBlock}\n`);
+        console.log(JSON.stringify(inputs, null, 2));
+        NODE

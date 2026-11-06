@@ -6,12 +6,7 @@ import { EvmScriptParser } from "@/src/aragon-votes-tools/evm-script-parser";
 import { setupLdoHolder } from "@/src/aragon-votes-tools/testing";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 import { ImpersonatedAccounts } from "@/test/protocol/helpers/impersonation";
-import {
-  assertSnapshot,
-  getLocalAccount,
-  getSnapshotContext,
-  hasExpectedSnapshotChange,
-} from "@/test/protocol/helpers/snapshot";
+import { assertSnapshot, getLocalAccount, getSnapshotContext } from "@/test/protocol/helpers/snapshot";
 
 const accounts = {
   mainnet: {
@@ -35,12 +30,7 @@ const callTargetAbi = parseAbi(["function called() view returns (bool)", "functi
 
 describe("Voting upgrade snapshots", function () {
   it("preserves create, three YES votes, wait and enact observations", async function () {
-    const context = getSnapshotContext(this);
-    const { client, createsVote, testUpgrade } = context;
-    const network = client.getNetworkName();
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Unsupported snapshot network ${network}`);
-    }
+    const { client, network, createsVote, testUpgrade } = getSnapshotContext(this);
     const { holder, voters } = accounts[network];
     const { voting, tokenManager } = getGovernanceContracts(network);
     let voteTime: bigint;
@@ -178,7 +168,7 @@ describe("Voting upgrade snapshots", function () {
           const scope = `voting/${step}`;
           const oldFrame = { ...before[step] };
           const newFrame = { ...after[step] };
-          if (createsVote && !hasExpectedSnapshotChange(context, `${scope}/votesLength`)) {
+          if (createsVote) {
             const oldLength = oldFrame.votesLength;
             if (typeof oldLength !== "bigint") {
               throw new Error(`${scope}/votesLength is not an integer observation`);
@@ -187,7 +177,7 @@ describe("Voting upgrade snapshots", function () {
             delete oldFrame.votesLength;
             delete newFrame.votesLength;
           }
-          assertSnapshot(context, scope, oldFrame, newFrame);
+          assertSnapshot(scope, oldFrame, newFrame);
         }
       },
     });

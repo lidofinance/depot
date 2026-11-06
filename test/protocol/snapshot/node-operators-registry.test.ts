@@ -6,12 +6,7 @@ import { NodeOperatorsRegistry_ABI } from "@/abi/NodeOperatorsRegistry.abi";
 import { contract } from "@/src/contracts";
 import { getGovernanceContracts } from "@/src/omnibuses/governance-contracts";
 import { ImpersonatedAccounts } from "@/test/protocol/helpers/impersonation";
-import {
-  assertSnapshot,
-  getLocalAccount,
-  getSnapshotContext,
-  hasExpectedSnapshotChange,
-} from "@/test/protocol/helpers/snapshot";
+import { assertSnapshot, getLocalAccount, getSnapshotContext } from "@/test/protocol/helpers/snapshot";
 
 const configurations = {
   mainnet: {
@@ -37,12 +32,7 @@ interface Frame {
 
 describe("NodeOperatorsRegistry upgrade snapshots", function () {
   it("preserves operator creation, key management, submit and activity transitions", async function () {
-    const context = getSnapshotContext(this);
-    const { client, testUpgrade } = context;
-    const network = client.getNetworkName();
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`Unsupported snapshot network ${network}`);
-    }
+    const { client, network, testUpgrade } = getSnapshotContext(this);
     const expected = configurations[network];
     const registry = contract(NodeOperatorsRegistry_ABI, expected.registry);
     const lido = contract(Lido_ABI, expected.lido);
@@ -263,17 +253,11 @@ describe("NodeOperatorsRegistry upgrade snapshots", function () {
           for (let index = 0; index < Number(newFrame.activeCount); index++) {
             oldFrame.compared[`rewards/recipient/${index}`] = oldFrame.rewards[0][index];
             newFrame.compared[`rewards/recipient/${index}`] = newFrame.rewards[0][index];
-            const key = `rewards/shares/${index}`;
-            if (hasExpectedSnapshotChange(context, `${scope}/${key}`)) {
-              oldFrame.compared[key] = oldFrame.rewards[1][index];
-              newFrame.compared[key] = newFrame.rewards[1][index];
-            } else {
-              const delta = newFrame.rewards[1][index] - oldFrame.rewards[1][index];
-              assert.isTrue(delta >= -200000n && delta <= 200000n, `${scope}: reward ${index} shares epsilon`);
-            }
+            const delta = newFrame.rewards[1][index] - oldFrame.rewards[1][index];
+            assert.isTrue(delta >= -200000n && delta <= 200000n, `${scope}: reward ${index} shares epsilon`);
             assert.isFalse(newFrame.rewards[2][index], `${scope}: reward ${index} is not penalized after upgrade`);
           }
-          assertSnapshot(context, scope, oldFrame.compared, newFrame.compared);
+          assertSnapshot(scope, oldFrame.compared, newFrame.compared);
         }
       },
     });

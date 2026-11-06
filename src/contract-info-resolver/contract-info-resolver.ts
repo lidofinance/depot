@@ -1,24 +1,11 @@
-import { ContractInfoInMemoryCache, ContractInfoPersistentJsonCache } from "./contract-info-cache";
-import type { ContractInfoCache } from "./types";
 import { Address } from "../common/types";
 import { NetworkName } from "../network";
 import { EtherscanContractInfoProvider } from "./etherscan-contract-info-provider";
+import { ContractInfo } from "./types";
 
 export class ContractInfoResolver {
-  public static cache: ContractInfoCache | undefined = undefined;
-  public static etherscanProvider: EtherscanContractInfoProvider | undefined = undefined;
-
-  public static disableCache() {
-    this.cache = undefined;
-  }
-
-  public static enableInMemoryCache() {
-    this.cache = new ContractInfoInMemoryCache();
-  }
-
-  public static enablePersistentJsonCache(cacheDirPath: string) {
-    this.cache = ContractInfoPersistentJsonCache.create(cacheDirPath);
-  }
+  private static etherscanProvider: EtherscanContractInfoProvider | undefined = undefined;
+  private static readonly cache = new Map<string, ContractInfo>();
 
   public static setEtherscanToken(token: string) {
     this.etherscanProvider = new EtherscanContractInfoProvider(token);
@@ -28,11 +15,14 @@ export class ContractInfoResolver {
     if (!this.etherscanProvider) {
       throw new Error(`Etherscan Tokens wasn't set. Use "ContractInfoResolver.setEtherscanToken() to set token"`);
     }
-    const cacheRes = await this.cache?.get(networkName, address);
-    if (cacheRes) return cacheRes;
+    const cacheKey = `${networkName}:${address}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
-    const res = await this.etherscanProvider.request(networkName, address);
-    await this.cache?.set(networkName, address, res);
-    return res;
+    const contractInfo = await this.etherscanProvider.request(networkName, address);
+    this.cache.set(cacheKey, contractInfo);
+    return contractInfo;
   }
 }

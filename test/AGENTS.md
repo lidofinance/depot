@@ -8,9 +8,9 @@ Rules for writing tests in `test/`.
 - `test/depot/<module>/<name>.integration.test.ts` — Depot integration paths with in-process Hardhat; fork cases require `ETH_MAINNET_RPC_URL`.
 - `test/protocol/acceptance/` — shared checks of deployed protocol state after vote/DG execution and event checks, before snapshot restore.
 - `test/protocol/helpers/` — protocol test mechanics (client, revert matching, impersonation, oracle reports, snapshot comparison and storage reads); expected values stay in each suite.
-- `test/protocol/snapshot/` — opt-in old/upgraded comparisons through `omnibus:test`; see [the writing guide](../docs/omnibuses/WRITING_OMNIBUS.md).
+- `test/protocol/snapshot/` — old/upgraded comparisons that `omnibus:test` runs for `upgrade: true` votes; see [the writing guide](../docs/omnibuses/WRITING_OMNIBUS.md).
 
-Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`. Shared Depot helpers live in `test/depot/helpers/`.
+Per-vote `testVote`/`testProposal` checks stay in the vote wrapper `omnibuses/ongoing/<network>/<name>/<name>.ts`. Shared Depot helpers live in `test/depot/helpers/`.
 
 ```bash
 npm run test:depot:unit         # npm test is a shortcut
@@ -18,7 +18,7 @@ npm run test:depot:integration  # no separate node required
 npm run test:all                # both Depot suites
 ```
 
-Protocol acceptance runs through `omnibus:test`, which loads the ordered `ACCEPTANCE_SUITES` list from `tasks/sub-tasks/acceptance.ts` and fails if a suite in `test/protocol/acceptance/` is missing from it; Depot globs select only `test/depot/`. Upgrade votes opt in with `upgradeSnapshot`; `omnibus:test` runs acceptance once on a clean pass, then `tasks/sub-tasks/snapshot.ts` runs each selected snapshot case through the full vote/DG lifecycle with its own fixtures and without acceptance. Expected changes belong to the vote, domain assertions to the suite.
+Protocol acceptance runs through `omnibus:test`, which loads the ordered `ACCEPTANCE_SUITES` list from `tasks/sub-tasks/acceptance.ts` and fails if a suite in `test/protocol/acceptance/` is missing from it; Depot globs select only `test/depot/`. For `upgrade: true` votes `omnibus:test` runs acceptance once on a clean pass, then `tasks/sub-tasks/snapshot.ts` runs every snapshot case through the full vote/DG lifecycle with its own fixtures and without acceptance. Allowed differences live in each suite next to its comparison; vote-specific effects belong to the wrapper tests.
 
 ## When to write which
 
@@ -32,7 +32,7 @@ Protocol acceptance runs through `omnibus:test`, which loads the ordered `ACCEPT
 
 - Deploy mock contracts from `contracts/mocks/` in an in-process Hardhat environment
 - Use `DevRpcClient` for `snapshot()`/`revert()` between tests
-- Override DI containers (`lifecycleDeps`, `testingDeps`, `tracerDeps`) to point to mock contract addresses
+- Override a module's DI container (e.g. `omnibusTaskDeps`) to point to mock contract addresses
 
 ## Mocking rules (ESM)
 
@@ -40,7 +40,7 @@ The project uses `"type": "module"`. This limits what sinon can stub:
 
 ```typescript
 // OK — plain objects, class methods
-sinon.stub(deps, "getGovernanceContracts").returns(mock);
+sinon.stub(deps, "resolveContractInfo").resolves(mock);
 sinon.stub(ContractInfoResolver, "resolve").resolves(mock);
 
 // FORBIDDEN — ESM module exports are immutable
@@ -86,17 +86,13 @@ import { assert } from "chai";
 import { DevRpcClient } from "@/src/network/dev-rpc-client";
 import { HexStrPrefixed } from "@/src/common/bytes";
 import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
-import { deployMockGovernance, MockGovernanceContracts } from "../helpers/deploy-mock-governance";
 
 describe("feature (integration)", function () {
   let client: DevRpcClient;
-  let mocks: MockGovernanceContracts;
   let snapshotId: HexStrPrefixed;
 
   before(async function () {
     client = await createInProcessDevRpcClient();
-    const [deployer] = await client.getAccounts();
-    mocks = await deployMockGovernance(client, deployer);
   });
 
   beforeEach(async function () {
@@ -107,8 +103,12 @@ describe("feature (integration)", function () {
     await client.revert(snapshotId);
   });
 
-  it("starts with zero token supply", async function () {
-    assert.equal(await client.read(mocks.ldo, "totalSupply"), 0n);
+  it("lands the next block on the target timestamp", async function () {
+    const target = (await client.getChainTime()) + 3600;
+
+    await client.setTime(target);
+
+    assert.equal(await client.getChainTime(), target);
   });
 });
 ```
@@ -117,12 +117,8 @@ describe("feature (integration)", function () {
 
 Solidity mocks live in `contracts/mocks/`:
 
-- `MockERC20.sol` — mintable ERC20
 - `MockVoting.sol` — newVote/executeVote/getVote + events
-- `MockTokenManager.sol` — forward(evmScript) with EVM script parsing
 - `MockHashConsensus.sol` — minimal HashConsensus for AccountingOracle `setConsensusContract` guards
-
-Deploy helper: `test/depot/helpers/deploy-mock-governance.ts`
 
 ## Review checklist for tests
 

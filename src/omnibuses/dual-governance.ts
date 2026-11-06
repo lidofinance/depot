@@ -4,6 +4,7 @@ import { contract, getEventAbi } from "../contracts";
 import { DevRpcClient } from "../network";
 import { DualGovernanceConfigProvider_ABI } from "../../abi/DualGovernanceConfigProvider.abi";
 import { getGovernanceContracts } from "./governance-contracts";
+import { KnownError } from "../common/errors";
 
 enum DgState {
   NotInitialized = 0,
@@ -61,7 +62,12 @@ async function prepareDualGovernanceState(client: DevRpcClient) {
   }
 }
 
-export async function processPendingProposals(client: DevRpcClient, proposalIds: bigint[]) {
+/** `fromBlock` is the Aragon execution block: logs of proposals executed earlier on chain are searched from it. */
+export async function processPendingProposals(client: DevRpcClient, proposalIds: bigint[], fromBlock: bigint) {
+  if (proposalIds.length === 0) {
+    return [];
+  }
+
   const { timelock, dualGovernance } = getGovernanceContracts(client.getNetworkName());
 
   const [timestamp, [stranger], afterSubmitDelay, afterScheduleDelay] = await Promise.all([
@@ -96,22 +102,20 @@ export async function processPendingProposals(client: DevRpcClient, proposalIds:
   for (const proposalId of proposalIds) {
     const proposal = await client.read(timelock, "getProposalDetails", [proposalId]);
     if (proposal.status === ProposalStatus.Executed) {
-      const blockNumber = await client.getBlockNumber();
-      const proposalExecutedFilter = await client.createEventFilter({
-        address: timelock.address,
-        event: getEventAbi(timelock, "ProposalExecuted"),
-        args: [proposalId],
-        fromBlock: blockNumber - 10n, // TODO: handle it better
-        toBlock: blockNumber,
-      });
-      const proposalExecutedLogs = await client.getFilterLogs({ filter: proposalExecutedFilter });
-      if (proposalExecutedLogs.length === 0) {
-        throw new Error(`"ProposalExecuted" log for proposal with id ${proposalId} not found`);
+      const [proposalExecutedLog] = await client.getLogsInWindows(
+        {
+          address: timelock.address,
+          event: getEventAbi(timelock, "ProposalExecuted"),
+          args: [proposalId],
+          fromBlock,
+        },
+        true,
+      );
+      if (!proposalExecutedLog) {
+        throw new KnownError(`ProposalExecuted event of proposal ${proposalId} not found from block ${fromBlock}`);
       }
 
-      executeProposalReceipts.push(
-        await client.getTransactionReceipt({ hash: proposalExecutedLogs[0].transactionHash }),
-      );
+      executeProposalReceipts.push(await client.getTransactionReceipt({ hash: proposalExecutedLog.transactionHash }));
 
       continue;
     }

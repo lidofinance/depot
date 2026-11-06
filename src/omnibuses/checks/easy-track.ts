@@ -6,7 +6,6 @@ import { CheckContext } from "./checks";
 import { ERC20_ABI } from "../../../abi/ERC20.abi";
 import { AllowedRecipientsRegistry_ABI } from "../../../abi/AllowedRecipientsRegistry.abi";
 import { contract, Contract } from "../../contracts/contracts";
-import bytes from "../../common/bytes";
 import { EasyTrack_ABI } from "../../../abi/EasyTrack.abi";
 import { AgentContract } from "../governance-contracts";
 
@@ -18,22 +17,6 @@ type EasyTrackContract = Contract<typeof EasyTrack_ABI>;
 interface Contracts {
   easyTrack: EasyTrackContract;
 }
-
-const checkFactoriesExists = async ({ client }: CheckContext, { easyTrack }: Contracts, factories: Address[]) => {
-  const currentFactories = await client.read(easyTrack, "getEVMScriptFactories", []);
-  assert.includeMembers(
-    currentFactories.map((address) => bytes.normalize(address)) as Address[],
-    factories.map((address) => bytes.normalize(address)),
-  );
-};
-
-const checkFactoriesNotExists = async ({ client }: CheckContext, { easyTrack }: Contracts, factories: Address[]) => {
-  const currentFactories = await client.read(easyTrack, "getEVMScriptFactories", []);
-  assert.notIncludeMembers(
-    currentFactories.map((address) => bytes.normalize(address)) as Address[],
-    factories.map((address) => bytes.normalize(address)),
-  );
-};
 
 const checkFactoryExists = async ({ client }: CheckContext, { easyTrack }: Contracts, factory: Address) => {
   const factories = await client.read(easyTrack, "getEVMScriptFactories", []);
@@ -198,9 +181,7 @@ const checkRemoveRecipientFactory = async (
 
 export default {
   checkFactoryExists,
-  checkFactoriesExists,
   checkFactoryNotExists,
-  checkFactoriesNotExists,
   checkAddRecipientFactory,
   checkRemoveRecipientFactory,
   checkTopUpFactory,

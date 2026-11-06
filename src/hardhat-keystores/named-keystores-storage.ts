@@ -2,9 +2,17 @@ import path from "path";
 import fs from "fs/promises";
 import { KeyStore } from "web3-types";
 import { NamedKeystore } from "./named-keystore";
+import { KnownError } from "../common/errors";
 
 const KEYSTORE_EXTENSION = ".json";
 const KEYSTORE_FILE_MODE = 0o600;
+const KEYSTORE_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+export function assertKeystoreName(name: string) {
+  if (!KEYSTORE_NAME_PATTERN.test(name)) {
+    throw new KnownError(`Invalid keystore name "${name}": only letters, digits, "_" and "-" are allowed`);
+  }
+}
 
 export class NamedKeystoresStorage {
   private static instances: Record<string, NamedKeystoresStorage> = {};
@@ -37,8 +45,10 @@ export class NamedKeystoresStorage {
     const keystorePath = this.getKeystorePath(keystore.name);
     // not ending in ".json", so a leftover temp file is never loaded as a keystore
     const tempPath = `${keystorePath}.tmp`;
+    // a temp file left by a crashed run is ours; "wx" then refuses one that appears concurrently
+    await fs.rm(tempPath, { force: true });
     try {
-      await fs.writeFile(tempPath, keystore.toJson(), { mode: KEYSTORE_FILE_MODE });
+      await fs.writeFile(tempPath, keystore.toJson(), { mode: KEYSTORE_FILE_MODE, flag: "wx" });
       await fs.rename(tempPath, keystorePath);
     } catch (error) {
       await fs.rm(tempPath, { force: true }).catch(() => undefined);
@@ -81,10 +91,14 @@ export class NamedKeystoresStorage {
 
   private async write(keystore: NamedKeystore) {
     await this.checkKeystoresDir();
-    await fs.writeFile(this.getKeystorePath(keystore.name), keystore.toJson(), { mode: KEYSTORE_FILE_MODE });
+    await fs.writeFile(this.getKeystorePath(keystore.name), keystore.toJson(), {
+      mode: KEYSTORE_FILE_MODE,
+      flag: "wx",
+    });
   }
 
   private getKeystorePath(name: string) {
+    assertKeystoreName(name);
     return path.join(this.keystoresDir, `${name}${KEYSTORE_EXTENSION}`);
   }
 

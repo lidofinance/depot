@@ -24,7 +24,7 @@ interface StructLogTracerHandlers {
   returnValue?(returnValue: string): void;
 }
 
-export interface TraceParameters {
+interface TraceParameters {
   disableStack?: boolean | null;
   disableStorage?: boolean | null;
   enableMemory?: boolean | null;
@@ -133,7 +133,6 @@ export class DebugTraceTxStreamed {
     const rpcUrl = this.client.getRpcUrl();
 
     if (rpcUrl) {
-      // TODO: handle failed requests, for example when tx wasn't found
       return fetch(rpcUrl, {
         method: "post",
         headers: { "Content-Type": "application/json" },
@@ -154,20 +153,23 @@ export class DebugTraceTxStreamed {
     return Readable.from(this.#streamifyResponse(res));
   }
 
+  // Wraps the bare provider result into a JSON-RPC envelope to match the HTTP response shape
   *#streamifyResponse(response: DebugStructLogResponse) {
     if (response.failed) {
-      yield JSON.stringify(response);
+      yield `{"result":${JSON.stringify(response)}}`;
       return;
     }
     // As the result of the tracing may be very huge, stream it by chunks
-    yield `{"failed":false,"gas":${response.gas},"returnValue":"${response.returnValue}","structLogs":[`;
+    yield `{"result":{"failed":false,"gas":${response.gas},"returnValue":${JSON.stringify(response.returnValue)},"structLogs":[`;
 
-    for (let i = 0; i < response.structLogs.length; i++) {
-      yield JSON.stringify(response.structLogs[i]);
-      if (i < response.structLogs.length - 1) yield ",";
+    for (let logIndex = 0; logIndex < response.structLogs.length; logIndex++) {
+      yield JSON.stringify(response.structLogs[logIndex]);
+      if (logIndex < response.structLogs.length - 1) {
+        yield ",";
+      }
     }
 
-    yield "]}";
+    yield "]}}";
   }
 }
 

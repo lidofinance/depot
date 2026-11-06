@@ -35,7 +35,7 @@ const configurations = {
     ["ELRewardsVault", "0x9b108015fe433F173696Af3Aa0CF7CDb3E104258"],
     ["WithdrawalVault", "0x4473dCDDbf77679A643BdB654dbd86D67F8d32f2"],
     ["OracleDaemonConfig", "0x2a833402e3F46fFC1ecAb3598c599147a78731a9"],
-    ["Burner", "0x4e9A9ea2F154bA34BE919CD16a4A953DCd888165"],
+    ["Burner", "0xb2c99cd38a2636a6281a849C8de938B3eF4A7C3D"],
     ["RelayAllowedList", "0x279d3A456212a1294DaEd0faEE98675a52E8A4Bf"],
     ["LDO", "0xEf2573966D009CcEA0Fc74451dee2193564198dc"],
     ["TokenManager", "0x8ab4a56721Ad8e68c6Ad86F9D9929782A78E39E5"],
@@ -54,14 +54,28 @@ const configurations = {
   ],
 } as const satisfies Record<string, readonly (readonly [string, Address])[]>;
 
+// Burner V3 keeps its state in ERC-7201 namespaces, outside slots 0-15: Core contracts/0.8.9/Burner.sol
+const BURNER_STORAGE_LOCATION = 0x04517d045bc1d7fa739b92929a9ee93e91c437a627c5986e8a9995c580fcf100n;
+const BURNER_STORAGE_V3_UPGRADE_LOCATION = 0xafb4c21a1fd8ac67c6b68b753f327ad8fbae7f124d43b32b852df233b8d62900n;
+
+function burnerSlots(address: Address): (readonly [string, Address, bigint])[] {
+  return [
+    ["Burner.coverSharesBurnRequested", address, BURNER_STORAGE_LOCATION],
+    ["Burner.nonCoverSharesBurnRequested", address, BURNER_STORAGE_LOCATION + 1n],
+    ["Burner.totalCoverSharesBurnt", address, BURNER_STORAGE_LOCATION + 2n],
+    ["Burner.totalNonCoverSharesBurnt", address, BURNER_STORAGE_LOCATION + 3n],
+    ["Burner.isMigrationAllowed", address, BURNER_STORAGE_V3_UPGRADE_LOCATION],
+  ];
+}
+
+const extraSlots = {
+  mainnet: burnerSlots("0xE76c52750019b80B43E36DF30bf4060EB73F573a"),
+  hoodi: burnerSlots("0xb2c99cd38a2636a6281a849C8de938B3eF4A7C3D"),
+} as const satisfies Record<keyof typeof configurations, readonly (readonly [string, Address, bigint])[]>;
+
 describe("First slots snapshot", function () {
   it("preserves the sampled root slots and bounded array words at the same block and time", async function () {
-    const context = getSnapshotContext(this);
-    const { client, config, testUpgrade } = context;
-    const network = client.getNetworkName();
-    if (network !== "mainnet" && network !== "hoodi") {
-      throw new Error(`First-slots snapshot is not configured for ${network}`);
-    }
+    const { client, network, testUpgrade } = getSnapshotContext(this);
     const targets = configurations[network];
 
     let targetBlock = 0n;
@@ -91,6 +105,8 @@ describe("First slots snapshot", function () {
         arrayLengths.clear();
       }
       const snapshot: Record<string, unknown> = {};
+      // As in Scripts, implementation pointers (EIP-1967 slots, Kernel `apps` entries) lie outside the sampled
+      // slots, so an upgrade passes here and the vote's own test asserts the new implementation
       for (const [, address] of targets) {
         for (let slot = 0n; slot < 16n; slot++) {
           const key = `${address.toLowerCase()}/${toHex(slot, { size: 32 })}`;
@@ -106,8 +122,8 @@ describe("First slots snapshot", function () {
           }
         }
       }
-      for (const { address, slot } of config.storage ?? []) {
-        const key = `${address.toLowerCase()}/${toHex(BigInt(slot), { size: 32 })}`;
+      for (const [, address, slot] of extraSlots[network]) {
+        const key = `${address.toLowerCase()}/${toHex(slot, { size: 32 })}`;
         snapshot[key] = await readStorageWord(client, address, slot, targetBlock);
       }
       return snapshot;
@@ -126,7 +142,7 @@ describe("First slots snapshot", function () {
       afterExecution: async () => {
         await align();
         const after = await capture("upgraded");
-        assertSnapshot(context, "first-slots/init", before, after);
+        assertSnapshot("first-slots/init", before, after);
       },
     });
   });

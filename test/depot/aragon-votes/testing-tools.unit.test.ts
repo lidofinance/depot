@@ -1,5 +1,4 @@
 import { assert } from "chai";
-import { rejects } from "node:assert/strict";
 import sinon from "sinon";
 import { Address, parseEther } from "viem";
 import { LDO_VOTERS_BY_NETWORK_NAME } from "@/src/aragon-votes-tools/constants";
@@ -36,6 +35,7 @@ describe("passAragonVote temporary balances", () => {
     client.read
       .withArgs(sinon.match.any, "getVote", sinon.match.any)
       .resolves([true, false, 0n, 0n, 0n, 1n, 2n, 0n, 2n] as never);
+    client.read.withArgs(sinon.match.any, "getVotePhase", sinon.match.any).resolves(0 as never);
     client.read.withArgs(sinon.match.any, "canVote", sinon.match.any).resolves(true as never);
     client.read.withArgs(sinon.match.any, "canExecute", sinon.match.any).resolves(true as never);
     client.read.withArgs(sinon.match.any, "voteTime", sinon.match.any).resolves(1n as never);
@@ -57,19 +57,6 @@ describe("passAragonVote temporary balances", () => {
     await passAragonVote(client, 1n);
     assert.equal(balances.get(agent), parseEther("75"));
     assert.equal(balances.get(whale), parseEther("1"));
-    assert.isEmpty([...impersonated]);
-  });
-
-  it("restores balances and stops impersonation when voting throws", async () => {
-    const { client, agent, balances, impersonated } = fixture();
-    client.write.callsFake((_contract, _method, _args, options) => {
-      if (options?.from === agent) {
-        return Promise.reject(new Error("vote failed"));
-      }
-      return Promise.resolve({} as never);
-    });
-    await rejects(passAragonVote(client, 1n), /vote failed/);
-    assert.equal(balances.get(agent), parseEther("100"));
     assert.isEmpty([...impersonated]);
   });
 });

@@ -129,7 +129,7 @@ function looksLikeProxy(info: ContractInfo): boolean {
  * EIP-1967 implementation and beacon slots first, then `implementation()` for Aragon proxies.
  * `null` when the contract exposes neither; an RPC failure is an error, never a silent miss.
  */
-export async function readImplementationOnChain(
+async function readImplementationOnChain(
   networkName: NetworkName,
   address: Address,
   callImplementationGetter: boolean,
@@ -199,7 +199,7 @@ function isExecutionReverted(error: unknown): boolean {
   return code === 3 || /revert|execution error|invalid opcode/i.test(message);
 }
 
-export function addressFromWord(word: string): Address | null {
+function addressFromWord(word: string): Address | null {
   if (!/^0x[0-9a-fA-F]{64}$/.test(word)) {
     return null;
   }
@@ -257,7 +257,7 @@ export function parseAddress(value: string): Address {
   return getAddress(value);
 }
 
-export function toConstantName(contractName: string): string {
+function toConstantName(contractName: string): string {
   return contractName
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
     .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")

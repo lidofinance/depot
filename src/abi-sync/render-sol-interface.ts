@@ -1,6 +1,6 @@
 import { Abi, AbiFunction, AbiParameter } from "abitype";
 
-export const SOLIDITY_VERSION = "0.8.26";
+const SOLIDITY_VERSION = "0.8.26";
 
 export interface SolInterfaceOptions {
   /** Default — every state-changing method. */

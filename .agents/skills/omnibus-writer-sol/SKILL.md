@@ -19,11 +19,15 @@ Resolve payload-changing gaps before writing calls:
 - Every submitting vote item needs its own exact fenced DG description. The title of the submitting item is not a substitute for that metadata.
 - Preserve one call per numbered item at its parent level. Combine calls into one Agent forward only when the description groups them that way.
 
+Ask the author whether the vote contains a protocol upgrade and record the answer as `upgrade` in the wrapper; never infer it from the payload. `upgrade: true` makes `omnibus:test` run every upgrade snapshot suite; there is nothing to select or declare. Assert the vote's intended upgrade effects, such as new implementation addresses, in `testVote`/`testProposal`.
+
 Report unresolved inputs by item and ask for the information that changes the payload. Do not close such a gap by an external lookup or an assumption; implementation starts only after the author resolves it. Continue directly when they are resolved; existing authorization to obtain an ABI or implement an agreed action remains valid. Prior state omitted from the description is separate: read it on the intended fork and assert the strongest supported before/after relation instead of inventing a historical value.
+
+If an action lacks an appropriate call/event helper or the exact contract interface, report the gap by item, propose how to cover it, and wait for the author's agreement before adding a helper/interface or bypassing it with a direct call, generic event expectation or manual encoding. An already authorized ABI fetch or agreed implementation satisfies this gate; continue within that scope without asking again.
 
 ## Implement
 
-1. For a new omnibus, use `npm run omnibus:create` and fill the three scaffold files. For an existing omnibus, preserve its lifecycle facts and update only the requested actions.
+1. For a new omnibus, use `npm run omnibus:create`; it places the vote in `omnibuses/ongoing/<network>/<name>`. Fill the three scaffold files. For an existing omnibus, update only the requested actions; only `voteId` and `deployment` are recorded in the wrapper, nothing else.
 2. Implement `getOmnibusCalls()` in the Solidity contract with typed interfaces and the appropriate builders. Keep the payload deterministic, with exact call counts and vote-local address/role/metadata constants. Follow the guide's address and title rules.
 3. Reuse the checked-in ABI/interface for the intended deployment version. If one is missing or stale, follow [ABI sync](../../../docs/ABI_SYNC.md) for that contract only. Record its source and generation options; do not overwrite unrelated interfaces or regenerate historical inputs from an unexamined latest deployment.
 4. Write `testVote` and, for submitted proposals, `testProposal` in the wrapper. Use the existing template and [examples catalogue](../../../docs/omnibuses/README.md). The wrapper has no `calls` option or TS blueprint/generator stage.
@@ -43,10 +47,10 @@ The runtime snapshots before `testVote` and restores after both callbacks, inclu
 
 ## Verify and report
 
-Run the guide's Solidity formatting, build, address-lint, TypeScript and fork checks within the user's authorized scope. `Omnibus.test()` rejects any defined `executedAt`, including `0`, before taking its test snapshot; pinning an earlier fork block does not enable replay. Inspect an executed vote through `omnibus:trace`, preserving recorded lifecycle facts.
+Run the guide's Solidity formatting, build, address-lint, TypeScript and fork checks within the user's authorized scope. `Omnibus.test()` picks its checks by the on-chain state of `voteId` (guide section 4); write `testFinalState` so an executed vote is still checked. Inspect an executed vote through `omnibus:trace`; only `voteId` and `deployment` are recorded, nothing else.
 
 Report the network/block, commands, results, saved payload hash, source/deployment assumptions, and before-state that the description did not pin down. Distinguish build/type checks, local models, fork execution and external-repository acceptance; a skipped test is not a passed test.
 
 When authoring from a description, derive the payload from that description and verified contract interfaces. Fetching the target's ABI differs from copying another implementation of the vote. Perform an independent comparison to an existing vote's script when that verification is requested; do not use it to fill unspecified payload inputs silently.
 
-Deployment, publication and launch follow the guide and the user's authorization. A local rehearsal (no `--broadcast`) uses a local dev node, selects a keystore account without unlocking it and skips the IPFS upload; `--broadcast` needs typed network-name confirmation. A successful local rehearsal does not establish public deployment or lifecycle facts.
+Never run `--broadcast` deploy or launch against Mainnet/Hoodi and never read keystore contents: a human performs real operations through the CLI. A local rehearsal (no `--broadcast`) uses a local dev node, selects a keystore account without unlocking it and skips the IPFS upload; `--broadcast` needs typed network-name confirmation. A successful local rehearsal does not establish public deployment or lifecycle facts.

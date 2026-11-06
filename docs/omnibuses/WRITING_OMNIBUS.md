@@ -10,16 +10,16 @@ From the repository root:
 npm run omnibus:create
 ```
 
-Select `mainnet` or `hoodi` and a date-based name such as `2026_09_10_example`. The command creates:
+Select `mainnet` or `hoodi`, a date-based name such as `2026_09_10_example`, and answer whether the vote contains a protocol upgrade. The command creates:
 
 ```text
-omnibuses/<name>/
+omnibuses/ongoing/<network>/<name>/
   <name>.md
   Omnibus_<name>.sol
   <name>.ts
 ```
 
-It fills the network, contract name and Voting address. Complete the Markdown and call list before testing: the empty Solidity scaffold compiles, but its call-count check rejects an incomplete list.
+It fills the network, the `upgrade` flag, contract name and Voting address. `ongoing/<network>/` holds the network's current candidate; CI tests the first one by name. Executed votes move to `archive/<network>/`, and reference patterns live in `examples/`. Commands find a vote by name in any of these folders, and the folder network must match the wrapper's `network`. Complete the Markdown and call list before testing: the empty Solidity scaffold compiles, but its call-count check rejects an incomplete list.
 
 ## 2. Describe the payload
 
@@ -49,29 +49,39 @@ Choose the execution route from the target's authority: Voting, DG executor or A
 
 ## 4. Write the TypeScript tests
 
-Export `Omnibus.create({ network, testVote, testProposal? })`. Keep `voteId`, `launchedAt`, `executedAt` and `quorumReached` undefined until their actual public milestones. There is no TS `calls` builder, blueprint or contract-generation step: the runtime reads calls and script from the deployed Solidity contract and checks their consistency.
+Export `Omnibus.create({ network, upgrade, testVote, testProposal?, testFinalState? })`. Keep `voteId` undefined: `omnibus:launch --broadcast` records it. There is no TS `calls` builder, blueprint or contract-generation step: the runtime reads calls and script from the deployed Solidity contract and checks their consistency.
 
-- In `testVote`, read before-state, await `passOmnibus()`, register every `voteEvents.item(title, domainEvents)`, and assert resulting state/balance changes. Read expected public constants through a typed contract ABI, as in [the tiny test](../../omnibuses/_example_tiny_omnibus/_example_tiny_omnibus.ts). Prefer bound `checks.*` from the callback context where they fit.
+- In `testVote`, read before-state, await `passOmnibus()`, register every `voteEvents.item(title, domainEvents)`, and assert resulting state/balance changes. Read expected public constants through a typed contract ABI, as in [the tiny test](../../omnibuses/examples/_example_tiny_omnibus/_example_tiny_omnibus.ts). Prefer bound `checks.*` from the callback context where they fit.
 - A submitting item still needs `voteEvents.item(title)` when it has no additional domain events. The helper supplies its Voting/DG envelope; this does not check proposal execution.
 - In `testProposal`, await `passProposals()` and register each `proposalEvents[i].call(j, domainEvents)`. For multiple Agent-forwarded calls, supply one array per nested call, including empty groups. See [Agent event grouping](../../.agents/skills/omnibus-writer-sol/HELPERS.md#agent-and-dual-governance).
 - All submitted proposal IDs must be processed before returning. Optional `passProposals(ids)` supports staged execution and returns results in requested ID order; `[]` does not satisfy completion. Keep state and event assertions for each executed call.
 - Verify permissions through the appropriate ACL/OZ checks and a relevant allowed/denied call. Arrange explicit timing for time-window actions, accounting for governance delays.
+- In `testFinalState({ client, checks, deployment })`, assert the state the whole vote leaves, without before-state or events (Scripts' "after DG" checks). It runs after the proposals and their events, before acceptance, and is the only per-vote check of an already executed vote.
 
 The core requires execution and complete receipt consumption after both callbacks. It snapshots before `testVote` and restores after `testProposal` and the optional post-execution callback, also on failure. Temporary changes persist between callbacks; add an inner snapshot only when a particular probe requires local rollback.
 
-**Executed votes are not replayed by `omnibus:test`.** Any defined `executedAt`, including zero and regardless of `voteId`, is rejected before the test snapshot. Choosing an earlier fork block does not bypass this guard. Preserve lifecycle facts and use `omnibus:trace` to inspect historical execution.
+**`omnibus:test` picks its checks by the on-chain state of `voteId`** at the fork block; wrapper fields do not mark execution.
+
+| On chain                           | What runs                                                                                                                                                                | Not applicable                                           |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| no `voteId`                        | new vote on the fork, `testVote`, all DG, events, `testFinalState`, acceptance, upgrade snapshot                                                                         | —                                                        |
+| vote not executed                  | on-chain `getVote(voteId).script` equals the contract's; the same with the real vote, voting only in its main phase                                                      | —                                                        |
+| vote executed, DG proposal pending | on-chain `getVote(voteId).script` and `getProposalCalls` equal the contract's; `testProposal` executes the proposal on the fork, DG events, `testFinalState`, acceptance | `testVote`, Aragon events, upgrade snapshot              |
+| everything executed                | the same comparison; `testFinalState` and acceptance on the current block                                                                                                | `testVote`, `testProposal`, all events, upgrade snapshot |
+
+The task prints which checks ran and which do not apply. Any `voteId` needs a recorded `deployment.omnibus`: the payload is read from the real contract, never from a local deploy. Execution logs are searched from the vote snapshot block. A fork block before the vote, a rejected vote or a cancelled DG proposal fails the run. A missing `testFinalState` is a warning. A later vote that changes the checked state fails the run; investigate it by hand. CI tests an executed candidate in `ongoing/` the same way, so it stays green while its on-chain state is right. Use `omnibus:trace` to inspect the historical execution.
 
 ## 5. Configure deployment
 
 The default deployment needs exactly one non-test `.sol` in the omnibus folder, a contract named after that file and a zero-argument constructor. The runner compiles and deploys it on the local fork automatically.
 
-For constructor arguments or auxiliary contracts, implement `deploy({ deployContract })` and return the vote contract as `omnibus` alongside other handles. A `deployment` mapping supplies already deployed contracts. See [the custom-deployment example](../../omnibuses/_example_contract_omnibus/_example_contract_omnibus.ts). Both paths validate the Solidity calls/script and exact DG metadata during preparation.
+For constructor arguments or auxiliary contracts, implement `deploy({ deployContract })` and return the vote contract as `omnibus` alongside other handles. A `deployment` mapping supplies already deployed contracts. See [the custom-deployment example](../../omnibuses/examples/_example_contract_omnibus/_example_contract_omnibus.ts). Both paths validate the Solidity calls/script and exact DG metadata during preparation.
 
 ## 6. Build and test
 
 ```bash
 npm run fmt:sol
-npm run lint:vote-addresses -- omnibuses/<name>
+npm run lint:vote-addresses -- omnibuses/ongoing/<network>/<name>
 npm run omnibus:build -- <name>
 npm run omnibus:test -- <name> --fork-block <block>
 npx tsc --noEmit
@@ -86,7 +96,7 @@ Format Solidity with `forge fmt`: the pre-commit hook and CI run `forge fmt --ch
 
 Each acceptance suite keeps its assertions, setup and fixed expectations in one file under `test/protocol/acceptance/`. Register a new suite in `ACCEPTANCE_SUITES` (`tasks/sub-tasks/acceptance.ts`); the runner fails on an unregistered file, and negative suites stay last. The `omnibus:test` task runs Mocha with its prepared client through the post-execution callback of `Omnibus.test()`, after the vote, all DG proposals and event checks, before snapshot restore. A failing suite fails the task. Use `--skip-acceptance` when testing a historical deployment or a network without configured expectations. Direct `Omnibus.test(client)` calls run only the omnibus's own checks unless a callback is supplied. Changes to checked configuration require updating the expectations from an independent deployment source.
 
-Depot tests live under `test/depot/<module>/`: unit tests use `*.unit.test.ts`, and integration tests use `*.integration.test.ts` with in-process Hardhat environments (fork cases require `ETH_MAINNET_RPC_URL`). `npm test` is a shortcut for `test:depot:unit`; `test:all` runs both Depot suites. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`. Upgrade snapshot suites live under `test/protocol/snapshot/` and run only when the vote opts in as described below.
+Depot tests live under `test/depot/<module>/`: unit tests use `*.unit.test.ts`, and integration tests use `*.integration.test.ts` with in-process Hardhat environments (fork cases require `ETH_MAINNET_RPC_URL`). `npm test` is a shortcut for `test:depot:unit`; `test:all` runs both Depot suites. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/ongoing/<network>/<name>/<name>.ts`. Upgrade snapshot suites live under `test/protocol/snapshot/` and run for every `upgrade: true` vote as described below.
 
 Depot test globs select only `test/depot/`; `omnibus:test` loads the suites listed in `ACCEPTANCE_SUITES`. To run one suite alone against an existing fork, use `TEST_NETWORK=hoodi TEST_RPC_URL=http://localhost:8545 npx mocha --no-config --node-option import=tsx --timeout 600000 test/protocol/acceptance/locator.test.ts` (or `TEST_NETWORK=mainnet`, or another suite file).
 
@@ -100,40 +110,28 @@ npx hardhat omnibus:trace <name>
 
 ### Upgrade snapshots
 
-Set `upgradeSnapshot` on an upgrade wrapper to select source suites and declare intentional changes. Operational votes omit it. Suites are `lido-snapshot`, `plain-submit`, `dsm`, `node-operators-registry`, `voting` and `first-slots`.
+`upgrade: true` in the wrapper is the only switch: `omnibus:test` then runs every suite in `test/protocol/snapshot/` (`lido-snapshot`, `plain-submit`, `dsm`, `node-operators-registry`, `voting`, `first-slots`); `upgrade: false` runs none. The author does not select suites or declare differences. Each suite performs the same actions before and after the vote and compares the results, as in Scripts `tests/snapshot/`. Allowed differences live in the suite next to its comparison as plain code: absolute tolerances (`assertWithinTolerance`), removed or reshaped fields, and scenario rules such as Voting's `votesLength`. When an upgrade intentionally changes a compared value, edit that suite's rule in the same change, from the intended effect and never from an observed diff. Vote-specific effects, such as a new implementation address, are asserted in the wrapper's `testVote`/`testProposal`. `first-slots` reads root slots 0–15 of its 22 targets and arrays of length 1–31 fixed by the reference capture; implementation pointers (EIP-1967 slots, Kernel `apps` entries) lie outside them, so a proxy upgrade passes the suite.
 
-```typescript
-upgradeSnapshot: {
-  suites: ["first-slots"],
-  storage: [{ address: LOCATOR, slot: IMPLEMENTATION_SLOT }],
-  expectedChanges: {
-    [`first-slots/init/${LOCATOR.toLowerCase()}/${IMPLEMENTATION_SLOT}`]: {
-      after: NEW_IMPLEMENTATION_WORD,
-    },
-  },
-},
-```
+Suites carry mainnet and Hoodi expectations; `tasks/sub-tasks/snapshot.ts` rejects an upgrade on any other network before loading them.
 
-Expected-change keys are the suite/scenario/frame/field path shown by a failing comparison. Declare them from the vote's intended effects, never from an observed diff. `after` is mandatory; optional `before` pins both sides. A declaration must represent a real observed change; stale or unobserved entries fail. Domain tolerances remain in their suite and are not expanded by the runner. `storage` selects additional raw words in `first-slots`; its original 22 targets, root slots 0–15 and array expansion for lengths 1–31 remain bounded; the reference capture fixes which arrays both captures expand.
+`omnibus:test` first runs the ordinary vote/all DG/event checks with acceptance once on a clean state. Each snapshot case then independently runs this lifecycle on the prepared client without acceptance: source fixture → reference actions/capture inside a reverted snapshot → ordinary vote/all DG/event checks → upgraded actions/capture/comparison inside another reverted snapshot → existing outer restore. Suite module fixtures are scoped to the snapshot run. Preserve source-specific role grants: NOR grants once before both runs, as in Scripts; Lido grants in each run, because Scripts re-grants after the upgrade. EVM revert does not stop impersonation, so use `ImpersonatedAccounts` and stop tracked accounts before reverting. It funds accounts with 10 ETH unless `{ preserveBalance: true }` is passed. Compile required mocks narrowly and clear the artifact cache before reading new artifacts.
 
-`omnibus:test` first runs the ordinary vote/all DG/event checks with acceptance once on a clean state. Each selected snapshot case then independently runs this lifecycle on the prepared client without acceptance: source fixture → reference actions/capture inside a reverted snapshot → ordinary vote/all DG/event checks → upgraded actions/capture/comparison inside another reverted snapshot → existing outer restore. Suite module fixtures are scoped to the snapshot run. Preserve source-specific role grants: NOR grants once before both runs, as in Scripts; Lido grants in each run, because Scripts re-grants after the upgrade. EVM revert does not stop impersonation, so use `ImpersonatedAccounts` and stop tracked accounts before reverting. It funds accounts with 10 ETH unless `{ preserveBalance: true }` is passed. Compile required mocks narrowly and clear the artifact cache before reading new artifacts.
-
-`--skip-acceptance` suppresses the clean-pass acceptance only. Direct `Omnibus.test(client, afterExecution, hooks)` supplies the before/comparison hooks but does not load protocol suites; the CLI's `runSnapshots` supplies them. A selected case must execute its upgrade; empty selection, skipped coverage and comparison failures fail the run. Executed votes retain the ordinary `executedAt` rejection.
+`--skip-acceptance` suppresses the clean-pass acceptance only. Direct `Omnibus.test(client, afterExecution, hooks)` supplies the before/comparison hooks but does not load protocol suites; the CLI's `runSnapshots` supplies them. Every case must execute its upgrade; a run with no cases, pending cases, a case that skips the upgrade or a comparison failure fails. Snapshots run only while the Aragon vote is not executed on chain.
 
 Block/time alignment is suite-specific, not global: first-slots/DSM use a preselected target and fail if governance exceeds it; Lido aligns block height; Voting/plain-submit preserve their source observations without asserting gas/ETH/time equality. DSM pins each action's block to the previous timestamp plus one second and keeps the agreed absolute 1 second tolerance (the source accidentally used a relative tolerance of 100%). Lido funding is 100000 ETH (the source double-converted units). Source Lido role regrant still does not prove ACL preservation. When the upgrade starts a new vote (no `voteId`), Voting expects `votesLength` to grow by exactly one in every frame and repeats the launch's LDO funding transfer in its reference run, since the Hoodi funder is one of its voters.
 
-The [upgrade snapshot example](../../omnibuses/_example_upgrade_snapshot/_example_upgrade_snapshot.md) is a local payload using a real Locator upgrade call from #204. Its command proves only that selected mechanism when actually run; the undeclared-change rejection is covered by the Depot integration test. Current acceptance is not a historical expectation profile, so the command explicitly skips it. Full mainnet/Hoodi scenario coverage still requires separately recorded fork runs.
+The [upgrade snapshot example](../../omnibuses/examples/_example_upgrade_snapshot/_example_upgrade_snapshot.md) is a local payload using a real Locator upgrade call from #204. Its wrapper sets only `upgrade: true` and asserts the new Locator implementation slot in `testProposal`; its command runs all suites. The rejection of a sampled-slot change is covered by the Depot integration test. Suites target current deployments, so run it on a current fork; its command skips the clean-pass acceptance. Full mainnet/Hoodi scenario coverage still requires separately recorded fork runs.
 
 ### Cross-repository checks
 
 ```bash
 npm run omnibus:multi-test -- <name> --repo staking-modules --fork-block <block>
-npm run omnibus:multi-test -- <name> --repo stonks --mount-tests --pattern default --fork-block <block>
+npm run omnibus:multi-test -- <name> --repo stonks --fork-block <block>
 ```
 
-Targets are `core`, `scripts`, `dual-governance`, `staking-modules` and `stonks`; omitting `--repo` selects all. The optional positional name applies the omnibus and its proposals before the suites; omitting it runs on a bare mainnet fork. Repository suites run serially with a snapshot around each suite, preserving the prepared baseline. Outer cleanup restores the pre-run state and stops a node started by this run; a reused node remains running.
+Targets are `core`, `scripts`, `dual-governance`, `staking-modules` and `stonks`; omitting `--repo` selects all. The optional positional name applies the omnibus and its proposals before the suites; omitting it runs on a bare mainnet fork. The network comes from the vote. Only `core` has a Hoodi suite, as in the upstream CI; on Hoodi the other repositories are skipped with a log line, and the run fails with a `KnownError` before node startup when no selected repository has a suite for the network. Repository suites run serially with a snapshot around each suite, preserving the prepared baseline. Outer cleanup restores the pre-run state and stops a node started by this run; a reused node remains running.
 
-Docker and each target's configured dependencies are required. Set the intended branch/SHA and image platform using the existing environment configuration; see [mount examples](../../mount/README.md) and [target commands](../../tasks/sub-tasks/containers.ts). With `--mount-tests`, the selected `mount/<repo>` directories must exist before node startup. `--pattern default` selects the repo-specific mounted example pattern; other patterns use that repo's test runner syntax. A Depot fork test or local model does not substitute for executing these external suites.
+Docker and each target's configured dependencies are required. Repository revisions default to the branch/SHA pins in `src/common/env.ts`, which CI uses too; override them and the image platform through the environment. CI runs the same command per repository (`repo_*_regression.yml`) for each network's ongoing candidate; see [target commands](../../tasks/sub-tasks/containers.ts). A Depot fork test or local model does not substitute for executing these external suites.
 
 ## 7. Rehearse deployment and launch
 
@@ -150,13 +148,15 @@ Deploy, launch and trace do not accept `--fork-block`. For a pinned rehearsal, u
 
 ## 8. Public deployment and lifecycle
 
-After the required review and fork checks, public deployment and public vote creation each require explicit authorization and `--broadcast`:
+After the required review and fork checks, a human performs public deployment and public vote creation with `--broadcast`. Agents never run these commands against Mainnet/Hoodi and never read keystore contents:
 
 ```bash
 npx hardhat omnibus:deploy <name> --broadcast
 npx hardhat omnibus:launch <name> --broadcast
 ```
 
-Successful default broadcast deployment records `deployment.omnibus` in the wrapper; record custom deployment handles explicitly. Launch reads the deployed contract and displays its items and payload. Compare the saved EVM script and `getEVMScript()` with the created vote, and check `isValidVoteScript(voteId)`.
+Successful default broadcast deployment records `deployment.omnibus` in the wrapper; record custom deployment handles explicitly. Launch reads the deployed contract and displays its items and payload. Broadcast launch records `voteId` in the wrapper; every launch then checks `isValidVoteScript(voteId)` of the contract. Local rehearsals record nothing.
 
-Record `voteId` and `launchedAt` (block number) after the real launch; `executedAt` after execution; `quorumReached` when known. Local rehearsals establish none of those public facts.
+After execution, `omnibus:test <name>` checks the executed vote (see section 4). `omnibus:archive <name>` reads the network: it moves the vote when the Aragon vote and all its DG proposals are executed, or when the vote finished without result (rejected, or a DG proposal cancelled, with a warning), and refuses otherwise with the unfinished items. `omnibus:pass-aragon-vote <network> <voteId>` passes a not executed vote on the fork, voting only in its main phase, and refuses an executed one.
+
+If the payload changes after the audit: remove `deployment` from the wrapper, redeploy, let the new address show in the PR diff and have that address re-audited. Launch uses only the recorded address.

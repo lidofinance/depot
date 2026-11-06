@@ -2,16 +2,15 @@ FROM node:20.10.0-bookworm-slim
 
 ARG TARGETARCH
 ARG GITHUB_ORG=lidofinance
-ARG GIT_BRANCH=develop
 ARG GIT_SHA
-ARG BUILD_VERSION
 
 RUN apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src/app
-RUN git clone --branch "${GIT_BRANCH}" --single-branch "https://github.com/${GITHUB_ORG}/staking-modules.git" . \
-    && git fetch origin "${GIT_SHA}" \
-    && git checkout --detach "${GIT_SHA}" \
+RUN git init -q \
+    && git remote add origin "https://github.com/${GITHUB_ORG}/staking-modules.git" \
+    && git fetch -q --depth 1 origin "${GIT_SHA}" \
+    && git checkout -q --detach FETCH_HEAD \
     && test "$(git rev-parse HEAD)" = "${GIT_SHA}"
 LABEL org.opencontainers.image.revision="${GIT_SHA}"
 

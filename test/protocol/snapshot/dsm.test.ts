@@ -27,12 +27,7 @@ const pauseAbi = parseAbi(["function pauseDeposits(uint256 blockNumber, (address
 describe("DepositSecurityModule upgrade snapshots", function () {
   for (const operations of [false, true]) {
     it(`preserves views${operations ? " through owner and guardian operations" : ""}`, async function () {
-      const context = getSnapshotContext(this);
-      const { client, testUpgrade } = context;
-      const network = client.getNetworkName();
-      if (network !== "mainnet" && network !== "hoodi") {
-        throw new Error(`Unsupported snapshot network ${network}`);
-      }
+      const { client, network, testUpgrade } = getSnapshotContext(this);
       const expected = configurations[network];
       const dsm = contract(DepositSecurityModule_ABI, expected.dsm);
       const [candidate1, candidate2] = expected.candidates;
@@ -226,8 +221,8 @@ describe("DepositSecurityModule upgrade snapshots", function () {
             const scope = `dsm/${caseName}/${name}`;
             const oldFrame = { ...before[name] };
             const newFrame = { ...after[name] };
-            assertWithinTolerance(context, scope, "chain_time", oldFrame, newFrame, 1n);
-            assertSnapshot(context, scope, oldFrame, newFrame);
+            assertWithinTolerance(scope, "chain_time", oldFrame, newFrame, 1n);
+            assertSnapshot(scope, oldFrame, newFrame);
           }
         },
       });

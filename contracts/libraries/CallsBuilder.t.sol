@@ -62,16 +62,6 @@ contract CallsBuilderTest is Test {
         assertEq(externalCalls[0].payload, abi.encodeCall(IOracleRouter.setManager, (TMC)));
     }
 
-    function test_OmittedMetadataIsComposedFromTitles() external pure {
-        VoteCall[] memory calls = VoteCallsBuilderUtils.create(1)
-            .submitCalls(VOTE_ITEM_TITLE, Addresses.DUAL_GOVERNANCE, _proposalCalls())
-            .getCalls();
-
-        (, string memory metadata) = _decodeSubmitProposal(calls[0].payload);
-
-        assertEq(metadata, string.concat(VOTE_ITEM_TITLE, "\n  ", "Set Treasury Management Committee as manager"));
-    }
-
     // ---
     // Helpers
     // ---

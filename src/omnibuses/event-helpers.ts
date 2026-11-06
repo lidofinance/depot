@@ -1,11 +1,17 @@
-import { AbiEvent, Address, formatAbiItem } from "abitype";
+import {
+  AbiEvent,
+  AbiParametersToPrimitiveTypes,
+  Address,
+  ExtractAbiEvent,
+  ExtractAbiEventNames,
+  formatAbiItem,
+} from "abitype";
 import chalk from "chalk";
 import deepEqual from "deep-eql";
 import { decodeEventLog, encodeEventTopics, isAddressEqual, Log, TransactionReceipt } from "viem";
 
 import bytes from "../common/bytes";
 import { Contract, getEventAbi } from "../contracts";
-import { FilterAbiEvents, FindEventAbiParams } from "../types/abi.types";
 import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
 import type { OmnibusCallEvent } from "./omnibus";
 
@@ -19,10 +25,10 @@ type PartialArray<T extends readonly unknown[]> = T extends readonly [infer A, .
     ? []
     : (T[number] | CustomEventArgCheck<T[number]> | null)[];
 
-export function event<$Contract extends Contract, $EventName extends FilterAbiEvents<$Contract["abi"]>["name"]>(
+export function event<$Contract extends Contract, $EventName extends ExtractAbiEventNames<$Contract["abi"]>>(
   contract: $Contract,
   eventName: $EventName,
-  args: PartialArray<FindEventAbiParams<$Contract["abi"], $EventName>>,
+  args: PartialArray<AbiParametersToPrimitiveTypes<ExtractAbiEvent<$Contract["abi"], $EventName>["inputs"]>>,
   options: { emitter?: Address; isOptional?: boolean; allowMultiple?: boolean } = {},
 ): OmnibusCallEvent {
   return {

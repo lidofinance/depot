@@ -34,7 +34,7 @@ Run from the repository root; replace `<name>` with the intended omnibus. `<bloc
 
 ```bash
 npm run omnibus:build -- <name>
-npm run lint:vote-addresses -- omnibuses/<name>
+npm run lint:vote-addresses -- omnibuses/ongoing/<network>/<name>
 npm run omnibus:test -- <name> --fork-block <block>
 npx hardhat omnibus:trace <name>
 npx tsc --noEmit
@@ -46,15 +46,15 @@ npm run test:all
 
 Depot unit and integration tests live under `test/depot/<module>/`; `npm test` is a shortcut for `test:depot:unit`, and `test:all` runs both Depot suites. Integration tests create Hardhat environments in process; fork cases require `ETH_MAINNET_RPC_URL`.
 
-Shared deployed-protocol checks live in `test/protocol/acceptance/` and run through `omnibus:test` after the vote and all DG proposals, before snapshot restore. `test/protocol/snapshot/` is reserved for future upgrade snapshot suites. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`.
+Shared deployed-protocol checks live in `test/protocol/acceptance/` and run through `omnibus:test` after the vote and all DG proposals, before snapshot restore. `test/protocol/snapshot/` holds upgrade snapshot suites that `omnibus:test` runs for `upgrade: true` votes. Per-vote `testVote`/`testProposal` checks stay in `omnibuses/ongoing/<network>/<name>/<name>.ts`.
 
-`omnibus:test` rejects recorded execution (`executedAt` defined); trace is the historical inspection path. See the guide for complete event coverage, snapshots, deployment recording and public lifecycle fields.
+`omnibus:test` picks its checks by the on-chain state of `voteId`: an executed vote is compared with its contract and checked by `testFinalState` and acceptance; trace is the historical inspection path. See the guide for complete event coverage, snapshots, deployment recording and public lifecycle fields.
 
-Cross-repository tests and mounted test examples are described in [the runbook](docs/omnibuses/WRITING_OMNIBUS.md#cross-repository-checks) and [mount/README.md](mount/README.md). Build checks, local models and live fork suites provide different evidence; report their results separately.
+Cross-repository tests are described in [the runbook](docs/omnibuses/WRITING_OMNIBUS.md#cross-repository-checks). Build checks, local models and live fork suites provide different evidence; report their results separately.
 
 ## Deployment and launch
 
-Use `npx hardhat omnibus:deploy <name>` and `npx hardhat omnibus:launch <name>` for local rehearsals on a local dev node, without unlocking the key or uploading to IPFS. Public transactions require `--broadcast`, typing the network name to confirm, and explicit authorization. Follow the [deployment runbook](docs/omnibuses/WRITING_OMNIBUS.md#7-rehearse-deployment-and-launch) before running either path.
+Use `npx hardhat omnibus:deploy <name>` and `npx hardhat omnibus:launch <name>` for local rehearsals on a local dev node, without unlocking the key or uploading to IPFS. Public transactions require `--broadcast`, typing the network name to confirm, and are performed only by a human. Follow the [deployment runbook](docs/omnibuses/WRITING_OMNIBUS.md#7-rehearse-deployment-and-launch) before running either path.
 
 ## Contributing
 

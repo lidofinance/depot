@@ -5,7 +5,6 @@ import {
   HttpTransport,
   MineParameters,
   PublicClient,
-  ResetParameters,
   testActions,
   TestClient,
   WalletClient,
@@ -128,11 +127,6 @@ export class DevRpcClient extends RpcClient {
   async advanceTime(seconds: number | bigint): Promise<void> {
     const current = await this.getChainTime();
     await this.setTime(BigInt(current) + BigInt(seconds));
-  }
-
-  async reset(args?: ResetParameters) {
-    const client = await this.#getTestClient();
-    await client.reset(args);
   }
 
   async getAccounts(): Promise<Address[]> {

@@ -1,15 +1,13 @@
 import { CREATOR, CREATOR_ETH_BALANCE, CREATOR_LDO_BALANCE, LDO_VOTERS_BY_NETWORK_NAME } from "./constants";
-import { getExecuteReceipt, startAragonVote } from "./lifecycle";
 import { DevRpcClient } from "../network";
 import { Address, formatEther, TransactionReceipt } from "viem";
-import { HexStrPrefixed } from "../common/bytes";
 import { getGovernanceContracts } from "../omnibuses/governance-contracts";
 
-export const testingDeps = { getGovernanceContracts, startAragonVote, getExecuteReceipt };
+const MAIN_VOTE_PHASE = 0;
 
 export async function setupLdoHolder(client: DevRpcClient, account: Address = CREATOR): Promise<Address> {
   const network = client.getNetworkName();
-  const { ldo } = testingDeps.getGovernanceContracts(network);
+  const { ldo } = getGovernanceContracts(network);
   const [funder] = LDO_VOTERS_BY_NETWORK_NAME[network];
 
   await withImpersonatedAccount(client, funder, CREATOR_ETH_BALANCE, async () => {
@@ -22,22 +20,28 @@ export async function setupLdoHolder(client: DevRpcClient, account: Address = CR
 
 export async function passAragonVote(client: DevRpcClient, voteId: bigint): Promise<TransactionReceipt> {
   const network = client.getNetworkName();
-  const { voting } = testingDeps.getGovernanceContracts(network);
+  const { voting } = getGovernanceContracts(network);
   const voters = LDO_VOTERS_BY_NETWORK_NAME[network];
-  const [, executed] = await client.read(voting, "getVote", [voteId]);
+  const [[, executed], phase] = await Promise.all([
+    client.read(voting, "getVote", [voteId]),
+    client.read(voting, "getVotePhase", [voteId]),
+  ]);
 
   if (executed) {
-    return testingDeps.getExecuteReceipt(client, voteId);
+    throw new Error(`Vote ${voteId} is already executed, there is nothing to pass`);
   }
 
-  for (const voter of voters) {
-    if (!(await client.read(voting, "canVote", [voteId, voter]))) {
-      continue;
-    }
+  // the objection phase takes only "nay": a "yea" reverts with VOTING_CAN_NOT_VOTE
+  if (phase === MAIN_VOTE_PHASE) {
+    for (const voter of voters) {
+      if (!(await client.read(voting, "canVote", [voteId, voter]))) {
+        continue;
+      }
 
-    await withImpersonatedAccount(client, voter, CREATOR_ETH_BALANCE, async () => {
-      await client.write(voting, "vote", [voteId, true, false], { from: voter });
-    });
+      await withImpersonatedAccount(client, voter, CREATOR_ETH_BALANCE, async () => {
+        await client.write(voting, "vote", [voteId, true, false], { from: voter });
+      });
+    }
   }
 
   const voteDuration = await client.read(voting, "voteTime", []);
@@ -62,34 +66,12 @@ export async function passAragonVote(client: DevRpcClient, voteId: bigint): Prom
   );
 
   if (!canExecute) {
-    throw new Error(`Vote ${voteId} cannot be executed after all configured LDO voters voted`);
+    throw new Error(`Vote ${voteId} cannot be executed after its vote time, see the diagnostics above`);
   }
 
   return withImpersonatedAccount(client, voters[0], CREATOR_ETH_BALANCE, () =>
     client.write(voting, "executeVote", [voteId], { from: voters[0] }),
   );
-}
-
-interface AdoptResult {
-  voteId: bigint;
-  createVoteReceipt: TransactionReceipt;
-  executeVoteReceipt: TransactionReceipt;
-}
-
-export async function adoptAragonVoting(
-  client: DevRpcClient,
-  evmScript: HexStrPrefixed,
-  description: string,
-): Promise<AdoptResult> {
-  const ldoHolderAddress = await setupLdoHolder(client);
-
-  const { voteId, receipt: createVoteReceipt } = await testingDeps.startAragonVote(client, evmScript, description, {
-    from: ldoHolderAddress,
-  });
-
-  const executeVoteReceipt = await passAragonVote(client, voteId);
-
-  return { voteId, createVoteReceipt, executeVoteReceipt };
 }
 
 async function withImpersonatedAccount<T>(

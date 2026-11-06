@@ -48,7 +48,7 @@ Project uses `"type": "module"`. Key constraints:
   export const deps = { getGovernanceContracts };
   const { voting } = deps.getGovernanceContracts(network);
   ```
-- For HTTP mocking, use `globalThis.fetch` override (nock v13 doesn't intercept native fetch)
+- For HTTP mocking, override `globalThis.fetch`
 
 ## Code style
 
@@ -63,9 +63,9 @@ Tests are grouped by purpose:
 - `test/depot/<module>/<name>.unit.test.ts` — Depot logic, no network.
 - `test/depot/<module>/<name>.integration.test.ts` — Depot integration paths with in-process Hardhat; fork cases require `ETH_MAINNET_RPC_URL`.
 - `test/protocol/acceptance/` — shared checks of deployed protocol state after vote/DG execution, before snapshot restore.
-- `test/protocol/snapshot/` — opt-in old/upgraded comparisons through `omnibus:test`; see [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md).
+- `test/protocol/snapshot/` — old/upgraded comparisons that `omnibus:test` runs for `upgrade: true` votes; see [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md).
 
-Per-vote `testVote`/`testProposal` checks stay in `omnibuses/<name>/*.ts`. Shared Depot helpers live in `test/depot/helpers/`.
+Per-vote `testVote`/`testProposal` checks stay in the vote wrapper `omnibuses/ongoing/<network>/<name>/<name>.ts`. Shared Depot helpers live in `test/depot/helpers/`.
 
 ```bash
 npm run test:depot:unit         # npm test is a shortcut
@@ -73,7 +73,7 @@ npm run test:depot:integration  # no separate node required
 npm run test:all                # both Depot suites
 ```
 
-`test:all` runs Depot tests; protocol acceptance and opted-in upgrade snapshots run through `omnibus:test`.
+`test:all` runs Depot tests; protocol acceptance and upgrade snapshots run through `omnibus:test`.
 
 See `test/AGENTS.md` for detailed testing conventions (mocking rules, templates, mock contracts).
 

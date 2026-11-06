@@ -10,8 +10,8 @@ import { fetchAbiFromEtherscan, lookupAddressInRegistry, readAbiFromFile, Resolv
 import { renderAbiTs } from "./render-abi-ts";
 import { renderSolInterface } from "./render-sol-interface";
 
-export const ABI_DIR = "abi";
-export const INTERFACES_DIR = "contracts/interfaces";
+const ABI_DIR = "abi";
+const INTERFACES_DIR = "contracts/interfaces";
 export const SUPPORTED_NETWORKS: NetworkName[] = ["mainnet", "hoodi"];
 
 export function isSupportedNetwork(value: string): value is NetworkName {
@@ -44,38 +44,36 @@ export interface AbiSyncResult {
 const NAME_PATTERN = /^[A-Z][A-Za-z0-9]*$/;
 const execFileAsync = promisify(execFile);
 
-export const deps = {
-  resolveAbi: async (params: AbiSyncParams): Promise<ResolvedAbi> => {
-    if (params.fromFile) {
-      return readAbiFromFile(params.fromFile);
+async function resolveAbi(params: AbiSyncParams): Promise<ResolvedAbi> {
+  if (params.fromFile) {
+    return readAbiFromFile(params.fromFile);
+  }
+  const address =
+    params.address ?? (await lookupAddressInRegistry(params.networkName, params.name, params.projectRoot));
+  return fetchAbiFromEtherscan(params.networkName, address, { proxyAbi: params.proxyAbi });
+}
+
+// CI checks Solidity with `forge fmt`; formatting happens before anything is written, so a missing
+// Foundry leaves no half-written interface behind.
+async function formatSolidity(code: string): Promise<string> {
+  const running = execFileAsync("forge", ["fmt", "--raw", "-"]);
+  const input = running.child.stdin;
+  const inputFinished = input ? finished(input) : Promise.resolve();
+  input?.end(code);
+  try {
+    const [result, transferred] = await Promise.allSettled([running, inputFinished]);
+    if (result.status === "rejected") {
+      throw result.reason;
     }
-    const address =
-      params.address ?? (await lookupAddressInRegistry(params.networkName, params.name, params.projectRoot));
-    return fetchAbiFromEtherscan(params.networkName, address, { proxyAbi: params.proxyAbi });
-  },
-  writeFile: (filePath: string, content: string) => fs.writeFile(filePath, content),
-  // CI checks Solidity with `forge fmt`; formatting happens before anything is written, so a missing
-  // Foundry leaves no half-written interface behind.
-  formatSolidity: async (code: string): Promise<string> => {
-    const running = execFileAsync("forge", ["fmt", "--raw", "-"]);
-    const input = running.child.stdin;
-    const inputFinished = input ? finished(input) : Promise.resolve();
-    input?.end(code);
-    try {
-      const [result, transferred] = await Promise.allSettled([running, inputFinished]);
-      if (result.status === "rejected") {
-        throw result.reason;
-      }
-      if (transferred.status === "rejected") {
-        throw transferred.reason;
-      }
-      return result.value.stdout;
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`forge fmt failed (Foundry must be installed): ${message}`);
+    if (transferred.status === "rejected") {
+      throw transferred.reason;
     }
-  },
-};
+    return result.value.stdout;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`forge fmt failed (Foundry must be installed): ${message}`);
+  }
+}
 
 /** Writes `abi/<Name>.abi.ts` (full ABI) and `contracts/interfaces/I<Name>.sol` (state-changing methods) from one ABI. */
 export async function syncAbi(params: AbiSyncParams): Promise<AbiSyncResult> {
@@ -83,7 +81,7 @@ export async function syncAbi(params: AbiSyncParams): Promise<AbiSyncResult> {
     throw new Error(`Name "${params.name}" must be PascalCase, e.g. "StakingRouter"`);
   }
 
-  const resolved = await deps.resolveAbi(params);
+  const resolved = await resolveAbi(params);
 
   const abiPath = path.join(params.projectRoot, ABI_DIR, `${params.name}.abi.ts`);
   const abiModule = await renderAbiTs(
@@ -104,12 +102,12 @@ export async function syncAbi(params: AbiSyncParams): Promise<AbiSyncResult> {
       methods: params.methods,
       source: resolved.source,
     });
-    solInterface = await deps.formatSolidity(rendered);
+    solInterface = await formatSolidity(rendered);
   }
 
-  await deps.writeFile(abiPath, abiModule);
+  await fs.writeFile(abiPath, abiModule);
   if (solPath && solInterface) {
-    await deps.writeFile(solPath, solInterface);
+    await fs.writeFile(solPath, solInterface);
   }
 
   return { source: resolved.source, contractName: resolved.contractName, abiPath, solPath };

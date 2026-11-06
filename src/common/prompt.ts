@@ -2,16 +2,16 @@ import prompts from "prompts";
 
 import { KnownError } from "./errors";
 
-export interface SelectChoice {
+interface SelectChoice {
   value: string;
   title: string;
 }
 
-export interface SecretOptions {
+interface SecretOptions {
   invisible?: boolean; // false by default
 }
 
-export interface PasswordOptions {
+interface PasswordOptions {
   confirmation?: boolean; // true by default
 }
 
@@ -33,25 +33,23 @@ const DEFAULT_PROMPTS_OPTIONS = {
   },
 };
 
-export const promptDeps = {
-  async toggle(message: string) {
-    const { isConfirmed } = await prompts({
-      type: "toggle",
-      name: "isConfirmed",
-      message,
-      active: "yes",
-      inactive: "no",
-    });
-    return Boolean(isConfirmed);
-  },
-};
+async function toggle(message: string) {
+  const { isConfirmed } = await prompts({
+    type: "toggle",
+    name: "isConfirmed",
+    message,
+    active: "yes",
+    inactive: "no",
+  });
+  return Boolean(isConfirmed);
+}
 
 async function confirmOrAbort(message?: string, autoConfirm = false) {
   if (autoConfirm) {
     return;
   }
 
-  const isConfirmed = await promptDeps.toggle(message ?? "Confirm?");
+  const isConfirmed = await toggle(message ?? "Confirm?");
   if (!isConfirmed) {
     throw new OperationAbortedError();
   }
@@ -66,7 +64,7 @@ async function confirmByTypingOrAbort(message: string, expected: string) {
 }
 
 async function confirm(message?: string) {
-  return promptDeps.toggle(message ?? "Confirm?");
+  return toggle(message ?? "Confirm?");
 }
 
 async function select(message: string, choices: SelectChoice[]) {
@@ -111,19 +109,6 @@ async function password(message: string, options: PasswordOptions): Promise<stri
   return password;
 }
 
-async function sigint() {
-  console.log("Press CTRL + C to exit");
-  const sigintPromise = new Promise<void>((resolve) => {
-    const timeout = setTimeout(resolve, 2147483646);
-    process.on("SIGINT", () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-  });
-
-  await sigintPromise;
-}
-
 async function text(message: string): Promise<string> {
   const { value } = await prompts({ name: "value", type: "text", message }, DEFAULT_PROMPTS_OPTIONS);
   return String(value ?? "");
@@ -137,5 +122,4 @@ export default {
   confirmOrAbort,
   confirmByTypingOrAbort,
   password,
-  sigint,
 };

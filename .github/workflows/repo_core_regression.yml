@@ -3,6 +3,7 @@ name: Core tests CI
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -13,78 +14,73 @@ concurrency:
 
 jobs:
   run-tests:
-    name: Core repo tests in docker
+    name: Core post-vote regression (${{ matrix.network }})
+    if: ${{ !github.event.pull_request.draft && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
-
-    services:
-      hardhat-node:
-        image: ghcr.io/lidofinance/hardhat-node:2.26.0
-        ports:
-          - 8545:8545
-        env:
-          ETH_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
-          HARDFORK: prague
+    strategy:
+      fail-fast: false
+      matrix:
+        network: [mainnet, hoodi]
+    env:
+      DOTENV_CONFIG_PATH: /dev/null
+      ETH_MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+      ETH_HOODI_RPC_URL: ${{ secrets.HOODI_RPC_URL }}
+      ETH_LOCAL_RPC_BIND_IP: "0.0.0.0"
 
     steps:
-      ################################################################
-      # Prepare depot repository
-      ################################################################
-
       - name: Checkout depot repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: depot
-
-      - name: Setup depot
-        uses: ./depot/.github/actions/prepare_depot
-
-      ################################################################
-      # Prepare core repository
-      ################################################################
-
-      - name: Checkout core repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          repository: lidofinance/core
-          path: core
           persist-credentials: false
 
-      - name: Enable corepack
-        shell: bash
-        run: corepack enable
-
-      - name: Setup Node.js for core
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - name: Find candidate vote
+        id: candidate
+        uses: ./depot/.github/actions/find_candidate
         with:
-          node-version-file: core/.nvmrc
-          cache: yarn
-          cache-dependency-path: core/yarn.lock
+          network: ${{ matrix.network }}
 
-      - name: Set env
-        run: cp .env.example .env
-        working-directory: core
+      - name: Setup depot
+        if: ${{ steps.candidate.outputs.name != '' }}
+        uses: ./depot/.github/actions/prepare_depot
 
-      - name: Install dependencies
+      - name: Prepare regression inputs
+        id: regression
+        if: ${{ steps.candidate.outputs.name != '' }}
+        uses: ./depot/.github/actions/prepare_regression
+        with:
+          repo: core
+          network: ${{ matrix.network }}
+          omnibus: ${{ steps.candidate.outputs.name }}
+
+      - name: Apply the candidate and run core suites
+        if: ${{ steps.candidate.outputs.name != '' }}
+        working-directory: depot
         shell: bash
-        run: yarn install --frozen-lockfile
-        working-directory: core
-
-      ################################################################
-      # Run vote
-      ################################################################
-
-      - name: Run vote
-        uses: ./depot/.github/actions/run_depot_vote
-
-      ################################################################
-      # Run tests
-      ################################################################
-      - name: Run integration tests
-        run: yarn test:integration
-        working-directory: core
         env:
-          RPC_URL: http://127.0.0.1:8545
-          NETWORK: mainnet
-          NODE_OPTIONS: --max_old_space_size=7200
-          NETWORK_STATE_FILE: deployed-mainnet.json
+          OMNIBUS: ${{ steps.candidate.outputs.name }}
+          FORK_BLOCK: ${{ steps.regression.outputs.fork-block }}
+        run: npx hardhat omnibus:multi-test "$OMNIBUS" --repo core --fork-block "$FORK_BLOCK" 2>&1 | tee logs/multi-test.log
+
+      - name: Save repo image
+        if: ${{ always() && steps.regression.outcome == 'success' }}
+        uses: ./depot/.github/actions/save_repo_image
+        with:
+          image-tag: ${{ steps.regression.outputs.image-tag }}
+          cache-key: ${{ steps.regression.outputs.cache-key }}
+          cache-hit: ${{ steps.regression.outputs.cache-hit }}
+
+      - name: Print regression logs
+        if: ${{ failure() && steps.candidate.outputs.name != '' }}
+        shell: bash
+        working-directory: depot
+        run: |
+          # multi-test output is already in the console; the node log is noise
+          for log in logs/*.log; do
+            case "$log" in logs/multi-test.log | logs/hh-rpc-node.log) continue ;; esac
+            [[ -f "$log" ]] || continue
+            echo "::group::$log"
+            cat "$log"
+            echo "::endgroup::"
+          done

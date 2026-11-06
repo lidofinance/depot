@@ -2,9 +2,10 @@ import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
 import { createHardhatRuntimeEnvironment } from "hardhat/hre";
 import type { HardhatRuntimeEnvironment } from "hardhat/types/hre";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sinon from "sinon";
+import { TransactionReceipt, toFunctionSelector } from "viem";
 
 import prompt from "@/src/common/prompt";
 import { getKeystores } from "@/src/hardhat-keystores";
@@ -17,6 +18,9 @@ const assert: Chai.AssertStatic = chai.assert;
 
 const LOCAL_RPC_URL = "http://localhost:18546";
 const TX_HASH = `0x${"22".repeat(32)}`;
+const IS_VALID_VOTE_SCRIPT = toFunctionSelector("isValidVoteScript(uint256)");
+// well-known hardhat test account #0, never holds real funds
+const TEST_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
 interface RpcRequest {
   id: number;
@@ -34,9 +38,14 @@ function fakeDevNodeFetch(requestedUrls: string[], requests: RpcRequest[]): type
     eth_blockNumber: () => "0x7",
     hardhat_impersonateAccount: () => true,
     hardhat_stopImpersonatingAccount: () => true,
-    // balanceOf answers 1 LDO, so the pilot is not topped up
-    eth_call: (request) =>
-      request.params?.[0]?.data?.startsWith("0x70a08231") ? `0x${"0".repeat(48)}de0b6b3a7640000` : "0x",
+    // balanceOf answers 1 LDO, so the pilot is not topped up; isValidVoteScript answers true
+    eth_call: (request) => {
+      const data = request.params?.[0]?.data;
+      if (data?.startsWith("0x70a08231")) {
+        return `0x${"0".repeat(48)}de0b6b3a7640000`;
+      }
+      return data?.startsWith(IS_VALID_VOTE_SCRIPT) ? `0x${"0".repeat(63)}1` : "0x";
+    },
     eth_sendTransaction: () => TX_HASH,
     eth_getTransactionReceipt: (request) => ({
       blockHash: TX_HASH,
@@ -76,12 +85,12 @@ describe("omnibus:launch dry run", () => {
 
   beforeEach(async () => {
     root = await mkdtemp(path.resolve("omnibuses/_launch_task_"));
-    const directory = path.join(root, "fixture");
-    await mkdir(directory);
+    const directory = path.join(root, "ongoing", "mainnet", "fixture");
+    await mkdir(directory, { recursive: true });
     const module = path.relative(directory, path.resolve("src/omnibuses/omnibus"));
     await writeFile(
       path.join(directory, "fixture.ts"),
-      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", testVote: async () => {} });`,
+      `import { Omnibus } from ${JSON.stringify(module)}; export default Omnibus.create({ network: "mainnet", upgrade: false, testVote: async () => {} });`,
     );
     await writeFile(path.join(directory, "fixture.md"), "Launch fixture description");
     process.env = { ...originalEnv, ETH_MAINNET_RPC_URL: "http://localhost:18545", ETH_LOCAL_RPC_PORT: "18546" };
@@ -107,12 +116,7 @@ describe("omnibus:launch dry run", () => {
   });
 
   it("never unlocks the key, sends from the impersonated keystore address and stays local", async () => {
-    const pilot = await NamedKeystore.fromPrivateKey(
-      "pilot",
-      // well-known hardhat test account #0, never holds real funds
-      "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-      "fixture-password",
-    );
+    const pilot = await NamedKeystore.fromPrivateKey("pilot", TEST_PRIVATE_KEY, "fixture-password");
     const requestedUrls: string[] = [];
     const requests: RpcRequest[] = [];
     globalThis.fetch = fakeDevNodeFetch(requestedUrls, requests);
@@ -135,5 +139,24 @@ describe("omnibus:launch dry run", () => {
     const sent = requests.filter((request) => request.method === "eth_sendTransaction");
     assert.lengthOf(sent, 1);
     assert.equal(sent[0].params?.[0]?.from?.toLowerCase(), pilot.address.toLowerCase());
+  });
+
+  it("records voteId after a stubbed broadcast and checks the vote script", async () => {
+    globalThis.fetch = fakeDevNodeFetch([], []);
+    sinon.stub(getKeystores(hre), "unlock").resolves(TEST_PRIVATE_KEY);
+    sinon.stub(prompt, "confirmByTypingOrAbort").resolves();
+    sinon.stub(omnibusTaskDeps, "uploadDescription").resolves();
+    sinon
+      .stub(Omnibus.prototype, "getOmnibusContract")
+      .returns(Omnibus.deployedContract("0x0000000000000000000000000000000000000001"));
+    sinon.stub(omnibusTaskDeps, "startAragonVote").resolves({
+      voteId: 7n,
+      receipt: { transactionHash: TX_HASH, blockNumber: 123n } as TransactionReceipt,
+    });
+
+    await hre.tasks.getTask("omnibus:launch").run({ name: "fixture", broadcast: true });
+
+    const wrapper = await readFile(path.join(root, "ongoing", "mainnet", "fixture", "fixture.ts"), "utf-8");
+    assert.include(wrapper, "voteId: 7");
   });
 });

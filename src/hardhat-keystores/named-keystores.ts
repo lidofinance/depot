@@ -3,16 +3,16 @@ import prompt from "../common/prompt";
 
 import { PrivateKey } from "../common/types";
 import { NamedKeystore } from "./named-keystore";
-import { NamedKeystoresStorage } from "./named-keystores-storage";
+import { assertKeystoreName, NamedKeystoresStorage } from "./named-keystores-storage";
 import { KnownError } from "../common/errors";
 
-export class NoKeystoreError extends KnownError {
+class NoKeystoreError extends KnownError {
   constructor() {
     super(`Accounts not found. Aborting...`);
   }
 }
 
-export class AccountAlreadyExistsError extends KnownError {
+class AccountAlreadyExistsError extends KnownError {
   constructor(account: NamedKeystore) {
     super(`Account with name "${account.name}" (${account.address}) already exists. Aborting...`);
   }
@@ -24,19 +24,7 @@ class InvalidPrivateKey extends KnownError {
   }
 }
 
-export interface NamedKeystores {
-  all(): Promise<NamedKeystore[]>;
-  has(name: string): Promise<boolean>;
-  get(name: string): Promise<NamedKeystore | null>;
-  add(name: string): Promise<NamedKeystore>;
-  add(name: string, privateKey: string, password: string): Promise<NamedKeystore>;
-  add(name: string, privateKey?: string, password?: string): Promise<NamedKeystore>;
-  select(): Promise<NamedKeystore>;
-  remove(name: string): Promise<void>;
-  unlock(name?: string, password?: string): Promise<PrivateKey>;
-  generate(name: string, password?: string): Promise<NamedKeystore>;
-  password(name: string, newPassword?: string, oldPassword?: string): Promise<NamedKeystore>;
-}
+export type NamedKeystores = ReturnType<typeof create>;
 
 function promptCurrentPassword(keystoreName: string): Promise<string> {
   return prompt.password(`Enter the password to unlock the account ${keystoreName}`, {
@@ -50,7 +38,7 @@ function promptNewPassword(): Promise<string> {
   });
 }
 
-export function create(storage: NamedKeystoresStorage): NamedKeystores {
+export function create(storage: NamedKeystoresStorage) {
   async function all(): Promise<NamedKeystore[]> {
     return storage.all();
   }
@@ -59,24 +47,20 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
     return storage.get(name);
   }
 
-  // getOrSelect is a helper function that will either return the keystore with the given name or prompt the user to select one
+  // a mistyped name must fail instead of silently prompting for another account
   async function getOrSelect(name?: string): Promise<NamedKeystore> {
     if (name === undefined) {
       return select();
     }
     const keystore = await get(name);
-    if (keystore !== null) {
-      return keystore;
+    if (keystore === null) {
+      throw new KnownError(`Account "${name}" not found`);
     }
-    return select();
-  }
-
-  async function has(name: string): Promise<boolean> {
-    const keystore = await storage.get(name);
-    return keystore !== null;
+    return keystore;
   }
 
   async function add(name: string, privateKey?: string, password?: string): Promise<NamedKeystore> {
+    assertKeystoreName(name);
     const existedAccount = await storage.get(name);
     if (existedAccount) {
       throw new AccountAlreadyExistsError(existedAccount);
@@ -98,6 +82,7 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
   }
 
   async function generate(name: string, password?: string): Promise<NamedKeystore> {
+    assertKeystoreName(name);
     const existedAccount = await storage.get(name);
     if (existedAccount) {
       throw new AccountAlreadyExistsError(existedAccount);
@@ -140,7 +125,11 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
       keystores.map((keystore) => ({ title: keystore.format(), value: keystore.name })),
     );
 
-    return keystores.find((keystore) => keystore.name === accountName)!;
+    const selected = keystores.find((keystore) => keystore.name === accountName);
+    if (!selected) {
+      throw new KnownError(`Account "${String(accountName)}" not found`);
+    }
+    return selected;
   }
 
   async function unlock(name?: string, password?: string): Promise<PrivateKey> {
@@ -150,7 +139,6 @@ export function create(storage: NamedKeystoresStorage): NamedKeystores {
 
   return {
     all,
-    has,
     get,
     add,
     select,

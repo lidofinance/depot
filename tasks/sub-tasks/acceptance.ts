@@ -1,10 +1,10 @@
 import Mocha from "mocha";
-import { randomUUID } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { redactError } from "@/src/common/redact";
 import { DevRpcClient } from "@/src/network";
+import { loadMochaFilesFresh } from "./load-mocha-files";
 
 const ACCEPTANCE_DIR = fileURLToPath(new URL("../../test/protocol/acceptance/", import.meta.url));
 // Negative suites mutate fork state heavily and run last
@@ -46,15 +46,7 @@ export async function runAcceptance(client: DevRpcClient): Promise<void> {
   }
 
   try {
-    // Mocha supports esmDecorator, but its type declarations omit the options argument.
-    const loadFilesAsync: (options: { esmDecorator: (url: URL) => URL }) => Promise<void> =
-      mocha.loadFilesAsync.bind(mocha);
-    await loadFilesAsync({
-      esmDecorator: (url) => {
-        url.searchParams.set("run", randomUUID());
-        return url;
-      },
-    });
+    await loadMochaFilesFresh(mocha);
     await new Promise<void>((resolve, reject) => {
       const runner = mocha.run((failures) => {
         if (failures > 0) {
