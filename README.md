@@ -20,7 +20,7 @@ Configure the required endpoints and services locally using the documented names
 Start with [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md) and [examples catalogue](docs/omnibuses/README.md).
 
 1. Run `npm run omnibus:create` and select the network and name.
-2. Fill the Markdown description with exact actions and DG proposal metadata.
+2. Fill the Markdown description with exact actions and DG proposal metadata; put the public IPFS vote text in `<name>.ipfs.md`.
 3. Implement the Solidity calls and TypeScript state/event checks.
 4. Build, validate addresses, and test on the intended fork before deployment or launch.
 

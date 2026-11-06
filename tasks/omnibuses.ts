@@ -53,6 +53,7 @@ import { uploadDescription } from "./sub-tasks/upload-description";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const FORK_BLOCK_DESCRIPTION = "Fork block number; defaults to the latest block";
+const IPFS_DESCRIPTION_PLACEHOLDER = "<!-- REPLACE:";
 
 export const omnibusTaskDeps = {
   getOmnibusesDir: () => path.resolve(__dirname, "..", "omnibuses"),
@@ -103,6 +104,7 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
     await fs.cp(templatePath, newOmnibusDir, { recursive: true });
 
     const omnibusDescriptionPath = path.join(newOmnibusDir, `${omnibusName}.md`);
+    const omnibusIpfsDescriptionPath = path.join(newOmnibusDir, `${omnibusName}.ipfs.md`);
     const omnibusScriptPath = path.join(newOmnibusDir, `${omnibusName}.ts`);
     const omnibusContractName = `Omnibus_${omnibusName}`;
     const omnibusContractPath = path.join(newOmnibusDir, `${omnibusContractName}.sol`);
@@ -110,6 +112,7 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
 
     await fs.rename(path.join(newOmnibusDir, `${templateFileName}.ts`), omnibusScriptPath);
     await fs.rename(path.join(newOmnibusDir, `${templateFileName}.md`), omnibusDescriptionPath);
+    await fs.rename(path.join(newOmnibusDir, `${templateFileName}.ipfs.md`), omnibusIpfsDescriptionPath);
     await fs.rename(path.join(newOmnibusDir, "OmnibusTemplate.sol"), omnibusContractPath);
 
     // replace name of the omnibus in the description markdown file
@@ -143,6 +146,7 @@ defineTask("omnibus:create", "Create new empty omnibus from the template").setAc
 
     console.log(`Omnibus files were successfully created:`);
     console.log(`- Description file: ${omnibusDescriptionPath}`);
+    console.log(`- IPFS description file: ${omnibusIpfsDescriptionPath}`);
     console.log(`- Contract file: ${omnibusContractPath}`);
     console.log(`- Test file: ${omnibusScriptPath}`);
   }),
@@ -487,6 +491,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
       if (omnibus.voteId !== undefined) {
         throw new KnownError(`The omnibus "${name}" already launched. Aborting...`);
       }
+      const ipfsDescription = await readOmnibusIpfsDescriptionFile(name);
       const omnibusScriptPath = await getOmnibusScriptPath(name);
       if (broadcast) {
         renderVoteId(await fs.readFile(omnibusScriptPath, "utf-8"), 0n);
@@ -498,10 +503,8 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
 
       await prepareOmnibus(hre, client, omnibus);
 
-      const description = await readOmnibusDescriptionFile(name);
-
       // the CID is computed locally, the upload waits for the broadcast confirmation
-      const descriptionUrl = getUrlByCidV1(await calculateCid(description));
+      const descriptionUrl = getUrlByCidV1(await calculateCid(ipfsDescription));
       const voteDescription = omnibus.formatDescription(descriptionUrl);
       const evmScript = omnibus.getEvmScript();
 
@@ -516,7 +519,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
       console.log();
 
       console.log(chalk.bold.underline("Omnibus IPFS description:\n"));
-      console.log(chalk.gray(description));
+      console.log(chalk.gray(ipfsDescription));
       console.log();
 
       await printEvmScript(name, evmScript);
@@ -552,7 +555,7 @@ defineTask("omnibus:launch", "Launch the omnibus with given name")
         const launchMessage = `Proceed? The vote will be started via ${tokenManager.address} on chain ${chainId}`;
         if (broadcast) {
           await prompt.confirmByTypingOrAbort(launchMessage, omnibus.network);
-          await omnibusTaskDeps.uploadDescription(name, description, false);
+          await omnibusTaskDeps.uploadDescription(name, ipfsDescription, false);
         } else {
           await prompt.confirmOrAbort(launchMessage);
         }
@@ -615,6 +618,29 @@ async function readOmnibusDescriptionFile(name: string): Promise<string> {
   return fs.readFile(descriptionFilePath, { encoding: "utf-8" });
 }
 
+async function readOmnibusIpfsDescriptionFile(name: string): Promise<string> {
+  const ipfsDescriptionPath = path.join(await resolveOmnibusDir(name), `${name}.ipfs.md`);
+  const relativePath = path.relative(process.cwd(), ipfsDescriptionPath);
+  let description: string;
+  try {
+    description = await fs.readFile(ipfsDescriptionPath, { encoding: "utf-8" });
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      throw new KnownError(`${relativePath} not found: it must hold the public vote text uploaded to IPFS`);
+    }
+    throw error;
+  }
+  if (description.trim() === "") {
+    throw new KnownError(`${relativePath} is empty: it must hold the public vote text uploaded to IPFS`);
+  }
+  if (description.includes(IPFS_DESCRIPTION_PLACEHOLDER)) {
+    throw new KnownError(
+      `${relativePath} still contains the template placeholder "${IPFS_DESCRIPTION_PLACEHOLDER} ... -->"`,
+    );
+  }
+  return description;
+}
+
 async function loadOmnibus(name: string): Promise<Omnibus> {
   const omnibusDir = await resolveOmnibusDir(name);
   const omnibusModule = await import(pathToFileURL(path.join(omnibusDir, `${name}.ts`)).href);
@@ -631,7 +657,7 @@ async function isDirectory(dirPath: string): Promise<boolean> {
   try {
     return (await fs.stat(dirPath)).isDirectory();
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return false;
     }
     throw error;

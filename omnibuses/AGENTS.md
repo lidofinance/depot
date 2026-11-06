@@ -4,7 +4,7 @@ For creating or modifying an omnibus or its fork tests, follow [omnibus-writer-s
 
 - Current candidates live in `ongoing/<network>/<name>`, executed votes in `archive/<network>/<name>`, patterns in `examples/`. Ask the author whether the vote is an upgrade and record `upgrade` in the wrapper.
 - Never run `--broadcast` deploy or launch against Mainnet/Hoodi and never read keystore contents; real operations are human-only. Agents rehearse on a local fork.
-- Solidity owns the calls and script; TypeScript supplies tests and deployment. Resolve payload-changing gaps in the description before encoding them.
+- Solidity owns the calls and script; TypeScript supplies tests and deployment; `<name>.ipfs.md` holds the public vote text that launch publishes verbatim. Resolve payload-changing gaps in the description before encoding them.
 - Keep every vote address as a literal local named constant. Copy unique titles without item numbering and preserve exact fenced DG metadata.
 - Match the execution route to the target's permissions. Register domain events for every vote/proposal call, preserving nested Agent groups, and verify state effects.
 - Use the runtime's outer snapshot; changes may persist between its test callbacks. `omnibus:test` checks an executed vote by its on-chain state and `testFinalState`; historical inspection uses `omnibus:trace`.

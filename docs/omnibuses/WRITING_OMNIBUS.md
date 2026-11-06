@@ -15,6 +15,7 @@ Select `mainnet` or `hoodi`, a date-based name such as `2026_09_10_example`, and
 ```text
 omnibuses/ongoing/<network>/<name>/
   <name>.md
+  <name>.ipfs.md    # public vote text
   Omnibus_<name>.sol
   <name>.ts
 ```
@@ -142,7 +143,9 @@ npx hardhat omnibus:deploy <name>
 npx hardhat omnibus:launch <name>
 ```
 
-Without `--broadcast` both run only on a hardhat or anvil node at `localhost:$ETH_LOCAL_RPC_PORT` (falling back to the in-process node when nothing listens), send from the selected account by impersonation without unlocking it, and upload nothing to IPFS. With `--broadcast` you type the network name to confirm, the description is uploaded after that, and each transaction hash is printed before sending. After a send error or timeout, check the hash and nonce in an explorer instead of rerunning.
+Without `--broadcast` both run only on a hardhat or anvil node at `localhost:$ETH_LOCAL_RPC_PORT` (falling back to the in-process node when nothing listens), send from the selected account by impersonation without unlocking it, and upload nothing to IPFS. With `--broadcast` you type the network name to confirm, `<name>.ipfs.md` is uploaded to IPFS after that, and each transaction hash is printed before sending. After a send error or timeout, check the hash and nonce in an explorer instead of rerunning.
+
+`<name>.ipfs.md` is published verbatim and linked on-chain, so it cannot change after launch; launch, including a rehearsal, refuses a missing, empty or template file. An agent may draft it; the author approves the text before launch.
 
 Deploy, launch and trace do not accept `--fork-block`. For a pinned rehearsal, use a local node already at the intended state and keep it alive across commands. Local deployment does not record wrapper addresses; launch can deploy the contract itself. To rehearse reuse, supply `deployment.omnibus` for that same local node. Run build/address checks before launch because launch does not add an address-lint gate.
 

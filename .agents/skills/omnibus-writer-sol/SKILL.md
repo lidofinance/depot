@@ -27,7 +27,7 @@ If an action lacks an appropriate call/event helper or the exact contract interf
 
 ## Implement
 
-1. For a new omnibus, use `npm run omnibus:create`; it places the vote in `omnibuses/ongoing/<network>/<name>`. Fill the three scaffold files. For an existing omnibus, update only the requested actions; only `voteId` and `deployment` are recorded in the wrapper, nothing else.
+1. For a new omnibus, use `npm run omnibus:create`; it places the vote in `omnibuses/ongoing/<network>/<name>`. Fill the four scaffold files; draft `<name>.ipfs.md` as the public vote text, which launch publishes verbatim. For an existing omnibus, update only the requested actions; only `voteId` and `deployment` are recorded in the wrapper, nothing else.
 2. Implement `getOmnibusCalls()` in the Solidity contract with typed interfaces and the appropriate builders. Keep the payload deterministic, with exact call counts and vote-local address/role/metadata constants. Follow the guide's address and title rules.
 3. Reuse the checked-in ABI/interface for the intended deployment version. If one is missing or stale, follow [ABI sync](../../../docs/ABI_SYNC.md) for that contract only. Record its source and generation options; do not overwrite unrelated interfaces or regenerate historical inputs from an unexamined latest deployment.
 4. Write `testVote` and, for submitted proposals, `testProposal` in the wrapper. Use the existing template and [examples catalogue](../../../docs/omnibuses/README.md). The wrapper has no `calls` option or TS blueprint/generator stage.
@@ -53,4 +53,4 @@ Report the network/block, commands, results, saved payload hash, source/deployme
 
 When authoring from a description, derive the payload from that description and verified contract interfaces. Fetching the target's ABI differs from copying another implementation of the vote. Perform an independent comparison to an existing vote's script when that verification is requested; do not use it to fill unspecified payload inputs silently.
 
-Never run `--broadcast` deploy or launch against Mainnet/Hoodi and never read keystore contents: a human performs real operations through the CLI. A local rehearsal (no `--broadcast`) uses a local dev node, selects a keystore account without unlocking it and skips the IPFS upload; `--broadcast` needs typed network-name confirmation. A successful local rehearsal does not establish public deployment or lifecycle facts.
+Never run `--broadcast` deploy or launch against Mainnet/Hoodi and never read keystore contents: a human performs real operations through the CLI. A local rehearsal (no `--broadcast`) uses a local dev node, selects a keystore account without unlocking it and skips the IPFS upload; `--broadcast` needs typed network-name confirmation. A successful local rehearsal does not establish public deployment or lifecycle facts. Before handing over for a `--broadcast` launch, ask the author to approve the `<name>.ipfs.md` text.

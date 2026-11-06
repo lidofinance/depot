@@ -4,11 +4,11 @@ Start with [How to Write an Omnibus](WRITING_OMNIBUS.md). For agent-assisted aut
 
 ## Examples by purpose
 
-Each directory keeps its Markdown description, Solidity payload and TypeScript wrapper together. Copy a pattern, then resolve the new vote's own payload inputs and fork state.
+Each directory keeps its Markdown description, public IPFS text, Solidity payload and TypeScript wrapper together. Copy a pattern, then resolve the new vote's own payload inputs and fork state.
 
 | Example                                                                                      | Purpose                                                                                             |
 | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [Template](../../omnibuses/_omnibus_template)                                                | Three-file scaffold used by `npm run omnibus:create`.                                               |
+| [Template](../../omnibuses/_omnibus_template)                                                | Four-file scaffold used by `npm run omnibus:create`.                                                |
 | [Tiny](../../omnibuses/examples/_example_tiny_omnibus)                                       | One Finance payment, automatic deployment, typed reads of vote constants and balance/event checks.  |
 | [Contract](../../omnibuses/examples/_example_contract_omnibus)                               | Custom deployment with an auxiliary validator and DG proposals.                                     |
 | [Finance](../../omnibuses/examples/_example_finance_omnibus)                                 | Automatic deployment, stETH payment with share/balance checks and a script match against vote #200. |
