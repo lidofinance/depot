@@ -23,27 +23,13 @@ export async function passAragonVote(client: DevRpcClient, voteId: bigint): Prom
   const network = client.getNetworkName();
   const { voting } = getGovernanceContracts(network);
   const voters = LDO_VOTERS_BY_NETWORK_NAME[network];
-  const [[, executed], phase] = await Promise.all([
-    client.read(voting, "getVote", [voteId]),
-    client.read(voting, "getVotePhase", [voteId]),
-  ]);
+  const [, executed] = await client.read(voting, "getVote", [voteId]);
 
   if (executed) {
     throw new KnownError(`Vote ${voteId} is already executed, there is nothing to pass`);
   }
 
-  // the objection phase takes only "nay": a "yea" reverts with VOTING_CAN_NOT_VOTE
-  if (phase === MAIN_VOTE_PHASE) {
-    for (const voter of voters) {
-      if (!(await client.read(voting, "canVote", [voteId, voter]))) {
-        continue;
-      }
-
-      await withImpersonatedAccount(client, voter, CREATOR_ETH_BALANCE, async () => {
-        await client.write(voting, "vote", [voteId, true, false], { from: voter });
-      });
-    }
-  }
+  await castYeaVotes(client, voteId);
 
   const voteDuration = await client.read(voting, "voteTime", []);
   await client.advanceTime(voteDuration);
@@ -73,6 +59,27 @@ export async function passAragonVote(client: DevRpcClient, voteId: bigint): Prom
   return withImpersonatedAccount(client, voters[0], CREATOR_ETH_BALANCE, () =>
     client.write(voting, "executeVote", [voteId], { from: voters[0] }),
   );
+}
+
+export async function castYeaVotes(client: DevRpcClient, voteId: bigint): Promise<void> {
+  const network = client.getNetworkName();
+  const { voting } = getGovernanceContracts(network);
+  const phase = await client.read(voting, "getVotePhase", [voteId]);
+
+  // the objection phase takes only "nay": a "yea" reverts with VOTING_CAN_NOT_VOTE
+  if (phase !== MAIN_VOTE_PHASE) {
+    return;
+  }
+
+  for (const voter of LDO_VOTERS_BY_NETWORK_NAME[network]) {
+    if (!(await client.read(voting, "canVote", [voteId, voter]))) {
+      continue;
+    }
+
+    await withImpersonatedAccount(client, voter, CREATOR_ETH_BALANCE, async () => {
+      await client.write(voting, "vote", [voteId, true, false], { from: voter });
+    });
+  }
 }
 
 async function withImpersonatedAccount<T>(

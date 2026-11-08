@@ -74,7 +74,8 @@ jobs:
           OMNIBUS: ${{ steps.candidate.outputs.name }}
           REPO: ${{ inputs.repo }}
           FORK_BLOCK: ${{ steps.regression.outputs.fork-block }}
-        run: npx hardhat omnibus:multi-test "$OMNIBUS" --repo "$REPO" --fork-block "$FORK_BLOCK" 2>&1 | tee logs/multi-test.log
+          AFTER: ${{ steps.candidate.outputs.after }}
+        run: npx hardhat omnibus:multi-test "$OMNIBUS" --repo "$REPO" --fork-block "$FORK_BLOCK" ${AFTER:+--after "$AFTER"} 2>&1 | tee logs/multi-test.log
 
       - name: Save repo image
         if: ${{ always() && steps.regression.outcome == 'success' }}

@@ -114,7 +114,13 @@ jobs:
 
       - name: Run vote test
         if: ${{ steps.vote.outputs.name != '' }}
-        run: npx hardhat omnibus:test "$OMNIBUS"
+        run: |
+          after=""
+          for name in ${AFTER//,/ } "$OMNIBUS"; do
+            npx hardhat omnibus:test "$name" ${after:+--after "$after"}
+            after="${after:+$after,}$name"
+          done
         working-directory: depot
         env:
           OMNIBUS: ${{ steps.vote.outputs.name }}
+          AFTER: ${{ steps.candidate.outputs.after }}

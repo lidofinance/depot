@@ -7,7 +7,7 @@ import { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 import { Address, formatEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-import { passAragonVote, setupLdoHolder, startAragonVote } from "@/src/aragon-votes-tools";
+import { castYeaVotes, passAragonVote, setupLdoHolder, startAragonVote } from "@/src/aragon-votes-tools";
 import bytes from "@/src/common/bytes";
 import { logBlue } from "@/src/common/color";
 import * as env from "@/src/common/env";
@@ -54,6 +54,7 @@ import { uploadDescription } from "./sub-tasks/upload-description";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const FORK_BLOCK_DESCRIPTION = "Fork block number; defaults to the latest block";
+const AFTER_DESCRIPTION = "Comma-separated votes applied first, in order";
 const IPFS_DESCRIPTION_PLACEHOLDER = "<!-- REPLACE:";
 
 export const omnibusTaskDeps = {
@@ -308,11 +309,12 @@ defineTask("omnibus:deploy", "Deploy the contracts of an omnibus")
 defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
   .addPositionalArgument({ name: "name", description: "Name of the omnibus to test" })
   .addOption({ name: "forkBlock", description: FORK_BLOCK_DESCRIPTION, defaultValue: "" })
+  .addOption({ name: "after", description: AFTER_DESCRIPTION, defaultValue: "" })
   .addFlag({ name: "skipAcceptance", description: "Skip post-execution acceptance checks" })
   .setAction(
     lazy(
       async (
-        taskArgs: { name: string; forkBlock: string; skipAcceptance: boolean },
+        taskArgs: { name: string; forkBlock: string; after: string; skipAcceptance: boolean },
         hre: HardhatRuntimeEnvironment,
       ) => {
         const { name } = taskArgs;
@@ -322,6 +324,7 @@ defineTask("omnibus:test", "Runs tests for the given omnibus at local node")
         await omnibusTaskDeps.assertNodeOnRealChain(client, omnibus.network, forkBlock);
         const snapshotId = await client.snapshot();
         try {
+          await applyPreviousOmnibuses(hre, client, omnibus, taskArgs.after);
           await prepareOmnibus(hre, client, omnibus);
           await printEvmScript(name, omnibus.getEvmScript());
           if (omnibus.voteId !== undefined) {
@@ -415,54 +418,64 @@ defineTask("omnibus:multi-test", "Runs tests for the given omnibus cross repo")
     defaultValue: "",
   })
   .addOption({ name: "forkBlock", description: FORK_BLOCK_DESCRIPTION, defaultValue: "" })
+  .addOption({ name: "after", description: AFTER_DESCRIPTION, defaultValue: "" })
   .setAction(
-    lazy(async (taskArgs: { name: string; repo: string; forkBlock: string }, hre: HardhatRuntimeEnvironment) => {
-      const { name, repo } = taskArgs;
-      const forkBlock = resolveForkBlock(taskArgs.forkBlock);
-      const normalizedName = name || undefined;
-      const normalizedRepo = repo || undefined;
-      const repoNamesToTest = getRepositorySuites(normalizedRepo);
-      const omnibus = normalizedName ? await multiTestDeps.loadOmnibus(normalizedName) : undefined;
-      const network = omnibus?.network ?? "mainnet";
-      const suites = repoNamesToTest.filter((repository) => SUITE_NETWORKS[repository].includes(network));
-      const skipped = repoNamesToTest.filter((repository) => !suites.includes(repository));
-      if (!suites.length) {
-        throw new KnownError(`No ${network} regression suite in ${skipped.join(", ")}`);
-      }
-      if (skipped.length) {
-        console.log(`Skipping ${skipped.join(", ")}: no ${network} regression suite`);
-      }
-      const node = await multiTestDeps.prepareLocalRpcNode(network, forkBlock);
-      const stopOwnNode = async () => {
-        if (node.startedByUs) {
-          await multiTestDeps.stopLocalRpcNode();
+    lazy(
+      async (
+        taskArgs: { name: string; repo: string; forkBlock: string; after: string },
+        hre: HardhatRuntimeEnvironment,
+      ) => {
+        const { name, repo } = taskArgs;
+        if (!name && taskArgs.after) {
+          throw new KnownError("--after needs an omnibus name");
         }
-      };
-
-      try {
-        await node.client.withSnapshot(async () => {
-          if (omnibus) {
-            await multiTestDeps.prepareOmnibus(hre, node.client, omnibus);
-            await omnibus.passOmnibus(node.client);
-          } else {
-            console.log("No omnibus name given: running the suites on a bare fork");
+        const forkBlock = resolveForkBlock(taskArgs.forkBlock);
+        const normalizedName = name || undefined;
+        const normalizedRepo = repo || undefined;
+        const repoNamesToTest = getRepositorySuites(normalizedRepo);
+        const omnibus = normalizedName ? await multiTestDeps.loadOmnibus(normalizedName) : undefined;
+        const network = omnibus?.network ?? "mainnet";
+        const suites = repoNamesToTest.filter((repository) => SUITE_NETWORKS[repository].includes(network));
+        const skipped = repoNamesToTest.filter((repository) => !suites.includes(repository));
+        if (!suites.length) {
+          throw new KnownError(`No ${network} regression suite in ${skipped.join(", ")}`);
+        }
+        if (skipped.length) {
+          console.log(`Skipping ${skipped.join(", ")}: no ${network} regression suite`);
+        }
+        const node = await multiTestDeps.prepareLocalRpcNode(network, forkBlock);
+        const stopOwnNode = async () => {
+          if (node.startedByUs) {
+            await multiTestDeps.stopLocalRpcNode();
           }
+        };
 
-          await runRepositorySuites(node.client, suites, (repository) =>
-            multiTestDeps.runRepoTests(repository, network),
-          );
-        });
-      } catch (error) {
         try {
-          await stopOwnNode();
-        } catch (stopError) {
-          // the test failure is the actionable one, a failed cleanup only gets reported
-          console.error(`Failed to stop the local RPC node: ${errorMessage(stopError)}`);
+          await node.client.withSnapshot(async () => {
+            if (omnibus) {
+              await applyPreviousOmnibuses(hre, node.client, omnibus, taskArgs.after);
+              await multiTestDeps.prepareOmnibus(hre, node.client, omnibus);
+              await omnibus.passOmnibus(node.client);
+            } else {
+              console.log("No omnibus name given: running the suites on a bare fork");
+            }
+
+            await runRepositorySuites(node.client, suites, (repository) =>
+              multiTestDeps.runRepoTests(repository, network),
+            );
+          });
+        } catch (error) {
+          try {
+            await stopOwnNode();
+          } catch (stopError) {
+            // the test failure is the actionable one, a failed cleanup only gets reported
+            console.error(`Failed to stop the local RPC node: ${errorMessage(stopError)}`);
+          }
+          throw error;
         }
-        throw error;
-      }
-      await stopOwnNode();
-    }),
+        await stopOwnNode();
+      },
+    ),
   );
 
 defineTask("omnibus:repo-image", "Prints the commit and image tag a regression repo is built from, as one JSON line")
@@ -1042,6 +1055,36 @@ export async function prepareOmnibus(
   console.log(fmt.success("Omnibus prepared\n"));
 
   return omnibus;
+}
+
+async function applyPreviousOmnibuses(
+  hre: HardhatRuntimeEnvironment,
+  client: DevRpcClient,
+  omnibus: Omnibus,
+  after: string,
+) {
+  const names = after.split(",").filter((name) => name !== "");
+  const previous: Omnibus[] = [];
+  for (const name of names) {
+    if (name === omnibus.name) {
+      throw new KnownError(`Omnibus "${name}" cannot appear in its own --after list`);
+    }
+    previous.push(await multiTestDeps.loadOmnibus(name));
+  }
+  const foreign = previous.find((previousOmnibus) => previousOmnibus.network !== omnibus.network);
+  if (foreign) {
+    throw new KnownError(`Omnibus "${foreign.name}" targets ${foreign.network}, not ${omnibus.network}`);
+  }
+  // passing a vote warps its vote time and would close launched votes still waiting for yeas
+  for (const { voteId } of [...previous, omnibus]) {
+    if (voteId !== undefined) {
+      await castYeaVotes(client, BigInt(voteId));
+    }
+  }
+  for (const previousOmnibus of previous) {
+    await multiTestDeps.prepareOmnibus(hre, client, previousOmnibus);
+    await previousOmnibus.passOmnibus(client);
+  }
 }
 
 /** Compared by vote calls, not bytecode: shared libraries may change without changing a deployed vote's script. */
