@@ -4,7 +4,7 @@ Depot builds, tests and launches Lido governance omnibuses. The Solidity vote co
 
 ## Install
 
-Use Node 22 (`nvm use`; run `nvm install` first if the version is missing) and npm. Install Foundry with Forge 1.8.1 (`foundryup --install v1.8.1`) for Solidity formatting and library tests; Docker is needed for cross-repository suites.
+Use Node 22 (`nvm use`; run `nvm install` first if the version is missing) and npm. Install Foundry nightly (`foundryup --install nightly`), the build CI uses, for Solidity formatting and library tests; Docker is needed for cross-repository suites.
 
 ```bash
 git submodule update --init
