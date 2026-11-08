@@ -212,13 +212,13 @@ const waitMessage = async (logs: NodeJS.ReadableStream, msg: string) =>
   });
 
 // Docker may need more than a fixed delay to create the container
-async function waitForContainer(name: string): Promise<Container> {
+async function waitForContainer(name: string, launchFailure: Promise<never>): Promise<Container> {
   for (let attempt = 0; attempt < 30; attempt++) {
     const container = await findContainerByName(name);
     if (container) {
       return container;
     }
-    await delay(1_000);
+    await Promise.race([delay(1_000), launchFailure]);
   }
   throw new KnownError(`Container ${name} did not appear in 30s`);
 }
@@ -261,7 +261,7 @@ export async function runImageInBackground(
   );
   logGreen(`Wait for ${name} container launch`);
 
-  const container = await Promise.race([waitForContainer(name), launchFailure]);
+  const container = await waitForContainer(name, launchFailure);
   const logs = await container.logs({ follow: true, stdout: true });
 
   logGreen(`Wait for ${name} container initiated`);

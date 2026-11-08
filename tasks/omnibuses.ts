@@ -1066,6 +1066,9 @@ async function applyPreviousOmnibuses(
   const names = after.split(",").filter((name) => name !== "");
   const previous: Omnibus[] = [];
   for (const name of names) {
+    if (name === omnibus.name) {
+      throw new KnownError(`Omnibus "${name}" cannot appear in its own --after list`);
+    }
     previous.push(await multiTestDeps.loadOmnibus(name));
   }
   const foreign = previous.find((previousOmnibus) => previousOmnibus.network !== omnibus.network);
