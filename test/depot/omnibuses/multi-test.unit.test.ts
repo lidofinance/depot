@@ -61,6 +61,8 @@ describe("omnibus multi-test task lifecycle", () => {
   let hre: HardhatRuntimeEnvironment;
   let client: sinon.SinonStubbedInstance<DevRpcClient>;
   let omnibus: Omnibus;
+  let load: sinon.SinonStub;
+  let pass: sinon.SinonStub;
   let stopNode: sinon.SinonStub;
   let prepare: sinon.SinonStub;
   let runRepo: sinon.SinonStub;
@@ -76,8 +78,8 @@ describe("omnibus multi-test task lifecycle", () => {
     client.revert.resolves();
     client.withSnapshot.callsFake(DevRpcClient.prototype.withSnapshot.bind(client));
     omnibus = Omnibus.create({ network: "mainnet", upgrade: false, testVote: () => Promise.resolve() });
-    sinon.stub(omnibus, "passOmnibus").resolves();
-    sinon.stub(multiTestDeps, "loadOmnibus").resolves(omnibus);
+    pass = sinon.stub(omnibus, "passOmnibus").resolves();
+    load = sinon.stub(multiTestDeps, "loadOmnibus").resolves(omnibus);
     prepare = sinon.stub(multiTestDeps, "prepareOmnibus").resolves(omnibus);
     runRepo = sinon.stub(multiTestDeps, "runRepoTests").resolves();
     stopNode = sinon.stub(multiTestDeps, "stopLocalRpcNode").resolves();
@@ -97,6 +99,42 @@ describe("omnibus multi-test task lifecycle", () => {
       assert.equal(stopNode.callCount, startedByUs ? 1 : 0);
     });
   }
+
+  it("passes the --after votes before the omnibus", async () => {
+    sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs: false });
+    const previous = Omnibus.create({ network: "mainnet", upgrade: false, testVote: () => Promise.resolve() });
+    const passPrevious = sinon.stub(previous, "passOmnibus").resolves();
+    load.withArgs("previous").resolves(previous);
+
+    await hre.tasks.getTask("omnibus:multi-test").run({ name: "fixture", repo: "core", after: "previous" });
+
+    sinon.assert.callOrder(passPrevious, pass, runRepo);
+  });
+
+  it("rejects an --after vote on another network", async () => {
+    sinon.stub(multiTestDeps, "prepareLocalRpcNode").resolves({ client, startedByUs: false });
+    const previous = Omnibus.create({ network: "hoodi", upgrade: false, testVote: () => Promise.resolve() });
+    load.withArgs("previous").resolves(previous);
+
+    await rejects(
+      hre.tasks.getTask("omnibus:multi-test").run({ name: "fixture", repo: "core", after: "previous" }),
+      /targets hoodi, not mainnet/,
+    );
+
+    sinon.assert.notCalled(pass);
+    sinon.assert.notCalled(runRepo);
+  });
+
+  it("rejects --after without an omnibus name", async () => {
+    const prepareNode = sinon.stub(multiTestDeps, "prepareLocalRpcNode");
+
+    await rejects(
+      hre.tasks.getTask("omnibus:multi-test").run({ name: "", repo: "core", after: "previous" }),
+      /--after needs an omnibus name/,
+    );
+
+    sinon.assert.notCalled(prepareNode);
+  });
 });
 
 describe("multi-test local node acquisition", () => {

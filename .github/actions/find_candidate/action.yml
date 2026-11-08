@@ -8,8 +8,11 @@ inputs:
 
 outputs:
   name:
-    description: "Candidate vote name, empty when there is none"
+    description: "Last candidate vote name, empty when there is none"
     value: ${{ steps.find.outputs.name }}
+  after:
+    description: "Comma-separated earlier candidates, applied before name in this order"
+    value: ${{ steps.find.outputs.after }}
 
 runs:
   using: "composite"
@@ -27,18 +30,22 @@ runs:
           exit 1
         fi
         dir="omnibuses/ongoing/$NETWORK"
-        name=""
+        candidates=()
         if [[ -d "$dir" ]]; then
-          candidates="$(find "$dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | LC_ALL=C sort)"
-          if [[ "$(wc -l <<< "$candidates")" -gt 1 ]]; then
-            echo "::error::Several candidates in $dir: $(paste -sd, <<< "$candidates"); keep one ongoing vote per network"
+          mapfile -t candidates < <(find "$dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | LC_ALL=C sort)
+        fi
+        name=""
+        after=""
+        for candidate in "${candidates[@]}"; do
+          if [[ ! "$candidate" =~ ^[a-z0-9_]+$ ]]; then
+            echo "::error::Invalid candidate name in $dir"
             exit 1
           fi
-          name="$candidates"
-        fi
-        if [[ -n "$name" && ! "$name" =~ ^[a-z0-9_]+$ ]]; then
-          echo "::error::Invalid candidate name in $dir"
-          exit 1
-        fi
-        echo "Candidate for $NETWORK: ${name:-<none>}"
+          if [[ -n "$name" ]]; then
+            after="${after:+$after,}$name"
+          fi
+          name="$candidate"
+        done
+        echo "Candidate for $NETWORK: ${name:-<none>}${after:+ after $after}"
         echo "name=$name" >> "$GITHUB_OUTPUT"
+        echo "after=$after" >> "$GITHUB_OUTPUT"
