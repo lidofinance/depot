@@ -27,7 +27,7 @@ Write unit or integration tests for existing TypeScript code. Respect project co
 
 4. **Write tests**
 
-   Cover:
+   Add a test only for logic whose silent breakage would change the vote payload, description/metadata, signing or keys; ask before adding others (see `test/AGENTS.md`). For that logic cover:
    - Happy path
    - Error paths (invalid input, exceptions)
    - Edge cases (empty, null, boundaries)

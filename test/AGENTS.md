@@ -119,6 +119,8 @@ Solidity mocks live in `contracts/mocks/`:
 
 - `MockVoting.sol` — newVote/executeVote/getVote + events
 - `MockHashConsensus.sol` — minimal HashConsensus for AccountingOracle `setConsensusContract` guards
+- `MockKernelAppImplementation.sol` — V1/V2 app implementations reporting `version()`
+- `MockSnapshotCallTarget.sol` — one-shot call target for snapshot tests
 
 ## Review checklist for tests
 

@@ -39,6 +39,7 @@ npm run test:sol                     # Solidity library tests (forge, no fork)
 
 ```
 src/
+  abi-sync/             # abi:sync source resolution, ABI/interface rendering
   aragon-votes-tools/   # vote lifecycle: create, pass, execute
   common/               # utils, env, formatting, assert
   contracts/            # contract abstraction, ABI helpers
@@ -50,7 +51,7 @@ src/
   network/              # RPC client (viem), DevRpcClient with test actions
   omnibuses/            # Solidity contract reader, runtime, state/event checks
   traces/               # transaction tracing (debug_traceTransaction)
-tasks/                  # Hardhat tasks (omnibus:*, keystore:*)
+tasks/                  # Hardhat tasks (omnibus:*, keystore:*, abi:sync)
 omnibuses/              # actual omnibus scripts and templates
 test/depot/             # Depot unit/integration tests and helpers
 test/protocol/acceptance/ # deployed protocol checks after vote/DG execution

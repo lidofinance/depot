@@ -47,7 +47,7 @@ The runtime snapshots before `testVote` and restores after both callbacks, inclu
 
 ## Verify and report
 
-Run the guide's Solidity formatting, build, TypeScript and fork checks within the user's authorized scope. `Omnibus.test()` picks its checks by the on-chain state of `voteId` (guide section 4); write `testFinalState` so an executed vote is still checked. Inspect an executed vote through `omnibus:trace`; only `voteId` and `deployment` are recorded, nothing else.
+Run the guide's Solidity formatting, build, TypeScript and fork checks within the user's authorized scope. `Omnibus.test()` picks its checks by the on-chain state of `voteId` (guide section 4); write `testFinalState` so an executed vote is still checked. Inspect an executed vote through `omnibus:trace`.
 
 Report the network/block, commands, results, saved payload hash, source/deployment assumptions, and before-state that the description did not pin down. Distinguish build/type checks, local models, fork execution and external-repository acceptance; a skipped test is not a passed test.
 
