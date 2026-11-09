@@ -13,7 +13,7 @@ must go through the Aragon Agent as one forward, list them under a single item a
 <!-- OMNIBUS_DESCRIPTION -->
 
 1. First vote item
-2. Second vote item, submitting a Dual Governance proposal with the following calls in this order:
+2. Submit a Dual Governance proposal to <summary of its calls>
 
    2.1. First call of the proposal
    2.2. Second call of the proposal

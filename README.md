@@ -24,7 +24,13 @@ Start with [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md) and [examples 
 3. Implement the Solidity calls and TypeScript state/event checks.
 4. Build, validate addresses, and test on the intended fork before deployment or launch.
 
-For agent-assisted work, ask the agent to use [omnibus-writer-sol](.agents/skills/omnibus-writer-sol/SKILL.md). The skill inventories payload inputs and routes to the guide and [helper catalogue](.agents/skills/omnibus-writer-sol/HELPERS.md).
+For agent-assisted work, give the agent this prompt after step 2, replacing `<network>` and `<name>`:
+
+```text
+Use the omnibus-writer-sol skill to implement the omnibus <name> from omnibuses/ongoing/<network>/<name>/<name>.md: write the Solidity contract and the TypeScript test, then build it and run omnibus:test. Ask me about anything the description does not specify; do not deploy or launch.
+```
+
+The [omnibus-writer-sol](.agents/skills/omnibus-writer-sol/SKILL.md) skill inventories payload inputs and routes to the guide and [helper catalogue](.agents/skills/omnibus-writer-sol/HELPERS.md).
 
 Use `npm run abi:sync -- <Name>` when a required ABI/interface is missing or stale; it generates the TypeScript ABI and Solidity interface for that contract. Follow [ABI sync](docs/ABI_SYNC.md) for source selection, proxy handling, filtering and verification. Confirm the intended deployment/version first; generation is not a request to update every ABI to latest.
 

@@ -51,7 +51,7 @@ Review enforces this rule; no tool checks vote addresses. A PR that changes a vo
 
 Build, fork tests and `isValidVoteScript` show that the payload is well-formed and executes, not that each address is the intended contract.
 
-Copy titles from the description without manual item numbering. Vote titles must be nonempty and unique; the runtime numbers them by position. `1.Item` and `2)Item` are rejected, while meaningful decimal starts such as `0.5% fee change` are allowed.
+Copy titles from the description without manual item numbering. The vote item titles form the on-chain vote description, which cannot change after launch, so a submitting item's title summarizes its proposal, as in Scripts: `Submit a Dual Governance proposal to change Curated Module fees, raise SDVT stake share limit`. Vote titles must be nonempty and unique; the runtime numbers them by position. `1.Item` and `2)Item` are rejected, while meaningful decimal starts such as `0.5% fee change` are allowed.
 
 Choose the execution route from the target's authority: Voting, DG executor or Agent. Lido uses Aragon ACL; other targets may use OpenZeppelin AccessControl. Domain helpers encode calls but do not confer permissions.
 
@@ -97,7 +97,7 @@ npm run lint
 
 Repository-wide checks that CI runs are in the [verification checklist](../../AGENTS.md#verification-checklist).
 
-Format Solidity with `forge fmt`: the pre-commit hook and CI run `forge fmt --check` on vote contracts. No command checks vote addresses; review does, as described in [Addresses and titles](#addresses-and-titles).
+Format Solidity with `npm run fmt:sol` (check with `npm run fmt:sol:check`); never `npx forge`, which runs an unrelated npm package. The pre-commit hook and CI run `forge fmt --check` on vote contracts. No command checks vote addresses; review does, as described in [Addresses and titles](#addresses-and-titles).
 
 `omnibus:test` prepares the contract, validates its payload, saves `<name>.evm-script.hex`, and then runs the vote/proposal tests. Configure `ETH_MAINNET_RPC_URL` or `ETH_HOODI_RPC_URL` for the chosen network. `--fork-block` and `--after <name,...>` (votes applied first, in order) are available on test and multi-test. A reachable local node must already be at the requested block; a mismatch fails rather than resetting that node. If test cannot connect locally, it creates an in-process fork at the requested block. Without a pin, a new fork starts at latest and a reused node retains its current state. When authoring a vote that has already executed on-chain, pin a block before its execution; otherwise the before-state is the state the vote already produced.
 

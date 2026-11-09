@@ -37,6 +37,7 @@ function fakeDevNodeFetch(requestedUrls: string[], requests: RpcRequest[]): type
     eth_getBalance: () => "0x0",
     eth_blockNumber: () => "0x7",
     hardhat_impersonateAccount: () => true,
+    hardhat_setBalance: () => true,
     hardhat_stopImpersonatingAccount: () => true,
     // balanceOf answers 1 LDO, so the pilot is not topped up; isValidVoteScript answers true
     eth_call: (request) => {

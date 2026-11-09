@@ -58,7 +58,7 @@ test/protocol/snapshot/  # upgrade state/action comparisons, run for upgrade: tr
 contracts/mocks/        # mock Solidity contracts for integration tests
 ```
 
-Use [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md) for fork pinning, exact proposal metadata, event grouping and the deployment/launch runbook. Agents never run `--broadcast` deploy or launch against Mainnet/Hoodi and never read keystore contents; real operations are human-only. Solidity owns the payload; the TypeScript wrapper owns per-vote `testVote`/`testProposal` checks and custom deployment. Per-vote checks stay in the vote wrapper `omnibuses/ongoing/<network>/<name>/<name>.ts`. Shared acceptance runs after vote/DG execution; upgrade snapshots compare isolated scenarios before and after execution, as described in the writing guide.
+Use [the writing guide](docs/omnibuses/WRITING_OMNIBUS.md) for fork pinning, exact proposal metadata, event grouping and the deployment/launch runbook. Agents never run `--broadcast` deploy or launch against Mainnet/Hoodi and never read keystore contents; real operations are human-only. Never print `.env` values: RPC URLs carry provider keys. Solidity owns the payload; the TypeScript wrapper owns per-vote `testVote`/`testProposal` checks and custom deployment. Per-vote checks stay in the vote wrapper `omnibuses/ongoing/<network>/<name>/<name>.ts`. Shared acceptance runs after vote/DG execution; upgrade snapshots compare isolated scenarios before and after execution, as described in the writing guide.
 
 ## Verification checklist
 

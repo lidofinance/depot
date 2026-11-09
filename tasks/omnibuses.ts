@@ -8,6 +8,7 @@ import { Address, formatEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { castYeaVotes, passAragonVote, setupLdoHolder, startAragonVote } from "@/src/aragon-votes-tools";
+import { CREATOR_ETH_BALANCE } from "@/src/aragon-votes-tools/constants";
 import bytes from "@/src/common/bytes";
 import { logBlue } from "@/src/common/color";
 import * as env from "@/src/common/env";
@@ -784,7 +785,9 @@ async function withSender<T>(
     throw new Error(`A dry run without "--broadcast" must run on a dev RPC node`);
   }
   const { address } = await keystores.select();
-  await client.impersonate(address);
+  // a fresh keystore account cannot pay gas on the fork; launch funds its pilot the same way
+  const balance = await client.getBalance(address);
+  await client.impersonate(address, balance === 0n ? CREATOR_ETH_BALANCE : undefined);
   try {
     return await action({ address, from: address });
   } finally {
