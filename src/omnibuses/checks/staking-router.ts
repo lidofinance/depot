@@ -1,15 +1,10 @@
-import { Address } from "abitype";
+import { Address } from "viem";
 import { CheckContext } from "./checks";
-import { assert } from "../../common/assert";
-import { StakingRouter_ABI } from "../../../abi/StakingRouter.abi";
-import { Contract } from "../../contracts";
-import { NodeOperatorsRegistry_ABI } from "../../../abi/NodeOperatorsRegistry.abi";
-import { CSModule_ABI } from "../../../abi/CSModule.abi";
-
-export interface StakingModuleParams {
-  treasuryFee: number;
-  stakingModuleFee: number;
-}
+import { assert } from "@/src/common/assert";
+import { StakingRouter_ABI } from "@/abi/StakingRouter.abi";
+import { Contract } from "@/src/contracts";
+import { NodeOperatorsRegistry_ABI } from "@/abi/NodeOperatorsRegistry.abi";
+import { CSModule_ABI } from "@/abi/CSModule.abi";
 
 interface CheckStakingModuleFeeInput {
   stakingModuleId: number | bigint;
@@ -48,10 +43,28 @@ const checkNodeOperator = async ({ client }: CheckContext, input: CheckNodeOpera
   if (expected.name !== undefined) {
     assert.equal(name, expected.name);
   }
-  if (expected.rewardAddress !== rewardAddress) {
+  if (expected.rewardAddress !== undefined) {
     assert.equal(expected.rewardAddress, rewardAddress);
   }
 };
+
+interface CheckNodeOperatorTargetValidatorsCountInput {
+  stakingModule: Contract<typeof NodeOperatorsRegistry_ABI>;
+  operatorId: bigint;
+  targetLimitMode: bigint;
+  targetValidatorsCount: bigint;
+}
+
+async function checkNodeOperatorTargetValidatorsCount(
+  { client }: CheckContext,
+  input: CheckNodeOperatorTargetValidatorsCountInput,
+): Promise<void> {
+  const [targetLimitMode, targetValidatorsCount] = await client.read(input.stakingModule, "getNodeOperatorSummary", [
+    input.operatorId,
+  ]);
+  assert.equal(targetLimitMode, input.targetLimitMode);
+  assert.equal(targetValidatorsCount, input.targetValidatorsCount);
+}
 
 interface CheckNodeOperatorsCountInput {
   stakingModule: Contract<typeof NodeOperatorsRegistry_ABI> | Contract<typeof CSModule_ABI>;
@@ -67,5 +80,6 @@ async function checkNodeOperatorsCount(ctx: CheckContext, input: CheckNodeOperat
 export default {
   checkStakingModuleFee,
   checkNodeOperator,
+  checkNodeOperatorTargetValidatorsCount,
   checkNodeOperatorsCount,
 };

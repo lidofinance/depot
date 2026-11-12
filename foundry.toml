@@ -5,7 +5,18 @@ libs = ["lib"]
 remappings = [
   "contracts/=contracts/",
   "forge-std/=lib/forge-std/src/",
-  "@openzeppelin/=node_modules/@openzeppelin/",
 ]
 cache_path = "cache_forge"
 out = "out_forge"
+# Mirrors the Hardhat solc settings in hardhat.config.ts.
+via_ir = true
+optimizer = true
+
+[profile.default.optimizer_details.yulDetails]
+optimizerSteps = "u"
+
+# Solidity is formatted by `forge fmt`, TypeScript, JSON and Markdown by prettier.
+# Settings mirror the lidofinance/dual-governance repository.
+[fmt]
+line_length = 120
+multiline_func_header = 'params_first_multi'

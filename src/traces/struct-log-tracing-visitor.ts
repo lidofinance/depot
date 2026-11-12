@@ -24,9 +24,9 @@ import {
 } from "./tx-traces";
 import { RawStructLog } from "./types";
 import { Stack } from "./stack";
-import { ReadOnlyEVMMemory, ReadOnlyEVMStack, EVMMemoryReader, EVMStackReader } from "./evm-runtime";
+import { ReadOnlyEVMMemory, ReadOnlyEVMStack } from "./evm-runtime";
 
-interface FormattedStructLog<OpCode = EvmOpcode, StackT = EVMStackReader, Memory = EVMMemoryReader> {
+interface FormattedStructLog<OpCode = EvmOpcode, StackT = ReadOnlyEVMStack, Memory = ReadOnlyEVMMemory> {
   depth: number;
   error?: string;
   gas: number;
@@ -70,6 +70,11 @@ export class StructLogsTracingVisitor {
   }
 
   public visit(log: RawStructLog) {
+    if (this.prevLog && this.isCtxEnterSkipped(this.prevLog, log)) {
+      this.prevStackTop = this.stack.pop();
+      this.applyExitedCtxResult(log);
+    }
+
     if (isCallOpcode(log.op)) {
       this.handleCall(log as RawStructLog<CallEvmOpcodes>);
     } else if (isCreateOpcode(log.op)) {
@@ -136,7 +141,13 @@ export class StructLogsTracingVisitor {
     if (prevLog) {
       if (isCallOpcode(prevLog.op) || isCreateOpcode(prevLog.op)) {
         // the first opcode after entered the new context
-        this.gasInfoStack.peek().leftJustAfterCtxEnter = Number(log.gas);
+        const ctxGasInfo = this.gasInfoStack.peek();
+        ctxGasInfo.leftJustAfterCtxEnter = Number(log.gas);
+        if (this.isCtxEnterSkipped(prevLog, log)) {
+          ctxGasInfo.leftBeforeCtxExit = Number(log.gas);
+          ctxGasInfo.leftJustAfterCtxExit = Number(log.gas);
+          this.gasInfoStack.pop();
+        }
       } else if (isExitOpcode(prevLog.op) || isSelfDestructOpcode(prevLog.op)) {
         // the first opcode after exited the context
         this.gasInfoStack.peek().leftJustAfterCtxExit = Number(log.gas);
@@ -186,38 +197,41 @@ export class StructLogsTracingVisitor {
 
   private handleLog(log: RawStructLog<LogEvmOpcodes>) {
     const flog = this.formatRawStructLog(log);
-    const result = {
-      type: flog.op,
-      depth: flog.depth,
-      topics: [],
-      data: flog.memory.read(bytes.toInt(flog.stack.peek(0)), bytes.toInt(flog.stack.peek(1))),
-    } as TxTraceLogItem;
-
+    const topics: HexStrPrefixed[] = [];
     // lexicographic order works there
     if (flog.op >= OPCODES.LOG1) {
-      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(2));
+      topics.push(flog.stack.peek(2));
     }
     if (flog.op >= OPCODES.LOG2) {
-      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(3));
+      topics.push(flog.stack.peek(3));
     }
     if (flog.op >= OPCODES.LOG3) {
-      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(4));
+      topics.push(flog.stack.peek(4));
     }
     if (flog.op === OPCODES.LOG4) {
-      (result.topics as HexStrPrefixed[]).push(flog.stack.peek(5));
+      topics.push(flog.stack.peek(5));
     }
-    this.items.push(result);
 
-    const stackHeight = this.stack.length;
-
-    for (let i = 0; i < stackHeight; ++i) {
+    let address: HexStrPrefixed | undefined;
+    for (let i = 0; i < this.stack.length; ++i) {
       const item = this.stack.peek(i);
       if (item.type === "CALL" || item.type === "CREATE" || item.type === "CREATE2") {
-        result.address = item.address;
-        return;
+        address = item.address;
+        break;
       }
     }
-    throw new Error("Invalid stack: CALL, CREATE or CREATE2 item associated with LOG item not found");
+    if (!address) {
+      throw new Error("Invalid stack: CALL, CREATE or CREATE2 item associated with LOG item not found");
+    }
+
+    const result: TxTraceLogItem = {
+      type: flog.op,
+      depth: flog.depth,
+      topics,
+      data: flog.memory.read(bytes.toInt(flog.stack.peek(0)), bytes.toInt(flog.stack.peek(1))),
+      address,
+    };
+    this.items.push(result);
   }
 
   private handleSelfDestruct(log: RawStructLog<SelfDestructEvmOpcodes>) {
@@ -228,40 +242,57 @@ export class StructLogsTracingVisitor {
     for (let i = 0; i < this.stack.length; ++i) {
       const ctx = this.stack.peek(i);
       // the destructed context depth must be less than the depth of the selfdestruct instruction itself
-      if (ctx.depth >= item.depth) continue;
+      if (ctx.depth >= item.depth) {
+        continue;
+      }
 
       // when selfdestruct opcode is called via delegatecall or callcode,
       // the parent context will be deleted instead of actual one
-      if (ctx.type === "CALLCODE" || ctx.type === "DELEGATECALL") continue;
+      if (ctx.type === "CALLCODE" || ctx.type === "DELEGATECALL") {
+        continue;
+      }
 
       // the LOG operations can't call SELFDESTRUCT so skip the also
-      if (isLogOpcode(ctx.type)) continue;
+      if (isLogOpcode(ctx.type)) {
+        continue;
+      }
 
       destructedCtx = ctx;
       break;
     }
 
-    if (!destructedCtx) throw new Error(`SELFDESTRUCT callee context not found`);
+    if (!destructedCtx) {
+      throw new Error(`SELFDESTRUCT callee context not found`);
+    }
 
     item.address = destructedCtx.address;
     this.items.push(item);
     this.prevStackTop = this.stack.pop(); // selfdestruct exits current ctx
   }
 
+  // CALL to an EOA/precompile (or CREATE with empty init code) completes without new struct logs depth
+  private isCtxEnterSkipped(prevLog: RawStructLog, log: RawStructLog) {
+    return (isCallOpcode(prevLog.op) || isCreateOpcode(prevLog.op)) && log.depth <= prevLog.depth;
+  }
+
   private processStackOutput(log: RawStructLog) {
     // when the struct log depth decreased, we exited previous context
     // the result of the previous operation may be on the stack now
     if (this.prevLog && this.prevLog.depth > log.depth) {
-      if (this.prevStackTop === null) {
-        throw new Error(`Invalid prev stack top value`);
-      }
-      const ctx = this.prevStackTop;
-      // call operations returns the success as the stack output
-      if (isCallOpcode(ctx.type)) {
-        (ctx as TxTraceCallItem).success = bytes.toInt(this.formatRawStructLog(log).stack.peek(0)) === 1;
-      } else if (isCreateOpcode(ctx.type)) {
-        ctx.address = bytes.slice(this.formatRawStructLog(log).stack.peek(0), -20);
-      }
+      this.applyExitedCtxResult(log);
+    }
+  }
+
+  private applyExitedCtxResult(log: RawStructLog) {
+    if (this.prevStackTop === null) {
+      throw new Error(`Invalid prev stack top value`);
+    }
+    const ctx = this.prevStackTop;
+    // call operations returns the success as the stack output
+    if (isCallOpcode(ctx.type)) {
+      (ctx as TxTraceCallItem).success = bytes.toInt(this.formatRawStructLog(log).stack.peek(0)) === 1;
+    } else if (isCreateOpcode(ctx.type)) {
+      ctx.address = bytes.slice(this.formatRawStructLog(log).stack.peek(0), -20);
     }
   }
 

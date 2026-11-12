@@ -1,12 +1,11 @@
 import bytes, { HexStrPrefixed } from "../common/bytes";
 import { isCallOpcode, isCreateOpcode, isLogOpcode } from "./evm-opcodes";
 import { TxTrace, TxTraceCallItem, TxTraceCreateItem } from "./tx-traces";
-import { Address } from "../common/types";
+import { Address } from "viem";
 import { TraceStrategy } from "./types";
 import { NetworkName } from "../network";
-import { Contract, resolveContract } from "../contracts/contracts";
-
-export const tracerDeps = { resolveContract };
+import { Contract } from "../contracts/contracts";
+import { resolveContract } from "./resolve-contract";
 
 export class TxTracer {
   constructor(private readonly traceStrategy: TraceStrategy) {}
@@ -45,7 +44,9 @@ export class TxTracer {
 
     for (const address of addresses) {
       const normalizedAddress = bytes.normalize(address);
-      if (allResolvedContracts.has(normalizedAddress)) continue;
+      if (allResolvedContracts.has(normalizedAddress)) {
+        continue;
+      }
       const prePopulatedContract = prePopulatedContracts.find((c) => bytes.isEqual(c.address, normalizedAddress));
       if (prePopulatedContract) {
         allResolvedContracts.add(normalizedAddress);
@@ -55,7 +56,7 @@ export class TxTracer {
 
       let resolvedContracts: Contract[];
       try {
-        resolvedContracts = await tracerDeps.resolveContract(networkName, normalizedAddress);
+        resolvedContracts = await resolveContract(networkName, normalizedAddress);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const isUnverified = errorMessage.includes("not verified");

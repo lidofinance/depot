@@ -5,13 +5,13 @@ import {
   HttpTransport,
   MineParameters,
   PublicClient,
-  ResetParameters,
   testActions,
   TestClient,
   WalletClient,
 } from "viem";
 import { RpcClient } from "./rpc-client";
 import { HexStrPrefixed } from "../common/bytes";
+import { errorMessage } from "../common/errors";
 
 type DevTestClientMode = "hardhat" | "anvil";
 
@@ -78,9 +78,12 @@ export class DevRpcClient extends RpcClient {
     return client.snapshot();
   }
 
-  async revert(snapshotId: HexStrPrefixed) {
-    const client = await this.#getTestClient();
-    return client.revert({ id: snapshotId });
+  async revert(snapshotId: HexStrPrefixed): Promise<void> {
+    // viem's `revert` drops the result, while the node answers `false` for an unknown or already consumed snapshot
+    const reverted = await this.send<"evm_revert", [HexStrPrefixed], boolean>("evm_revert", [snapshotId]);
+    if (reverted !== true) {
+      throw new Error(`evm_revert for snapshot ${snapshotId} returned false — state was not restored`);
+    }
   }
 
   /**
@@ -90,11 +93,20 @@ export class DevRpcClient extends RpcClient {
    */
   async withSnapshot<T>(callback: () => Promise<T> | T): Promise<T> {
     const snapshotId = await this.snapshot();
+    let result: T;
     try {
-      return await callback();
-    } finally {
-      await this.revert(snapshotId);
+      result = await callback();
+    } catch (error) {
+      try {
+        await this.revert(snapshotId);
+      } catch (revertError) {
+        // the callback failure is the actionable one, a failed revert only gets reported
+        console.error(`Failed to revert snapshot ${snapshotId}: ${errorMessage(revertError)}`);
+      }
+      throw error;
     }
+    await this.revert(snapshotId);
+    return result;
   }
 
   /**
@@ -116,11 +128,6 @@ export class DevRpcClient extends RpcClient {
   async advanceTime(seconds: number | bigint): Promise<void> {
     const current = await this.getChainTime();
     await this.setTime(BigInt(current) + BigInt(seconds));
-  }
-
-  async reset(args?: ResetParameters) {
-    const client = await this.#getTestClient();
-    await client.reset(args);
   }
 
   async getAccounts(): Promise<Address[]> {

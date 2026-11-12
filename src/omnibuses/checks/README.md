@@ -1,101 +1,37 @@
 # Checks
 
-This folder contains the checks for the omnibuses.
-
-Each check is a function which accepts the CheckContext as a first argument.
+Reusable post-vote assertions for omnibus tests. Each check takes a `CheckContext` first, then its inputs:
 
 ```typescript
 export interface CheckContext {
-  contracts: Contracts<Lido>;
-  provider: JsonRpcProvider;
+  client: DevRpcClient;
 }
 ```
 
-Check should call assertions from the `assert` module imported from `common/assert` module.
+Checks read state through `client` and assert with `assert` from `src/common/assert`.
 
-# Example
+## Usage
 
-```typescript
-// checks/supply.ts
-import { CheckContext } from "./checks";
-import { assert } from "./common/assert";
-
-export async function checkTotalSupply(context: CheckContext, amount: BigNumber) {
-  const { contracts, provider } = context;
-
-  const totalSupply = await contracts.lido.totalSupply();
-  assert.equal(totalSupply, amount, `Total supply should be ${amount}`);
-}
-
-export default {
-  checkTotalSupply,
-};
-```
-
-If you're adding a new file, don't forget to reexport your checks in the `checks.ts` file.
+`testVote`, `testProposal` and `testFinalState` receive `checks` with the context already bound, so call them without it. `testVote` also registers the events of every vote item with `voteEvents.item()`: a log left unexplained fails the test.
 
 ```typescript
-import easyTrack from "./easy-track";
-import events from "./events";
-import stakingRouter from "./staking-router";
-import tokens from "./tokens";
-import supply from "./supply";
+testVote: async ({ checks, passOmnibus }) => {
+  const { voteEvents } = await passOmnibus();
+  voteEvents.item(ITEM_TITLE, [/* item events */]);
 
-...
-
-export default {
-  // all existing checks
-  easyTrack,
-  events,
-  stakingRouter,
-  tokens,
-  // new checks
-  supply,
-};
-```
-
-Check written in this way can be used in the tests like this:
-
-```typescript
-import checks from "../src/omnibuses/checks";
-
-const { supply } = checks.mainnet;
-
-describe("Check total supply", () => {
-  it("should be 1000", async () => {
-    await supply.checkTotalSupply(context, 1000);
-  });
-});
-```
-
-## Access control checks
-
-Use built-in access control checks instead of ad-hoc role assertions:
-
-- `checks.accessControl.checkOzRoleGranted(...)`
-- `checks.accessControl.checkOzRoleNotGranted(...)`
-- `checks.accessControl.checkAragonPermissionGranted(...)`
-- `checks.accessControl.checkAragonPermissionNotGranted(...)`
-
-Examples:
-
-```typescript
-await checks.accessControl.checkOzRoleGranted(
-  { client },
-  {
-    contracts: { accessControl: contracts.operatorGrid },
-    role: SOME_ROLE,
-    account: SOME_ACCOUNT,
-  },
-);
-
-await checks.accessControl.checkAragonPermissionNotGranted(
-  { client },
-  {
+  await checks.tokens.checkERC20Balance({ token: LDO, account: RECIPIENT, expectedBalance: AMOUNT });
+  await checks.easyTrack.checkFactoryExists(contracts, FACTORY);
+  await checks.accessControl.checkAragonPermissionGranted({
     contracts: { acl: contracts.acl },
     entity: contracts.agent.address,
     app: contracts.lido.address,
     role: STAKING_CONTROL_ROLE,
-  },
-);
+  });
+},
 ```
+
+Groups: `accessControl`, `easyTrack`, `stakingRouter`, `tokens`.
+
+## Adding a check
+
+Add a `(context: CheckContext, input) => Promise<void>` function to the group's file and its default export. A new group file must also be registered in `checks.ts`; `BoundChecks` picks it up from there.

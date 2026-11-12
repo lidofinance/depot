@@ -1,0 +1,23 @@
+name: Stonks tests CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-tests:
+    name: Stonks post-vote regression
+    if: ${{ !github.event.pull_request.draft && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
+    uses: ./.github/workflows/_post_vote_regression.yml
+    with:
+      repo: stonks
+    secrets:
+      MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}

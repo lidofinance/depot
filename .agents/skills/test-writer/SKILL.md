@@ -17,17 +17,17 @@ Write unit or integration tests for existing TypeScript code. Respect project co
 
 2. **Choose test type**
    - **Unit test** (`.unit.test.ts`) — pure logic, no network, no contracts. Mock external deps via DI containers or plain object stubs.
-   - **Integration test** (`.integration.test.ts`) — anything that calls smart contracts. Deploy mocks on hardhat node.
+   - **Integration test** (`.integration.test.ts`) — anything that calls smart contracts. Deploy mocks on an in-process Hardhat network.
 
    When in doubt, prefer unit tests. Integration tests only when contract interaction is the actual subject of the test.
 
 3. **Locate test file**
 
-   Tests go in `test/<module>/<name>.(unit|integration).test.ts`, mirroring source structure. Do NOT put tests in `src/`.
+   Depot tests go in `test/depot/<module>/<name>.(unit|integration).test.ts`, mirroring source structure. Protocol acceptance and upgrade snapshot suites go in `test/protocol/acceptance/` and `test/protocol/snapshot/` as plain `.test.ts` files. Per-vote checks stay beside the payload in `omnibuses/ongoing/<network>/<name>/<name>.ts`.
 
 4. **Write tests**
 
-   Cover:
+   Add a test only for logic whose silent breakage would change the vote payload, description/metadata, signing or keys; ask before adding others (see `test/AGENTS.md`). For that logic cover:
    - Happy path
    - Error paths (invalid input, exceptions)
    - Edge cases (empty, null, boundaries)
@@ -40,14 +40,14 @@ Write unit or integration tests for existing TypeScript code. Respect project co
    Run the new tests:
 
    ```bash
-   npm test                            # unit
-   npm run test:integration            # integration (needs hardhat node)
+   npm run test:depot:unit              # Depot unit
+   npm run test:depot:integration       # Depot integration
    ```
 
    Run typecheck:
 
    ```bash
-   npx tsc --noEmit
+   npm run types
    ```
 
 ## ESM constraints (critical)
@@ -84,7 +84,7 @@ export function doThing() {
 **Test stubs the container (plain object — works in ESM):**
 
 ```typescript
-import { thingDeps, doThing } from "../../src/feature/thing";
+import { thingDeps, doThing } from "@/src/feature/thing";
 
 it("does the thing", () => {
   sinon.stub(thingDeps, "externalFn").returns("mocked");
@@ -92,11 +92,11 @@ it("does the thing", () => {
 });
 ```
 
-If the code you're testing doesn't have a DI container, add one to the source as part of your test PR. Examples: `lifecycleDeps`, `testingDeps`, `tracerDeps`.
+If the code you're testing doesn't have a DI container, add one to the source as part of your test PR. Examples: `omnibusTaskDeps`, `multiTestDeps`, `repoImageDeps`.
 
 ## HTTP mocking
 
-Project uses native `fetch()`. Nock v13 does NOT intercept native fetch. Use `globalThis.fetch` override:
+Project uses native `fetch()`. Override `globalThis.fetch`:
 
 ```typescript
 const originalFetch = globalThis.fetch;
@@ -112,45 +112,40 @@ it("handles API response", async () => {
 });
 ```
 
-Helper pattern for multiple responses, see `test/contracts/etherscan-provider.unit.test.ts`.
+Example: `test/depot/contracts/etherscan-provider.unit.test.ts`.
 
 ## Integration test pattern
 
-Connects to a running hardhat node, deploys mocks from `contracts/mocks/`, overrides DI containers:
+Starts an in-process Hardhat network and isolates tests with snapshots (see `test/AGENTS.md`):
 
 ```typescript
-import { createDevRpcClient } from "../../src/network/network";
-import { deployMockGovernance } from "../helpers/deploy-mock-governance";
-import { lifecycleDeps } from "../../src/aragon-votes-tools/lifecycle";
-import type { HexStrPrefixed } from "../../src/common/bytes";
-
-const RPC_URL = process.env.TEST_RPC_URL ?? "http://localhost:8545";
+import { assert } from "chai";
+import { DevRpcClient } from "@/src/network/dev-rpc-client";
+import { HexStrPrefixed } from "@/src/common/bytes";
+import { createInProcessDevRpcClient } from "../helpers/create-dev-client";
 
 describe("feature (integration)", function () {
-  let client, mocks, snapshotId: HexStrPrefixed;
-  let originalDeps: typeof lifecycleDeps.getGovernanceContracts;
+  let client: DevRpcClient;
+  let snapshotId: HexStrPrefixed;
 
   before(async function () {
-    client = await createDevRpcClient("mainnet", RPC_URL);
-    const [deployer] = await client.getAccounts();
-    mocks = await deployMockGovernance(client, deployer);
-    originalDeps = lifecycleDeps.getGovernanceContracts;
-    lifecycleDeps.getGovernanceContracts = () => mocks as any;
+    client = await createInProcessDevRpcClient();
   });
 
-  after(() => {
-    lifecycleDeps.getGovernanceContracts = originalDeps;
-  });
-
-  beforeEach(async () => {
+  beforeEach(async function () {
     snapshotId = await client.snapshot();
   });
-  afterEach(async () => {
+
+  afterEach(async function () {
     await client.revert(snapshotId);
   });
 
-  it("does something on-chain", async function () {
-    // real contract calls
+  it("lands the next block on the target timestamp", async function () {
+    const target = (await client.getChainTime()) + 3600;
+
+    await client.setTime(target);
+
+    assert.equal(await client.getChainTime(), target);
   });
 });
 ```
@@ -159,9 +154,10 @@ describe("feature (integration)", function () {
 
 Live in `contracts/mocks/`. Current mocks:
 
-- `MockERC20.sol` — mintable ERC20
 - `MockVoting.sol` — Aragon Voting subset
-- `MockTokenManager.sol` — TokenManager with EVM script parsing
+- `MockHashConsensus.sol` — minimal HashConsensus for AccountingOracle `setConsensusContract` guards
+- `MockKernelAppImplementation.sol` — V1/V2 app implementations reporting `version()`
+- `MockSnapshotCallTarget.sol` — one-shot call target for snapshot tests
 
 Extend existing mocks before adding new ones. If you add a new mock:
 
@@ -182,6 +178,6 @@ Extend existing mocks before adding new ones. If you add a new mock:
 
 - `test/AGENTS.md` — naming, templates, mock rules
 - `CONTRIBUTING.md` — TS/ESM conventions
-- Real integration test: `test/aragon-votes/lifecycle.integration.test.ts`
-- Real unit test with fetch mock: `test/contracts/etherscan-provider.unit.test.ts`
-- Real unit test with DI stub: `test/traces/tx-tracer.unit.test.ts`
+- Real integration test: `test/depot/network/set-time.integration.test.ts`
+- Real unit test with fetch mock: `test/depot/contracts/etherscan-provider.unit.test.ts`
+- Real unit test with DI stub: `test/depot/omnibuses/omnibus-launch-task.unit.test.ts`

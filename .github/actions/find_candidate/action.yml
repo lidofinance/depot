@@ -1,0 +1,51 @@
+name: "Find candidate vote"
+description: "Resolve the current candidate vote in omnibuses/ongoing/<network>/"
+
+inputs:
+  network:
+    description: "Network folder under omnibuses/ongoing/"
+    required: true
+
+outputs:
+  name:
+    description: "Last candidate vote name, empty when there is none"
+    value: ${{ steps.find.outputs.name }}
+  after:
+    description: "Comma-separated earlier candidates, applied before name in this order"
+    value: ${{ steps.find.outputs.after }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Find candidate vote
+      id: find
+      shell: bash
+      working-directory: depot
+      env:
+        NETWORK: ${{ inputs.network }}
+      run: |
+        set -euo pipefail
+        if [[ ! "$NETWORK" =~ ^[a-z0-9_]+$ ]]; then
+          echo "::error::Invalid network: $NETWORK"
+          exit 1
+        fi
+        dir="omnibuses/ongoing/$NETWORK"
+        candidates=()
+        if [[ -d "$dir" ]]; then
+          mapfile -t candidates < <(find "$dir" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | LC_ALL=C sort)
+        fi
+        name=""
+        after=""
+        for candidate in "${candidates[@]}"; do
+          if [[ ! "$candidate" =~ ^[a-z0-9_]+$ ]]; then
+            echo "::error::Invalid candidate name in $dir"
+            exit 1
+          fi
+          if [[ -n "$name" ]]; then
+            after="${after:+$after,}$name"
+          fi
+          name="$candidate"
+        done
+        echo "Candidate for $NETWORK: ${name:-<none>}${after:+ after $after}"
+        echo "name=$name" >> "$GITHUB_OUTPUT"
+        echo "after=$after" >> "$GITHUB_OUTPUT"

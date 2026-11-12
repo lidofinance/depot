@@ -1,12 +1,13 @@
-import { AbiEvent, Address, formatAbiItem } from "abitype";
+import { AbiEvent, AbiParametersToPrimitiveTypes, ExtractAbiEvent, ExtractAbiEventNames, formatAbiItem } from "abitype";
 import chalk from "chalk";
 import deepEqual from "deep-eql";
-import { decodeEventLog, encodeEventTopics, Log, TransactionReceipt } from "viem";
+import { Address, decodeEventLog, encodeEventTopics, Hex, isAddressEqual, Log, TransactionReceipt } from "viem";
 
 import bytes from "../common/bytes";
 import { Contract, getEventAbi } from "../contracts";
-import { FilterAbiEvents, FindEventAbiParams } from "../types/abi.types";
-import { DualGovernance_ABI } from "../../abi/DualGovernance.abi";
+import { EmergencyProtectedTimelock_ABI } from "@/abi/EmergencyProtectedTimelock.abi";
+import { Voting_ABI } from "@/abi/Voting.abi";
+import type { GovernanceContracts } from "./governance-contracts";
 import type { OmnibusCallEvent } from "./omnibus";
 
 interface CustomEventArgCheck<$ArgType> {
@@ -19,10 +20,10 @@ type PartialArray<T extends readonly unknown[]> = T extends readonly [infer A, .
     ? []
     : (T[number] | CustomEventArgCheck<T[number]> | null)[];
 
-export function event<$Contract extends Contract, $EventName extends FilterAbiEvents<$Contract["abi"]>["name"]>(
+export function event<$Contract extends Contract, $EventName extends ExtractAbiEventNames<$Contract["abi"]>>(
   contract: $Contract,
   eventName: $EventName,
-  args: PartialArray<FindEventAbiParams<$Contract["abi"], $EventName>>,
+  args: PartialArray<AbiParametersToPrimitiveTypes<ExtractAbiEvent<$Contract["abi"], $EventName>["inputs"]>>,
   options: { emitter?: Address; isOptional?: boolean; allowMultiple?: boolean } = {},
 ): OmnibusCallEvent {
   return {
@@ -35,25 +36,62 @@ export function event<$Contract extends Contract, $EventName extends FilterAbiEv
   };
 }
 
-export function getSubmittedProposalIds(receipt: TransactionReceipt) {
-  const submitProposalLogs = receipt.logs.filter((log) => {
-    const proposalSubmittedTopic = encodeEventTopics({ abi: DualGovernance_ABI, eventName: "ProposalSubmitted" })[0];
-    return log.topics[0] && bytes.isEqual(log.topics[0], proposalSubmittedTopic);
+function isEventLog(log: Log, emitter: Address, topic: Hex) {
+  const [logTopic] = log.topics;
+  return isAddressEqual(log.address, emitter) && logTopic !== undefined && bytes.isEqual(logTopic, topic);
+}
+
+/** Proposals of `voteId` are logged between the previous ExecuteVote of the transaction and its own. */
+export function getSubmittedProposalIds(
+  receipt: TransactionReceipt,
+  voteId: bigint,
+  contracts: Pick<GovernanceContracts, "voting" | "timelock">,
+) {
+  const [executeVoteTopic] = encodeEventTopics({ abi: Voting_ABI, eventName: "ExecuteVote" });
+  // the timelock outlives DG redeployments, so its event is matched instead of the DG one
+  const [proposalSubmittedTopic] = encodeEventTopics({
+    abi: EmergencyProtectedTimelock_ABI,
+    eventName: "ProposalSubmitted",
   });
+  const isExecuteVoteLog = (log: Log) => isEventLog(log, contracts.voting.address, executeVoteTopic);
+  const decodeExecutedVoteId = (log: Log) =>
+    decodeEventLog({ abi: Voting_ABI, eventName: "ExecuteVote", topics: log.topics, data: log.data }).args.voteId;
+
+  const executeVoteIndex = receipt.logs.findIndex(
+    (log) => isExecuteVoteLog(log) && decodeExecutedVoteId(log) === voteId,
+  );
+  if (executeVoteIndex === -1) {
+    throw new Error(`ExecuteVote event of vote ${voteId} not found in transaction ${receipt.transactionHash}`);
+  }
+  const voteLogs = receipt.logs.slice(0, executeVoteIndex);
+  const previousExecuteVoteIndex = voteLogs.map(isExecuteVoteLog).lastIndexOf(true);
+  const submitProposalLogs = voteLogs
+    .slice(previousExecuteVoteIndex + 1)
+    .filter((log) => isEventLog(log, contracts.timelock.address, proposalSubmittedTopic));
 
   return submitProposalLogs.map(
     (log) =>
       decodeEventLog({
-        abi: DualGovernance_ABI,
+        abi: EmergencyProtectedTimelock_ABI,
         eventName: "ProposalSubmitted",
         topics: log.topics,
         data: log.data,
-      }).args.proposalId,
+      }).args.id,
   );
 }
 
 export function assertEventWithLog(actualLog: Log, expectedEvent: OmnibusCallEvent): { skipped: boolean } {
   const [expectedTopic] = encodeEventTopics({ abi: [expectedEvent.abi], eventName: expectedEvent.abi.name });
+
+  if (!isAddressEqual(actualLog.address, expectedEvent.emitter)) {
+    if (expectedEvent.isOptional) {
+      return { skipped: true };
+    }
+    throw new Error(
+      `Unexpected emitter for the "${formatAbiItem(expectedEvent.abi)}": ` +
+        `${actualLog.address} != ${expectedEvent.emitter}`,
+    );
+  }
 
   if (!bytes.isEqual(actualLog.topics[0]!, expectedTopic)) {
     if (expectedEvent.isOptional) {

@@ -1,9 +1,8 @@
 # ignore auto-generated files
-src/votes/overloaded-types-helper.ts
 coverage
-public
-dist
-pnpm-lock.yaml
 package-lock.json
-pnpm-workspace.yaml
-mount
+
+# vendored dependencies
+lib
+artifacts
+cache
